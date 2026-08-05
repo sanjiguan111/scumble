@@ -13,6 +13,8 @@
     "lynx-skity": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^6.0.3"
+    "@lynx-js/types": "3.9.0",
+    "@types/react": "^18.3.28",
+    "typescript": "~5.9.3"
   }
 }

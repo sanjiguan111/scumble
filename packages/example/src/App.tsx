@@ -1,3 +1,5 @@
+import 'lynx-skity/elements';
+
 import { LynxSkityModule } from 'lynx-skity';
 
 export function App() {
