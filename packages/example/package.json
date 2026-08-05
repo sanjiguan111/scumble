@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "rspeedy build",
-    "dev": "rspeedy dev"
+    "dev": "rspeedy dev",
+    "android": "node scripts/run-android.mjs"
   },
   "dependencies": {
     "@lynx-js/react": "^0.123.0",

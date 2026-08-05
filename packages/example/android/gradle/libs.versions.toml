@@ -1,0 +1,38 @@
+[versions]
+agp = "8.10.0"
+kotlin = "2.1.21"
+coreKtx = "1.10.1"
+junit = "4.13.2"
+junitVersion = "1.1.5"
+espressoCore = "3.5.1"
+appcompat = "1.6.1"
+material = "1.10.0"
+lynx = "4.0.1"
+primjs = "4.0.0"
+protobuf = "4.33.5"
+coreKtxVersion = "1.18.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+lynx = { group = "org.lynxsdk.lynx", name = "lynx", version.ref = "lynx" }
+lynx-jssdk = { group = "org.lynxsdk.lynx", name = "lynx-jssdk", version.ref = "lynx" }
+lynx-trace = { group = "org.lynxsdk.lynx", name = "lynx-trace", version.ref = "lynx" }
+lynx-service-image = { group = "org.lynxsdk.lynx", name = "lynx-service-image", version.ref = "lynx" }
+lynx-service-log = { group = "org.lynxsdk.lynx", name = "lynx-service-log", version.ref = "lynx" }
+lynx-service-http = { group = "org.lynxsdk.lynx", name = "lynx-service-http", version.ref = "lynx" }
+lynx-devtool = { group = "org.lynxsdk.lynx", name = "lynx-devtool", version.ref = "lynx" }
+lynx-service-devtool = { group = "org.lynxsdk.lynx", name = "lynx-service-devtool", version.ref = "lynx" }
+protobuf-kotlin-lite = { group = "com.google.protobuf", name = "protobuf-kotlin-lite", version.ref = "protobuf" }
+lynx-processor = { group = "org.lynxsdk.lynx", name = "lynx-processor", version.ref = "lynx" }
+core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtxVersion" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version = "2.2.20" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }

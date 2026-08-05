@@ -1,15 +1,12 @@
-import 'lynx-skity/elements';
-
-import { LynxSkityModule } from 'lynx-skity';
+// NOTE: simplified for the Android example app stage (lynx-skity library not
+// integrated yet). The LynxSkityModule / <x-lynx-skity /> usage will be restored
+// once the library is integrated into this app.
 
 export function App() {
   return (
     <view>
       <text>lynx-skity</text>
-      <text bindtap={() => LynxSkityModule.setValue('key', 'value')}>
-        NAPI native module
-      </text>
-      <x-lynx-skity />
+      <text>Lynx Android example — dev server + hot-reload</text>
     </view>
   );
 }
