@@ -1,0 +1,30 @@
+{
+  "name": "lynx-skity",
+  "version": "0.0.1",
+  "description": "A native Lynx library",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./types/index.d.ts",
+  "files": [
+    "android",
+    "harmony",
+    "shared",
+    "generated",
+    "ios",
+    "src",
+    "types",
+    "lynx.lib.json",
+    "README.md"
+  ],
+  "scripts": {
+    "codegen": "lynx-autolink-codegen"
+  },
+  "dependencies": {
+    "@lynx-js/weak-node-api": "^0.0.9",
+    "@lynx-js/lynx-library-headers": "*"
+  },
+  "devDependencies": {
+    "@lynx-js/autolink-codegen": "^0.4.0"
+  }
+}

@@ -1,35 +1,15 @@
 {
-  "name": "lynx-skity",
-  "version": "0.0.1",
-  "description": "A native Lynx library",
-  "license": "Apache-2.0",
-  "workspaces": [
-    "example"
-  ],
-  "type": "module",
-  "main": "./src/index.ts",
-  "types": "./types/index.d.ts",
-  "files": [
-    "android",
-    "harmony",
-    "shared",
-    "generated",
-    "ios",
-    "src",
-    "types",
-    "lynx.lib.json",
-    "README.md"
-  ],
+  "name": "lynx-skity-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
-    "codegen": "lynx-autolink-codegen",
-    "dev": "npm run dev -w lynx-skity-example",
-    "build": "npm run build -w lynx-skity-example"
-  },
-  "dependencies": {
-    "@lynx-js/weak-node-api": "^0.0.9",
-    "@lynx-js/lynx-library-headers": "*"
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "codegen": "pnpm --filter lynx-skity codegen"
   },
   "devDependencies": {
-    "@lynx-js/autolink-codegen": "^0.4.0"
+    "turbo": "^2.5.3"
   }
 }
