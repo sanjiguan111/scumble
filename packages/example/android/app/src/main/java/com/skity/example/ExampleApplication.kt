@@ -15,6 +15,7 @@ import com.lynx.service.image.LynxImageService
 import com.lynx.service.log.LynxLogService
 import com.lynx.tasm.LynxEnv
 import com.lynx.tasm.service.LynxServiceCenter
+import com.skity.graphics.LynxSkityNative
 
 class ExampleApplication : Application() {
     override fun onCreate() {
@@ -44,7 +45,9 @@ class ExampleApplication : Application() {
     }
 
     private fun initLynxEnv() {
-        // lynx-skity library is not integrated yet, so no BehaviorBundle is passed.
+        // Load the lynx-skity NAPI addon before LynxEnv starts. The addon registers
+        // itself with primjs via a constructor, but only once the .so is loaded.
+        LynxSkityNative.ensureLoaded()
         LynxEnv.inst().init(
             this,
             null,
