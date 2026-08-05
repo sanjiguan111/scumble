@@ -15,9 +15,8 @@ val extractPrimjsNativeLibraries by tasks.registering(Sync::class) {
 
 
 android {
-  javaClass.methods.firstOrNull { it.name == "setNamespace" }
-    ?.invoke(this, "com.skity.graphics")
-  compileSdkVersion(35)
+  namespace = "com.skity.graphics"
+  compileSdk = 35
 
   defaultConfig {
     minSdkVersion(23)
@@ -36,15 +35,16 @@ android {
   externalNativeBuild {
     cmake {
       path = file("CMakeLists.txt")
-      version = "3.18.1"
+      version = "3.22.1"
     }
   }
 }
 
 dependencies {
-  implementation("org.lynxsdk.lynx:lynx:0.0.1-alpha.1")
-  implementation("org.lynxsdk.lynx:service-api:0.0.1-alpha.1")
-  annotationProcessor("org.lynxsdk.lynx:lynx-processor:0.0.1-alpha.1")
+  implementation("org.lynxsdk.lynx:lynx:4.0.1")
+  implementation("androidx.annotation:annotation:1.8.2")
+  implementation("org.lynxsdk.lynx:service-api:4.0.1")
+  annotationProcessor("org.lynxsdk.lynx:lynx-processor:4.0.1")
 
   implementation("org.lynxsdk.lynx:primjs:$lynxPrimjsVersion")
   primjsNativeAar("org.lynxsdk.lynx:primjs:$lynxPrimjsVersion@aar")
