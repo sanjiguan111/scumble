@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.turbo/
+**/build/
+**/shared/third_party/
+*.log
+.DS_Store

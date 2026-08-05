@@ -1,0 +1,10 @@
+{
+  "name": "lynx_skity",
+  "version": "0.0.1",
+  "description": "A native Lynx library for HarmonyOS",
+  "license": "Apache-2.0",
+  "main": "Index.ets",
+  "dependencies": {
+    "@lynx/lynx": "*"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "lynx-skity-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rspeedy build",
+    "dev": "rspeedy dev"
+  },
+  "dependencies": {
+    "@lynx-js/react": "^0.123.0",
+    "@lynx-js/react-rsbuild-plugin": "0.18.0",
+    "@lynx-js/rspeedy": "^0.16.2",
+    "lynx-skity": "file:.."
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

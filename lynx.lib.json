@@ -1,0 +1,32 @@
+{
+  "platforms": {
+    "android": {
+      "packageName": "com.skity.graphics",
+      "sourceDir": "android",
+      "nodeApiAddons": [
+        {
+          "name": "LynxSkityModule",
+          "libraryName": "LynxSkityModule",
+          "jniLibsDir": "android/src/main/jniLibs",
+          "required": false
+        }
+      ]
+    },
+    "ios": {
+      "sourceDir": "ios",
+      "podspecPath": "ios/lynx-skity.podspec",
+      "nodeApiAddons": [
+        {
+          "name": "LynxSkityModule",
+          "podName": "lynx-skity",
+          "podspecPath": "ios/lynx-skity.podspec",
+          "addonUseHeader": "addon_use.h",
+          "required": true
+        }
+      ]
+    },
+    "harmony": {
+      "packageDir": "harmony"
+    }
+  }
+}
