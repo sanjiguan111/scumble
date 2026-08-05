@@ -1,7 +1,28 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
-.turbo/
 **/build/
+**/.turbo/
+
+# CMake-generated third-party headers (shared/CMakeLists.txt copies them here)
 **/shared/third_party/
+
+# Android / Gradle
+**/.gradle/
+**/.cxx/
+local.properties
+*.iml
+
+# HarmonyOS
+**/oh_modules/
+*.hap
+*.hsp
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Misc
 *.log
 .DS_Store
