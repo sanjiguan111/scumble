@@ -1,5 +1,5 @@
 export interface ColorFilter {}
-
+export interface Shader {}
 
 /** @lynxmodule */
 export declare class LynxSkityModule {
@@ -10,5 +10,6 @@ export declare class LynxSkityModule {
   clear(): void;
 
   createColorFilter(): Object;
+  createShader(): Object;
 }
 

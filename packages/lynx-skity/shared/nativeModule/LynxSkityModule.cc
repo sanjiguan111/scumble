@@ -136,6 +136,14 @@ Napi::Value CreateColorFilter(const Napi::CallbackInfo& info) {
   return Napi::Object::New(env);
 }
 
+Napi::Value CreateShader(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  // Method:
+  //   createShader(): Object
+  // types/napi-native-module.d.ts:13
+  return Napi::Object::New(env);
+}
+
 napi_value SetValueCallback(napi_env env, napi_callback_info info) {
   return SetValue(Napi::CallbackInfo(env, info));
 }
@@ -160,6 +168,10 @@ napi_value CreateColorFilterCallback(napi_env env, napi_callback_info info) {
   return CreateColorFilter(Napi::CallbackInfo(env, info));
 }
 
+napi_value CreateShaderCallback(napi_env env, napi_callback_info info) {
+  return CreateShader(Napi::CallbackInfo(env, info));
+}
+
 void BindLynxSkityModule(napi_env env, napi_value exports) {
   SetFunction(env, exports, "setValue", SetValueCallback);
   SetFunction(env, exports, "getValue", GetValueCallback);
@@ -167,6 +179,7 @@ void BindLynxSkityModule(napi_env env, napi_value exports) {
   SetFunction(env, exports, "setNumber", SetNumberCallback);
   SetFunction(env, exports, "clear", ClearCallback);
   SetFunction(env, exports, "createColorFilter", CreateColorFilterCallback);
+  SetFunction(env, exports, "createShader", CreateShaderCallback);
 }
 
 static napi_value CreateLynxSkityModule(napi_env env, napi_value exports) {

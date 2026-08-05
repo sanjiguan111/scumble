@@ -9,6 +9,7 @@ export interface LynxSkityModuleSpec {
   setNumber(value: number): void;
   clear(): void;
   createColorFilter(): Object;
+  createShader(): Object;
 }
 
 type AddonExports = Record<string, unknown>;
