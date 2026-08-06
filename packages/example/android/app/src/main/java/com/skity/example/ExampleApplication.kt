@@ -15,7 +15,9 @@ import com.lynx.service.image.LynxImageService
 import com.lynx.service.log.LynxLogService
 import com.lynx.tasm.LynxEnv
 import com.lynx.tasm.service.LynxServiceCenter
-import com.skity.graphics.LynxSkityNative
+import com.skity.example.modules.LynxNodeAPIModule
+import com.skity.example.modules.SimpleModule
+import com.skity.graphics.SkityInit
 
 class ExampleApplication : Application() {
     override fun onCreate() {
@@ -45,15 +47,23 @@ class ExampleApplication : Application() {
     }
 
     private fun initLynxEnv() {
-        // Load the lynx-skity NAPI addon before LynxEnv starts. The addon registers
-        // itself with primjs via a constructor, but only once the .so is loaded.
-        LynxSkityNative.ensureLoaded()
         LynxEnv.inst().init(
             this,
             null,
             DemoTemplateProvider(this),
             null
         )
+        // Register the host-side NAPI addon loader (Explorer-style). JS calls
+        // NativeModules.LynxNodeAPI.requireNodeAddon("<addon>") to trigger the
+        // native loader (liblynx_napi_addon_loader.so), which dlopen's the
+        // component's addon and publishes its exports to
+        // globalThis.__lynx_node_addon_exports__. LynxNodeAPIModule lives in
+        // this same package, so no import is needed.
+        LynxEnv.inst().registerModule("SimpleModule", SimpleModule::class.java)
+        LynxEnv.inst().registerModule("LynxNodeAPI", LynxNodeAPIModule::class.java)
+        // Register skity elements (skity-canvas + virtual shapes) + future
+        // global skity init, in one place.
+        SkityInit.init(LynxEnv.inst())
         // Turn on Lynx Debug
         LynxEnv.inst().enableLynxDebug(true)
         // Turn on Lynx DevTool

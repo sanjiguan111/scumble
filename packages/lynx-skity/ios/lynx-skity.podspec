@@ -8,6 +8,7 @@ Pod::Spec.new do |s|
   s.source = { :path => '..' }
   s.source_files = 'src/**/*.{h,m,mm}'
   s.dependency 'Lynx'
+  s.dependency 'skity', '1.1.0-alpha.3'
 
 
   s.source_files = 'src/**/*.{h,m,mm}', 'generated/**/*.{cc,h,mm}', 'addon_use.h'

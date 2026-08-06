@@ -11,6 +11,7 @@ lynx = "4.0.1"
 primjs = "4.0.0"
 protobuf = "4.33.5"
 coreKtxVersion = "1.18.0"
+androidxCoreKtx = "1.19.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,6 +31,7 @@ lynx-service-devtool = { group = "org.lynxsdk.lynx", name = "lynx-service-devtoo
 protobuf-kotlin-lite = { group = "com.google.protobuf", name = "protobuf-kotlin-lite", version.ref = "protobuf" }
 lynx-processor = { group = "org.lynxsdk.lynx", name = "lynx-processor", version.ref = "lynx" }
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtxVersion" }
+androidx-core-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCoreKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

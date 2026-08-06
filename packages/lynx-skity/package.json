@@ -12,6 +12,7 @@
   "files": [
     "android",
     "harmony",
+    "scripts",
     "shared",
     "generated",
     "ios",
@@ -21,7 +22,9 @@
     "README.md"
   ],
   "scripts": {
-    "codegen": "lynx-autolink-codegen"
+    "codegen": "lynx-autolink-codegen",
+    "generate-fbs": "node scripts/generate-fbs.mjs",
+    "postinstall": "node scripts/generate-fbs.mjs"
   },
   "dependencies": {
     "@lynx-js/weak-node-api": "^0.0.9",

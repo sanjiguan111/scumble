@@ -1,0 +1,5 @@
+solutions = [{
+    'name': '.',
+    'deps_file': 'DEPS.py',
+    'url': 'git@github.com:RuiwenTang/lynx-skity.git'
+}]

@@ -1,0 +1,93 @@
+// render_tree_common.fbs
+// Common types for the skity render tree. Derived from lynx-native-svg's schema
+// (Apache-2.0), trimmed to the skity MVP: color, paint, gradient, and the style
+// enums needed by Canvas/Paint/Path drawing. Text/filter/SVG-specific types are
+// intentionally omitted (add later when those features land).
+
+namespace skityrt;
+
+// ---- Color ----
+
+table RGBAColor {
+  r:uint32 = 0;
+  g:uint32 = 0;
+  b:uint32 = 0;
+  a:uint32 = 255;
+}
+
+// ---- Gradient ----
+
+table GradientStop {
+  offset:float = 0;
+  color:RGBAColor;
+}
+
+enum GradientUnits : byte {
+  OBJECT_BOUNDING_BOX = 0,
+  USER_SPACE_ON_USE   = 1,
+}
+
+enum SpreadMethod : byte {
+  PAD    = 0,
+  REFLECT = 1,
+  REPEAT  = 2,
+}
+
+table Gradient {
+  type:byte = 0;  // 0=LINEAR, 1=RADIAL
+  gradient_units:GradientUnits = OBJECT_BOUNDING_BOX;
+  spread_method:SpreadMethod = PAD;
+
+  // linearGradient
+  x1:float = 0;
+  y1:float = 0;
+  x2:float = 1;
+  y2:float = 0;
+
+  // radialGradient
+  cx:float = 0.5;
+  cy:float = 0.5;
+  r:float = 0.5;
+  fx:float = 0.5;
+  fy:float = 0.5;
+  fr:float = 0;
+
+  stops:[GradientStop];
+}
+
+// ---- Paint ----
+
+table ResolvedPaint {
+  type:byte = 0;  // 0=NONE, 1=COLOR, 2=GRADIENT
+  color:RGBAColor;
+  gradient:Gradient;
+}
+
+// ---- Style enums ----
+
+enum LineCap : byte {
+  BUTT   = 0,
+  ROUND  = 1,
+  SQUARE = 2,
+}
+
+enum LineJoin : byte {
+  MITER = 0,
+  ROUND = 1,
+  BEVEL = 2,
+}
+
+enum FillRule : byte {
+  NONZERO  = 0,
+  EVENODD  = 1,
+}
+
+enum Display : byte {
+  INLINE = 0,
+  NONE   = 1,
+}
+
+enum Visibility : byte {
+  VISIBLE  = 0,
+  HIDDEN   = 1,
+}

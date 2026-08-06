@@ -1,0 +1,46 @@
+// render_tree.fbs
+// Render tree structure: the output of the skity ShadowNode layer, consumed by
+// the cross-platform C++ SkityRenderer. Derived from lynx-native-svg's schema
+// (Apache-2.0), trimmed to the MVP.
+
+include "render_tree_common.fbs";
+include "render_tree_style.fbs";
+
+namespace skityrt;
+
+table RenderNode {
+  id:int32 = -1;
+  tag_name:string;
+  style:ComputedStyle;
+
+  // Resolved geometry (absolute pixels, resolved via viewport)
+  x:float = 0;
+  y:float = 0;
+  width:float = 0;
+  height:float = 0;
+  cx:float = 0;
+  cy:float = 0;
+  r:float = 0;
+  rx:float = 0;
+  ry:float = 0;
+  x1:float = 0;
+  y1:float = 0;
+  x2:float = 0;
+  y2:float = 0;
+  offset:float = 0;  // gradient stop offset [0,1]
+
+  children:[RenderNode];
+
+  // Structured path data (pre-parsed)
+  path_commands:[PathCommand];
+  points:[float];  // polyline/polygon: [x0,y0,x1,y1,...]
+
+  gradient_units:GradientUnits = OBJECT_BOUNDING_BOX;
+  spread_method:SpreadMethod = PAD;
+}
+
+table RenderTree {
+  root:RenderNode;
+}
+
+root_type RenderTree;

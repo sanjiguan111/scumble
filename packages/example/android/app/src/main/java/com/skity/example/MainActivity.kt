@@ -4,8 +4,10 @@ import android.app.Activity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import com.lynx.jsbridge.RuntimeLifecycleListener
 import com.lynx.tasm.LynxView
 import com.lynx.tasm.LynxViewBuilder
+import com.skity.example.modules.LynxNodeAPIModule
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -23,7 +25,7 @@ class MainActivity : Activity() {
     }
 
     private fun loadBundle() {
-        val uri = "http://localhost:3000/main.lynx.bundle"
+        val uri = "http://localhost:3000/main.lynx.bundle?enable_napi_addon=1"
         lynxView.renderTemplateUrl("${uri}?timestamp=${System.currentTimeMillis()}", "")
     }
 
@@ -67,7 +69,17 @@ class MainActivity : Activity() {
 
     private fun buildLynxView(): LynxView {
         val viewBuilder: LynxViewBuilder = LynxViewBuilder()
-        // lynx-skity library is not integrated yet, so no BehaviorBundle to register here.
-        return viewBuilder.build(this)
+        val view = viewBuilder.build(this)
+        // Bind each runtime's napi_env to the host NAPI addon loader. The loader
+        // (LynxNodeAPIModule) needs the env to dlopen + init component addons.
+        view.addRuntimeLifecycleListener(object : RuntimeLifecycleListener {
+            override fun onRuntimeAttach(napiEnv: Long) {
+                LynxNodeAPIModule.putEnv(view.getLynxContext(), napiEnv)
+            }
+            override fun onRuntimeDetach() {
+                LynxNodeAPIModule.removeEnv(view.getLynxContext())
+            }
+        })
+        return view
     }
 }

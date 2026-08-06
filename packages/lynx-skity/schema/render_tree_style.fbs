@@ -1,0 +1,63 @@
+// render_tree_style.fbs
+// Path commands, transform operations, and computed styles for skity.
+// Derived from lynx-native-svg's schema (Apache-2.0), trimmed to the MVP
+// (no font/text/filter/mask/clip-path fields).
+
+include "render_tree_common.fbs";
+
+namespace skityrt;
+
+// ---- Path commands (normalized to absolute coordinates) ----
+
+enum PathCommandType : byte {
+  MOVE_TO  = 0,  // args: x, y
+  LINE_TO  = 1,  // args: x, y
+  CUBIC_TO = 2,  // args: x1, y1, x2, y2, x, y
+  QUAD_TO  = 3,  // args: x1, y1, x, y
+  ARC_TO   = 4,  // args: rx, ry, rotation, largeArcFlag, sweepFlag, x, y
+  CLOSE    = 5,  // args: (none)
+}
+
+table PathCommand {
+  type:PathCommandType = MOVE_TO;
+  args:[float];
+}
+
+// ---- Transform operations (pre-parsed) ----
+
+enum TransformType : byte {
+  MATRIX    = 0,  // args: a, b, c, d, tx, ty
+  TRANSLATE = 1,  // args: tx [, ty]
+  SCALE     = 2,  // args: sx [, sy]
+  ROTATE    = 3,  // args: angle [, cx, cy]
+  SKEW_X    = 4,  // args: angle
+  SKEW_Y    = 5,  // args: angle
+}
+
+table TransformOp {
+  type:TransformType = MATRIX;
+  args:[float];
+}
+
+// ---- Computed style ----
+
+table ComputedStyle {
+  // Painting
+  fill:ResolvedPaint;
+  stroke:ResolvedPaint;
+  stroke_width:float = 1.0;
+  stroke_linecap:LineCap = BUTT;
+  stroke_linejoin:LineJoin = MITER;
+  stroke_dasharray:[float];
+  stroke_dashoffset:float = 0.0;
+  stroke_miterlimit:float = 4.0;
+  fill_rule:FillRule = NONZERO;
+
+  // Opacity & visibility
+  opacity:float = 1.0;
+  display:Display = INLINE;
+  visibility:Visibility = VISIBLE;
+
+  // Transform (pre-parsed operations)
+  transform:[TransformOp];
+}

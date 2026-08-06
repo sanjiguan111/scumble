@@ -2,6 +2,10 @@
 
 const ADDON_NAME = "LynxSkityModule";
 
+// Name of the host-provided Explorer-style NAPI addon loader module
+// (registered by the host app via LynxEnv.inst().registerModule).
+const LYNX_NODE_API_MODULE = "LynxNodeAPI";
+
 export interface LynxSkityModuleSpec {
   setValue(key: string, value: string): void;
   getValue(key: string): string | null;
@@ -25,6 +29,12 @@ declare global {
   var __lynxNapiLoader: LynxNapiLoader | undefined;
 
   function getNapiLoader(): LynxNapiLoader | undefined;
+
+  // Populated by the host's Explorer-style NAPI addon loader
+  // (NativeModules.LynxNodeAPI.requireNodeAddon -> C++ publishes exports here).
+  // Not a typed Lynx API; undefined until the host loader runs.
+  // eslint-disable-next-line no-var
+  var __lynx_node_addon_exports__: Record<string, AddonExports> | undefined;
 }
 
 function getNativeModules(): Record<string, unknown> | undefined {
@@ -37,17 +47,36 @@ function getNativeModules(): Record<string, unknown> | undefined {
 }
 
 export function requireLynxSkityModule(): LynxSkityModuleSpec {
-  const loader = globalThis.getNapiLoader?.() ?? globalThis.__lynxNapiLoader;
+  // Explorer-style host loader: the host app registers a "LynxNodeAPI"
+  // LynxModule whose requireNodeAddon() triggers the native loader to dlopen
+  // this addon and publish its exports to globalThis.__lynx_node_addon_exports__.
+  const lynxNodeAPI = getNativeModules()?.[LYNX_NODE_API_MODULE] as
+    | { requireNodeAddon(name: string): void }
+    | undefined;
 
+  if (lynxNodeAPI?.requireNodeAddon) {
+    lynxNodeAPI.requireNodeAddon(ADDON_NAME);
+    const addon = globalThis.__lynx_node_addon_exports__?.[ADDON_NAME];
+    if (addon) {
+      return addon as unknown as LynxSkityModuleSpec;
+    }
+  }
+
+  // Fallback: PrimJS runtime NAPI loader (e.g. iOS source-build pod where the
+  // loader is available).
+  const loader = globalThis.getNapiLoader?.() ?? globalThis.__lynxNapiLoader;
   if (loader?.load !== undefined) {
     const addon = loader.load(ADDON_NAME);
-
     if (addon !== undefined) {
       return addon as LynxSkityModuleSpec;
     }
   }
 
-  throw new Error(`global.__lynxNapiLoader.load is unavailable for Node-API addon "${ADDON_NAME}".`);
+  throw new Error(
+    `No Lynx Node-API loader available for addon "${ADDON_NAME}". On Android, ` +
+      `ensure the host app registers a "${LYNX_NODE_API_MODULE}" module ` +
+      `(Explorer-style addon loader); on iOS, enable the PrimJS NAPI loader.`,
+  );
 }
 
 export const LynxSkityModule = new Proxy({}, {

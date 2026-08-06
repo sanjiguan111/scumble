@@ -199,6 +199,15 @@ extern "C" napi_value LynxAutolinkCreateLynxSkityModule(
   return CreateLynxSkityModule(env, exports);
 }
 
+// Standard Node-API addon entry point. The host's NAPI addon loader
+// (Explorer-style: liblynx_napi_addon_loader.so) dlopen's this addon and
+// dlsym's this symbol to initialize it with a real napi_env. On the primjs
+// NAPI path the NAPI_MODULE macro below is used instead; both coexist.
+extern "C" __attribute__((visibility("default")))
+napi_value napi_register_module_v1(napi_env env, napi_value exports) {
+  return CreateLynxSkityModule(env, exports);
+}
+
 #ifdef LYNX_LIBRARY_USE_PRIMJS_NAPI_MODULE
 NAPI_MODULE(LynxSkityModule, CreateLynxSkityModule)
 #endif

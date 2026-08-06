@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@lynx-js/types": "3.9.0",
+    "@lynx-js/weak-node-api": "^0.0.9",
     "@types/react": "^18.3.28",
     "typescript": "~5.9.3"
   }
