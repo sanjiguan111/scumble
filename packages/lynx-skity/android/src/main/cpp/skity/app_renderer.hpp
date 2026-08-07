@@ -20,26 +20,26 @@ class RenderBackend;
 // thread reads them in DrawFrame(). Mirrors Skity-Android's AppRenderer, minus
 // demo scene/MSAA, plus a thread-safe RenderTree slot.
 class AppRenderer {
- public:
+public:
   // backend_type: 1 = GLES (default), 2 = Vulkan.
   // shared_gl_handle: handle to a SharedGLContext (GL only; 0 for Vulkan).
   explicit AppRenderer(int backend_type, int64_t shared_gl_handle);
   ~AppRenderer();
 
-  void SetNativeWindow(ANativeWindow* native_window);
+  void SetNativeWindow(ANativeWindow *native_window);
   void OnSurfaceCreated();
   void OnSurfaceDestroyed();
   void OnSurfaceChanged(int width, int height);
   void DrawFrame();
 
   // Called from the Lynx/UI thread with the serialized RenderTree.
-  void SetRenderTree(const uint8_t* data, std::size_t size, float density);
+  void SetRenderTree(const uint8_t *data, std::size_t size, float density);
 
- private:
+private:
   std::unique_ptr<RenderBackend> backend_;
   std::mutex data_mutex_;
   std::vector<uint8_t> render_tree_;
   float density_ = 1.f;
 };
 
-}  // namespace lynxskity
+} // namespace lynxskity

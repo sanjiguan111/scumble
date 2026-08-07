@@ -20,7 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// MATRIX=0, TRANSLATE=1, SCALE=2, ROTATE=3, SKEW_X=4, SKEW_Y=5
 @interface SkityTransformOp : NSObject
 @property(nonatomic, assign) uint8_t type;
-@property(nonatomic, strong) NSArray<NSNumber *> *args;  ///< float values
+@property(nonatomic, strong) NSArray<NSNumber *> *args; ///< float values
 @end
 
 /// Parsed path command; maps to a skityrt::PathCommand (type byte + args).
@@ -28,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// MOVE_TO=0, LINE_TO=1, CUBIC_TO=2, QUAD_TO=3, ARC_TO=4, CLOSE=5
 @interface SkityPathCommand : NSObject
 @property(nonatomic, assign) uint8_t type;
-@property(nonatomic, strong) NSArray<NSNumber *> *args;  ///< float values
+@property(nonatomic, strong) NSArray<NSNumber *> *args; ///< float values
 @end
 
 /// Pure-ObjC port of SkityPropParser.kt.

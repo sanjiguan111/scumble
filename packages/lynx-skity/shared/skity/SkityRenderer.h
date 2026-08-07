@@ -16,18 +16,17 @@
 
 #include <skity/skity.hpp>
 
-#include "render_tree_generated.h"  // namespace skityrt (FlatBuffers generated)
+#include "render_tree_generated.h" // namespace skityrt (FlatBuffers generated)
 
 namespace skityrt {
 
 class SkityRenderer {
- public:
+public:
   // Draw `tree` onto `canvas`. `density` scales logical dp units to pixels
   // (passed in from the platform UI's layout size / screen density).
-  static void Draw(const RenderTree* tree, ::skity::Canvas* canvas,
-                   float density = 1.f);
+  static void Draw(const RenderTree *tree, ::skity::Canvas *canvas, float density = 1.f);
 };
 
-}  // namespace skityrt
+} // namespace skityrt
 
-#endif  // SKITY_RENDERER_H_
+#endif // SKITY_RENDERER_H_

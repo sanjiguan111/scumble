@@ -7,7 +7,7 @@
     "outDir": "dist",
     "strict": true,
     "target": "ES2022",
-    "rootDir": ".",
+    "rootDir": "."
   },
-  "include": ["src", "types", "generated"],
+  "include": ["src", "types", "generated"]
 }

@@ -12,12 +12,11 @@
 #include <lynx_native_view.h>
 
 class LynxSkityElementView : public lynx::pub::LynxNativeView {
- public:
-  explicit LynxSkityElementView(void* opaque)
-      : lynx_view_(static_cast<lynx_view_t*>(opaque)) {}
+public:
+  explicit LynxSkityElementView(void *opaque) : lynx_view_(static_cast<lynx_view_t *>(opaque)) {}
 
-  void OnPropertiesChanged(const lynx::pub::LynxValue& attrs,
-                           const lynx::pub::LynxValue& events) override {
+  void OnPropertiesChanged(const lynx::pub::LynxValue &attrs,
+                           const lynx::pub::LynxValue &events) override {
     (void)events;
     if (!attrs.HasProperty("value")) {
       return;
@@ -25,42 +24,35 @@ class LynxSkityElementView : public lynx::pub::LynxNativeView {
     SetValue(attrs.GetProperty("value").StdString());
   }
 
-  void OnMethodInvoked(
-      const char* method,
-      const lynx::pub::LynxValue& params,
-      std::function<void(int, lynx::pub::LynxValue&&)> callback) override {
+  void OnMethodInvoked(const char *method, const lynx::pub::LynxValue &params,
+                       std::function<void(int, lynx::pub::LynxValue &&)> callback) override {
     if (method != nullptr && std::string(method) == "setValue") {
       if (!params.HasProperty("value")) {
-        callback(kInvalidParameter,
-                 lynx::pub::LynxValue(
-                     lynx::pub::LynxValue::kCreateAsNullTag));
+        callback(kInvalidParameter, lynx::pub::LynxValue(lynx::pub::LynxValue::kCreateAsNullTag));
         return;
       }
       SetValue(params.GetProperty("value").StdString());
-      callback(kSuccess,
-               lynx::pub::LynxValue(
-                   lynx::pub::LynxValue::kCreateAsNullTag));
+      callback(kSuccess, lynx::pub::LynxValue(lynx::pub::LynxValue::kCreateAsNullTag));
       return;
     }
 
-    callback(kMethodNotFound,
-             lynx::pub::LynxValue(lynx::pub::LynxValue::kCreateAsNullTag));
+    callback(kMethodNotFound, lynx::pub::LynxValue(lynx::pub::LynxValue::kCreateAsNullTag));
   }
 
- protected:
-  lynx_view_t* lynx_view() const { return lynx_view_; }
-  const std::string& value() const { return value_; }
+protected:
+  lynx_view_t *lynx_view() const { return lynx_view_; }
+  const std::string &value() const { return value_; }
 
-  virtual void OnValueChanged(const std::string& value) { (void)value; }
+  virtual void OnValueChanged(const std::string &value) { (void)value; }
 
- private:
-  void SetValue(const std::string& value) {
+private:
+  void SetValue(const std::string &value) {
     value_ = value;
     OnValueChanged(value_);
   }
 
-  lynx_view_t* lynx_view_ = nullptr;
+  lynx_view_t *lynx_view_ = nullptr;
   std::string value_ = "x-lynx-skity";
 };
 
-lynx_native_view_t* CreateLynxSkityElementNativeView(void* opaque);
+lynx_native_view_t *CreateLynxSkityElementNativeView(void *opaque);

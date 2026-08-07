@@ -9,8 +9,8 @@
 #include <skity/gpu/gpu_presenter.hpp>
 #include <skity/render/canvas.hpp>
 
-#include "SkityRenderer.h"          // lynx-skity cross-platform renderer
-#include "render_tree_generated.h"  // skityrt FlatBuffer reader
+#include "SkityRenderer.h"         // lynx-skity cross-platform renderer
+#include "render_tree_generated.h" // skityrt FlatBuffer reader
 
 namespace lynxskity {
 
@@ -20,9 +20,11 @@ std::unique_ptr<RenderBackend> CreateVulkanRenderBackend() {
 
 VulkanRenderBackend::VulkanRenderBackend() = default;
 
-VulkanRenderBackend::~VulkanRenderBackend() { ResetNativeWindow(); }
+VulkanRenderBackend::~VulkanRenderBackend() {
+  ResetNativeWindow();
+}
 
-void VulkanRenderBackend::SetNativeWindow(ANativeWindow* native_window) {
+void VulkanRenderBackend::SetNativeWindow(ANativeWindow *native_window) {
   if (native_window_handle_ == native_window) {
     return;
   }
@@ -38,7 +40,7 @@ bool VulkanRenderBackend::EnsureContext() {
   }
   skity::GPUContextInfoVK context_info = {};
   context_info.get_instance_proc_addr = vkGetInstanceProcAddr;
-  context_info.enable_debug_runtime = false;  // MVP: no validation
+  context_info.enable_debug_runtime = false; // MVP: no validation
   context_ = skity::CreateGPUContextVK(&context_info);
   return context_ != nullptr;
 }
@@ -47,8 +49,7 @@ bool VulkanRenderBackend::EnsureNativeWindow() {
   if (native_window_ != nullptr) {
     return true;
   }
-  if (native_window_handle_ == nullptr || width_ == 0 || height_ == 0 ||
-      !EnsureContext()) {
+  if (native_window_handle_ == nullptr || width_ == 0 || height_ == 0 || !EnsureContext()) {
     return false;
   }
   skity::GPUNativeWindowInfoVK info = {};
@@ -89,15 +90,14 @@ void VulkanRenderBackend::OnSurfaceChanged(int width, int height) {
   EnsureNativeWindow();
 }
 
-void VulkanRenderBackend::DrawFrame(const uint8_t* data, std::size_t size,
-                                    float density) {
+void VulkanRenderBackend::DrawFrame(const uint8_t *data, std::size_t size, float density) {
   if (data == nullptr || size == 0) {
     return;
   }
   if (!EnsureNativeWindow()) {
     return;
   }
-  auto* presenter = native_window_->GetPresenter();
+  auto *presenter = native_window_->GetPresenter();
   if (presenter == nullptr) {
     return;
   }
@@ -116,12 +116,12 @@ void VulkanRenderBackend::DrawFrame(const uint8_t* data, std::size_t size,
   }
 
   auto surface = std::move(acquire_result.surface);
-  auto* canvas = surface->LockCanvas(true);
+  auto *canvas = surface->LockCanvas(true);
   if (canvas == nullptr) {
     return;
   }
 
-  const auto* tree = skityrt::GetRenderTree(data);
+  const auto *tree = skityrt::GetRenderTree(data);
   skityrt::SkityRenderer::Draw(tree, canvas, density);
 
   canvas->Flush();
@@ -133,4 +133,4 @@ void VulkanRenderBackend::DrawFrame(const uint8_t* data, std::size_t size,
   }
 }
 
-}  // namespace lynxskity
+} // namespace lynxskity

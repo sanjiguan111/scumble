@@ -15,9 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface SkityRenderSession : NSObject
 
 /// Called when the backing CAMetalLayer is ready to render into.
-- (void)attachSurfaceWithLayer:(CAMetalLayer *)layer
-                          width:(uint32_t)width
-                         height:(uint32_t)height;
+- (void)attachSurfaceWithLayer:(CAMetalLayer *)layer width:(uint32_t)width height:(uint32_t)height;
 
 - (void)updateSizeWithWidth:(uint32_t)width height:(uint32_t)height;
 
@@ -27,9 +25,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// until the next attachSurface. `width`/`height` are pixel dimensions of the
 /// viewport (drawable size).
 - (void)setRenderTreeData:(NSData *)data
-                   density:(float)density
-                     width:(uint32_t)width
-                    height:(uint32_t)height;
+                  density:(float)density
+                    width:(uint32_t)width
+                   height:(uint32_t)height;
 
 /// Release this session. The shared render queue is not torn down.
 - (void)destroy;

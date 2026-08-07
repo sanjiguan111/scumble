@@ -4,15 +4,14 @@
 
 namespace {
 
-NSString* NSStringFromStdString(const std::string& value) {
-  NSString* result = [NSString stringWithUTF8String:value.c_str()];
+NSString *NSStringFromStdString(const std::string &value) {
+  NSString *result = [NSString stringWithUTF8String:value.c_str()];
   return result != nil ? result : @"";
 }
 
 class LynxSkityElementNativeUIView : public LynxSkityElementView {
- public:
-  explicit LynxSkityElementNativeUIView(void* opaque)
-      : LynxSkityElementView(opaque) {
+public:
+  explicit LynxSkityElementNativeUIView(void *opaque) : LynxSkityElementView(opaque) {
     RunOnMainThreadSync(^{
       label_ = [NSTextField labelWithString:NSStringFromStdString(value())];
       label_.textColor = [NSColor blackColor];
@@ -29,27 +28,19 @@ class LynxSkityElementNativeUIView : public LynxSkityElementView {
   bool IsSurfaceEnabled() override { return false; }
 
   void OnAttach() override {
-    RunOnMainThreadSync(^{
-      AttachToParent();
-    });
+    RunOnMainThreadSync(^{ AttachToParent(); });
   }
 
   void OnDetach() override {
-    RunOnMainThreadSync(^{
-      [label_ removeFromSuperview];
-    });
+    RunOnMainThreadSync(^{ [label_ removeFromSuperview]; });
   }
 
-  void OnLayoutChanged(
-      float left,
-      float top,
-      float width,
-      float height,
-      float pixel_ratio) override {
+  void OnLayoutChanged(float left, float top, float width, float height,
+                       float pixel_ratio) override {
     (void)pixel_ratio;
     RunOnMainThreadSync(^{
-      NSView* lynx_parent = ParentView();
-      NSView* parent = AttachToParent(lynx_parent);
+      NSView *lynx_parent = ParentView();
+      NSView *parent = AttachToParent(lynx_parent);
       if (lynx_parent == nil || parent == nil) {
         return;
       }
@@ -59,10 +50,10 @@ class LynxSkityElementNativeUIView : public LynxSkityElementView {
     });
   }
 
- private:
+private:
   using MainThreadBlock = void (^)(void);
 
-  void OnValueChanged(const std::string& value) override {
+  void OnValueChanged(const std::string &value) override {
     std::string text = value;
     RunOnMainThreadSync(^{
       if (label_ != nil) {
@@ -79,22 +70,21 @@ class LynxSkityElementNativeUIView : public LynxSkityElementView {
     dispatch_sync(dispatch_get_main_queue(), block);
   }
 
-  NSView* ParentView() {
+  NSView *ParentView() {
     if (lynx_view() == nullptr) {
       return nil;
     }
-    return (__bridge NSView*)lynx_view_get_native_window(lynx_view());
+    return (__bridge NSView *)lynx_view_get_native_window(lynx_view());
   }
 
-  NSView* AttachToParent() { return AttachToParent(ParentView()); }
+  NSView *AttachToParent() { return AttachToParent(ParentView()); }
 
-  NSView* AttachToParent(NSView* lynx_parent) {
+  NSView *AttachToParent(NSView *lynx_parent) {
     if (label_ == nil || lynx_parent == nil) {
       return nil;
     }
-    NSView* parent =
-        lynx_parent.window.contentView != nil ? lynx_parent.window.contentView
-                                              : lynx_parent;
+    NSView *parent =
+        lynx_parent.window.contentView != nil ? lynx_parent.window.contentView : lynx_parent;
     if (label_.superview != parent) {
       [label_ removeFromSuperview];
       [parent addSubview:label_ positioned:NSWindowAbove relativeTo:nil];
@@ -102,12 +92,12 @@ class LynxSkityElementNativeUIView : public LynxSkityElementView {
     return parent;
   }
 
-  NSTextField* label_ = nil;
+  NSTextField *label_ = nil;
 };
 
-}  // namespace
+} // namespace
 
-lynx_native_view_t* CreateLynxSkityElementNativeUINativeView(void* opaque) {
-  auto* view = new LynxSkityElementNativeUIView(opaque);
+lynx_native_view_t *CreateLynxSkityElementNativeUINativeView(void *opaque) {
+  auto *view = new LynxSkityElementNativeUIView(opaque);
   return view->native_view();
 }

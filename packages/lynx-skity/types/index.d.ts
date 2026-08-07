@@ -1,1 +1,1 @@
-export * from './napi-native-module';
+export * from "./napi-native-module";

@@ -11,7 +11,7 @@ namespace lynxskity {
 
 bool SharedGLContext::Init() {
   if (display != EGL_NO_DISPLAY) {
-    return true;  // already initialized
+    return true; // already initialized
   }
 
   display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -25,13 +25,21 @@ bool SharedGLContext::Init() {
     return false;
   }
 
-  EGLint config_attribs[] = {
-      EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT, EGL_RED_SIZE, 8,
-      EGL_GREEN_SIZE, 8,     EGL_BLUE_SIZE, 8,       EGL_ALPHA_SIZE, 8,
-      EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE};
+  EGLint config_attribs[] = {EGL_RENDERABLE_TYPE,
+                             EGL_OPENGL_ES3_BIT,
+                             EGL_RED_SIZE,
+                             8,
+                             EGL_GREEN_SIZE,
+                             8,
+                             EGL_BLUE_SIZE,
+                             8,
+                             EGL_ALPHA_SIZE,
+                             8,
+                             EGL_SURFACE_TYPE,
+                             EGL_WINDOW_BIT,
+                             EGL_NONE};
   EGLint num_configs = 0;
-  if (!eglChooseConfig(display, config_attribs, &config, 1, &num_configs) ||
-      num_configs < 1) {
+  if (!eglChooseConfig(display, config_attribs, &config, 1, &num_configs) || num_configs < 1) {
     return false;
   }
 
@@ -43,8 +51,7 @@ bool SharedGLContext::Init() {
 
   // Make current with no surface so skity can resolve/bind GL functions.
   eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context);
-  skity_context = skity::GLContextCreate(
-      reinterpret_cast<void*>(&ResolveGLProcAddress));
+  skity_context = skity::GLContextCreate(reinterpret_cast<void *>(&ResolveGLProcAddress));
   return skity_context != nullptr;
 }
 
@@ -60,4 +67,4 @@ SharedGLContext::~SharedGLContext() {
   eglTerminate(display);
 }
 
-}  // namespace lynxskity
+} // namespace lynxskity

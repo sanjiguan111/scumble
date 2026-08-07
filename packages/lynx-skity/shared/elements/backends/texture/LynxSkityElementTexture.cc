@@ -4,25 +4,19 @@
 #include <cmath>
 
 // This shared texture backend depends on LynxNativeView C API surface handles.
-bool DrawLynxSkityElementTextureSurface(
-    lynx_surface_handle_t* handle,
-    int width_px,
-    int height_px,
-    const char* text);
+bool DrawLynxSkityElementTextureSurface(lynx_surface_handle_t *handle, int width_px, int height_px,
+                                        const char *text);
 
 namespace {
 
 constexpr float kYFlipTransform[3 * 3] = {1, 0, 0, 0, -1, 1, 0, 0, 1};
 
 class LynxSkityElementTextureView : public LynxSkityElementView {
- public:
-  explicit LynxSkityElementTextureView(void* opaque)
-      : LynxSkityElementView(opaque) {}
+public:
+  explicit LynxSkityElementTextureView(void *opaque) : LynxSkityElementView(opaque) {}
 
   bool IsSurfaceEnabled() override { return true; }
-  lynx_surface_buffer_mode_t SurfaceBufferMode() override {
-    return kTripleBuffer;
-  }
+  lynx_surface_buffer_mode_t SurfaceBufferMode() override { return kTripleBuffer; }
 
   void OnAttach() override {
     attached_ = true;
@@ -31,12 +25,8 @@ class LynxSkityElementTextureView : public LynxSkityElementView {
 
   void OnDetach() override { attached_ = false; }
 
-  void OnLayoutChanged(
-      float left,
-      float top,
-      float width,
-      float height,
-      float pixel_ratio) override {
+  void OnLayoutChanged(float left, float top, float width, float height,
+                       float pixel_ratio) override {
     (void)left;
     (void)top;
     const float ratio = pixel_ratio > 0 ? pixel_ratio : 1;
@@ -45,8 +35,8 @@ class LynxSkityElementTextureView : public LynxSkityElementView {
     Render();
   }
 
- private:
-  void OnValueChanged(const std::string& value) override {
+private:
+  void OnValueChanged(const std::string &value) override {
     (void)value;
     Render();
   }
@@ -56,16 +46,12 @@ class LynxSkityElementTextureView : public LynxSkityElementView {
       return;
     }
 
-    lynx_surface_handle_t* surface = AcquireSurface(width_px_, height_px_);
+    lynx_surface_handle_t *surface = AcquireSurface(width_px_, height_px_);
     if (surface == nullptr) {
       return;
     }
 
-    if (DrawLynxSkityElementTextureSurface(
-            surface,
-            width_px_,
-            height_px_,
-            value().c_str())) {
+    if (DrawLynxSkityElementTextureSurface(surface, width_px_, height_px_, value().c_str())) {
       PresentSurface(width_px_, height_px_, kYFlipTransform, surface);
     }
   }
@@ -75,9 +61,9 @@ class LynxSkityElementTextureView : public LynxSkityElementView {
   int height_px_ = 0;
 };
 
-}  // namespace
+} // namespace
 
-lynx_native_view_t* CreateLynxSkityElementTextureNativeView(void* opaque) {
-  auto* view = new LynxSkityElementTextureView(opaque);
+lynx_native_view_t *CreateLynxSkityElementTextureNativeView(void *opaque) {
+  auto *view = new LynxSkityElementTextureView(opaque);
   return view->native_view();
 }

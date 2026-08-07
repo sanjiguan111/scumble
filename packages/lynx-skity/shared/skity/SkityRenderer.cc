@@ -23,84 +23,79 @@ using skity::Path;
 using skity::Rect;
 
 // RGBAColor (0-255 channels) → skity ARGB uint32, alpha scaled by opacity.
-uint32_t ColorFromRGBA(const RGBAColor* c, float opacity = 1.f) {
+uint32_t ColorFromRGBA(const RGBAColor *c, float opacity = 1.f) {
   if (c == nullptr) return 0;
   uint32_t a = static_cast<uint32_t>(std::lround(c->a() * opacity));
   if (a > 255u) a = 255u;
-  return (a << 24) | ((c->r() & 0xffu) << 16) | ((c->g() & 0xffu) << 8) |
-         (c->b() & 0xffu);
+  return (a << 24) | ((c->r() & 0xffu) << 16) | ((c->g() & 0xffu) << 8) | (c->b() & 0xffu);
 }
 
 Paint::Cap ToCap(LineCap cap) {
   switch (cap) {
-    case LineCap_ROUND:
-      return Paint::kRound_Cap;
-    case LineCap_SQUARE:
-      return Paint::kSquare_Cap;
-    default:
-      return Paint::kButt_Cap;
+  case LineCap_ROUND:
+    return Paint::kRound_Cap;
+  case LineCap_SQUARE:
+    return Paint::kSquare_Cap;
+  default:
+    return Paint::kButt_Cap;
   }
 }
 
 Paint::Join ToJoin(LineJoin join) {
   switch (join) {
-    case LineJoin_ROUND:
-      return Paint::kRound_Join;
-    case LineJoin_BEVEL:
-      return Paint::kBevel_Join;
-    default:
-      return Paint::kMiter_Join;
+  case LineJoin_ROUND:
+    return Paint::kRound_Join;
+  case LineJoin_BEVEL:
+    return Paint::kBevel_Join;
+  default:
+    return Paint::kMiter_Join;
   }
 }
 
 // Read a float arg from a flatbuffers Vector<float> by index.
-float VecArg(const ::flatbuffers::Vector<float>* v, size_t idx,
-             float def = 0.f) {
+float VecArg(const ::flatbuffers::Vector<float> *v, size_t idx, float def = 0.f) {
   return (v != nullptr && idx < v->size()) ? v->Get(idx) : def;
 }
 
 // Build a skity Path from RenderNode path_commands; falls back to the points
 // vector (polyline/polygon) when no commands are present.
-Path BuildPath(const RenderNode* node, bool force_close) {
+Path BuildPath(const RenderNode *node, bool force_close) {
   Path path;
-  const auto* cmds = node->path_commands();
+  const auto *cmds = node->path_commands();
   auto clen = cmds != nullptr ? cmds->size() : 0u;
   for (size_t i = 0; i < clen; i++) {
-    const PathCommand* cmd = cmds->Get(i);
+    const PathCommand *cmd = cmds->Get(i);
     if (cmd == nullptr) continue;
-    const auto* args = cmd->args();
+    const auto *args = cmd->args();
     switch (cmd->type()) {
-      case PathCommandType_MOVE_TO:
-        path.MoveTo(VecArg(args, 0), VecArg(args, 1));
-        break;
-      case PathCommandType_LINE_TO:
-        path.LineTo(VecArg(args, 0), VecArg(args, 1));
-        break;
-      case PathCommandType_CUBIC_TO:
-        path.CubicTo(VecArg(args, 0), VecArg(args, 1), VecArg(args, 2),
-                     VecArg(args, 3), VecArg(args, 4), VecArg(args, 5));
-        break;
-      case PathCommandType_QUAD_TO:
-        path.QuadTo(VecArg(args, 0), VecArg(args, 1), VecArg(args, 2),
-                    VecArg(args, 3));
-        break;
-      case PathCommandType_ARC_TO:
-        // skity ArcTo(rx, ry, rotation, ArcSize, Direction, x, y). SVG's
-        // largeArcFlag/sweepFlag map to ArcSize / Direction enums.
-        path.ArcTo(VecArg(args, 0), VecArg(args, 1), VecArg(args, 2),
-                   VecArg(args, 3) != 0.f ? Path::ArcSize::kLarge
-                                          : Path::ArcSize::kSmall,
-                   VecArg(args, 4) != 0.f ? Path::Direction::kCW
-                                          : Path::Direction::kCCW,
-                   VecArg(args, 5), VecArg(args, 6));
-        break;
-      case PathCommandType_CLOSE:
-        path.Close();
-        break;
+    case PathCommandType_MOVE_TO:
+      path.MoveTo(VecArg(args, 0), VecArg(args, 1));
+      break;
+    case PathCommandType_LINE_TO:
+      path.LineTo(VecArg(args, 0), VecArg(args, 1));
+      break;
+    case PathCommandType_CUBIC_TO:
+      path.CubicTo(VecArg(args, 0), VecArg(args, 1), VecArg(args, 2), VecArg(args, 3),
+                   VecArg(args, 4), VecArg(args, 5));
+      break;
+    case PathCommandType_QUAD_TO:
+      path.QuadTo(VecArg(args, 0), VecArg(args, 1), VecArg(args, 2), VecArg(args, 3));
+      break;
+    case PathCommandType_ARC_TO:
+      // skity ArcTo(rx, ry, rotation, ArcSize, Direction, x, y). SVG's
+      // largeArcFlag/sweepFlag map to ArcSize / Direction enums.
+      path.ArcTo(VecArg(args, 0), VecArg(args, 1), VecArg(args, 2),
+                 VecArg(args, 3) != 0.f ? Path::ArcSize::kLarge : Path::ArcSize::kSmall,
+                 VecArg(args, 4) != 0.f ? Path::Direction::kCW : Path::Direction::kCCW,
+                 VecArg(args, 5), VecArg(args, 6));
+      break;
+    case PathCommandType_CLOSE:
+      path.Close();
+      break;
     }
   }
 
-  const auto* pts = node->points();
+  const auto *pts = node->points();
   auto plen = pts != nullptr ? pts->size() : 0u;
   if (clen == 0 && plen >= 4) {
     path.MoveTo(pts->Get(0), pts->Get(1));
@@ -112,38 +107,38 @@ Path BuildPath(const RenderNode* node, bool force_close) {
   return path;
 }
 
-void ApplyTransform(const ComputedStyle* style, Canvas* canvas) {
+void ApplyTransform(const ComputedStyle *style, Canvas *canvas) {
   if (style == nullptr) return;
-  const auto* ops = style->transform();
+  const auto *ops = style->transform();
   auto len = ops != nullptr ? ops->size() : 0u;
   for (size_t i = 0; i < len; i++) {
-    const TransformOp* op = ops->Get(i);
+    const TransformOp *op = ops->Get(i);
     if (op == nullptr) continue;
-    const auto* args = op->args();
+    const auto *args = op->args();
     switch (op->type()) {
-      case TransformType_TRANSLATE:
-        canvas->Translate(VecArg(args, 0), VecArg(args, 1));
-        break;
-      case TransformType_SCALE: {
-        float sx = VecArg(args, 0, 1.f);
-        canvas->Scale(sx, VecArg(args, 1, sx));
-        break;
+    case TransformType_TRANSLATE:
+      canvas->Translate(VecArg(args, 0), VecArg(args, 1));
+      break;
+    case TransformType_SCALE: {
+      float sx = VecArg(args, 0, 1.f);
+      canvas->Scale(sx, VecArg(args, 1, sx));
+      break;
+    }
+    case TransformType_ROTATE: {
+      float deg = VecArg(args, 0);
+      size_t n = args != nullptr ? args->size() : 0;
+      if (n >= 3) { // rotate around (cx, cy)
+        canvas->Translate(VecArg(args, 1), VecArg(args, 2));
+        canvas->Rotate(deg);
+        canvas->Translate(-VecArg(args, 1), -VecArg(args, 2));
+      } else {
+        canvas->Rotate(deg);
       }
-      case TransformType_ROTATE: {
-        float deg = VecArg(args, 0);
-        size_t n = args != nullptr ? args->size() : 0;
-        if (n >= 3) {  // rotate around (cx, cy)
-          canvas->Translate(VecArg(args, 1), VecArg(args, 2));
-          canvas->Rotate(deg);
-          canvas->Translate(-VecArg(args, 1), -VecArg(args, 2));
-        } else {
-          canvas->Rotate(deg);
-        }
-        break;
-      }
-      // MATRIX / SKEW_X / SKEW_Y: TODO via skity Matrix concat.
-      default:
-        break;
+      break;
+    }
+    // MATRIX / SKEW_X / SKEW_Y: TODO via skity Matrix concat.
+    default:
+      break;
     }
   }
 }
@@ -151,9 +146,9 @@ void ApplyTransform(const ComputedStyle* style, Canvas* canvas) {
 // TODO(skity): gradient shaders (linear/radial) — populate paint.SetShader(...)
 // once the skity Shader creation API is confirmed. Until then only solid-color
 // fill/stroke are emitted; gradient paints are treated as inactive.
-bool MakeFillPaint(const ComputedStyle* style, float opacity, Paint* out) {
+bool MakeFillPaint(const ComputedStyle *style, float opacity, Paint *out) {
   if (style == nullptr) return false;
-  const ResolvedPaint* fill = style->fill();
+  const ResolvedPaint *fill = style->fill();
   if (fill == nullptr || fill->type() == 0 /*NONE*/) return false;
   out->SetStyle(Paint::kFill_Style);
   out->SetAntiAlias(true);
@@ -161,12 +156,12 @@ bool MakeFillPaint(const ComputedStyle* style, float opacity, Paint* out) {
     out->SetColor(ColorFromRGBA(fill->color(), opacity));
     return true;
   }
-  return false;  // GRADIENT: TODO
+  return false; // GRADIENT: TODO
 }
 
-bool MakeStrokePaint(const ComputedStyle* style, float opacity, Paint* out) {
+bool MakeStrokePaint(const ComputedStyle *style, float opacity, Paint *out) {
   if (style == nullptr) return false;
-  const ResolvedPaint* stroke = style->stroke();
+  const ResolvedPaint *stroke = style->stroke();
   if (stroke == nullptr || stroke->type() == 0 /*NONE*/) return false;
   out->SetStyle(Paint::kStroke_Style);
   out->SetAntiAlias(true);
@@ -182,9 +177,8 @@ bool MakeStrokePaint(const ComputedStyle* style, float opacity, Paint* out) {
   return false;
 }
 
-void DrawShape(const RenderNode* node, Canvas* canvas,
-               const ComputedStyle* style) {
-  const ::flatbuffers::String* tag_s = node->tag_name();
+void DrawShape(const RenderNode *node, Canvas *canvas, const ComputedStyle *style) {
+  const ::flatbuffers::String *tag_s = node->tag_name();
   if (tag_s == nullptr) return;
   std::string tag = tag_s->str();
   float opacity = style != nullptr ? style->opacity() : 1.f;
@@ -219,8 +213,7 @@ void DrawShape(const RenderNode* node, Canvas* canvas,
     float ry = node->ry();
     if (rx <= 0.f || ry <= 0.f) return;
     Path path;
-    path.AddOval(Rect::MakeXYWH(node->cx() - rx, node->cy() - ry, rx * 2.f,
-                                ry * 2.f));
+    path.AddOval(Rect::MakeXYWH(node->cx() - rx, node->cy() - ry, rx * 2.f, ry * 2.f));
     Paint p;
     if (MakeFillPaint(style, opacity, &p)) canvas->DrawPath(path, p);
     if (MakeStrokePaint(style, opacity, &p)) canvas->DrawPath(path, p);
@@ -248,9 +241,9 @@ void DrawShape(const RenderNode* node, Canvas* canvas,
   }
 }
 
-void DrawNode(const RenderNode* node, Canvas* canvas) {
+void DrawNode(const RenderNode *node, Canvas *canvas) {
   if (node == nullptr) return;
-  const ComputedStyle* style = node->style();
+  const ComputedStyle *style = node->style();
   if (style != nullptr) {
     if (style->display() == Display_NONE) return;
     if (style->visibility() != Visibility_VISIBLE) return;
@@ -262,13 +255,14 @@ void DrawNode(const RenderNode* node, Canvas* canvas) {
   // into each paint's color alpha (approximate — fine for leaves, lossy for
   // groups with overlapping children).
 
-  const ::flatbuffers::String* tag_s = node->tag_name();
+  const ::flatbuffers::String *tag_s = node->tag_name();
   if (tag_s != nullptr) {
     std::string tag = tag_s->str();
     if (tag == "svg" || tag == "g" || tag == "symbol" || tag == "canvas") {
-      const auto* kids = node->children();
+      const auto *kids = node->children();
       auto n = kids != nullptr ? kids->size() : 0u;
-      for (size_t i = 0; i < n; i++) DrawNode(kids->Get(i), canvas);
+      for (size_t i = 0; i < n; i++)
+        DrawNode(kids->Get(i), canvas);
       canvas->Restore();
       return;
     }
@@ -277,11 +271,11 @@ void DrawNode(const RenderNode* node, Canvas* canvas) {
   canvas->Restore();
 }
 
-}  // namespace
+} // namespace
 
-void SkityRenderer::Draw(const RenderTree* tree, Canvas* canvas, float density) {
+void SkityRenderer::Draw(const RenderTree *tree, Canvas *canvas, float density) {
   if (tree == nullptr || canvas == nullptr) return;
-  const RenderNode* root = tree->root();
+  const RenderNode *root = tree->root();
   if (root == nullptr) return;
   canvas->Save();
   if (density != 1.f) canvas->Scale(density, density);
@@ -289,4 +283,4 @@ void SkityRenderer::Draw(const RenderTree* tree, Canvas* canvas, float density) 
   canvas->Restore();
 }
 
-}  // namespace skityrt
+} // namespace skityrt

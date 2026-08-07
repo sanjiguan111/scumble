@@ -13,7 +13,7 @@ namespace {
 // Backend type ids (match SkityNative.kt).
 constexpr int kBackendGles = 1;
 constexpr int kBackendVulkan = 2;
-}  // namespace
+} // namespace
 
 AppRenderer::AppRenderer(int backend_type, int64_t shared_gl_handle) {
   // GLES reuses the SkityRenderThread-owned SharedGLContext; Vulkan manages
@@ -21,14 +21,14 @@ AppRenderer::AppRenderer(int backend_type, int64_t shared_gl_handle) {
   if (backend_type == kBackendVulkan) {
     backend_ = CreateVulkanRenderBackend();
   } else {
-    auto* shared = reinterpret_cast<SharedGLContext*>(shared_gl_handle);
+    auto *shared = reinterpret_cast<SharedGLContext *>(shared_gl_handle);
     backend_ = CreateGLESRenderBackend(shared);
   }
 }
 
 AppRenderer::~AppRenderer() = default;
 
-void AppRenderer::SetNativeWindow(ANativeWindow* native_window) {
+void AppRenderer::SetNativeWindow(ANativeWindow *native_window) {
   if (backend_ != nullptr) {
     backend_->SetNativeWindow(native_window);
   }
@@ -69,8 +69,7 @@ void AppRenderer::DrawFrame() {
   backend_->DrawFrame(data.data(), data.size(), density);
 }
 
-void AppRenderer::SetRenderTree(const uint8_t* data, std::size_t size,
-                                float density) {
+void AppRenderer::SetRenderTree(const uint8_t *data, std::size_t size, float density) {
   if (data == nullptr || size == 0) {
     return;
   }
@@ -79,4 +78,4 @@ void AppRenderer::SetRenderTree(const uint8_t* data, std::size_t size,
   density_ = density;
 }
 
-}  // namespace lynxskity
+} // namespace lynxskity

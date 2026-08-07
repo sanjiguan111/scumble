@@ -8,23 +8,21 @@
 #ifdef LYNX_LIBRARY_USE_PRIMJS_NAPI_MODULE
 typedef struct lynx_autolink_napi_module {
   int nm_version;
-  const char* nm_filename;
+  const char *nm_filename;
   napi_addon_register_func nm_register_func;
-  const char* nm_modname;
-  struct lynx_autolink_napi_module* nm_link;
+  const char *nm_modname;
+  struct lynx_autolink_napi_module *nm_link;
 } lynx_autolink_napi_module;
 
-extern "C" void napi_module_register_xx(lynx_autolink_napi_module* mod);
+extern "C" void napi_module_register_xx(lynx_autolink_napi_module *mod);
 
 #undef NAPI_MODULE
-#define NAPI_MODULE(modname, regfunc)                                      \
-  EXTERN_C_START                                                           \
-  static lynx_autolink_napi_module _module_##modname = {                   \
-      NAPI_MODULE_VERSION, __FILE__, regfunc, #modname, nullptr};          \
-  void _napi_register_xx_##modname(void) __attribute__((constructor));      \
-  void _napi_register_xx_##modname(void) {                                 \
-    napi_module_register_xx(&_module_##modname);                           \
-  }                                                                        \
+#define NAPI_MODULE(modname, regfunc)                                                              \
+  EXTERN_C_START                                                                                   \
+  static lynx_autolink_napi_module _module_##modname = {NAPI_MODULE_VERSION, __FILE__, regfunc,    \
+                                                        #modname, nullptr};                        \
+  void _napi_register_xx_##modname(void) __attribute__((constructor));                             \
+  void _napi_register_xx_##modname(void) { napi_module_register_xx(&_module_##modname); }          \
   EXTERN_C_END
 #endif
 
@@ -36,18 +34,13 @@ void Check(napi_env env, napi_status status) {
   }
 }
 
-void SetFunction(
-    napi_env env,
-    napi_value object,
-    const char* name,
-    napi_callback callback) {
+void SetFunction(napi_env env, napi_value object, const char *name, napi_callback callback) {
   napi_value function;
-  Check(env, napi_create_function(
-      env, name, NAPI_AUTO_LENGTH, callback, nullptr, &function));
+  Check(env, napi_create_function(env, name, NAPI_AUTO_LENGTH, callback, nullptr, &function));
   Check(env, napi_set_named_property(env, object, name, function));
 }
 
-Napi::Value SetValue(const Napi::CallbackInfo& info) {
+Napi::Value SetValue(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   // Method:
   //   setValue(
@@ -69,7 +62,7 @@ Napi::Value SetValue(const Napi::CallbackInfo& info) {
   return env.Undefined();
 }
 
-Napi::Value GetValue(const Napi::CallbackInfo& info) {
+Napi::Value GetValue(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   // Method:
   //   getValue(
@@ -86,7 +79,7 @@ Napi::Value GetValue(const Napi::CallbackInfo& info) {
   return env.Null();
 }
 
-Napi::Value SetArray(const Napi::CallbackInfo& info) {
+Napi::Value SetArray(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   // Method:
   //   setArray(
@@ -103,7 +96,7 @@ Napi::Value SetArray(const Napi::CallbackInfo& info) {
   return env.Undefined();
 }
 
-Napi::Value SetNumber(const Napi::CallbackInfo& info) {
+Napi::Value SetNumber(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   // Method:
   //   setNumber(
@@ -120,7 +113,7 @@ Napi::Value SetNumber(const Napi::CallbackInfo& info) {
   return env.Undefined();
 }
 
-Napi::Value Clear(const Napi::CallbackInfo& info) {
+Napi::Value Clear(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   // Method:
   //   clear(): void
@@ -128,7 +121,7 @@ Napi::Value Clear(const Napi::CallbackInfo& info) {
   return env.Undefined();
 }
 
-Napi::Value CreateColorFilter(const Napi::CallbackInfo& info) {
+Napi::Value CreateColorFilter(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   // Method:
   //   createColorFilter(): Object
@@ -136,7 +129,7 @@ Napi::Value CreateColorFilter(const Napi::CallbackInfo& info) {
   return Napi::Object::New(env);
 }
 
-Napi::Value CreateShader(const Napi::CallbackInfo& info) {
+Napi::Value CreateShader(const Napi::CallbackInfo &info) {
   Napi::Env env = info.Env();
   // Method:
   //   createShader(): Object
@@ -187,13 +180,10 @@ static napi_value CreateLynxSkityModule(napi_env env, napi_value exports) {
   return exports;
 }
 
-}  // namespace
+} // namespace
 
-extern "C" napi_value LynxAutolinkCreateLynxSkityModule(
-    napi_env env,
-    napi_value exports,
-    const char* module_name,
-    void* opaque) {
+extern "C" napi_value LynxAutolinkCreateLynxSkityModule(napi_env env, napi_value exports,
+                                                        const char *module_name, void *opaque) {
   (void)module_name;
   (void)opaque;
   return CreateLynxSkityModule(env, exports);
@@ -203,8 +193,8 @@ extern "C" napi_value LynxAutolinkCreateLynxSkityModule(
 // (Explorer-style: liblynx_napi_addon_loader.so) dlopen's this addon and
 // dlsym's this symbol to initialize it with a real napi_env. On the primjs
 // NAPI path the NAPI_MODULE macro below is used instead; both coexist.
-extern "C" __attribute__((visibility("default")))
-napi_value napi_register_module_v1(napi_env env, napi_value exports) {
+extern "C" __attribute__((visibility("default"))) napi_value
+napi_register_module_v1(napi_env env, napi_value exports) {
   return CreateLynxSkityModule(env, exports);
 }
 

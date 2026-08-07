@@ -16,7 +16,7 @@ namespace lynxskity {
 // via JNI). All GLESRenderBackends running on that thread reuse one of these,
 // avoiding both per-view EGL context creation and the thread_local slot limit.
 class SharedGLContext {
- public:
+public:
   EGLDisplay display = EGL_NO_DISPLAY;
   EGLConfig config = nullptr;
   EGLContext context = EGL_NO_CONTEXT;
@@ -29,4 +29,4 @@ class SharedGLContext {
   ~SharedGLContext();
 };
 
-}  // namespace lynxskity
+} // namespace lynxskity

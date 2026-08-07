@@ -17,12 +17,12 @@
 namespace lynxskity {
 
 class RenderBackend {
- public:
+public:
   virtual ~RenderBackend() = default;
 
   // Vulkan path attaches the ANativeWindow up front; GLES ignores it (EGL is
   // owned by GLSurfaceView).
-  virtual void SetNativeWindow(ANativeWindow* native_window) {}
+  virtual void SetNativeWindow(ANativeWindow *native_window) {}
   virtual void OnSurfaceCreated() = 0;
   virtual void OnSurfaceDestroyed() = 0;
   virtual void OnSurfaceChanged(int width, int height) = 0;
@@ -30,8 +30,7 @@ class RenderBackend {
   // Render the latest RenderTree bytes onto a freshly acquired skity surface.
   // Called on the render thread. `density` scales logical dp → pixels inside
   // SkityRenderer (canvas->scale(density)).
-  virtual void DrawFrame(const uint8_t* data, std::size_t size,
-                         float density) = 0;
+  virtual void DrawFrame(const uint8_t *data, std::size_t size, float density) = 0;
 };
 
-}  // namespace lynxskity
+} // namespace lynxskity

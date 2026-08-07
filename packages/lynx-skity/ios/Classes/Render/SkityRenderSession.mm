@@ -27,9 +27,7 @@
   return self;
 }
 
-- (void)attachSurfaceWithLayer:(CAMetalLayer *)layer
-                          width:(uint32_t)width
-                         height:(uint32_t)height {
+- (void)attachSurfaceWithLayer:(CAMetalLayer *)layer width:(uint32_t)width height:(uint32_t)height {
   self.layer = layer;
   self.surfaceReady = YES;
   // Draw any RenderTree that arrived before the surface was ready.
@@ -47,9 +45,9 @@
 }
 
 - (void)setRenderTreeData:(NSData *)data
-                   density:(float)density
-                     width:(uint32_t)width
-                    height:(uint32_t)height {
+                  density:(float)density
+                    width:(uint32_t)width
+                   height:(uint32_t)height {
   self.pendingTree = data;
   self.pendingDensity = density;
   self.pendingWidth = width;
@@ -71,8 +69,8 @@
   if (!self.surfaceReady || self.layer == nil || data.length == 0) return;
   [self.context drawLayer:self.layer
                  treeData:data
-               viewportW:self.pendingWidth
-               viewportH:self.pendingHeight
+                viewportW:self.pendingWidth
+                viewportH:self.pendingHeight
                   density:self.pendingDensity];
 }
 

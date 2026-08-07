@@ -1,0 +1,21 @@
+node_modules
+dist
+.turbo
+
+# native build outputs
+**/build
+**/.cxx
+**/.gradle
+**/Pods
+**/*.xcworkspace
+**/xcuserdata
+
+# vendored / generated (handled by clang-format script or not formatted)
+**/third_party
+**/generated
+**/fbs-gen
+**/oh_modules
+
+# lockfiles
+pnpm-lock.yaml
+**/*.lock

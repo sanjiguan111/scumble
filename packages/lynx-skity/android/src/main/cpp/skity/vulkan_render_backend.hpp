@@ -24,22 +24,22 @@ namespace lynxskity {
 // MVP defaults: no validation, FIFO present mode, double-buffer. Mirrors
 // Skity-Android's VulkanRenderBackend minus the demo/diagnostics surface.
 class VulkanRenderBackend : public RenderBackend {
- public:
+public:
   VulkanRenderBackend();
   ~VulkanRenderBackend() override;
 
-  void SetNativeWindow(ANativeWindow* native_window) override;
+  void SetNativeWindow(ANativeWindow *native_window) override;
   void OnSurfaceCreated() override;
   void OnSurfaceDestroyed() override;
   void OnSurfaceChanged(int width, int height) override;
-  void DrawFrame(const uint8_t* data, std::size_t size, float density) override;
+  void DrawFrame(const uint8_t *data, std::size_t size, float density) override;
 
- private:
+private:
   bool EnsureContext();
   bool EnsureNativeWindow();
   void ResetNativeWindow();
 
-  ANativeWindow* native_window_handle_ = nullptr;
+  ANativeWindow *native_window_handle_ = nullptr;
   uint32_t width_ = 0;
   uint32_t height_ = 0;
   std::unique_ptr<skity::GPUContext> context_;
@@ -50,4 +50,4 @@ class VulkanRenderBackend : public RenderBackend {
 
 std::unique_ptr<RenderBackend> CreateVulkanRenderBackend();
 
-}  // namespace lynxskity
+} // namespace lynxskity

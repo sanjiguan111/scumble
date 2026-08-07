@@ -7,9 +7,13 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
-    "codegen": "pnpm --filter lynx-skity codegen"
+    "codegen": "pnpm --filter lynx-skity codegen",
+    "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md}\" && node scripts/format-native.mjs",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,mjs,json,md}\" && node scripts/format-native.mjs --check"
   },
   "devDependencies": {
+    "clang-format": "^1.8.0",
+    "prettier": "^3.3.0",
     "turbo": "^2.5.3"
   }
 }

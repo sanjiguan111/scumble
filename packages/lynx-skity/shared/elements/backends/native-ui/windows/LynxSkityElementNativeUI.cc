@@ -16,7 +16,7 @@ namespace {
 
 constexpr wchar_t kHostClassName[] = L"LynxSkityElementNativeUIHost";
 
-std::wstring Utf8ToWide(const char* value) {
+std::wstring Utf8ToWide(const char *value) {
   if (value == nullptr || value[0] == '\0') {
     return L"";
   }
@@ -44,8 +44,7 @@ bool EnsureHostClassRegistered() {
   window_class.hCursor = LoadCursor(nullptr, IDC_ARROW);
   window_class.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
   window_class.lpszClassName = kHostClassName;
-  registered = RegisterClassExW(&window_class) != 0 ||
-      GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
+  registered = RegisterClassExW(&window_class) != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
   return registered;
 }
 
@@ -55,7 +54,7 @@ struct MainWindowSearch {
 };
 
 BOOL CALLBACK FindMainWindowCallback(HWND hwnd, LPARAM data) {
-  auto* search = reinterpret_cast<MainWindowSearch*>(data);
+  auto *search = reinterpret_cast<MainWindowSearch *>(data);
   DWORD window_process_id = 0;
   GetWindowThreadProcessId(hwnd, &window_process_id);
   if (window_process_id == search->process_id && IsWindowVisible(hwnd) &&
@@ -73,9 +72,8 @@ HWND FindMainWindow() {
 }
 
 class LynxSkityElementNativeUIView : public LynxSkityElementView {
- public:
-  explicit LynxSkityElementNativeUIView(void* opaque)
-      : LynxSkityElementView(opaque) {}
+public:
+  explicit LynxSkityElementNativeUIView(void *opaque) : LynxSkityElementView(opaque) {}
 
   ~LynxSkityElementNativeUIView() override {
     if (label_ != nullptr) {
@@ -96,12 +94,8 @@ class LynxSkityElementNativeUIView : public LynxSkityElementView {
     }
   }
 
-  void OnLayoutChanged(
-      float left,
-      float top,
-      float width,
-      float height,
-      float pixel_ratio) override {
+  void OnLayoutChanged(float left, float top, float width, float height,
+                       float pixel_ratio) override {
     HWND parent = FindMainWindow();
     if (parent == nullptr || !EnsureHostClassRegistered()) {
       return;
@@ -116,19 +110,9 @@ class LynxSkityElementNativeUIView : public LynxSkityElementView {
     ClientToScreen(parent, &origin);
 
     if (host_ == nullptr) {
-      host_ = CreateWindowExW(
-          WS_EX_TOOLWINDOW,
-          kHostClassName,
-          L"",
-          WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
-          origin.x,
-          origin.y,
-          w,
-          h,
-          parent,
-          nullptr,
-          GetModuleHandleW(nullptr),
-          nullptr);
+      host_ = CreateWindowExW(WS_EX_TOOLWINDOW, kHostClassName, L"",
+                              WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, origin.x, origin.y, w,
+                              h, parent, nullptr, GetModuleHandleW(nullptr), nullptr);
     }
 
     if (host_ == nullptr) {
@@ -137,34 +121,16 @@ class LynxSkityElementNativeUIView : public LynxSkityElementView {
 
     if (label_ == nullptr) {
       const std::wstring text = Utf8ToWide(value().c_str());
-      label_ = CreateWindowExW(
-          0,
-          L"STATIC",
-          text.c_str(),
-          WS_CHILD | WS_VISIBLE,
-          0,
-          0,
-          w,
-          h,
-          host_,
-          nullptr,
-          GetModuleHandleW(nullptr),
-          nullptr);
+      label_ = CreateWindowExW(0, L"STATIC", text.c_str(), WS_CHILD | WS_VISIBLE, 0, 0, w, h, host_,
+                               nullptr, GetModuleHandleW(nullptr), nullptr);
     }
 
-    SetWindowPos(
-        host_,
-        HWND_TOP,
-        origin.x,
-        origin.y,
-        w,
-        h,
-        SWP_SHOWWINDOW | SWP_NOACTIVATE);
+    SetWindowPos(host_, HWND_TOP, origin.x, origin.y, w, h, SWP_SHOWWINDOW | SWP_NOACTIVATE);
     SetWindowPos(label_, HWND_TOP, 0, 0, w, h, SWP_SHOWWINDOW);
   }
 
- private:
-  void OnValueChanged(const std::string& value) override {
+private:
+  void OnValueChanged(const std::string &value) override {
     if (label_ == nullptr) {
       return;
     }
@@ -176,9 +142,9 @@ class LynxSkityElementNativeUIView : public LynxSkityElementView {
   HWND label_ = nullptr;
 };
 
-}  // namespace
+} // namespace
 
-lynx_native_view_t* CreateLynxSkityElementNativeUINativeView(void* opaque) {
-  auto* view = new LynxSkityElementNativeUIView(opaque);
+lynx_native_view_t *CreateLynxSkityElementNativeUINativeView(void *opaque) {
+  auto *view = new LynxSkityElementNativeUIView(opaque);
   return view->native_view();
 }

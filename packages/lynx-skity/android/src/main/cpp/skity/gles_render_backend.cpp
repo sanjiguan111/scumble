@@ -8,17 +8,17 @@
 #include <skity/gpu/gpu_context_gl.hpp>
 #include <skity/gpu/gpu_surface.hpp>
 
+#include "SkityRenderer.h"         // lynx-skity cross-platform renderer
+#include "render_tree_generated.h" // skityrt FlatBuffer reader
 #include "shared_gl_context.hpp"
-#include "SkityRenderer.h"          // lynx-skity cross-platform renderer
-#include "render_tree_generated.h"  // skityrt FlatBuffer reader
 
 namespace lynxskity {
 
-std::unique_ptr<RenderBackend> CreateGLESRenderBackend(SharedGLContext* shared) {
+std::unique_ptr<RenderBackend> CreateGLESRenderBackend(SharedGLContext *shared) {
   return std::make_unique<GLESRenderBackend>(shared);
 }
 
-GLESRenderBackend::GLESRenderBackend(SharedGLContext* shared) : shared_(shared) {}
+GLESRenderBackend::GLESRenderBackend(SharedGLContext *shared) : shared_(shared) {}
 
 GLESRenderBackend::~GLESRenderBackend() {
   DestroySurface();
@@ -28,7 +28,7 @@ GLESRenderBackend::~GLESRenderBackend() {
   }
 }
 
-void GLESRenderBackend::SetNativeWindow(ANativeWindow* native_window) {
+void GLESRenderBackend::SetNativeWindow(ANativeWindow *native_window) {
   if (native_window_ == native_window) {
     return;
   }
@@ -43,29 +43,25 @@ void GLESRenderBackend::SetNativeWindow(ANativeWindow* native_window) {
 
 bool GLESRenderBackend::InitSurface() {
   if (egl_surface_ != EGL_NO_SURFACE) {
-    return true;  // this view's surface already created
+    return true; // this view's surface already created
   }
-  if (native_window_ == nullptr || shared_ == nullptr ||
-      shared_->skity_context == nullptr || shared_->display == EGL_NO_DISPLAY) {
+  if (native_window_ == nullptr || shared_ == nullptr || shared_->skity_context == nullptr ||
+      shared_->display == EGL_NO_DISPLAY) {
     return false;
   }
   // Per-view window surface on the shared EGL display/config.
-  egl_surface_ = eglCreateWindowSurface(shared_->display, shared_->config,
-                                        native_window_, nullptr);
+  egl_surface_ = eglCreateWindowSurface(shared_->display, shared_->config, native_window_, nullptr);
   if (egl_surface_ == EGL_NO_SURFACE) {
     return false;
   }
-  return eglMakeCurrent(shared_->display, egl_surface_, egl_surface_,
-                        shared_->context);
+  return eglMakeCurrent(shared_->display, egl_surface_, egl_surface_, shared_->context);
 }
 
 void GLESRenderBackend::DestroySurface() {
   if (shared_ != nullptr && shared_->display != EGL_NO_DISPLAY) {
-    eglMakeCurrent(shared_->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-                   EGL_NO_CONTEXT);
+    eglMakeCurrent(shared_->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   }
-  if (shared_ != nullptr && shared_->display != EGL_NO_DISPLAY &&
-      egl_surface_ != EGL_NO_SURFACE) {
+  if (shared_ != nullptr && shared_->display != EGL_NO_DISPLAY && egl_surface_ != EGL_NO_SURFACE) {
     eglDestroySurface(shared_->display, egl_surface_);
   }
   egl_surface_ = EGL_NO_SURFACE;
@@ -89,11 +85,9 @@ void GLESRenderBackend::OnSurfaceChanged(int width, int height) {
   height_ = height;
 }
 
-void GLESRenderBackend::DrawFrame(const uint8_t* data, std::size_t size,
-                                  float density) {
-  if (width_ <= 0 || height_ <= 0 || shared_ == nullptr ||
-      shared_->skity_context == nullptr || egl_surface_ == EGL_NO_SURFACE ||
-      data == nullptr || size == 0) {
+void GLESRenderBackend::DrawFrame(const uint8_t *data, std::size_t size, float density) {
+  if (width_ <= 0 || height_ <= 0 || shared_ == nullptr || shared_->skity_context == nullptr ||
+      egl_surface_ == EGL_NO_SURFACE || data == nullptr || size == 0) {
     return;
   }
 
@@ -115,7 +109,7 @@ void GLESRenderBackend::DrawFrame(const uint8_t* data, std::size_t size,
     return;
   }
 
-  auto* canvas = surface->LockCanvas(true);
+  auto *canvas = surface->LockCanvas(true);
   if (canvas == nullptr) {
     return;
   }
@@ -123,7 +117,7 @@ void GLESRenderBackend::DrawFrame(const uint8_t* data, std::size_t size,
   glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  const auto* tree = skityrt::GetRenderTree(data);
+  const auto *tree = skityrt::GetRenderTree(data);
   skityrt::SkityRenderer::Draw(tree, canvas, density);
 
   canvas->Flush();
@@ -133,4 +127,4 @@ void GLESRenderBackend::DrawFrame(const uint8_t* data, std::size_t size,
   eglSwapBuffers(shared_->display, egl_surface_);
 }
 
-}  // namespace lynxskity
+} // namespace lynxskity

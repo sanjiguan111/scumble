@@ -15,7 +15,6 @@ NAPI native module typings live in `types/napi-native-module.d.ts` and use a min
 Selected native files are written to `android/`, `ios/`, `harmony/`, and `shared/`. The package
 is discovered by Lynx through `lynx.lib.json`.
 
-
 ## NAPI Native Module
 
 Codegen creates `shared/nativeModule/LynxSkityModule.cc` once and
@@ -30,11 +29,7 @@ generated `NativeModules.LynxSkityModule` shim. The generated
 TypeScript shim is only for the selected mobile runtimes; Lynxtron does not
 import it.
 
-
 Android source builds resolve `org.lynxsdk.lynx:primjs` using the Gradle
 property `lynx.primjs.version`, defaulting to `4.+`. Set the property from
 the host root build when the App needs to pin the same PrimJS runtime version
 used by other Lynx dependencies.
-
-
-

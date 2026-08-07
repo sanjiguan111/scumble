@@ -2,7 +2,8 @@
 
 #import <Lynx/LynxEnv.h>
 
-static NSString *const kDevServerURL = @"http://localhost:3000/main.lynx.bundle?enable_napi_addon=1";
+static NSString *const kDevServerURL =
+    @"http://localhost:3000/main.lynx.bundle?enable_napi_addon=1";
 
 @implementation ViewController
 

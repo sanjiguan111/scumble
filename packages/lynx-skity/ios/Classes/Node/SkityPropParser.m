@@ -25,7 +25,9 @@ static const uint8_t P_CUBIC = 2;
 static const uint8_t P_QUAD = 3;
 static const uint8_t P_CLOSE = 5;
 
-static NSNumber *SkityNum(float f) { return @(f); }
+static NSNumber *SkityNum(float f) {
+  return @(f);
+}
 
 static float SkityGet(NSArray<NSNumber *> *args, NSUInteger idx, float def) {
   return idx < args.count ? args[idx].floatValue : def;
@@ -36,17 +38,16 @@ static float SkityGet(NSArray<NSNumber *> *args, NSUInteger idx, float def) {
 + (NSArray<NSNumber *> *)parseFloatList:(NSString *)s {
   if (s.length == 0) return nil;
   NSError *err = nil;
-  NSRegularExpression *re = [NSRegularExpression
-      regularExpressionWithPattern:@"-?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?"
-                            options:0
-                              error:&err];
+  NSRegularExpression *re =
+      [NSRegularExpression regularExpressionWithPattern:@"-?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?"
+                                                options:0
+                                                  error:&err];
   if (!re) return nil;
   NSMutableArray *nums = [NSMutableArray array];
   [re enumerateMatchesInString:s
                        options:0
                          range:NSMakeRange(0, s.length)
-                    usingBlock:^(NSTextCheckingResult *m, NSMatchingFlags flags,
-                                 BOOL *stop) {
+                    usingBlock:^(NSTextCheckingResult *m, NSMatchingFlags flags, BOOL *stop) {
                       NSString *sub = [s substringWithRange:m.range];
                       float v = [sub floatValue];
                       [nums addObject:SkityNum(v)];
@@ -58,56 +59,54 @@ static float SkityGet(NSArray<NSNumber *> *args, NSUInteger idx, float def) {
   NSString *s = [v lowercaseString];
   if ([s isEqualToString:@"round"]) return 1;
   if ([s isEqualToString:@"square"]) return 2;
-  return 0;  // butt
+  return 0; // butt
 }
 
 + (uint8_t)parseJoin:(NSString *)v {
   NSString *s = [v lowercaseString];
   if ([s isEqualToString:@"round"]) return 1;
   if ([s isEqualToString:@"bevel"]) return 2;
-  return 0;  // miter
+  return 0; // miter
 }
 
 + (uint8_t)parseFillRule:(NSString *)v {
   NSString *s = [v lowercaseString];
   if ([s isEqualToString:@"evenodd"]) return 1;
-  return 0;  // nonzero
+  return 0; // nonzero
 }
 
 + (NSArray<SkityTransformOp *> *)parseTransform:(NSString *)s {
   if (s.length == 0) return @[];
   NSMutableArray *out = [NSMutableArray array];
   NSError *err = nil;
-  NSRegularExpression *re = [NSRegularExpression
-      regularExpressionWithPattern:@"([a-zA-Z]+)\\s*\\(([^)]*)\\)"
-                            options:0
-                              error:&err];
+  NSRegularExpression *re =
+      [NSRegularExpression regularExpressionWithPattern:@"([a-zA-Z]+)\\s*\\(([^)]*)\\)"
+                                                options:0
+                                                  error:&err];
   if (!re) return @[];
   [re enumerateMatchesInString:s
                        options:0
                          range:NSMakeRange(0, s.length)
-                    usingBlock:^(NSTextCheckingResult *m, NSMatchingFlags flags,
-                                 BOOL *stop) {
-                      NSString *name =
-                          [[s substringWithRange:[m rangeAtIndex:1]]
-                              lowercaseString];
+                    usingBlock:^(NSTextCheckingResult *m, NSMatchingFlags flags, BOOL *stop) {
+                      NSString *name = [[s substringWithRange:[m rangeAtIndex:1]] lowercaseString];
                       NSArray<NSNumber *> *args = [SkityPropParser
                           parseFloatList:[s substringWithRange:[m rangeAtIndex:2]]];
                       if (args.count == 0) return;
                       SkityTransformOp *op = [SkityTransformOp new];
                       if ([name isEqualToString:@"translate"]) {
                         op.type = T_TRANSLATE;
-                        op.args = @[ SkityNum(SkityGet(args, 0, 0)),
-                                     SkityNum(SkityGet(args, 1, 0)) ];
+                        op.args =
+                            @[ SkityNum(SkityGet(args, 0, 0)), SkityNum(SkityGet(args, 1, 0)) ];
                       } else if ([name isEqualToString:@"scale"]) {
                         float sx = SkityGet(args, 0, 1);
                         op.type = T_SCALE;
                         op.args = @[ SkityNum(sx), SkityNum(SkityGet(args, 1, sx)) ];
                       } else if ([name isEqualToString:@"rotate"]) {
                         op.type = T_ROTATE;
-                        op.args = @[ SkityNum(SkityGet(args, 0, 0)),
-                                     SkityNum(SkityGet(args, 1, 0)),
-                                     SkityNum(SkityGet(args, 2, 0)) ];
+                        op.args = @[
+                          SkityNum(SkityGet(args, 0, 0)), SkityNum(SkityGet(args, 1, 0)),
+                          SkityNum(SkityGet(args, 2, 0))
+                        ];
                       } else if ([name isEqualToString:@"skewx"]) {
                         op.type = T_SKEW_X;
                         op.args = @[ SkityNum(SkityGet(args, 0, 0)) ];
@@ -138,57 +137,56 @@ static float SkityGet(NSArray<NSNumber *> *args, NSUInteger idx, float def) {
   // (including sign / decimal / exponent) accumulate as args. Mirrors
   // SkityPropParser.kt's scanner, treating lowercase as absolute (MVP).
   NSError *err = nil;
-  NSRegularExpression *numRe = [NSRegularExpression
-      regularExpressionWithPattern:@"-?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?"
-                            options:0
-                              error:&err];
-  NSCharacterSet *cmdChars = [NSCharacterSet
-      characterSetWithCharactersInString:@"MLHVCSTAQZmlhvcstaqz"];
+  NSRegularExpression *numRe =
+      [NSRegularExpression regularExpressionWithPattern:@"-?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?"
+                                                options:0
+                                                  error:&err];
+  NSCharacterSet *cmdChars =
+      [NSCharacterSet characterSetWithCharactersInString:@"MLHVCSTAQZmlhvcstaqz"];
 
-  void (^flush)(unichar *, NSMutableArray<NSNumber *> *) = ^void(
-      unichar *cmd, NSMutableArray<NSNumber *> *nums) {
-    if (nums.count == 0) return;
-    unichar c = (*cmd >= 'a' && *cmd <= 'z') ? *cmd - ('a' - 'A') : *cmd;
-    switch (c) {
-      case 'M':
-        for (NSUInteger i = 0; i + 1 < nums.count; i += 2) {
-          SkityPathCommand *p = [SkityPathCommand new];
-          p.type = P_MOVE;
-          p.args = @[ nums[i], nums[i + 1] ];
-          [out addObject:p];
+  void (^flush)(unichar *, NSMutableArray<NSNumber *> *) =
+      ^void(unichar *cmd, NSMutableArray<NSNumber *> *nums) {
+        if (nums.count == 0) return;
+        unichar c = (*cmd >= 'a' && *cmd <= 'z') ? *cmd - ('a' - 'A') : *cmd;
+        switch (c) {
+        case 'M':
+          for (NSUInteger i = 0; i + 1 < nums.count; i += 2) {
+            SkityPathCommand *p = [SkityPathCommand new];
+            p.type = P_MOVE;
+            p.args = @[ nums[i], nums[i + 1] ];
+            [out addObject:p];
+          }
+          break;
+        case 'L':
+          for (NSUInteger i = 0; i + 1 < nums.count; i += 2) {
+            SkityPathCommand *p = [SkityPathCommand new];
+            p.type = P_LINE;
+            p.args = @[ nums[i], nums[i + 1] ];
+            [out addObject:p];
+          }
+          break;
+        case 'C':
+          for (NSUInteger i = 0; i + 5 < nums.count; i += 6) {
+            SkityPathCommand *p = [SkityPathCommand new];
+            p.type = P_CUBIC;
+            p.args = @[ nums[i], nums[i + 1], nums[i + 2], nums[i + 3], nums[i + 4], nums[i + 5] ];
+            [out addObject:p];
+          }
+          break;
+        case 'Q':
+          for (NSUInteger i = 0; i + 3 < nums.count; i += 4) {
+            SkityPathCommand *p = [SkityPathCommand new];
+            p.type = P_QUAD;
+            p.args = @[ nums[i], nums[i + 1], nums[i + 2], nums[i + 3] ];
+            [out addObject:p];
+          }
+          break;
+        // H/V/S/T/A: TODO (need current-point tracking / arc conversion)
+        default:
+          break;
         }
-        break;
-      case 'L':
-        for (NSUInteger i = 0; i + 1 < nums.count; i += 2) {
-          SkityPathCommand *p = [SkityPathCommand new];
-          p.type = P_LINE;
-          p.args = @[ nums[i], nums[i + 1] ];
-          [out addObject:p];
-        }
-        break;
-      case 'C':
-        for (NSUInteger i = 0; i + 5 < nums.count; i += 6) {
-          SkityPathCommand *p = [SkityPathCommand new];
-          p.type = P_CUBIC;
-          p.args = @[ nums[i], nums[i + 1], nums[i + 2], nums[i + 3],
-                      nums[i + 4], nums[i + 5] ];
-          [out addObject:p];
-        }
-        break;
-      case 'Q':
-        for (NSUInteger i = 0; i + 3 < nums.count; i += 4) {
-          SkityPathCommand *p = [SkityPathCommand new];
-          p.type = P_QUAD;
-          p.args = @[ nums[i], nums[i + 1], nums[i + 2], nums[i + 3] ];
-          [out addObject:p];
-        }
-        break;
-      // H/V/S/T/A: TODO (need current-point tracking / arc conversion)
-      default:
-        break;
-    }
-    [nums removeAllObjects];
-  };
+        [nums removeAllObjects];
+      };
 
   NSUInteger i = 0;
   NSUInteger len = d.length;
@@ -213,14 +211,15 @@ static float SkityGet(NSArray<NSNumber *> *args, NSUInteger idx, float def) {
       i++;
     } else {
       // Try to match a number at position i.
-      NSTextCheckingResult *m =
-          [numRe firstMatchInString:d options:0 range:NSMakeRange(i, len - i)];
+      NSTextCheckingResult *m = [numRe firstMatchInString:d
+                                                  options:0
+                                                    range:NSMakeRange(i, len - i)];
       if (m && m.range.location == i) {
         NSString *sub = [d substringWithRange:m.range];
         [nums addObject:SkityNum([sub floatValue])];
         i = m.range.location + m.range.length;
       } else {
-        i++;  // skip stray char
+        i++; // skip stray char
       }
     }
   }

@@ -12,8 +12,8 @@
 #include <skity/gpu/gpu_surface.hpp>
 #include <skity/skity.hpp>
 
-#include "SkityRenderer.h"          // shared/skity — cross-platform renderer
-#include "render_tree_generated.h"  // skityrt::GetRenderTree
+#include "SkityRenderer.h"         // shared/skity — cross-platform renderer
+#include "render_tree_generated.h" // skityrt::GetRenderTree
 
 @implementation SkityMetalContext {
   id<MTLDevice> _device;
@@ -25,9 +25,7 @@
 + (instancetype)sharedInstance {
   static SkityMetalContext *instance;
   static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{
-    instance = [[SkityMetalContext alloc] init];
-  });
+  dispatch_once(&onceToken, ^{ instance = [[SkityMetalContext alloc] init]; });
   return instance;
 }
 
@@ -39,8 +37,7 @@
     _queue.label = @"Skity GPU Queue";
     // react-native-skity PlatformContext.mm: MTLContextCreate(device, queue).
     _gpuContext = skity::MTLContextCreate(_device, _queue);
-    _renderQueue =
-        dispatch_queue_create("com.skity.lynx.queue", DISPATCH_QUEUE_SERIAL);
+    _renderQueue = dispatch_queue_create("com.skity.lynx.queue", DISPATCH_QUEUE_SERIAL);
   }
   return self;
 }
@@ -51,9 +48,9 @@
 
 - (void)drawLayer:(CAMetalLayer *)layer
          treeData:(NSData *)treeData
-         viewportW:(uint32_t)w
-         viewportH:(uint32_t)h
-           density:(float)density {
+        viewportW:(uint32_t)w
+        viewportH:(uint32_t)h
+          density:(float)density {
   if (layer == nil || treeData.length == 0 || _gpuContext == nullptr) return;
 
   @autoreleasepool {
@@ -79,8 +76,7 @@
 
     // Decode the FlatBuffer and draw. This is the shared C++ entry point that
     // Android also reaches (via JNI → AppRenderer → GLESRenderBackend).
-    const auto *tree =
-        skityrt::GetRenderTree(static_cast<const void *>(treeData.bytes));
+    const auto *tree = skityrt::GetRenderTree(static_cast<const void *>(treeData.bytes));
     skityrt::SkityRenderer::Draw(tree, canvas, density);
 
     canvas->Flush();

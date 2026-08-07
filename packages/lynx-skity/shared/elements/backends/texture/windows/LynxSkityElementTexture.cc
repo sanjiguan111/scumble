@@ -13,8 +13,8 @@
 #include <windows.h>
 #include <wrl/client.h>
 
-#include <cstring>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -23,9 +23,7 @@ using Microsoft::WRL::ComPtr;
 
 namespace {
 
-bool CreateD3DDevice(
-    ComPtr<ID3D11Device>* device,
-    ComPtr<ID3D11DeviceContext>* context) {
+bool CreateD3DDevice(ComPtr<ID3D11Device> *device, ComPtr<ID3D11DeviceContext> *context) {
   constexpr D3D_FEATURE_LEVEL kFeatureLevels[] = {
       D3D_FEATURE_LEVEL_11_1,
       D3D_FEATURE_LEVEL_11_0,
@@ -34,36 +32,20 @@ bool CreateD3DDevice(
   };
   D3D_FEATURE_LEVEL created_level = D3D_FEATURE_LEVEL_11_0;
   UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-  HRESULT hr = D3D11CreateDevice(
-      nullptr,
-      D3D_DRIVER_TYPE_HARDWARE,
-      nullptr,
-      flags,
-      kFeatureLevels,
-      static_cast<UINT>(std::size(kFeatureLevels)),
-      D3D11_SDK_VERSION,
-      device->GetAddressOf(),
-      &created_level,
-      context->GetAddressOf());
+  HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, kFeatureLevels,
+                                 static_cast<UINT>(std::size(kFeatureLevels)), D3D11_SDK_VERSION,
+                                 device->GetAddressOf(), &created_level, context->GetAddressOf());
   if (SUCCEEDED(hr)) {
     return true;
   }
 
-  hr = D3D11CreateDevice(
-      nullptr,
-      D3D_DRIVER_TYPE_WARP,
-      nullptr,
-      flags,
-      kFeatureLevels,
-      static_cast<UINT>(std::size(kFeatureLevels)),
-      D3D11_SDK_VERSION,
-      device->GetAddressOf(),
-      &created_level,
-      context->GetAddressOf());
+  hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, flags, kFeatureLevels,
+                         static_cast<UINT>(std::size(kFeatureLevels)), D3D11_SDK_VERSION,
+                         device->GetAddressOf(), &created_level, context->GetAddressOf());
   return SUCCEEDED(hr);
 }
 
-std::wstring Utf8ToWide(const char* value) {
+std::wstring Utf8ToWide(const char *value) {
   if (value == nullptr || value[0] == '\0') {
     return L"";
   }
@@ -78,13 +60,8 @@ std::wstring Utf8ToWide(const char* value) {
   return result;
 }
 
-std::vector<std::uint32_t> DrawTextPixels(
-    int width_px,
-    int height_px,
-    const char* text) {
-  std::vector<std::uint32_t> pixels(
-      static_cast<size_t>(width_px) * height_px,
-      0xffffffff);
+std::vector<std::uint32_t> DrawTextPixels(int width_px, int height_px, const char *text) {
+  std::vector<std::uint32_t> pixels(static_cast<size_t>(width_px) * height_px, 0xffffffff);
 
   BITMAPINFO bitmap_info{};
   bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -94,14 +71,8 @@ std::vector<std::uint32_t> DrawTextPixels(
   bitmap_info.bmiHeader.biBitCount = 32;
   bitmap_info.bmiHeader.biCompression = BI_RGB;
 
-  void* bits = nullptr;
-  HBITMAP bitmap = CreateDIBSection(
-      nullptr,
-      &bitmap_info,
-      DIB_RGB_COLORS,
-      &bits,
-      nullptr,
-      0);
+  void *bits = nullptr;
+  HBITMAP bitmap = CreateDIBSection(nullptr, &bitmap_info, DIB_RGB_COLORS, &bits, nullptr, 0);
   if (bitmap == nullptr || bits == nullptr) {
     return pixels;
   }
@@ -115,15 +86,11 @@ std::vector<std::uint32_t> DrawTextPixels(
 
   const std::wstring label = Utf8ToWide(text);
   RECT text_rect{8, 0, width_px - 8, height_px};
-  DrawTextW(
-      dc,
-      label.c_str(),
-      static_cast<int>(label.size()),
-      &text_rect,
-      DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+  DrawTextW(dc, label.c_str(), static_cast<int>(label.size()), &text_rect,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 
   std::memcpy(pixels.data(), bits, pixels.size() * sizeof(std::uint32_t));
-  for (auto& pixel : pixels) {
+  for (auto &pixel : pixels) {
     pixel |= 0xff000000;
   }
 
@@ -133,13 +100,10 @@ std::vector<std::uint32_t> DrawTextPixels(
   return pixels;
 }
 
-}  // namespace
+} // namespace
 
-bool DrawLynxSkityElementTextureSurface(
-    lynx_surface_handle_t* handle,
-    int width_px,
-    int height_px,
-    const char* text) {
+bool DrawLynxSkityElementTextureSurface(lynx_surface_handle_t *handle, int width_px, int height_px,
+                                        const char *text) {
   if (handle == nullptr || width_px <= 0 || height_px <= 0) {
     return false;
   }
@@ -151,17 +115,14 @@ bool DrawLynxSkityElementTextureSurface(
   }
 
   ComPtr<ID3D11Texture2D> texture;
-  HRESULT hr = device->OpenSharedResource(
-      reinterpret_cast<HANDLE>(handle),
-      __uuidof(ID3D11Texture2D),
-      reinterpret_cast<void**>(texture.GetAddressOf()));
+  HRESULT hr =
+      device->OpenSharedResource(reinterpret_cast<HANDLE>(handle), __uuidof(ID3D11Texture2D),
+                                 reinterpret_cast<void **>(texture.GetAddressOf()));
   if (FAILED(hr) || !texture) {
     ComPtr<ID3D11Device1> device1;
     if (SUCCEEDED(device.As(&device1)) && device1) {
-      hr = device1->OpenSharedResource1(
-          reinterpret_cast<HANDLE>(handle),
-          __uuidof(ID3D11Texture2D),
-          reinterpret_cast<void**>(texture.GetAddressOf()));
+      hr = device1->OpenSharedResource1(reinterpret_cast<HANDLE>(handle), __uuidof(ID3D11Texture2D),
+                                        reinterpret_cast<void **>(texture.GetAddressOf()));
     }
   }
   if (FAILED(hr) || !texture) {
@@ -170,8 +131,7 @@ bool DrawLynxSkityElementTextureSurface(
 
   D3D11_TEXTURE2D_DESC desc{};
   texture->GetDesc(&desc);
-  if (static_cast<int>(desc.Width) != width_px ||
-      static_cast<int>(desc.Height) != height_px) {
+  if (static_cast<int>(desc.Width) != width_px || static_cast<int>(desc.Height) != height_px) {
     return false;
   }
 
@@ -183,13 +143,8 @@ bool DrawLynxSkityElementTextureSurface(
   }
 
   const auto pixels = DrawTextPixels(width_px, height_px, text);
-  context->UpdateSubresource(
-      texture.Get(),
-      0,
-      nullptr,
-      pixels.data(),
-      static_cast<UINT>(width_px * sizeof(std::uint32_t)),
-      0);
+  context->UpdateSubresource(texture.Get(), 0, nullptr, pixels.data(),
+                             static_cast<UINT>(width_px * sizeof(std::uint32_t)), 0);
   context->Flush();
 
   if (keyed_mutex) {

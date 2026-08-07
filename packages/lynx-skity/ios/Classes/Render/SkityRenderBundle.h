@@ -25,9 +25,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Screen scale (points → pixels), passed through to SkityRenderer::Draw.
 @property(nonatomic, assign, readonly) float density;
 
-- (instancetype)initWithData:(NSData *)data
-                    viewport:(CGSize)viewportSize
-                      density:(float)density;
+- (instancetype)initWithData:(NSData *)data viewport:(CGSize)viewportSize density:(float)density;
 
 @end
 

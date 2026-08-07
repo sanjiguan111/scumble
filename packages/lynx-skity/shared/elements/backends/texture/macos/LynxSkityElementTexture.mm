@@ -7,11 +7,8 @@
 #include <algorithm>
 #include <cstdint>
 
-bool DrawLynxSkityElementTextureSurface(
-    lynx_surface_handle_t* handle,
-    int width_px,
-    int height_px,
-    const char* text) {
+bool DrawLynxSkityElementTextureSurface(lynx_surface_handle_t *handle, int width_px, int height_px,
+                                        const char *text) {
   if (handle == nullptr || width_px <= 0 || height_px <= 0) {
     return false;
   }
@@ -22,7 +19,7 @@ bool DrawLynxSkityElementTextureSurface(
     return false;
   }
 
-  void* base = IOSurfaceGetBaseAddress(surface);
+  void *base = IOSurfaceGetBaseAddress(surface);
   const size_t bytes_per_row = IOSurfaceGetBytesPerRow(surface);
   const int surface_width = static_cast<int>(IOSurfaceGetWidth(surface));
   const int surface_height = static_cast<int>(IOSurfaceGetHeight(surface));
@@ -33,14 +30,9 @@ bool DrawLynxSkityElementTextureSurface(
   }
 
   CGColorSpaceRef color_space = CGColorSpaceCreateDeviceRGB();
-  CGContextRef context = CGBitmapContextCreate(
-      base,
-      width_px,
-      height_px,
-      8,
-      bytes_per_row,
-      color_space,
-      kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+  CGContextRef context =
+      CGBitmapContextCreate(base, width_px, height_px, 8, bytes_per_row, color_space,
+                            kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
   CGColorSpaceRelease(color_space);
   if (context == nullptr) {
     IOSurfaceUnlock(surface, 0, &seed);
@@ -53,21 +45,15 @@ bool DrawLynxSkityElementTextureSurface(
   CGContextSetRGBFillColor(context, 1.0, 1.0, 1.0, 1.0);
   CGContextFillRect(context, CGRectMake(0, 0, width_px, height_px));
 
-  CFStringRef label = CFStringCreateWithCString(
-      kCFAllocatorDefault,
-      text != nullptr ? text : "",
-      kCFStringEncodingUTF8);
+  CFStringRef label = CFStringCreateWithCString(kCFAllocatorDefault, text != nullptr ? text : "",
+                                                kCFStringEncodingUTF8);
   CTFontRef font = CTFontCreateWithName(CFSTR("Helvetica"), 14, nullptr);
   CGColorRef text_color = CGColorCreateGenericRGB(0.0, 0.0, 0.0, 1.0);
-  const void* keys[] = {kCTFontAttributeName, kCTForegroundColorAttributeName};
-  const void* values[] = {font, text_color};
-  CFDictionaryRef attributes = CFDictionaryCreate(
-      kCFAllocatorDefault,
-      keys,
-      values,
-      2,
-      &kCFTypeDictionaryKeyCallBacks,
-      &kCFTypeDictionaryValueCallBacks);
+  const void *keys[] = {kCTFontAttributeName, kCTForegroundColorAttributeName};
+  const void *values[] = {font, text_color};
+  CFDictionaryRef attributes =
+      CFDictionaryCreate(kCFAllocatorDefault, keys, values, 2, &kCFTypeDictionaryKeyCallBacks,
+                         &kCFTypeDictionaryValueCallBacks);
   CFAttributedStringRef attributed =
       CFAttributedStringCreate(kCFAllocatorDefault, label, attributes);
   CTLineRef line = CTLineCreateWithAttributedString(attributed);
@@ -75,15 +61,11 @@ bool DrawLynxSkityElementTextureSurface(
   CGFloat ascent = 0;
   CGFloat descent = 0;
   CGFloat leading = 0;
-  const double line_width =
-      CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
+  const double line_width = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
   CGContextSetTextMatrix(context, CGAffineTransformMakeScale(1.0, -1.0));
   CGContextSetTextPosition(
-      context,
-      std::max<CGFloat>(8, (width_px - line_width) / 2.0),
-      std::max<CGFloat>(
-          descent + 4,
-          (height_px - ascent - descent) / 2.0 + descent));
+      context, std::max<CGFloat>(8, (width_px - line_width) / 2.0),
+      std::max<CGFloat>(descent + 4, (height_px - ascent - descent) / 2.0 + descent));
   CTLineDraw(line, context);
 
   CFRelease(line);

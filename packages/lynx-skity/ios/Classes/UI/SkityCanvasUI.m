@@ -24,8 +24,7 @@ LYNX_REGISTER_UI("skity-canvas")
 - (void)onReceiveUIOperation:(id)extraData {
   [super onReceiveUIOperation:extraData];
   if ([extraData isKindOfClass:[SkityRenderBundle class]]) {
-    [(SkityCanvasView *)self.view
-        consumeRenderBundle:(SkityRenderBundle *)extraData];
+    [(SkityCanvasView *)self.view consumeRenderBundle:(SkityRenderBundle *)extraData];
   }
 }
 

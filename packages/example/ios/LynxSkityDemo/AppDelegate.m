@@ -24,8 +24,7 @@
   LynxEnv *env = [LynxEnv sharedInstance];
   [env setLynxDebugEnabled:YES];
 
-  LynxConfig *globalConfig =
-      [[LynxConfig alloc] initWithProvider:[DemoTemplateProvider new]];
+  LynxConfig *globalConfig = [[LynxConfig alloc] initWithProvider:[DemoTemplateProvider new]];
   [env prepareConfig:globalConfig];
 }
 

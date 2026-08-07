@@ -12,4 +12,3 @@ export declare class LynxSkityModule {
   createColorFilter(): Object;
   createShader(): Object;
 }
-

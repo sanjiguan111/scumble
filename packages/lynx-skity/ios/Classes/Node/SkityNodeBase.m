@@ -13,18 +13,13 @@
 // android SkityNodeBase.kt exposes all @LynxProp setters to its subclasses.
 LYNX_PROPS_GROUP_DECLARE(
     // geometry
-    LYNX_PROP_DECLARE("x", setX:, NSNumber *),
-    LYNX_PROP_DECLARE("y", setY:, NSNumber *),
+    LYNX_PROP_DECLARE("x", setX:, NSNumber *), LYNX_PROP_DECLARE("y", setY:, NSNumber *),
     LYNX_PROP_DECLARE("width", setWidth:, NSNumber *),
     LYNX_PROP_DECLARE("height", setHeight:, NSNumber *),
-    LYNX_PROP_DECLARE("cx", setCx:, NSNumber *),
-    LYNX_PROP_DECLARE("cy", setCy:, NSNumber *),
-    LYNX_PROP_DECLARE("r", setR:, NSNumber *),
-    LYNX_PROP_DECLARE("rx", setRx:, NSNumber *),
-    LYNX_PROP_DECLARE("ry", setRy:, NSNumber *),
-    LYNX_PROP_DECLARE("x1", setX1:, NSNumber *),
-    LYNX_PROP_DECLARE("y1", setY1:, NSNumber *),
-    LYNX_PROP_DECLARE("x2", setX2:, NSNumber *),
+    LYNX_PROP_DECLARE("cx", setCx:, NSNumber *), LYNX_PROP_DECLARE("cy", setCy:, NSNumber *),
+    LYNX_PROP_DECLARE("r", setR:, NSNumber *), LYNX_PROP_DECLARE("rx", setRx:, NSNumber *),
+    LYNX_PROP_DECLARE("ry", setRy:, NSNumber *), LYNX_PROP_DECLARE("x1", setX1:, NSNumber *),
+    LYNX_PROP_DECLARE("y1", setY1:, NSNumber *), LYNX_PROP_DECLARE("x2", setX2:, NSNumber *),
     LYNX_PROP_DECLARE("y2", setY2:, NSNumber *),
     LYNX_PROP_DECLARE("points", setPoints:, NSString *),
     // paint

@@ -1,6 +1,6 @@
 /// <reference types="@lynx-js/rspeedy/client" />
 
-declare module '@lynx-js/types' {
+declare module "@lynx-js/types" {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   interface GlobalProps {
     /**
@@ -11,4 +11,4 @@ declare module '@lynx-js/types' {
 }
 
 // This export makes the file a module
-export {}
+export {};

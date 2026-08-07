@@ -21,34 +21,34 @@ namespace lynx {
 namespace explorer {
 
 class LynxNodeAPI {
- public:
-  static LynxNodeAPI& GetInstance() {
+public:
+  static LynxNodeAPI &GetInstance() {
     static LynxNodeAPI instance;
     return instance;
   }
 
   // Require (load + init) the named addon under the given napi_env, publishing
   // its exports to globalThis.__lynx_node_addon_exports__[addon_name].
-  void RequireNodeAddon(void* napi_env_ptr, const std::string& addon_name);
+  void RequireNodeAddon(void *napi_env_ptr, const std::string &addon_name);
 
- private:
+private:
   LynxNodeAPI() = default;
   ~LynxNodeAPI() = default;
 
   struct NodeAddon {
-    void* moduleHandle = nullptr;  // dlopen handle
-    void* init = nullptr;          // napi_register_module_v1
-    std::string generatedName;     // key under __lynx_node_addon_exports__
+    void *moduleHandle = nullptr; // dlopen handle
+    void *init = nullptr;         // napi_register_module_v1
+    std::string generatedName;    // key under __lynx_node_addon_exports__
   };
 
-  bool LoadNodeAddon(NodeAddon& addon, const std::string& library_name) const;
-  bool InitializeNodeModule(void* env_ptr, NodeAddon& addon);
+  bool LoadNodeAddon(NodeAddon &addon, const std::string &library_name) const;
+  bool InitializeNodeModule(void *env_ptr, NodeAddon &addon);
 
   std::mutex env_mutex_;
   std::unordered_map<std::string, NodeAddon> nodeAddons_;
 };
 
-}  // namespace explorer
-}  // namespace lynx
+} // namespace explorer
+} // namespace lynx
 
-#endif  // NODE_API_LOADER_LYNX_NODE_API_H_
+#endif // NODE_API_LOADER_LYNX_NODE_API_H_
