@@ -2,18 +2,51 @@
 // Render tree structure: the output of the skity ShadowNode layer, consumed by
 // the cross-platform C++ SkityRenderer. Derived from lynx-native-svg's schema
 // (Apache-2.0), trimmed to the MVP.
+//
+// See RENDER_ARCHITECTURE.md for the logical-pixel / viewport contract.
 
 include "render_tree_common.fbs";
 include "render_tree_style.fbs";
 
 namespace skityrt;
 
+// ---- Viewport (logical coordinate system, SVG viewBox role) ----
+// The canvas declares a logical coordinate space; child geometry is authored in
+// logical pixels and mapped to physical pixels by the renderer. See
+// RENDER_ARCHITECTURE.md §6.
+
+enum AspectRatioAlign : byte {
+  NONE  = 0,  // stretch to fill (ignore aspect ratio)
+  X_MIN = 1,
+  X_MID = 2,
+  X_MAX = 3,
+}
+
+enum AspectRatioMeetOrSlice : byte {
+  MEET  = 0,
+  SLICE = 1,
+}
+
+table ViewBox {
+  x:float = 0;
+  y:float = 0;
+  width:float = 0;
+  height:float = 0;
+}
+
+table PreserveAspectRatio {
+  align:AspectRatioAlign = X_MID;
+  meet_or_slice:AspectRatioMeetOrSlice = MEET;
+}
+
 table RenderNode {
   id:int32 = -1;
   tag_name:string;
   style:ComputedStyle;
 
-  // Resolved geometry (absolute pixels, resolved via viewport)
+  // Geometry in the canvas logical coordinate space (logical pixels, NOT
+  // physical). The renderer applies the RenderTree viewport transform to map
+  // these to physical pixels. See RENDER_ARCHITECTURE.md §6.
   x:float = 0;
   y:float = 0;
   width:float = 0;
@@ -31,7 +64,7 @@ table RenderNode {
 
   children:[RenderNode];
 
-  // Structured path data (pre-parsed)
+  // Structured path data (pre-parsed on the JS side; see RENDER_ARCHITECTURE.md §5)
   path_commands:[PathCommand];
   points:[float];  // polyline/polygon: [x0,y0,x1,y1,...]
 
@@ -41,6 +74,12 @@ table RenderNode {
 
 table RenderTree {
   root:RenderNode;
+  // Canvas logical coordinate system. When set, child geometry (authored in
+  // logical pixels) is scaled to fit the canvas's physical size according to
+  // preserve_aspect. When absent, geometry is treated as 1:1 physical pixels.
+  viewport:ViewBox;
+  preserve_aspect:PreserveAspectRatio;
+  density:float = 1.0;  // physical pixel density (DPR)
 }
 
 root_type RenderTree;
