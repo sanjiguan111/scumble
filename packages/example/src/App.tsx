@@ -26,7 +26,7 @@ export function App() {
           />
         </skity-group>
       </skity-canvas>
-      <text style={{ padding: "16px" }}>Rendered by skity (GLES / TextureView).</text>
+      <text style={{ padding: "16px" }}>Rendered by skity GPU Backend.</text>
     </view>
   );
 }
