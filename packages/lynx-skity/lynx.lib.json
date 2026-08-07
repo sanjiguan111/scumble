@@ -13,17 +13,7 @@
       ]
     },
     "ios": {
-      "sourceDir": "ios",
-      "podspecPath": "ios/lynx-skity.podspec",
-      "nodeApiAddons": [
-        {
-          "name": "LynxSkityModule",
-          "podName": "lynx-skity",
-          "podspecPath": "ios/lynx-skity.podspec",
-          "addonUseHeader": "addon_use.h",
-          "required": true
-        }
-      ]
+      "podspecPath": "lynx-skity.podspec"
     },
     "harmony": {
       "packageDir": "harmony"
