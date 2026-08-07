@@ -15,6 +15,15 @@ dist/
 local.properties
 *.iml
 
+# iOS / CocoaPods
+**/Pods/
+**/*.xcuserstate
+**/*.xcworkspace/
+xcuserdata/
+# Lynx autolink (cocoapods-lynx-library) regenerates this on pod install.
+**/generated/lynx-library/
+# Note: Gemfile.lock and Podfile.lock ARE committed (pin versions).
+
 # HarmonyOS
 **/oh_modules/
 *.hap

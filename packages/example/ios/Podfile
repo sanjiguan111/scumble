@@ -1,0 +1,17 @@
+platform :ios, '13.0'
+
+plugin 'cocoapods-lynx-library'
+
+project 'LynxSkityDemo.xcodeproj'
+
+target 'LynxSkityDemo' do
+  use_frameworks! :linkage => :static
+
+  pod 'Lynx', '4.0.1', :subspecs => ['Framework']
+  pod 'PrimJS', '4.0.0', :subspecs => ['quickjs', 'napi']
+
+  pod 'LynxService', '4.0.1', :subspecs => ['Log', 'Http']
+
+  # Autolink
+  use_lynx_library!
+end

@@ -1,0 +1,11 @@
+source 'https://rubygems.org'
+
+# Ruby shipped with macOS is fine; only enforce a sane floor.
+ruby '>= 2.6.10'
+
+# Pin CocoaPods so every contributor resolves Podfile.lock with the same
+# version (React Native convention). Install deps with `bundle install`, then
+# run `bundle exec pod install` (packages/example/scripts/run-ios.mjs does this
+# automatically).
+gem 'cocoapods', '~> 1.15'
+gem 'cocoapods-lynx-library', '>= 4.0.1'

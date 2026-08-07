@@ -5,7 +5,8 @@
   "scripts": {
     "build": "rspeedy build",
     "dev": "rspeedy dev",
-    "android": "node scripts/run-android.mjs"
+    "android": "node scripts/run-android.mjs",
+    "ios": "node scripts/run-ios.mjs"
   },
   "dependencies": {
     "@lynx-js/react": "^0.123.0",
