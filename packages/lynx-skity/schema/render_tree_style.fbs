@@ -58,6 +58,24 @@ table ComputedStyle {
   display:Display = INLINE;
   visibility:Visibility = VISIBLE;
 
-  // Transform (pre-parsed operations)
+  // Transform (pre-parsed operations) — legacy vector, superseded by
+  // transform_data (kept during the migration; removed once native consumes
+  // the nested flatbuffer path).
   transform:[TransformOp];
+  // JS-built TransformOpList bytes, memcpy'd verbatim by native measure
+  // (nested flatbuffer). The native side never parses the transform string.
+  transform_data:[ubyte] (nested_flatbuffer: "TransformOpList");
+}
+
+// ---- Nested-flatbuffer wrappers (JS-built, memcpy'd by native) ----
+// Each is a standalone root-able FlatBuffer built on the JS side with
+// flatbuffers.js, carried as a [ubyte] blob, and read back on the render side
+// via the nested_flatbuffer accessor. See RENDER_ARCHITECTURE.md §5.
+
+table PathCommandList {
+  commands:[PathCommand];
+}
+
+table TransformOpList {
+  ops:[TransformOp];
 }

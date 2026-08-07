@@ -1,0 +1,8 @@
+{
+  "search.exclude": {
+    "**/src/generated": true,
+    "**/fbs-gen": true,
+    "**/shared/skity/generated": true
+  },
+  "js/ts.tsdk.path": "node_modules/typescript/lib"
+}

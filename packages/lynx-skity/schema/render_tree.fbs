@@ -64,8 +64,11 @@ table RenderNode {
 
   children:[RenderNode];
 
-  // Structured path data (pre-parsed on the JS side; see RENDER_ARCHITECTURE.md §5)
+  // Structured path data — legacy vector, superseded by path_data.
   path_commands:[PathCommand];
+  // JS-built PathCommandList bytes, memcpy'd verbatim by native measure
+  // (nested flatbuffer). See RENDER_ARCHITECTURE.md §5.
+  path_data:[ubyte] (nested_flatbuffer: "PathCommandList");
   points:[float];  // polyline/polygon: [x0,y0,x1,y1,...]
 
   gradient_units:GradientUnits = OBJECT_BOUNDING_BOX;

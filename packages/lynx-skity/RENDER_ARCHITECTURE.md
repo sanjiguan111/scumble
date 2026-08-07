@@ -1,132 +1,134 @@
-# lynx-skity 渲染架构与演进 Plan
+# lynx-skity Render Architecture & Roadmap
 
-> 状态：基础渲染 + 数据流已通（Android OpenGL ES/Vulkan + iOS Metal，2026-08-07 跑通）。
-> 本文记录**功能开发阶段**的目标架构、设计原则与工作分解，供后续持续推进。
+> Status: basic rendering + data flow are working (Android OpenGL ES/Vulkan + iOS Metal, green on 2026-08-07).
+> This document captures the **functional-development phase**: target architecture, design principles, and work breakdown for ongoing work.
 
 ---
 
-## 1. 目标架构
+## 1. Target architecture
 
-**声明式标签 + 局部二进制序列化 + viewport 逻辑坐标系。**
+**Declarative tags + localized binary serialization + a viewport logical coordinate system.**
 
-一句话核心原则：
+One-line guiding principle:
 
-> **原生侧永不出现「字符串 → 结构」的解析；所有字符串解析都发生在前端 JS。**
+> **The native side never does "string → structure" parsing; all string parsing happens in front-end JS.**
 
-顺着这条线，每个属性的归属就自然确定。这套架构既保留了标签模式的声明式组合能力（children 嵌套、measure、可读性），又让「重解析、重数据」的部分以二进制直达渲染层，对标 `react-native-svg` / `react-native-skia` 的成熟分层。
+Following this line, the ownership of every attribute falls out naturally. The design keeps the composability of the tag model (nested children, measure, readability) while letting the heavy-parse / heavy-data parts reach the render layer as binaries — mirroring the proven layering of `react-native-svg` / `react-native-skia`.
 
-## 2. 分层
+## 2. Layering
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  @lynx-skity/react        @lynx-skity/vue           │  框架包装层（各自独立 npm 包）
-│  <Circle fill="#fff"/>    <Circle fill="#fff"/>      │  人体工程学 / 默认值 / ref / 动画接入
+│  @lynx-skity/react        @lynx-skity/vue           │  framework wrapper layer (separate npm pkgs)
+│  <Circle fill="#fff"/>    <Circle fill="#fff"/>      │  ergonomics / defaults / ref / animation
 └───────────────┬───────────────────┬─────────────────┘
-                │   复用同一套解析    │
+                │   shared parsing    │
         ┌───────▼───────────────────▼─────────┐
-        │  @lynx-skity/parsers (纯 JS, 无框架) │  parser/normalizer 共享层
-        │  color→int · path d→PathCmd[] ·       │  React/Vue 不重复造轮子
-        │  transform→TransformOp[] · gradient  │
+        │  @lynx-skity/parsers (pure JS, no    │  parser/normalizer shared layer
+        │  framework) color→int · path d→...   │  React/Vue don't reinvent it
+        │  transform→... · gradient            │
         └───────┬───────────────────────────────┘
-                │  产出「基础值」(int/float/ArrayBuffer)
+                │  produces "primitive values" (int/float/ArrayBuffer)
         ┌───────▼───────────────────────────────┐
-        │  lynx-skity  (底层契约层，框架无关)     │  intrinsic 标签 + elements.ts 类型
-        │  <skity-circle cx cy r fill=0xAARRGGBB> │  原生只认 int/float/二进制，零字符串解析
-        │  ─── FlatBuffer skityrt::RenderTree ─── │
+        │  lynx-skity  (base contract layer,    │  intrinsic tags + elements.ts types
+        │  framework-agnostic)                   │  native accepts only int/float/binary,
+        │  <skity-circle cx cy r fill=0xAARRGGBB>│  zero string parsing
+        │  ─── FlatBuffer skityrt::RenderTree ───│
         └─────────────────────────────────────────┘
 ```
 
-依赖方向单向无环：`@lynx-skity/{react,vue}` → `@lynx-skity/parsers` → `lynx-skity`（标签契约）。
+Dependency direction is a single directed acyclic chain: `@lynx-skity/{react,vue}` → `@lynx-skity/parsers` → `lynx-skity` (tag contract).
 
-## 3. 职责划分
+## 3. Responsibility split
 
-| 数据性质 | 例子 | 归属 | 传输方式 |
+| Data nature | Examples | Owner | Transport |
 |---|---|---|---|
-| 无解析标量 | 颜色 `0xAARRGGBB`、几何 `cx/cy/r/x/y/w/h`、`strokeWidth`、枚举 byte | 底层标签 prop（不变） | `@LynxProp` number |
-| 需解析 / 嵌套结构 | path `d`、CSS `transform`、`Gradient`、`Shader`、`dasharray`、`points` | **前端解析 → 序列化** | ArrayBuffer（iOS `NSData` / Android `byte[]`） |
-| canvas 级坐标变换 | `viewport`（逻辑像素 → 物理） | canvas 节点声明 + 渲染端 apply | `RenderTree` 顶层字段 |
+| Parse-free scalars | color `0xAARRGGBB`, geometry `cx/cy/r/x/y/w/h`, `strokeWidth`, enum bytes | base tag prop (unchanged) | `@LynxProp` number |
+| Parsed / nested structures | path `d`, CSS `transform`, `Gradient`, `Shader`, `dasharray`, `points` | **front-end parse → serialize** | ArrayBuffer (iOS `NSData` / Android `byte[]`) |
+| canvas-level coordinate transform | `viewport` (logical → physical px) | canvas node declares + renderer applies | `RenderTree` top-level field |
 
-注意：连 `strokeCap="round"` 这类枚举字符串也前置——前端框架组件接受友好字符串，parser 映射成 byte，底层 prop 收 number。原生连枚举解析都不剩，原则一致。
+Note: even enum strings like `strokeCap="round"` are front-loaded — the framework component accepts a friendly string, the parser maps it to a byte, the base prop receives a number. The native side is left with no enum parsing either; the principle stays consistent.
 
-颜色 `0xAARRGGBB` 的「三态」是合理取舍，保持不变：前端 API 收 packed int（紧凑易传）→ schema 是 `RGBAColor` 结构表（可读、4 字节对齐、为渐变留口子）→ skity `Paint` 又回到 packed int。
+The "three states" of color `0xAARRGGBB` are a deliberate trade-off and stay as-is: the front-end API takes a packed int (compact, easy to pass) → the schema is an `RGBAColor` struct table (readable, 4-byte aligned, leaves room for gradients) → skity's `Paint` goes back to a packed int.
 
-## 4. Schema 现状与扩展
+## 4. Schema status & extensions
 
-Schema 在 `packages/lynx-skity/schema/render_tree*.fbs`（namespace `skityrt`），由 `scripts/generate-fbs.mjs` 经 flatc 生成 C++（`shared/skity/generated/`）与 Java stub（`android/.../fbs-gen/`）；iOS 直接复用 C++ stub。
+The schema lives in `packages/lynx-skity/schema/render_tree*.fbs` (namespace `skityrt`); `scripts/generate-fbs.mjs` runs flatc to emit C++ (`shared/skity/generated/`), Java stubs (`android/.../fbs-gen/`), and TypeScript stubs (`packages/skity-parsers/src/generated/`). iOS reuses the C++ stubs directly.
 
-**现有结构：**
-- `RGBAColor { r,g,b,a:uint32 }`、`GradientStop`、`Gradient`（linear+radial+stops，完整）、`ResolvedPaint { type: NONE/COLOR/GRADIENT; color; gradient }`
-- `PathCommand { type; args:[float] }` + `PathCommandType`（MOVE_TO..CLOSE）
-- `TransformOp { type; args:[float] }` + `TransformType`（MATRIX..SKEW_Y）
-- `ComputedStyle`（fill/stroke/strokeWidth/linecap/linejoin/dasharray/dashoffset/miterlimit/fillRule/opacity/display/visibility/transform）
-- `RenderNode`（tag_name/style/几何 float/children/path_commands/points/gradient_units/spread_method）
+**Existing structures:**
+- `RGBAColor { r,g,b,a:uint32 }`, `GradientStop`, `Gradient` (linear+radial+stops, complete), `ResolvedPaint { type: NONE/COLOR/GRADIENT; color; gradient }`
+- `PathCommand { type; args:[float] }` + `PathCommandType` (MOVE_TO..CLOSE)
+- `TransformOp { type; args:[float] }` + `TransformType` (MATRIX..SKEW_Y)
+- `ComputedStyle` (fill/stroke/strokeWidth/linecap/linejoin/dasharray/dashoffset/miterlimit/fillRule/opacity/display/visibility/transform)
+- `RenderNode` (tag_name/style/float geometry/children/path_commands/points/gradient_units/spread_method)
 - `RenderTree { root:RenderNode }`
 
-**本阶段扩展（第 1 步）：**
-- 新增 `ViewBox { x,y,width,height }` + `PreserveAspectRatio`（`AspectRatioAlign` + `AspectRatioMeetOrSlice`，SVG `preserveAspectRatio` 语义）
-- `RenderTree` 增加 `viewport:ViewBox`、`preserve_aspect:PreserveAspectRatio`、`density:float`
-- `RenderNode` 几何字段语义注释从 "absolute pixels" 改为 **logical pixels（在 viewport 逻辑坐标系内）**
+**Extensions this phase:**
+- Added `ViewBox { x,y,width,height }` + `PreserveAspectRatio` (`AspectRatioAlign` + `AspectRatioMeetOrSlice`, SVG `preserveAspectRatio` semantics); `RenderTree` gained `viewport`, `preserve_aspect`, `density`.
+- `RenderNode` geometry comment changed from "absolute pixels" to **logical pixels (within the viewport logical coordinate space)**.
+- Added `PathCommandList` / `TransformOpList` wrapper tables + `RenderNode.path_data` / `ComputedStyle.transform_data` as `[ubyte] (nested_flatbuffer: ...)` fields (legacy `path_commands` / `transform` kept during migration).
 
-**后续扩展（待定）：**
-- **Shader**：`ResolvedPaint.type` 加 `SHADER=3` + `Shader` table。**设计待确认**——取决于要支持哪种 shader（图片填充 / runtime shader / skity `SkShader`）。确认前不落字段，避免悬空枚举值。
+**Future extensions (TBD):**
+- **Shader**: add `SHADER=3` to `ResolvedPaint.type` + a `Shader` table. **Design pending** — depends on which shader to support (image fill / runtime shader / skity `SkShader`). No field is added until confirmed, to avoid a dangling enum value.
 
-## 5. 二进制序列化协议
+## 5. Binary serialization
 
-前端 `@lynx-skity/parsers` 把字符串/对象解析后，编排成对齐 FlatBuffer 结构的紧凑 ArrayBuffer，经 Lynx 组件 prop 传给原生（iOS `NSData` / Android `byte[]`）。原生 setter 只做**机械 copy**进 FlatBuffer vector，无字符串、无正则。
+`@lynx-skity/parsers` parses strings/objects and produces FlatBuffer bytes carried through a Lynx component prop (iOS `NSData` / Android `byte[]`). The native setter only does a **mechanical copy** into the FlatBuffer vector — no strings, no regex.
 
-示例布局（path commands，所有值小端）：
+**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList`) by `@lynx-skity/parsers` using `flatbuffers.js`, and passed in as `[ubyte]` blobs.
 
-```
-[u32 command_count]
-  逐条: [u8 type][u8 arg_count][f32 × arg_count]   (每条 4 字节对齐)
-```
+- **schema**: wrapper tables + `RenderNode.path_data` / `ComputedStyle.transform_data`, annotated `(nested_flatbuffer: "...")`
+- **front end**: parsers build finished FlatBuffer bytes using `flatc --ts` stubs + the `flatbuffers` runtime
+- **native measure**: `CreateVector(ubyte, bytes)` — a single memcpy, **zero parsing, zero table construction**
+- **renderer**: `node->path_data_nested_root()` / `transform_data_nested_root()` — standard FlatBuffer lazy parsing
 
-原生 `@LynxProp(name="pathData") fun setPathData(bytes: ByteArray)` 读 buffer → `PathCommand::Pack` 加进 `path_commands` vector。Gradient/Transform 同理（type + 标量参数 + stops/args 数组）。
+Why nested flatbuffer over a custom wire format: the native side is fully free of deserialization (just memcpy), the renderer uses standard FlatBuffer accessors, and every variable-length field shares one mechanism. (An earlier custom wire format `[u8 type][u8 argc][u16 pad][f32]` is retired; `binary.ts` keeps only the enum constants.)
 
-> 具体字节布局在第 2 步（parsers）实施时定稿；原则是固定格式、原生零语义解析。
+> The flatbuffers TS runtime is **vendored from the habitat source** (`generate-fbs` copies `shared/third_party/flatbuffers/ts/` → `packages/skity-parsers/src/generated/flatbuffers/`, adds `@ts-nocheck`, excludes flexbuffers, clears the dir before each run), not an npm dependency — flatc (`25.12.19`) and the stub/runtime must match versions exactly, the same reason Android consumes the flatbuffers Java runtime from source rather than maven. Stub imports are rewritten from `'flatbuffers'` to the vendored `'../flatbuffers/flatbuffers.js'`.
 
-## 6. Viewport 坐标系（SVG viewBox 语义）
+## 6. Viewport coordinate system (SVG viewBox semantics)
 
-前端写 `width={100}` 是**逻辑像素**，`skity-canvas` 声明逻辑坐标系（`viewport={[x,y,w,h]}` + `preserveAspectRatio`），渲染时统一映射到物理像素。
+A front-end `width={100}` is a **logical pixel**; `skity-canvas` declares the logical coordinate system (`viewport={[x,y,w,h]}` + `preserveAspectRatio`) and the renderer maps it to physical pixels.
 
-- 子元素坐标在 FlatBuffer 里**保持逻辑像素原值**，变换只在根 canvas apply 一次 → 前端 parsers 与二进制数据都基于逻辑像素，干净统一。
-- **viewport transform 在渲染端 `SkityRenderer::Draw` apply**（绘制前对 skity Canvas 做 scale/translate），不在前端。因为物理尺寸 / density 要等布局后才确定，前端 render 时拿不到——这恰好绕开了「前端产整棵 tree bytes」会遇到的布局时机问题。
-- 现有渲染端已在做 `density` scale，扩展到 `viewport` + `preserveAspectRatio` 即可。
+- Child coordinates stay as **logical-pixel values** in the FlatBuffer; the transform is applied once at the root canvas → front-end parsers and binary data are uniformly in logical pixels, clean and consistent.
+- **The viewport transform is applied by the renderer `SkityRenderer::Draw`** (scale/translate on the skity Canvas before drawing), not on the front end, because physical size / density are only known after layout — the front end doesn't have them at render time. This neatly sidesteps the layout-timing problem that "front end builds the whole tree bytes" would run into.
+- The renderer already does a `density` scale; extending it to `viewport` + `preserveAspectRatio` is straightforward.
 
-## 7. 原生侧变化
+## 7. Native-side changes
 
-- **删除** `SkityPropParser`（Android `.kt` / iOS `.m`）的语义解析。
-- 复杂字段 setter 改收 `byte[]` / `NSData`，机械 copy 进 FlatBuffer。
-- `SkityCanvasShadowNode.measure()` **保留**（算布局 + 收集标量 + 搬运 bytes）；渲染端 apply viewport transform。
-- 颜色 packed int prop 不变。
+- **Delete** the semantic parsing in `SkityPropParser` (Android `.kt` / iOS `.m`).
+- Variable-length field setters take `byte[]` / `NSData` and mechanically copy into the FlatBuffer.
+- `SkityCanvasShadowNode.measure()` is **kept** (compute layout + collect scalars + ferry bytes); the renderer applies the viewport transform.
+- The packed-int color prop is unchanged.
 
-## 8. 工作分解
+## 8. Work breakdown
 
-依赖顺序，每步独立可 review：
+Dependency-ordered; each step is independently reviewable:
 
-1. **schema 扩展**（viewport）→ regenerate stub。向后兼容，暂不改消费端。**← 进行中**
-2. **`@lynx-skity/parsers`**（纯 JS 共享层）：color→int、枚举→byte、path d→序列化、transform→序列化、gradient→序列化。顺带补全 path 的 H/V/S/T/A（原生现仅 M/L/C/Q/Z）。
-3. **原生瘦身**：删 `SkityPropParser`；复杂字段 setter 收 `byte[]`/`NSData` 机械 copy；渲染端 apply viewport transform。
-4. **`@lynx-skity/react`**：薄壳组件 `<Circle>` 内部 normalize 后渲染 `<skity-circle>`；复用 parsers；加默认值 / `forwardRef` / 动画接入。
-5. **example** 改用 React 组件层 + viewport demo。
-6. **`@lynx-skity/vue`**（后续）：同理包装，底层标签框架无关，天然成立。
+1. **schema extension** (viewport + nested_flatbuffer fields) → regenerate stubs. Backward compatible; consumers untouched for now. **✓ done**
+2. **`@lynx-skity/parsers`** (pure-JS shared layer): color→int, enum→byte, path d→nested FlatBuffer, transform→nested FlatBuffer. Fills out path's H/V/S/T + relative (native currently only M/L/C/Q/Z). Vitest round-trip tests. **✓ done**
+3. **native slim-down**: delete `SkityPropParser`; variable-length setters take `byte[]`/`NSData` for a mechanical copy; renderer applies the viewport transform.
+4. **`@lynx-skity/react`**: thin wrapper components `<Circle>` that normalize then render `<skity-circle>`; reuse parsers; add defaults / `forwardRef` / animation hooks.
+5. **example** switches to the React component layer + a viewport demo.
+6. **`@lynx-skity/vue`** (later): same wrapping; the base tags are framework-agnostic, so this works naturally.
 
-**外加（待定）：** Shader schema 扩展（需先确认 shader 类型）。
+**Plus (TBD):** Shader schema extension (needs the shader type confirmed first).
 
-## 9. 遗留清理
+## 9. Cleanup backlog
 
-- `shared/elements/`（`x-lynx-skity` C++ `LynxNativeView`）：autolink 默认脚手架，与图形管线无关，后续清理。
-- `polyline` / `polygon`：渲染端 `SkityRenderer.cc` 已按 tag_name 分派，但原生未注册标签、TS 无类型、`points` prop 当前无人用——接入时一并补齐。
+- `shared/elements/` (`x-lynx-skity` C++ `LynxNativeView`): autolink default scaffold, unrelated to the graphics pipeline; clean up later.
+- `polyline` / `polygon`: the renderer `SkityRenderer.cc` already dispatches by tag_name, but no tag is registered natively, no TS type exists, and the `points` prop is currently unused — wire these up together when they land.
 
-## 10. 关键文件索引
+## 10. Key file index
 
-- Schema：`packages/lynx-skity/schema/render_tree{,_common,_style}.fbs`
-- 代码生成：`packages/lynx-skity/scripts/generate-fbs.mjs`（`pnpm --filter lynx-skity generate-fbs`）
-- 前端标签类型：`packages/lynx-skity/src/elements.ts`（`declare module` 增强 `IntrinsicElements`）
-- 前端用法：`packages/example/src/App.tsx`
-- 原生注册：Android `android/.../graphics/SkityBehavior.kt` + `SkityInit.kt`；iOS `ios/Classes/Node/SkityCanvasShadowNode.mm` + `SkityNodeBase.m`
-- prop setter：Android `android/.../graphics/node/SkityNodeBase.kt`；iOS `ios/Classes/Node/SkityNodeBase.m`
-- 待删 parser：Android `android/.../SkityPropParser.kt`；iOS `ios/.../SkityPropParser.m`
-- 序列化：Android `android/.../node/SkityCanvasShadowNode.kt`（measure/buildRenderNode/buildStyle/buildPaint）；iOS `ios/Classes/Node/SkityCanvasShadowNode.mm`
-- 渲染端：`packages/lynx-skity/shared/skity/SkityRenderer.cc`（跨平台 C++，`Draw(tree,canvas,density)`）
-- 后端：Android `android/src/main/cpp/skity/{gles,vulkan}_render_backend.cpp`；iOS `ios/Classes/Render/`
+- Schema: `packages/lynx-skity/schema/render_tree{,_common,_style}.fbs`
+- Codegen: `packages/lynx-skity/scripts/generate-fbs.mjs` (`pnpm --filter lynx-skity generate-fbs`)
+- Front-end tag types: `packages/lynx-skity/src/elements.ts` (`declare module` augments `IntrinsicElements`)
+- Parsers: `packages/skity-parsers/` (`@lynx-skity/parsers`)
+- Front-end usage: `packages/example/src/App.tsx`
+- Native registration: Android `android/.../graphics/SkityBehavior.kt` + `SkityInit.kt`; iOS `ios/Classes/Node/SkityCanvasShadowNode.mm` + `SkityNodeBase.m`
+- prop setters: Android `android/.../graphics/node/SkityNodeBase.kt`; iOS `ios/Classes/Node/SkityNodeBase.m`
+- parser (to delete): Android `android/.../graphics/node/SkityPropParser.kt`; iOS `ios/Classes/Node/SkityPropParser.m`
+- serialization: Android `android/.../graphics/node/SkityCanvasShadowNode.kt` (measure/buildRenderNode/buildStyle/buildPaint); iOS `ios/Classes/Node/SkityCanvasShadowNode.mm`
+- renderer: `packages/lynx-skity/shared/skity/SkityRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density)`)
+- backends: Android `android/src/main/cpp/skity/{gles,vulkan}_render_backend.cpp`; iOS `ios/Classes/Render/`
