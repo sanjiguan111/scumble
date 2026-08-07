@@ -31,7 +31,9 @@
     "shared/nativeModule",
     "shared/elements",
     "shared/CMakeLists.txt",
-    "shared/third_party/flatbuffers/include"
+    "shared/third_party/flatbuffers/include",
+    "shared/third_party/flatbuffers/LICENSE",
+    "LICENSE"
   ],
   "scripts": {
     "codegen": "lynx-autolink-codegen",
