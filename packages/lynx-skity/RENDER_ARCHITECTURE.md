@@ -31,7 +31,7 @@ Following this line, the ownership of every attribute falls out naturally. The d
                 │  produces "primitive values" (int/float/ArrayBuffer)
         ┌───────▼───────────────────────────────┐
         │  lynx-skity  (base contract layer,    │  intrinsic tags + elements.ts types
-        │  framework-agnostic)                   │  native accepts only int/float/binary,
+        │  framework-agnostic)                   │  native accepts int/float/base64-string,
         │  <skity-circle cx cy r fill=0xAARRGGBB>│  zero string parsing
         │  ─── FlatBuffer skityrt::RenderTree ───│
         └─────────────────────────────────────────┘
@@ -44,7 +44,7 @@ Dependency direction is a single directed acyclic chain: `@lynx-skity/{react,vue
 | Data nature                       | Examples                                                                  | Owner                                   | Transport                                     |
 | --------------------------------- | ------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------- |
 | Parse-free scalars                | color `0xAARRGGBB`, geometry `cx/cy/r/x/y/w/h`, `strokeWidth`, enum bytes | base tag prop (unchanged)               | `@LynxProp` number                            |
-| Parsed / nested structures        | path `d`, CSS `transform`, `Gradient`, `Shader`, `dasharray`, `points`    | **front-end parse → serialize**         | ArrayBuffer (iOS `NSData` / Android `byte[]`) |
+| Parsed / nested structures        | path `d`, CSS `transform`, `Gradient`, `Shader`, `dasharray`, `points`    | **front-end parse → serialize**         | nested FlatBuffer bytes, base64 over a string prop (Lynx props don't marshal binary) |
 | canvas-level coordinate transform | `viewport` (logical → physical px)                                        | canvas node declares + renderer applies | `RenderTree` top-level field                  |
 
 Note: even enum strings like `strokeCap="round"` are front-loaded — the framework component accepts a friendly string, the parser maps it to a byte, the base prop receives a number. The native side is left with no enum parsing either; the principle stays consistent.
@@ -76,13 +76,13 @@ The schema lives in `packages/lynx-skity/schema/render_tree*.fbs` (namespace `sk
 
 ## 5. Binary serialization
 
-`@lynx-skity/parsers` parses strings/objects and produces FlatBuffer bytes carried through a Lynx component prop (iOS `NSData` / Android `byte[]`). The native setter only does a **mechanical copy** into the FlatBuffer vector — no strings, no regex.
+`@lynx-skity/parsers` parses strings/objects and produces FlatBuffer bytes. Lynx component props marshal `NSNumber` / `NSString` / `NSArray` but **not** binary (`NSData` / `byte[]`), so the bytes are **base64-encoded** (`bytesToBase64`, hand-written — Lynx JSC has no `btoa`) and carried as a string prop. The native setter base64-decodes (`-[NSData initWithBase64EncodedString:]` / `android.util.Base64.decode`) then does a **mechanical copy** into the FlatBuffer vector — the decode is an encoding conversion, not structure parsing, so "native never parses" still holds.
 
-**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList`) by `@lynx-skity/parsers` using `flatbuffers.js`, and passed in as `[ubyte]` blobs.
+**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList`) by `@lynx-skity/parsers` using `flatbuffers.js`, and passed in as `[ubyte]` blobs (base64 over the wire).
 
 - **schema**: wrapper tables + `RenderNode.path_data` / `ComputedStyle.transform_data`, annotated `(nested_flatbuffer: "...")`
-- **front end**: parsers build finished FlatBuffer bytes using `flatc --ts` stubs + the `flatbuffers` runtime
-- **native measure**: `CreateVector(ubyte, bytes)` — a single memcpy, **zero parsing, zero table construction**
+- **front end**: parsers build finished FlatBuffer bytes using `flatc --ts` stubs + the `flatbuffers` runtime, then `bytesToBase64`
+- **native setter**: base64-decode → `CreateVector(ubyte, bytes)` — a memcpy, **zero parsing, zero table construction**
 - **renderer**: `node->path_data_nested_root()` / `transform_data_nested_root()` — standard FlatBuffer lazy parsing
 
 Why nested flatbuffer over a custom wire format: the native side is fully free of deserialization (just memcpy), the renderer uses standard FlatBuffer accessors, and every variable-length field shares one mechanism. (An earlier custom wire format `[u8 type][u8 argc][u16 pad][f32]` is retired; `binary.ts` keeps only the enum constants.)
@@ -91,9 +91,11 @@ Why nested flatbuffer over a custom wire format: the native side is fully free o
 
 > **`@lynx-skity/parsers` is consumed as a tsc-built `dist/`** (`pnpm --filter @lynx-skity/parsers build`), not as raw source. The vendored `flatbuffers.ts` re-exports type-only symbols (`Offset`/`Table`/interfaces) from `types.js`; tsc whole-program erases those re-exports at emit time, but a bundler (rspack/swc, `isolatedModules`) cannot, so raw source fails to link under rspeedy (`module has no exports`). The build keeps `isolatedModules` off deliberately; Lynx packages stay source-only and import the compiled `dist`.
 
+> **Lynx JSC lacks `TextEncoder` / `TextDecoder`** (web APIs). The vendored flatbuffers runtime instantiates them in its `Builder` / `ByteBuffer` constructors, so `parsePath` / `parseTransform` would otherwise throw at builder construction and blank the page. `@lynx-skity/parsers`'s entry installs a hand-written polyfill; the nested FlatBuffers carry only numbers, so `encode` is effectively unused.
+
 ## 6. Viewport coordinate system (SVG viewBox semantics)
 
-A front-end `width={100}` is a **logical pixel**; `skity-canvas` declares the logical coordinate system (`viewport={[x,y,w,h]}` + `preserveAspectRatio`) and the renderer maps it to physical pixels.
+A front-end `width={100}` is a **logical pixel**; `skity-canvas` declares the logical coordinate system via the `viewPort` prop (`{x,y,width,height}`, forwarded to native as four scalar props) with a fixed `preserveAspectRatio` (xMidYMid meet), and the renderer maps it to physical pixels.
 
 - Child coordinates stay as **logical-pixel values** in the FlatBuffer; the transform is applied once at the root canvas → front-end parsers and binary data are uniformly in logical pixels, clean and consistent.
 - **The viewport transform is applied by the renderer `SkityRenderer::Draw`** (scale/translate on the skity Canvas before drawing), not on the front end, because physical size / density are only known after layout — the front end doesn't have them at render time. This neatly sidesteps the layout-timing problem that "front end builds the whole tree bytes" would run into.
@@ -102,8 +104,8 @@ A front-end `width={100}` is a **logical pixel**; `skity-canvas` declares the lo
 ## 7. Native-side changes
 
 - **Delete** the semantic parsing in `SkityPropParser` (Android `.kt` / iOS `.m`).
-- Variable-length field setters take `byte[]` / `NSData` and mechanically copy into the FlatBuffer.
-- `SkityCanvasShadowNode.measure()` is **kept** (compute layout + collect scalars + ferry bytes); the renderer applies the viewport transform.
+- Variable-length field setters take a **base64 string** (Lynx props don't marshal `byte[]` / `NSData`); the setter decodes and mechanically copies the bytes into the FlatBuffer vector. Enum setters take a **number** (parsers already mapped the friendly string → skityrt byte in JS).
+- `SkityCanvasShadowNode.measure()` is **kept** (compute layout + collect scalars + ferry bytes + build the `ViewBox` / `PreserveAspectRatio`); the renderer applies the viewport transform.
 - The packed-int color prop is unchanged.
 
 ## 8. Work breakdown
@@ -111,10 +113,10 @@ A front-end `width={100}` is a **logical pixel**; `skity-canvas` declares the lo
 Dependency-ordered; each step is independently reviewable:
 
 1. **schema extension** (viewport + nested_flatbuffer fields) → regenerate stubs. Backward compatible; consumers untouched for now. **✓ done**
-2. **`@lynx-skity/parsers`** (pure-JS shared layer): color→int, enum→byte, path d→nested FlatBuffer, transform→nested FlatBuffer. Fills out path's H/V/S/T + relative (native currently only M/L/C/Q/Z). Vitest round-trip tests. **✓ done**
-3. **native slim-down**: delete `SkityPropParser`; variable-length setters take `byte[]`/`NSData` for a mechanical copy; renderer applies the viewport transform.
-4. **`@lynx-skity/react`**: thin wrapper components `<Circle>` that normalize then render `<skity-circle>`; reuse parsers; add defaults / `forwardRef` / animation hooks.
-5. **example** switches to the React component layer + a viewport demo.
+2. **`@lynx-skity/parsers`** (pure-JS shared layer): color→int, enum→byte, path d→nested FlatBuffer, transform→nested FlatBuffer (full SVG command set incl. H/V/S/T/A + relative). Vitest round-trip tests. **✓ done**
+3. **native slim-down**: delete `SkityPropParser`; variable-length setters take a base64 string → decode → memcpy (Lynx props don't marshal binary); enum setters take a number; renderer applies the viewport transform and consumes `path_data` / `transform_data` via `nested_root` (+ MATRIX/SKEW). **✓ done**
+4. **`@lynx-skity/react`**: thin wrapper components `<Circle>` that normalize then render `<skity-circle>`; reuse parsers. **✓ MVP done** — full SVG path + matrix/skew now flow through after Task 3; Paint/gradient/clip/`forwardRef`/animation still TBD.
+5. **example** switches to the React component layer + a viewport demo. **✓ done**
 6. **`@lynx-skity/vue`** (later): same wrapping; the base tags are framework-agnostic, so this works naturally.
 
 **Plus (TBD):** Shader schema extension (needs the shader type confirmed first).
@@ -133,7 +135,7 @@ Dependency-ordered; each step is independently reviewable:
 - Front-end usage: `packages/example/src/App.tsx`
 - Native registration: Android `android/.../graphics/SkityBehavior.kt` + `SkityInit.kt`; iOS `ios/Classes/Node/SkityCanvasShadowNode.mm` + `SkityNodeBase.m`
 - prop setters: Android `android/.../graphics/node/SkityNodeBase.kt`; iOS `ios/Classes/Node/SkityNodeBase.m`
-- parser (to delete): Android `android/.../graphics/node/SkityPropParser.kt`; iOS `ios/Classes/Node/SkityPropParser.m`
+- parser: **deleted** in Task 3 (was `node/SkityPropParser.kt` / `Node/SkityPropParser.m` — string parsing now lives in `@lynx-skity/parsers`)
 - serialization: Android `android/.../graphics/node/SkityCanvasShadowNode.kt` (measure/buildRenderNode/buildStyle/buildPaint); iOS `ios/Classes/Node/SkityCanvasShadowNode.mm`
-- renderer: `packages/lynx-skity/shared/skity/SkityRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density)`)
+- renderer: `packages/lynx-skity/shared/skity/SkityRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density,W,H)` + viewport)
 - backends: Android `android/src/main/cpp/skity/{gles,vulkan}_render_backend.cpp`; iOS `ios/Classes/Render/`
