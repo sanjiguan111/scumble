@@ -1,13 +1,18 @@
 #!/usr/bin/env node
-// Build, install and launch the iOS app on the Simulator. If the dev server
-// isn't running, open it in a NEW terminal window (like run-android.mjs), so it
+// Build, install and launch the iOS app on the Simulator — RN run-ios style:
+//   • builds into Xcode's DEFAULT DerivedData (no -derivedDataPath), so the
+//     CLI and the Xcode GUI share one build cache and reuse each other's
+//     incremental builds (pods/skity native aren't recompiled from scratch);
+//   • targets the currently-booted Simulator by default (or --simulator <name>),
+//     and the xcodebuild -destination points at that exact device.
+// If the dev server isn't running, open it in a NEW terminal window, so it
 // stays independent — shared across android/ios launches and stoppable on its
 // own.
-import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import http from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXAMPLE_DIR = join(__dirname, "..");
@@ -17,7 +22,6 @@ const SCHEME = "LynxSkityDemo";
 const CONFIGURATION = "Debug";
 const BUNDLE_ID = "com.skity.example";
 const BUNDLE_URL = "http://localhost:3000/main.lynx.bundle";
-const DERIVED_DATA = "build";
 
 if (process.platform !== "darwin") {
   console.error("✗ iOS launch is only supported on macOS.");
@@ -33,8 +37,8 @@ function run(cmd, args, opts = {}) {
   }
 }
 
-function runQuiet(cmd, args) {
-  return spawnSync(cmd, args, { encoding: "utf8" });
+function runQuiet(cmd, args, opts = {}) {
+  return spawnSync(cmd, args, { encoding: "utf8", ...opts });
 }
 
 function hasCommand(cmd) {
@@ -111,7 +115,60 @@ if (hasCommand("bundle")) {
   run("pod", ["install"], { cwd: IOS_DIR });
 }
 
-// 3) build for the Simulator
+// 3) pick the target Simulator — the booted one by default, --simulator <name>
+//    to override, else the first available iPhone. Build + install target it.
+function simDevices(filter) {
+  const out = runQuiet("xcrun", ["simctl", "list", "devices", filter, "-j"]).stdout;
+  try {
+    const parsed = JSON.parse(out);
+    return Object.values(parsed.devices || {}).flat();
+  } catch (_) {
+    return [];
+  }
+}
+
+function simulatorArg() {
+  const i = process.argv.indexOf("--simulator");
+  return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : null;
+}
+
+function pickDevice() {
+  const want = simulatorArg();
+  if (want) {
+    const m = simDevices("available").find(
+      (d) => d.name.toLowerCase().includes(want.toLowerCase()) || d.udid === want,
+    );
+    if (!m) {
+      console.error(
+        `✗ --simulator "${want}" not found. List with: xcrun simctl list devices available`,
+      );
+      process.exit(1);
+    }
+    return m;
+  }
+  const booted = simDevices("booted").find((d) => d.state === "Booted");
+  if (booted) {
+    console.log(`✓ reusing booted Simulator: ${booted.name}`);
+    return booted;
+  }
+  const iphone = simDevices("available").find((d) => /iPhone/.test(d.name));
+  if (!iphone) {
+    console.error("✗ no available iPhone Simulator found.");
+    console.error(`  Open ${WORKSPACE} in Xcode and pick a destination manually.`);
+    process.exit(1);
+  }
+  return iphone;
+}
+
+const device = pickDevice();
+if (device.state !== "Booted") {
+  run("xcrun", ["simctl", "boot", device.udid]);
+  run("open", ["-a", "Simulator"]);
+}
+const DESTINATION = `platform=iOS Simulator,id=${device.udid}`;
+
+// 4) build into the DEFAULT DerivedData (no -derivedDataPath) so the Xcode GUI
+//    and this CLI share one incremental build cache.
 run(
   "xcodebuild",
   [
@@ -122,24 +179,36 @@ run(
     "-configuration",
     CONFIGURATION,
     "-destination",
-    "generic/platform=iOS Simulator",
-    "-derivedDataPath",
-    DERIVED_DATA,
+    DESTINATION,
     "build",
   ],
   { cwd: IOS_DIR },
 );
 
-// 4) pick / boot a Simulator and install + launch
+// 5) locate the built .app via build settings (resolves the default DerivedData
+//    path, which isn't project-local).
 function findApp() {
-  const productsDir = join(
-    IOS_DIR,
-    DERIVED_DATA,
-    "Build",
-    "Products",
-    `${CONFIGURATION}-iphonesimulator`,
+  const r = runQuiet(
+    "xcodebuild",
+    [
+      "-workspace",
+      WORKSPACE,
+      "-scheme",
+      SCHEME,
+      "-configuration",
+      CONFIGURATION,
+      "-destination",
+      DESTINATION,
+      "-showBuildSettings",
+    ],
+    { cwd: IOS_DIR },
   );
-  const app = join(productsDir, `${SCHEME}.app`);
+  const m = r.stdout.match(/^\s*BUILT_PRODUCTS_DIR = (.+)$/m);
+  if (!m) {
+    console.error("✗ could not resolve BUILT_PRODUCTS_DIR from xcodebuild.");
+    process.exit(1);
+  }
+  const app = join(m[1].trim(), `${SCHEME}.app`);
   if (!existsSync(app)) {
     console.error(`✗ built .app not found at ${app}`);
     process.exit(1);
@@ -147,48 +216,9 @@ function findApp() {
   return app;
 }
 
-function bootedDevice() {
-  const out = runQuiet("xcrun", ["simctl", "list", "devices", "booted", "-j"]).stdout;
-  try {
-    const parsed = JSON.parse(out);
-    for (const runtime of Object.values(parsed.devices || {})) {
-      for (const d of runtime) {
-        if (d.state === "Booted") return d.udid;
-      }
-    }
-  } catch (_) {}
-  return null;
-}
-
-function bootAnyIphone() {
-  const out = runQuiet("xcrun", ["simctl", "list", "devices", "available", "-j"]).stdout;
-  let udid = null;
-  try {
-    const parsed = JSON.parse(out);
-    for (const runtime of Object.values(parsed.devices || {})) {
-      for (const d of runtime) {
-        if (/iPhone/.test(d.name)) {
-          udid = d.udid;
-          break;
-        }
-      }
-      if (udid) break;
-    }
-  } catch (_) {}
-  if (!udid) {
-    console.error("✗ no available iPhone Simulator found.");
-    console.error(`  Open ${WORKSPACE} in Xcode and pick a destination manually.`);
-    process.exit(1);
-  }
-  run("xcrun", ["simctl", "boot", udid]);
-  run("open", ["-a", "Simulator"]);
-  return udid;
-}
-
 const appPath = findApp();
-const device = bootedDevice() || bootAnyIphone();
-run("xcrun", ["simctl", "install", device, appPath]);
-run("xcrun", ["simctl", "launch", device, BUNDLE_ID]);
+run("xcrun", ["simctl", "install", device.udid, appPath]);
+run("xcrun", ["simctl", "launch", device.udid, BUNDLE_ID]);
 
 console.log(
   "\n✓ app launched. dev server runs in its own terminal — edit src/App.tsx and reload to iterate.",
