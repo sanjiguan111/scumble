@@ -7,17 +7,17 @@ import com.lynx.tasm.behavior.LynxProp
 import com.lynx.tasm.behavior.shadow.ShadowNode
 import kotlin.jvm.JvmField
 
-/** Parsed transform operation; maps to a skityrt.TransformOp (type byte + args). */
-data class TransformOpData(val type: Byte, val args: FloatArray)
-
-/** Parsed path command; maps to a skityrt.PathCommand (type byte + args). */
-data class PathCommandData(val type: Byte, val args: FloatArray)
-
 /**
  * Base ShadowNode for every skity element (canvas + shapes + group). Collects
- * numeric/decoded render props — geometry, paint colors, stroke style, opacity,
- * parsed transform & path — so the container node can serialize them directly
- * into the skityrt FlatBuffer render tree without a DOM/property-string layer.
+ * numeric render props — geometry, paint colors, stroke style, opacity — plus
+ * the JS-built nested FlatBuffer bytes for path/transform, so the container
+ * node can serialize them directly into the skityrt FlatBuffer render tree
+ * without any string parsing on the native side.
+ *
+ * Variable-length fields (path d, transform) arrive as pre-serialized FlatBuffer
+ * bytes (PathCommandList / TransformOpList) from @lynx-skity/parsers and are
+ * memcpy'd verbatim into the render tree. Enum props (cap/join/fillRule) arrive
+ * as numbers already mapped to skityrt bytes. See RENDER_ARCHITECTURE.md §5.
  *
  * Fields use @JvmField (exposed as plain fields, no synthetic getX/setX), so
  * they don't clash with the @LynxProp setters below (e.g. setX) on the JVM.
@@ -26,7 +26,7 @@ abstract class SkityNodeBase : ShadowNode() {
 
   abstract val skityTagName: String
 
-  // ---- geometry (absolute px) ----
+  // ---- geometry (logical px within the canvas viewport) ----
   @JvmField var x = 0f
   @JvmField var y = 0f
   @JvmField var width = 0f
@@ -40,7 +40,6 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var y1 = 0f
   @JvmField var x2 = 0f
   @JvmField var y2 = 0f
-  @JvmField var points: FloatArray? = null
 
   // ---- paint (ARGB packed as Long 0xAARRGGBB; null = inactive) ----
   @JvmField var fillColor: Long? = null
@@ -52,9 +51,9 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var fillRule: Byte = 0
   @JvmField var opacity = 1f
 
-  // ---- transform & path (parsed) ----
-  @JvmField var transformOps: List<TransformOpData> = emptyList()
-  @JvmField var pathCommands: List<PathCommandData> = emptyList()
+  // ---- transform & path (JS-built nested FlatBuffer bytes; null = none) ----
+  @JvmField var transformData: ByteArray? = null
+  @JvmField var pathData: ByteArray? = null
 
   // ---- geometry setters ----
   @LynxProp(name = "x") fun setX(v: Float) { x = v }
@@ -70,22 +69,31 @@ abstract class SkityNodeBase : ShadowNode() {
   @LynxProp(name = "y1") fun setY1(v: Float) { y1 = v }
   @LynxProp(name = "x2") fun setX2(v: Float) { x2 = v }
   @LynxProp(name = "y2") fun setY2(v: Float) { y2 = v }
-  @LynxProp(name = "points") fun setPoints(v: String) { points = SkityPropParser.parseFloatList(v) }
 
   // ---- paint setters ----
   @LynxProp(name = "color") fun setColor(v: Double) { fillColor = v.toLong() and 0xFFFFFFFFL }
   @LynxProp(name = "fill") fun setFill(v: Double) { fillColor = v.toLong() and 0xFFFFFFFFL }
   @LynxProp(name = "stroke") fun setStroke(v: Double) { strokeColor = v.toLong() and 0xFFFFFFFFL }
   @LynxProp(name = "strokeWidth") fun setStrokeWidth(v: Float) { strokeWidth = v }
-  @LynxProp(name = "strokeCap") fun setStrokeCap(v: String) { strokeCap = SkityPropParser.parseCap(v) }
-  @LynxProp(name = "strokeJoin") fun setStrokeJoin(v: String) { strokeJoin = SkityPropParser.parseJoin(v) }
+  // Enums arrive as numbers already mapped to skityrt bytes (parsers layer).
+  @LynxProp(name = "strokeCap") fun setStrokeCap(v: Int) { strokeCap = v.toByte() }
+  @LynxProp(name = "strokeJoin") fun setStrokeJoin(v: Int) { strokeJoin = v.toByte() }
   @LynxProp(name = "strokeMiter") fun setStrokeMiter(v: Float) { strokeMiter = v }
-  @LynxProp(name = "fillRule") fun setFillRule(v: String) { fillRule = SkityPropParser.parseFillRule(v) }
+  @LynxProp(name = "fillRule") fun setFillRule(v: Int) { fillRule = v.toByte() }
   @LynxProp(name = "opacity") fun setOpacity(v: Float) { opacity = v }
 
-  // ---- transform & path ----
-  @LynxProp(name = "transform") fun setTransform(v: String) { transformOps = SkityPropParser.parseTransform(v) }
-  @LynxProp(name = "d") fun setD(v: String) { pathCommands = SkityPropParser.parsePath(v) }
+  // ---- transform & path (base64-encoded nested FlatBuffer; decode + memcpy) ----
+  // Lynx props marshal String but not ByteArray, so the JS-built PathCommandList
+  // / TransformOpList bytes travel base64-encoded and are decoded here, then
+  // memcpy'd verbatim into the render tree. See RENDER_ARCHITECTURE.md §5.
+  @LynxProp(name = "transform") fun setTransform(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    transformData = if (decoded.isNotEmpty()) decoded else null
+  }
+  @LynxProp(name = "d") fun setD(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    pathData = if (decoded.isNotEmpty()) decoded else null
+  }
 
   /** Shape & group nodes are virtual (no platform view); the canvas node overrides this. */
   override fun isVirtual(): Boolean = true

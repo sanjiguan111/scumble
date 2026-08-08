@@ -36,8 +36,11 @@ export function parseStrokeJoin(v: string | number): number {
   return s === "round" ? 1 : s === "bevel" ? 2 : 0;
 }
 
-/** FillRule string/number → FillRule byte (NONZERO=0, EVENODD=1). */
+/** FillRule string/number → FillRule byte (NONZERO=0, EVENODD=1).
+ *  Accepts both "evenodd" and the hyphenated/underscored variants
+ *  ("even-odp", "even_odd") used by react-native-skity, so either maps to
+ *  EVENODD instead of silently falling back to NONZERO. */
 export function parseFillRule(v: string | number): number {
   if (typeof v === "number") return v & 0xff;
-  return v.toLowerCase() === "evenodd" ? 1 : 0;
+  return v.toLowerCase().replace(/[-_]/g, "") === "evenodd" ? 1 : 0;
 }

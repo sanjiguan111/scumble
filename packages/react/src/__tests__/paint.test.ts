@@ -38,8 +38,8 @@ describe("resolvePaint", () => {
     ).toEqual({
       stroke: 0xff0000ff,
       strokeWidth: 4,
-      strokeCap: "round",
-      strokeJoin: "bevel",
+      strokeCap: 1,
+      strokeJoin: 2,
       strokeMiter: 5,
       opacity: 0.5,
     });

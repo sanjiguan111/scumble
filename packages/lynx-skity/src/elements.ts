@@ -6,6 +6,11 @@
 // <skity-rect>, ...). No React component wrappers are provided — consumers use
 // the intrinsic tags directly. Importing this module (or `lynx-skity`)
 // augments `@lynx-js/types` IntrinsicElements so the tags are accepted in JSX.
+//
+// The native side never parses strings. Variable-length fields (path d,
+// transform) are pre-serialized FlatBuffer bytes from @lynx-skity/parsers
+// (PathCommandList / TransformOpList); enums are numbers already mapped to
+// skityrt bytes. See RENDER_ARCHITECTURE.md §3/§5.
 import type { StandardProps } from "@lynx-js/types";
 
 // ---- Props (react-native-skia-style: numeric colors, numeric geometry) ----
@@ -16,18 +21,31 @@ export interface SkityPaintProps {
   /** Stroke color, 0xAARRGGBB. Omit for no stroke. */
   stroke?: number;
   strokeWidth?: number;
-  strokeCap?: "butt" | "round" | "square";
-  strokeJoin?: "miter" | "round" | "bevel";
+  /** LineCap byte (BUTT=0, ROUND=1, SQUARE=2) from @lynx-skity/parsers. */
+  strokeCap?: number;
+  /** LineJoin byte (MITER=0, ROUND=1, BEVEL=2) from @lynx-skity/parsers. */
+  strokeJoin?: number;
   strokeMiter?: number;
-  fillRule?: "nonzero" | "evenodd";
+  /** FillRule byte (NONZERO=0, EVENODD=1) from @lynx-skity/parsers. */
+  fillRule?: number;
   opacity?: number;
-  /** CSS/SVG-style transform, e.g. "translate(10,10) scale(2) rotate(45)". */
+  /** Base64-encoded TransformOpList bytes (@lynx-skity/parsers); native decodes + memcpys. */
   transform?: string;
 }
 
 export interface SkityCommonProps extends StandardProps, SkityPaintProps {}
 
-export interface SkityCanvasProps extends SkityCommonProps {}
+export interface SkityCanvasProps extends SkityCommonProps {
+  /** Logical viewport x (SVG viewBox). */
+  viewportX?: number;
+  /** Logical viewport y (SVG viewBox). */
+  viewportY?: number;
+  /** Logical viewport width (SVG viewBox). When >0 with height, child geometry
+   *  is scaled to fit the canvas (preserveAspectRatio defaults to xMidYMid meet). */
+  viewportWidth?: number;
+  /** Logical viewport height (SVG viewBox). */
+  viewportHeight?: number;
+}
 export interface SkityRectProps extends SkityCommonProps {
   x?: number;
   y?: number;
@@ -54,8 +72,8 @@ export interface SkityLineProps extends SkityCommonProps {
   y2: number;
 }
 export interface SkityPathProps extends SkityCommonProps {
-  /** SVG path data, e.g. "M10 10 L90 90 Z". MVP supports M/L/C/Q/Z. */
-  d: string;
+  /** Base64-encoded PathCommandList bytes (@lynx-skity/parsers); native decodes + memcpys. */
+  d?: string;
 }
 export interface SkityGroupProps extends SkityCommonProps {}
 

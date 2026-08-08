@@ -118,7 +118,8 @@ void GLESRenderBackend::DrawFrame(const uint8_t *data, std::size_t size, float d
   glClear(GL_COLOR_BUFFER_BIT);
 
   const auto *tree = skityrt::GetRenderTree(data);
-  skityrt::SkityRenderer::Draw(tree, canvas, density);
+  skityrt::SkityRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
+                               static_cast<float>(height_));
 
   canvas->Flush();
   surface->Flush();

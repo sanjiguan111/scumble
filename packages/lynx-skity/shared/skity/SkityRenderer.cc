@@ -8,6 +8,7 @@
 
 #include "SkityRenderer.h"
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 
@@ -18,9 +19,13 @@ namespace skityrt {
 namespace {
 
 using skity::Canvas;
+using skity::Matrix;
 using skity::Paint;
 using skity::Path;
 using skity::Rect;
+
+// Degrees → radians (avoid relying on platform M_PI).
+constexpr float kDegToRad = 0.01745329251994329577f;
 
 // RGBAColor (0-255 channels) → skity ARGB uint32, alpha scaled by opacity.
 uint32_t ColorFromRGBA(const RGBAColor *c, float opacity = 1.f) {
@@ -57,11 +62,13 @@ float VecArg(const ::flatbuffers::Vector<float> *v, size_t idx, float def = 0.f)
   return (v != nullptr && idx < v->size()) ? v->Get(idx) : def;
 }
 
-// Build a skity Path from RenderNode path_commands; falls back to the points
-// vector (polyline/polygon) when no commands are present.
+// Build a skity Path from the node's path_data (a nested PathCommandList
+// FlatBuffer built on the JS side, memcpy'd verbatim by native measure). Falls
+// back to the points vector (polyline/polygon) when no commands are present.
 Path BuildPath(const RenderNode *node, bool force_close) {
   Path path;
-  const auto *cmds = node->path_commands();
+  const auto *list = node->path_data_nested_root();
+  const auto *cmds = list != nullptr ? list->commands() : nullptr;
   auto clen = cmds != nullptr ? cmds->size() : 0u;
   for (size_t i = 0; i < clen; i++) {
     const PathCommand *cmd = cmds->Get(i);
@@ -109,7 +116,10 @@ Path BuildPath(const RenderNode *node, bool force_close) {
 
 void ApplyTransform(const ComputedStyle *style, Canvas *canvas) {
   if (style == nullptr) return;
-  const auto *ops = style->transform();
+  // Transform ops come as a nested FlatBuffer (TransformOpList) built on the JS
+  // side; native only memcpys the bytes. See RENDER_ARCHITECTURE.md §5.
+  const auto *tlist = style->transform_data_nested_root();
+  const auto *ops = tlist != nullptr ? tlist->ops() : nullptr;
   auto len = ops != nullptr ? ops->size() : 0u;
   for (size_t i = 0; i < len; i++) {
     const TransformOp *op = ops->Get(i);
@@ -136,7 +146,29 @@ void ApplyTransform(const ComputedStyle *style, Canvas *canvas) {
       }
       break;
     }
-    // MATRIX / SKEW_X / SKEW_Y: TODO via skity Matrix concat.
+    case TransformType_MATRIX: {
+      // SVG matrix(a,b,c,d,e,f): x' = a·x + c·y + e ; y' = b·x + d·y + f.
+      // skity uses a row-vector Matrix; the Set* mapping below is the
+      // transpose-correct one (SetSkewX ↔ c, SetSkewY ↔ b).
+      if (args != nullptr && args->size() >= 6) {
+        Matrix m;
+        m.SetScaleX(VecArg(args, 0));
+        m.SetSkewY(VecArg(args, 1));
+        m.SetSkewX(VecArg(args, 2));
+        m.SetScaleY(VecArg(args, 3));
+        m.SetTranslateX(VecArg(args, 4));
+        m.SetTranslateY(VecArg(args, 5));
+        canvas->Concat(m);
+      }
+      break;
+    }
+    case TransformType_SKEW_X:
+      // Stored as degrees; skity Skew takes tangents.
+      canvas->Skew(std::tan(VecArg(args, 0) * kDegToRad), 0.f);
+      break;
+    case TransformType_SKEW_Y:
+      canvas->Skew(0.f, std::tan(VecArg(args, 0) * kDegToRad));
+      break;
     default:
       break;
     }
@@ -241,6 +273,61 @@ void DrawShape(const RenderNode *node, Canvas *canvas, const ComputedStyle *styl
   }
 }
 
+// Apply the canvas viewport (SVG viewBox + preserveAspectRatio semantics).
+// Maps the logical coordinate space declared by ViewBox onto the canvas's
+// physical size. Applied in dp space (after the density scale), so child
+// geometry authored in logical pixels lands at the correct physical pixels.
+//
+// NOTE: AspectRatioAlign has only NONE/X_MIN/X_MID/X_MAX (no independent Y
+// alignment) — Y placement is coupled to X (MVP trade-off, render_tree.fbs).
+// SLICE overflow is clipped naturally by the surface, no explicit ClipRect.
+void ApplyViewport(const RenderTree *tree, Canvas *canvas, float canvasWidthPx,
+                   float canvasHeightPx, float density) {
+  if (density <= 0.f) return;
+  const ViewBox *vp = tree->viewport();
+  if (vp == nullptr || vp->width() <= 0.f || vp->height() <= 0.f) return;
+
+  float canvasDpW = canvasWidthPx / density;
+  float canvasDpH = canvasHeightPx / density;
+  float vx = vp->x(), vy = vp->y(), vw = vp->width(), vh = vp->height();
+
+  const PreserveAspectRatio *pa = tree->preserve_aspect();
+  auto align = pa != nullptr ? pa->align() : AspectRatioAlign_X_MID;
+  auto mos = pa != nullptr ? pa->meet_or_slice() : AspectRatioMeetOrSlice_MEET;
+
+  float scaleX = canvasDpW / vw;
+  float scaleY = canvasDpH / vh;
+  float sx, sy, tx, ty;
+  if (align == AspectRatioAlign_NONE) {
+    sx = scaleX;
+    sy = scaleY;
+    tx = ty = 0.f;
+  } else {
+    float s = (mos == AspectRatioMeetOrSlice_MEET) ? std::min(scaleX, scaleY)
+                                                    : std::max(scaleX, scaleY);
+    sx = sy = s;
+    float freeW = canvasDpW - vw * s;
+    float freeH = canvasDpH - vh * s;
+    switch (align) {
+    case AspectRatioAlign_X_MIN:
+      tx = 0.f;
+      ty = 0.f;
+      break;
+    case AspectRatioAlign_X_MAX:
+      tx = freeW;
+      ty = freeH;
+      break;
+    default: // X_MID
+      tx = freeW / 2.f;
+      ty = freeH / 2.f;
+      break;
+    }
+  }
+  canvas->Translate(tx, ty);
+  canvas->Scale(sx, sy);
+  canvas->Translate(-vx, -vy);
+}
+
 void DrawNode(const RenderNode *node, Canvas *canvas) {
   if (node == nullptr) return;
   const ComputedStyle *style = node->style();
@@ -273,12 +360,14 @@ void DrawNode(const RenderNode *node, Canvas *canvas) {
 
 } // namespace
 
-void SkityRenderer::Draw(const RenderTree *tree, Canvas *canvas, float density) {
+void SkityRenderer::Draw(const RenderTree *tree, Canvas *canvas, float density,
+                         float canvasWidth, float canvasHeight) {
   if (tree == nullptr || canvas == nullptr) return;
   const RenderNode *root = tree->root();
   if (root == nullptr) return;
   canvas->Save();
   if (density != 1.f) canvas->Scale(density, density);
+  ApplyViewport(tree, canvas, canvasWidth, canvasHeight, density);
   DrawNode(root, canvas);
   canvas->Restore();
 }

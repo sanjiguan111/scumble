@@ -11,6 +11,9 @@
 // Declares the prop→setter map for this class. Subclasses (SkityRectShadowNode
 // …) inherit both the declarations and the setters below, mirroring how
 // android SkityNodeBase.kt exposes all @LynxProp setters to its subclasses.
+// Variable-length fields (transform/d) arrive as NSData* (nested FlatBuffer
+// bytes built by @lynx-skity/parsers); enums arrive as numbers already mapped
+// to skityrt bytes — the native side does no string parsing.
 LYNX_PROPS_GROUP_DECLARE(
     // geometry
     LYNX_PROP_DECLARE("x", setX:, NSNumber *), LYNX_PROP_DECLARE("y", setY:, NSNumber *),
@@ -21,18 +24,17 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("ry", setRy:, NSNumber *), LYNX_PROP_DECLARE("x1", setX1:, NSNumber *),
     LYNX_PROP_DECLARE("y1", setY1:, NSNumber *), LYNX_PROP_DECLARE("x2", setX2:, NSNumber *),
     LYNX_PROP_DECLARE("y2", setY2:, NSNumber *),
-    LYNX_PROP_DECLARE("points", setPoints:, NSString *),
     // paint
     LYNX_PROP_DECLARE("color", setColor:, NSNumber *),
     LYNX_PROP_DECLARE("fill", setFill:, NSNumber *),
     LYNX_PROP_DECLARE("stroke", setStroke:, NSNumber *),
     LYNX_PROP_DECLARE("strokeWidth", setStrokeWidth:, NSNumber *),
-    LYNX_PROP_DECLARE("strokeCap", setStrokeCap:, NSString *),
-    LYNX_PROP_DECLARE("strokeJoin", setStrokeJoin:, NSString *),
+    LYNX_PROP_DECLARE("strokeCap", setStrokeCap:, NSNumber *),
+    LYNX_PROP_DECLARE("strokeJoin", setStrokeJoin:, NSNumber *),
     LYNX_PROP_DECLARE("strokeMiter", setStrokeMiter:, NSNumber *),
-    LYNX_PROP_DECLARE("fillRule", setFillRule:, NSString *),
+    LYNX_PROP_DECLARE("fillRule", setFillRule:, NSNumber *),
     LYNX_PROP_DECLARE("opacity", setOpacity:, NSNumber *),
-    // transform & path
+    // transform & path (base64-encoded nested FlatBuffer bytes)
     LYNX_PROP_DECLARE("transform", setTransform:, NSString *),
     LYNX_PROP_DECLARE("d", setD:, NSString *))
 
@@ -50,8 +52,6 @@ LYNX_PROPS_GROUP_DECLARE(
     _strokeWidth = 1.f;
     _strokeMiter = 4.f;
     _opacity = 1.f;
-    _transformOps = @[];
-    _pathCommands = @[];
   }
   return self;
 }
@@ -97,9 +97,6 @@ LYNX_PROP_SETTER("x2", setX2, NSNumber *) {
 LYNX_PROP_SETTER("y2", setY2, NSNumber *) {
   _y2 = value.floatValue;
 }
-LYNX_PROP_SETTER("points", setPoints, NSString *) {
-  _points = [SkityPropParser parseFloatList:value];
-}
 
 #pragma mark - Paint setters
 
@@ -115,29 +112,34 @@ LYNX_PROP_SETTER("stroke", setStroke, NSNumber *) {
 LYNX_PROP_SETTER("strokeWidth", setStrokeWidth, NSNumber *) {
   _strokeWidth = value.floatValue;
 }
-LYNX_PROP_SETTER("strokeCap", setStrokeCap, NSString *) {
-  _strokeCap = [SkityPropParser parseCap:value];
+// Enums arrive as numbers already mapped to skityrt bytes (parsers layer).
+LYNX_PROP_SETTER("strokeCap", setStrokeCap, NSNumber *) {
+  _strokeCap = (uint8_t)value.intValue;
 }
-LYNX_PROP_SETTER("strokeJoin", setStrokeJoin, NSString *) {
-  _strokeJoin = [SkityPropParser parseJoin:value];
+LYNX_PROP_SETTER("strokeJoin", setStrokeJoin, NSNumber *) {
+  _strokeJoin = (uint8_t)value.intValue;
 }
 LYNX_PROP_SETTER("strokeMiter", setStrokeMiter, NSNumber *) {
   _strokeMiter = value.floatValue;
 }
-LYNX_PROP_SETTER("fillRule", setFillRule, NSString *) {
-  _fillRule = [SkityPropParser parseFillRule:value];
+LYNX_PROP_SETTER("fillRule", setFillRule, NSNumber *) {
+  _fillRule = (uint8_t)value.intValue;
 }
 LYNX_PROP_SETTER("opacity", setOpacity, NSNumber *) {
   _opacity = value.floatValue;
 }
 
-#pragma mark - Transform & path setters
+#pragma mark - Transform & path setters (base64 → decode → memcpy)
 
 LYNX_PROP_SETTER("transform", setTransform, NSString *) {
-  _transformOps = [SkityPropParser parseTransform:value];
+  NSData *decoded = [[NSData alloc] initWithBase64EncodedString:value
+                                                       options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _transformData = decoded.length > 0 ? decoded : nil;
 }
 LYNX_PROP_SETTER("d", setD, NSString *) {
-  _pathCommands = [SkityPropParser parsePath:value];
+  NSData *decoded = [[NSData alloc] initWithBase64EncodedString:value
+                                                       options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _pathData = decoded.length > 0 ? decoded : nil;
 }
 
 @end

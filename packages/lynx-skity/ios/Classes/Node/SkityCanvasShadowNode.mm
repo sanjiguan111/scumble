@@ -7,6 +7,7 @@
 #import "SkityRenderBundle.h"
 #import <Lynx/LynxComponentRegistry.h>
 #import <Lynx/LynxCustomMeasureDelegate.h>
+#import <Lynx/LynxPropsProcessor.h>
 #import <Lynx/LynxShadowNode.h>
 #import <UIKit/UIScreen.h>
 
@@ -19,9 +20,9 @@ using namespace skityrt;
 using namespace flatbuffers;
 
 #pragma mark - FlatBuffer serialization (built leaves → root)
-// 1:1 port of SkityCanvasShadowNode.kt's buildRenderNode / buildStyle / buildPaint
-// / buildTransformVec / buildPathCommands, using the C++ FlatBuffer stubs in
-// shared/skity/generated instead of the Java flatbuffers runtime.
+// 1:1 port of SkityCanvasShadowNode.kt's buildRenderNode / buildStyle / buildPaint,
+// using the C++ FlatBuffer stubs in shared/skity/generated. Path/transform arrive
+// as JS-built nested FlatBuffer bytes and are memcpy'd verbatim.
 
 static Offset<ResolvedPaint> SkityBuildPaint(flatbuffers::FlatBufferBuilder &fbb, NSNumber *color) {
   if (color == nil) {
@@ -38,50 +39,24 @@ static Offset<ResolvedPaint> SkityBuildPaint(flatbuffers::FlatBufferBuilder &fbb
   return CreateResolvedPaint(fbb, 1, colorOff, 0);
 }
 
-static Offset<flatbuffers::Vector<Offset<TransformOp>>>
-SkityBuildTransformVec(flatbuffers::FlatBufferBuilder &fbb, NSArray<SkityTransformOp *> *ops) {
-  if (ops.count == 0) return 0;
-  std::vector<Offset<TransformOp>> offsets;
-  offsets.reserve(ops.count);
-  for (SkityTransformOp *op in ops) {
-    std::vector<float> args;
-    args.reserve(op.args.count);
-    for (NSNumber *n in op.args)
-      args.push_back(n.floatValue);
-    auto argsOff = fbb.CreateVector(args);
-    offsets.push_back(CreateTransformOp(fbb, static_cast<TransformType>(op.type), argsOff));
-  }
-  return fbb.CreateVector(offsets);
-}
-
-static Offset<flatbuffers::Vector<Offset<PathCommand>>>
-SkityBuildPathCommands(flatbuffers::FlatBufferBuilder &fbb, NSArray<SkityPathCommand *> *cmds) {
-  if (cmds.count == 0) return 0;
-  std::vector<Offset<PathCommand>> offsets;
-  offsets.reserve(cmds.count);
-  for (SkityPathCommand *cmd in cmds) {
-    std::vector<float> args;
-    args.reserve(cmd.args.count);
-    for (NSNumber *n in cmd.args)
-      args.push_back(n.floatValue);
-    auto argsOff = fbb.CreateVector(args);
-    offsets.push_back(CreatePathCommand(fbb, static_cast<PathCommandType>(cmd.type), argsOff));
-  }
-  return fbb.CreateVector(offsets);
-}
-
 static Offset<ComputedStyle> SkityBuildStyle(flatbuffers::FlatBufferBuilder &fbb,
                                              SkityNodeBase *node) {
   auto fillOff = SkityBuildPaint(fbb, node.fillColor);
   auto strokeOff = SkityBuildPaint(fbb, node.strokeColor);
-  auto transformVec = SkityBuildTransformVec(fbb, node.transformOps);
+  // CSS transform arrives as JS-built TransformOpList bytes; memcpy verbatim.
+  Offset<flatbuffers::Vector<uint8_t>> transformDataOff = 0;
+  if (node.transformData.length > 0) {
+    transformDataOff = fbb.CreateVector((const uint8_t *)node.transformData.bytes,
+                                        node.transformData.length);
+  }
   // display = INLINE(0), visibility = VISIBLE(0); dasharray/dashoffset TODO.
   return CreateComputedStyle(
       fbb, fillOff, strokeOff, node.strokeWidth, static_cast<LineCap>(node.strokeCap),
       static_cast<LineJoin>(node.strokeJoin),
       /*stroke_dasharray*/ 0, /*stroke_dashoffset*/ 0.f, node.strokeMiter,
       static_cast<FillRule>(node.fillRule), node.opacity,
-      /*display*/ Display_INLINE, /*visibility*/ Visibility_VISIBLE, transformVec);
+      /*display*/ Display_INLINE, /*visibility*/ Visibility_VISIBLE,
+      /*transform*/ 0, transformDataOff);
 }
 
 static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &fbb,
@@ -96,27 +71,30 @@ static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &f
   auto childrenVec = childOffsets.empty() ? 0 : fbb.CreateVector(childOffsets);
 
   auto styleOff = SkityBuildStyle(fbb, node);
-  auto pathVec = SkityBuildPathCommands(fbb, node.pathCommands);
-
-  Offset<flatbuffers::Vector<float>> pointsVec = 0;
-  if (node.points.count > 0) {
-    std::vector<float> pts;
-    pts.reserve(node.points.count);
-    for (NSNumber *n in node.points)
-      pts.push_back(n.floatValue);
-    pointsVec = fbb.CreateVector(pts);
+  // path d arrives as JS-built PathCommandList bytes; memcpy verbatim.
+  Offset<flatbuffers::Vector<uint8_t>> pathDataOff = 0;
+  if (node.pathData.length > 0) {
+    pathDataOff =
+        fbb.CreateVector((const uint8_t *)node.pathData.bytes, node.pathData.length);
   }
-
   auto tagOff = fbb.CreateString([node.skityTagName UTF8String]);
 
   return CreateRenderNode(fbb, /*id*/ 0, tagOff, styleOff, node.x, node.y, node.width, node.height,
                           node.cx, node.cy, node.r, node.rx, node.ry, node.x1, node.y1, node.x2,
-                          node.y2, /*offset*/ 0.f, childrenVec, pathVec,
-                          /*path_data*/ 0, pointsVec, GradientUnits_OBJECT_BOUNDING_BOX,
-                          SpreadMethod_PAD);
+                          node.y2, /*offset*/ 0.f, childrenVec, /*path_commands*/ 0, pathDataOff,
+                          /*points*/ 0, GradientUnits_OBJECT_BOUNDING_BOX, SpreadMethod_PAD);
 }
 
 #pragma mark -
+
+@interface SkityCanvasShadowNode ()
+// Canvas logical viewport (SVG viewBox). When width/height > 0, child geometry
+// authored in these logical pixels is scaled by the renderer to fit the canvas.
+@property(nonatomic, assign) float viewportX;
+@property(nonatomic, assign) float viewportY;
+@property(nonatomic, assign) float viewportWidth;
+@property(nonatomic, assign) float viewportHeight;
+@end
 
 @implementation SkityCanvasShadowNode
 
@@ -125,6 +103,14 @@ LYNX_LAZY_REGISTER_SHADOW_NODE("skity-canvas")
 #else
 LYNX_REGISTER_SHADOW_NODE("skity-canvas")
 #endif
+
+// Canvas-only props (inherited geometry/paint/transform/d props come from
+// SkityNodeBase's group). preserveAspectRatio is fixed at X_MID/MEET for now.
+LYNX_PROPS_GROUP_DECLARE(
+    LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber *),
+    LYNX_PROP_DECLARE("viewportY", setViewportY:, NSNumber *),
+    LYNX_PROP_DECLARE("viewportWidth", setViewportWidth:, NSNumber *),
+    LYNX_PROP_DECLARE("viewportHeight", setViewportHeight:, NSNumber *))
 
 - (NSString *)skityTagName {
   return @"canvas";
@@ -140,6 +126,21 @@ LYNX_REGISTER_SHADOW_NODE("skity-canvas")
     self.customMeasureDelegate = self;
   }
   return self;
+}
+
+#pragma mark - Viewport setters
+
+LYNX_PROP_SETTER("viewportX", setViewportX, NSNumber *) {
+  _viewportX = value.floatValue;
+}
+LYNX_PROP_SETTER("viewportY", setViewportY, NSNumber *) {
+  _viewportY = value.floatValue;
+}
+LYNX_PROP_SETTER("viewportWidth", setViewportWidth, NSNumber *) {
+  _viewportWidth = value.floatValue;
+}
+LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
+  _viewportHeight = value.floatValue;
 }
 
 #pragma mark - LynxCustomMeasureDelegate
@@ -168,7 +169,25 @@ LYNX_REGISTER_SHADOW_NODE("skity-canvas")
   if (w > 0.f && h > 0.f) {
     flatbuffers::FlatBufferBuilder fbb(1024);
     auto rootOff = SkityBuildRenderNode(fbb, self);
-    auto treeOff = CreateRenderTree(fbb, rootOff);
+
+    // Viewport offsets must be built before the RenderTree builder starts.
+    bool hasViewport = (self.viewportWidth > 0.f && self.viewportHeight > 0.f);
+    Offset<ViewBox> vpOff = 0;
+    Offset<PreserveAspectRatio> paOff = 0;
+    if (hasViewport) {
+      vpOff = CreateViewBox(fbb, self.viewportX, self.viewportY, self.viewportWidth,
+                            self.viewportHeight);
+      paOff = CreatePreserveAspectRatio(fbb); // defaults: X_MID / MEET
+    }
+    RenderTreeBuilder builder(fbb);
+    builder.add_root(rootOff);
+    if (hasViewport) {
+      builder.add_viewport(vpOff);
+      builder.add_preserve_aspect(paOff);
+    }
+    // density intentionally omitted — the renderer's Draw() density arg is the
+    // single source of truth (avoids double-applying).
+    auto treeOff = builder.Finish();
     fbb.Finish(treeOff);
 
     NSData *data = [NSData dataWithBytes:fbb.GetBufferPointer() length:fbb.GetSize()];

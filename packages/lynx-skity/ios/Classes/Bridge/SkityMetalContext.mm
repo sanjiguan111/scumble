@@ -77,7 +77,9 @@
     // Decode the FlatBuffer and draw. This is the shared C++ entry point that
     // Android also reaches (via JNI → AppRenderer → GLESRenderBackend).
     const auto *tree = skityrt::GetRenderTree(static_cast<const void *>(treeData.bytes));
-    skityrt::SkityRenderer::Draw(tree, canvas, density);
+    // w/h are the Metal drawable size in physical pixels (viewportW/viewportH).
+    skityrt::SkityRenderer::Draw(tree, canvas, density, static_cast<float>(w),
+                                 static_cast<float>(h));
 
     canvas->Flush();
     surface->Flush();

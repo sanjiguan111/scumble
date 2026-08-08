@@ -22,9 +22,12 @@ namespace skityrt {
 
 class SkityRenderer {
 public:
-  // Draw `tree` onto `canvas`. `density` scales logical dp units to pixels
-  // (passed in from the platform UI's layout size / screen density).
-  static void Draw(const RenderTree *tree, ::skity::Canvas *canvas, float density = 1.f);
+  // Draw `tree` onto `canvas`. `density` scales logical dp units to pixels.
+  // `canvasWidth`/`canvasHeight` are the surface size in physical pixels, used
+  // to apply the RenderTree viewport (logical → physical) transform; both are
+  // required (no defaults) so every backend call site supplies them.
+  static void Draw(const RenderTree *tree, ::skity::Canvas *canvas, float density,
+                   float canvasWidth, float canvasHeight);
 };
 
 } // namespace skityrt

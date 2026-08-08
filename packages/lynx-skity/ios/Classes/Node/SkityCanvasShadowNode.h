@@ -9,9 +9,9 @@
 /// to SkityCanvasUI.onReceiveUIOperation:.
 ///
 /// iOS counterpart of android/.../node/SkityCanvasShadowNode.kt. skity has no
-/// DOMBuilder (unlike lynx-native-svg), so resolution happens in the
-/// ShadowNodes (SkityPropParser) and this node emits the final RenderTree
-/// directly.
+/// DOMBuilder (unlike lynx-native-svg), so all string parsing happens in
+/// front-end JS (@lynx-skity/parsers); this node ferries scalars + memcpy's
+/// nested FlatBuffer bytes and emits the final RenderTree directly.
 #import "SkityNodeBase.h"
 #import <Lynx/LynxCustomMeasureDelegate.h>
 

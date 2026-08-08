@@ -3,17 +3,17 @@
 // LICENSE file in the root directory of this source tree.
 //
 /// Base ShadowNode for every skity element (canvas + shapes + group). Collects
-/// numeric/decoded render props — geometry, paint colors, stroke style, opacity,
-/// parsed transform & path — so the container node (SkityCanvasShadowNode) can
-/// serialize them directly into the skityrt FlatBuffer render tree without a
-/// DOM/property-string layer.
+/// numeric render props — geometry, paint colors, stroke style, opacity — plus
+/// the JS-built nested FlatBuffer bytes for path/transform, so the container
+/// node (SkityCanvasShadowNode) can serialize them directly into the skityrt
+/// FlatBuffer render tree without any string parsing on the native side.
 ///
-/// iOS counterpart of android/.../node/SkityNodeBase.kt. Shape / group nodes
-/// are virtual (isVirtual = YES); the canvas node overrides to NO.
+/// Variable-length fields (path d, transform) and enum props arrive already
+/// resolved by @lynx-skity/parsers in JS: bytes for path/transform, numbers for
+/// enums. iOS counterpart of android/.../node/SkityNodeBase.kt. Shape / group
+/// nodes are virtual (isVirtual = YES); the canvas node overrides to NO.
 #import <Foundation/Foundation.h>
 #import <Lynx/LynxShadowNode.h>
-
-#import "SkityPropParser.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -23,7 +23,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// override. Must match render_tree.fbs tag_name consumed by SkityRenderer.
 @property(nonatomic, readonly) NSString *skityTagName;
 
-// ---- geometry (absolute px) ----
+// ---- geometry (logical px within the canvas viewport) ----
 @property(nonatomic, assign) float x;
 @property(nonatomic, assign) float y;
 @property(nonatomic, assign) float width;
@@ -37,7 +37,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, assign) float y1;
 @property(nonatomic, assign) float x2;
 @property(nonatomic, assign) float y2;
-@property(nonatomic, strong, nullable) NSArray<NSNumber *> *points;
 
 // ---- paint (ARGB 0xAARRGGBB; nil = inactive) ----
 @property(nonatomic, strong, nullable) NSNumber *fillColor;
@@ -49,9 +48,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, assign) uint8_t fillRule;
 @property(nonatomic, assign) float opacity;
 
-// ---- transform & path (parsed) ----
-@property(nonatomic, strong) NSArray<SkityTransformOp *> *transformOps;
-@property(nonatomic, strong) NSArray<SkityPathCommand *> *pathCommands;
+// ---- transform & path (JS-built nested FlatBuffer bytes; nil = none) ----
+@property(nonatomic, strong, nullable) NSData *transformData;
+@property(nonatomic, strong, nullable) NSData *pathData;
 
 @end
 

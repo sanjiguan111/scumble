@@ -4,10 +4,11 @@
 
 // Normalizes a shape's GraphicProps (color + style + stroke attributes) into
 // the {fill?, stroke?, ...} scalars the skity intrinsic tags accept. The native
-// layer takes a packed 0xAARRGGBB number for fill/stroke and never parses color
-// strings — parseColor (from lynx-skity/parsers) does that here.
+// layer takes a packed 0xAARRGGBB number for fill/stroke and number bytes for
+// enums — parseColor / parseStrokeCap / parseStrokeJoin (from lynx-skity/parsers)
+// do all string resolution here; the native side never parses strings.
 
-import { parseColor } from "@lynx-skity/parsers";
+import { parseColor, parseStrokeCap, parseStrokeJoin } from "@lynx-skity/parsers";
 
 import type { GraphicProps } from "../types";
 
@@ -16,8 +17,8 @@ export interface ResolvedPaint {
   fill?: number;
   stroke?: number;
   strokeWidth?: number;
-  strokeCap?: "butt" | "round" | "square";
-  strokeJoin?: "miter" | "round" | "bevel";
+  strokeCap?: number;
+  strokeJoin?: number;
   strokeMiter?: number;
   opacity?: number;
 }
@@ -38,8 +39,9 @@ export function resolvePaint(props: GraphicProps): ResolvedPaint {
   }
 
   if (strokeWidth !== undefined) out.strokeWidth = strokeWidth;
-  if (strokeCap !== undefined) out.strokeCap = strokeCap;
-  if (strokeJoin !== undefined) out.strokeJoin = strokeJoin;
+  // Map friendly enum strings → skityrt bytes; the native side takes numbers.
+  if (strokeCap !== undefined) out.strokeCap = parseStrokeCap(strokeCap);
+  if (strokeJoin !== undefined) out.strokeJoin = parseStrokeJoin(strokeJoin);
   if (strokeMiter !== undefined) out.strokeMiter = strokeMiter;
   if (opacity !== undefined) out.opacity = opacity;
 

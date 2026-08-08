@@ -4,6 +4,7 @@
 package com.skity.graphics.node
 
 import com.google.flatbuffers.FlatBufferBuilder
+import com.lynx.tasm.behavior.LynxProp
 import com.lynx.tasm.behavior.shadow.AlignContext
 import com.lynx.tasm.behavior.shadow.AlignParam
 import com.lynx.tasm.behavior.shadow.CustomMeasureFunc
@@ -12,13 +13,15 @@ import com.lynx.tasm.behavior.shadow.MeasureMode
 import com.lynx.tasm.behavior.shadow.MeasureParam
 import com.lynx.tasm.behavior.shadow.MeasureResult
 import com.skity.graphics.render.SkityRenderBundle
+import com.skity.graphics.skityrt.AspectRatioAlign
+import com.skity.graphics.skityrt.AspectRatioMeetOrSlice
 import com.skity.graphics.skityrt.ComputedStyle
-import com.skity.graphics.skityrt.PathCommand
+import com.skity.graphics.skityrt.PreserveAspectRatio
 import com.skity.graphics.skityrt.RenderNode
 import com.skity.graphics.skityrt.RenderTree
 import com.skity.graphics.skityrt.ResolvedPaint
 import com.skity.graphics.skityrt.RGBAColor
-import com.skity.graphics.skityrt.TransformOp
+import com.skity.graphics.skityrt.ViewBox
 
 /**
  * Container ShadowNode for `<skity-canvas>`. Implements [CustomMeasureFunc]:
@@ -28,17 +31,27 @@ import com.skity.graphics.skityrt.TransformOp
  * hands to SkityCanvasUI.updateExtraData.
  *
  * This is the skity counterpart of lynx-native-svg's SvgShadowNode. The key
- * difference: SvgShadowNode emits MutationOps (attribute strings) consumed by a
- * C++ DOMBuilder that resolves values; skity has no DOMBuilder, so resolution
- * happens in the ShadowNodes (SkityPropParser) and this node emits the final
- * RenderTree directly.
- *
- * NOTE: ResolvedPaint/RGBAColor/PathCommand/TransformOp `create*` calls follow
- * the standard flatc --java pattern; verify against the generated classes.
+ * difference: skity has no DOMBuilder, so all string parsing (color/path/
+ * transform/enum) happens in front-end JS (@lynx-skity/parsers); this node only
+ * ferries scalars and memcpy's the JS-built nested FlatBuffer bytes (path_data /
+ * transform_data) plus the canvas viewport into the render tree.
  */
 class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
 
   override val skityTagName = "canvas"
+
+  // Canvas logical viewport (SVG viewBox). When width/height > 0, child geometry
+  // authored in these logical pixels is scaled by the renderer to fit the
+  // canvas physical size (preserveAspectRatio defaults to X_MID/MEET).
+  private var viewportX = 0f
+  private var viewportY = 0f
+  private var viewportWidth = 0f
+  private var viewportHeight = 0f
+
+  @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v }
+  @LynxProp(name = "viewportY") fun setViewportY(v: Float) { viewportY = v }
+  @LynxProp(name = "viewportWidth") fun setViewportWidth(v: Float) { viewportWidth = v }
+  @LynxProp(name = "viewportHeight") fun setViewportHeight(v: Float) { viewportHeight = v }
 
   private var renderBundle: SkityRenderBundle? = null
 
@@ -75,8 +88,21 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     if (w > 0f && h > 0f) {
       val fbb = FlatBufferBuilder(1024)
       val rootOff = buildRenderNode(fbb, this)
+
+      // Viewport offsets must be built before startRenderTree (referenced tables).
+      var vpOff = 0
+      var paOff = 0
+      if (viewportWidth > 0f && viewportHeight > 0f) {
+        vpOff = ViewBox.createViewBox(fbb, viewportX, viewportY, viewportWidth, viewportHeight)
+        paOff = PreserveAspectRatio.createPreserveAspectRatio(
+          fbb, AspectRatioAlign.X_MID, AspectRatioMeetOrSlice.MEET)
+      }
       RenderTree.startRenderTree(fbb)
       RenderTree.addRoot(fbb, rootOff)
+      if (vpOff != 0) RenderTree.addViewport(fbb, vpOff)
+      if (paOff != 0) RenderTree.addPreserveAspect(fbb, paOff)
+      // density is not serialized — the renderer's Draw() density arg is the
+      // single source of truth (avoids double-applying).
       val treeOff = RenderTree.endRenderTree(fbb)
       fbb.finish(treeOff)
       renderBundle = SkityRenderBundle(fbb.sizedByteArray(), w / density, h / density, density)
@@ -100,10 +126,8 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       if (childCount > 0) RenderNode.createChildrenVector(fbb, childOffsets) else 0
 
     val styleOff = buildStyle(fbb, node)
-    val pathVec = buildPathCommands(fbb, node)
-    val pts = node.points
-    val pointsVec = if (pts != null && pts.isNotEmpty())
-      RenderNode.createPointsVector(fbb, pts) else 0
+    // path d arrives as JS-built PathCommandList bytes; memcpy verbatim.
+    val pathDataOff = node.pathData?.let { RenderNode.createPathDataVector(fbb, it) } ?: 0
     val tagOff = fbb.createString(node.skityTagName)
 
     return RenderNode.createRenderNode(
@@ -111,14 +135,16 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       node.x, node.y, node.width, node.height,
       node.cx, node.cy, node.r, node.rx, node.ry,
       node.x1, node.y1, node.x2, node.y2, /*offset*/ 0f,
-      childrenVec, pathVec, /* pathData */ 0, pointsVec,
+      childrenVec, /*path_commands*/ 0, pathDataOff, /*points*/ 0,
       /*gradientUnits*/ 0, /*spreadMethod*/ 0)
   }
 
   private fun buildStyle(fbb: FlatBufferBuilder, node: SkityNodeBase): Int {
     val fillOff = buildPaint(fbb, node.fillColor)
     val strokeOff = buildPaint(fbb, node.strokeColor)
-    val transformVec = buildTransformVec(fbb, node.transformOps)
+    // CSS transform arrives as JS-built TransformOpList bytes; memcpy verbatim.
+    val transformDataOff =
+      node.transformData?.let { ComputedStyle.createTransformDataVector(fbb, it) } ?: 0
     // display=INLINE(0), visibility=VISIBLE(0); dasharray/dashoffset TODO.
     return ComputedStyle.createComputedStyle(
       fbb, fillOff, strokeOff,
@@ -126,7 +152,7 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       /*dasharray*/ 0, /*dashoffset*/ 0f, node.strokeMiter,
       node.fillRule, node.opacity,
       /*display*/ 0, /*visibility*/ 0,
-      transformVec)
+      /*transform*/ 0, transformDataOff)
   }
 
   private fun buildPaint(fbb: FlatBufferBuilder, color: Long?): Int {
@@ -142,25 +168,5 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     val colorOff = RGBAColor.createRGBAColor(fbb, r, g, b, a)
     // type=COLOR(1); gradient offset 0.
     return ResolvedPaint.createResolvedPaint(fbb, 1, colorOff, 0)
-  }
-
-  private fun buildTransformVec(fbb: FlatBufferBuilder, ops: List<TransformOpData>): Int {
-    if (ops.isEmpty()) return 0
-    val offsets = IntArray(ops.size) { i ->
-      val op = ops[i]
-      val argsOff = TransformOp.createArgsVector(fbb, op.args)
-      TransformOp.createTransformOp(fbb, op.type, argsOff)
-    }
-    return ComputedStyle.createTransformVector(fbb, offsets)
-  }
-
-  private fun buildPathCommands(fbb: FlatBufferBuilder, node: SkityNodeBase): Int {
-    if (node.pathCommands.isEmpty()) return 0
-    val offsets = IntArray(node.pathCommands.size) { i ->
-      val cmd = node.pathCommands[i]
-      val argsOff = PathCommand.createArgsVector(fbb, cmd.args)
-      PathCommand.createPathCommand(fbb, cmd.type, argsOff)
-    }
-    return RenderNode.createPathCommandsVector(fbb, offsets)
   }
 }
