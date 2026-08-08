@@ -14,7 +14,7 @@ dist/
 **/shared/skity/generated/
 **/android/src/main/fbs-gen/
 # TypeScript FlatBuffer stubs + vendored flatbuffers runtime (parsers).
-packages/lynx-skity/src/parsers/generated/
+packages/skity-parsers/src/generated/
 
 # Android / Gradle
 **/.gradle/

@@ -32,6 +32,9 @@ importers:
       '@lynx-js/rspeedy':
         specifier: ^0.16.2
         version: 0.16.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@rspack/core@2.1.8(@swc/helpers@0.5.23))(typescript@5.9.3)(webpack@5.109.2(postcss@8.5.25))
+      '@lynx-skity/react':
+        specifier: workspace:*
+        version: link:../react
       lynx-skity:
         specifier: workspace:*
         version: link:../lynx-skity
@@ -64,6 +67,31 @@ importers:
       '@lynx-js/types':
         specifier: 3.9.0
         version: 3.9.0
+
+  packages/react:
+    dependencies:
+      '@lynx-js/react':
+        specifier: '*'
+        version: 0.123.2(@lynx-js/types@3.9.0)(@types/react@18.3.31)
+      '@lynx-js/types':
+        specifier: '*'
+        version: 3.9.0
+      '@lynx-skity/parsers':
+        specifier: workspace:*
+        version: link:../skity-parsers
+      lynx-skity:
+        specifier: workspace:*
+        version: link:../lynx-skity
+    devDependencies:
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.1.2)(vite@8.2.1(@types/node@26.1.2)(terser@5.49.1))
+
+  packages/skity-parsers:
+    devDependencies:
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.1.2)(vite@8.2.1(@types/node@26.1.2)(terser@5.49.1))

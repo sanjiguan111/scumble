@@ -7,8 +7,7 @@
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./elements": "./src/elements.ts",
-    "./parsers": "./src/parsers/index.ts"
+    "./elements": "./src/elements.ts"
   },
   "files": [
     "src",
@@ -39,8 +38,7 @@
   "scripts": {
     "codegen": "lynx-autolink-codegen",
     "generate-fbs": "node scripts/generate-fbs.mjs",
-    "postinstall": "node scripts/generate-fbs.mjs",
-    "test": "vitest run"
+    "postinstall": "node scripts/generate-fbs.mjs"
   },
   "dependencies": {
     "@lynx-js/weak-node-api": "^0.0.9",
@@ -48,7 +46,6 @@
   },
   "devDependencies": {
     "@lynx-js/autolink-codegen": "^0.4.0",
-    "@lynx-js/types": "3.9.0",
-    "vitest": "^4.1.10"
+    "@lynx-js/types": "3.9.0"
   }
 }

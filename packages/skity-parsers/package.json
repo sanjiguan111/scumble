@@ -1,0 +1,27 @@
+{
+  "name": "@lynx-skity/parsers",
+  "version": "0.0.1",
+  "description": "Framework-agnostic value parsers for lynx-skity: colors, paint enums, CSS transforms, and SVG path data into the numeric/ArrayBuffer values the native skity tags consume. Built with tsc — the vendored flatbuffers runtime's type-only re-exports are erased at emit time so bundlers can consume the output.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.10"
+  }
+}
