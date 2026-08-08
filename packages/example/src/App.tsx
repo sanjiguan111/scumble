@@ -1,24 +1,35 @@
+import { Canvas, Circle, Group, Path, Rect } from "@lynx-skity/react";
+
+// skity demo via the @lynx-skity/react component layer (react-native-skity-style
+// API: <Canvas><Circle color="red" /></Canvas>). Colors accept CSS strings and
+// are packed to 0xAARRGGBB by lynx-skity/parsers at the component layer — the
+// native side still only ever sees numbers.
 import "lynx-skity/elements";
 
-// Minimal skity demo using the intrinsic tags directly (no component wrappers).
-// <skity-canvas> renders via the skity GLES backend (TextureView + dedicated
-// render thread on Android). Colors are 0xAARRGGBB.
 export function App() {
   return (
     <view style={{ width: "100%", height: "100%", backgroundColor: "#ffffff" }}>
       <text style={{ fontSize: "20px", padding: "16px" }}>lynx-skity demo</text>
-      <skity-canvas style={{ width: "100%", height: "400px" }}>
+      <Canvas style={{ width: "100%", height: "400px" }}>
         {/* filled red rectangle */}
-        <skity-rect x={20} y={20} width={140} height={90} fill={0xffff0000} />
+        <Rect x={20} y={20} width={140} height={90} color="#ff0000" />
         {/* filled blue circle */}
-        <skity-circle cx={240} cy={100} r={55} fill={0xff3b82f6} />
+        <Circle cx={240} cy={100} radius={55} color="#3b82f6" />
         {/* filled green triangle */}
-        <skity-path d="M20 240 L160 180 L300 240 Z" fill={0xff22c55e} />
+        <Path path="M20 240 L160 180 L300 240 Z" color="#22c55e" />
         {/* stroked black rectangle inside a group */}
-        <skity-group>
-          <skity-rect x={40} y={40} width={100} height={50} stroke={0xff000000} strokeWidth={4} />
-        </skity-group>
-      </skity-canvas>
+        <Group>
+          <Rect
+            x={40}
+            y={40}
+            width={100}
+            height={50}
+            color="#000000"
+            style="stroke"
+            strokeWidth={4}
+          />
+        </Group>
+      </Canvas>
       <text style={{ padding: "16px" }}>Rendered by skity GPU Backend.</text>
     </view>
   );

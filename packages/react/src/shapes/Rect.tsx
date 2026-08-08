@@ -1,0 +1,11 @@
+// Copyright 2026 The Lynx Authors. All rights reserved.
+// Licensed under the Apache License Version 2.0 that can be found in the
+// LICENSE file in the root directory of this source tree.
+
+import { resolvePaint } from "../internal/paint";
+import type { RectProps } from "../types";
+
+/** Axis-aligned rectangle. */
+export function Rect({ x, y, width, height, ...rest }: RectProps) {
+  return <skity-rect x={x ?? 0} y={y ?? 0} width={width} height={height} {...resolvePaint(rest)} />;
+}

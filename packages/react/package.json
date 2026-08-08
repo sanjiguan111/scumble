@@ -1,0 +1,28 @@
+{
+  "name": "@lynx-skity/react",
+  "version": "0.0.1",
+  "description": "React component layer for lynx-skity — react-native-skity-style API (<Canvas>/<Circle color='red'/>) over the skity intrinsic tags.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lynx-skity/parsers": "workspace:*",
+    "lynx-skity": "workspace:*"
+  },
+  "peerDependencies": {
+    "@lynx-js/react": "*",
+    "@lynx-js/types": "*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}
