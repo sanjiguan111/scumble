@@ -41,11 +41,11 @@ Dependency direction is a single directed acyclic chain: `@lynx-skity/{react,vue
 
 ## 3. Responsibility split
 
-| Data nature | Examples | Owner | Transport |
-|---|---|---|---|
-| Parse-free scalars | color `0xAARRGGBB`, geometry `cx/cy/r/x/y/w/h`, `strokeWidth`, enum bytes | base tag prop (unchanged) | `@LynxProp` number |
-| Parsed / nested structures | path `d`, CSS `transform`, `Gradient`, `Shader`, `dasharray`, `points` | **front-end parse → serialize** | ArrayBuffer (iOS `NSData` / Android `byte[]`) |
-| canvas-level coordinate transform | `viewport` (logical → physical px) | canvas node declares + renderer applies | `RenderTree` top-level field |
+| Data nature                       | Examples                                                                  | Owner                                   | Transport                                     |
+| --------------------------------- | ------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------- |
+| Parse-free scalars                | color `0xAARRGGBB`, geometry `cx/cy/r/x/y/w/h`, `strokeWidth`, enum bytes | base tag prop (unchanged)               | `@LynxProp` number                            |
+| Parsed / nested structures        | path `d`, CSS `transform`, `Gradient`, `Shader`, `dasharray`, `points`    | **front-end parse → serialize**         | ArrayBuffer (iOS `NSData` / Android `byte[]`) |
+| canvas-level coordinate transform | `viewport` (logical → physical px)                                        | canvas node declares + renderer applies | `RenderTree` top-level field                  |
 
 Note: even enum strings like `strokeCap="round"` are front-loaded — the framework component accepts a friendly string, the parser maps it to a byte, the base prop receives a number. The native side is left with no enum parsing either; the principle stays consistent.
 
@@ -56,6 +56,7 @@ The "three states" of color `0xAARRGGBB` are a deliberate trade-off and stay as-
 The schema lives in `packages/lynx-skity/schema/render_tree*.fbs` (namespace `skityrt`); `scripts/generate-fbs.mjs` runs flatc to emit C++ (`shared/skity/generated/`), Java stubs (`android/.../fbs-gen/`), and TypeScript stubs (`packages/skity-parsers/src/generated/`). iOS reuses the C++ stubs directly.
 
 **Existing structures:**
+
 - `RGBAColor { r,g,b,a:uint32 }`, `GradientStop`, `Gradient` (linear+radial+stops, complete), `ResolvedPaint { type: NONE/COLOR/GRADIENT; color; gradient }`
 - `PathCommand { type; args:[float] }` + `PathCommandType` (MOVE_TO..CLOSE)
 - `TransformOp { type; args:[float] }` + `TransformType` (MATRIX..SKEW_Y)
@@ -64,11 +65,13 @@ The schema lives in `packages/lynx-skity/schema/render_tree*.fbs` (namespace `sk
 - `RenderTree { root:RenderNode }`
 
 **Extensions this phase:**
+
 - Added `ViewBox { x,y,width,height }` + `PreserveAspectRatio` (`AspectRatioAlign` + `AspectRatioMeetOrSlice`, SVG `preserveAspectRatio` semantics); `RenderTree` gained `viewport`, `preserve_aspect`, `density`.
 - `RenderNode` geometry comment changed from "absolute pixels" to **logical pixels (within the viewport logical coordinate space)**.
 - Added `PathCommandList` / `TransformOpList` wrapper tables + `RenderNode.path_data` / `ComputedStyle.transform_data` as `[ubyte] (nested_flatbuffer: ...)` fields (legacy `path_commands` / `transform` kept during migration).
 
 **Future extensions (TBD):**
+
 - **Shader**: add `SHADER=3` to `ResolvedPaint.type` + a `Shader` table. **Design pending** — depends on which shader to support (image fill / runtime shader / skity `SkShader`). No field is added until confirmed, to avoid a dangling enum value.
 
 ## 5. Binary serialization
