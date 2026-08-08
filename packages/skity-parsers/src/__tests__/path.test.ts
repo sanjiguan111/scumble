@@ -86,6 +86,59 @@ describe("parsePath → nested FlatBuffer round-trip", () => {
     expect(list.commands(1)!.args(1)).toBe(750);
   });
 
+  it("reflects the previous control point for T (smooth quad)", () => {
+    // Q's control (20,20); current point (30,30); T's control reflected:
+    // 2*(30,30) - (20,20) = (40,40).
+    const list = readBack(parsePath("M0 0 Q20 20 30 30 T50 50")!);
+    const t = list.commands(2)!;
+    expect(t.type()).toBe(PathCommandType.QUAD_TO);
+    expect(t.args(0)).toBe(40);
+    expect(t.args(1)).toBe(40);
+    expect(t.args(2)).toBe(50);
+    expect(t.args(3)).toBe(50);
+  });
+
+  it("parses arc with space-separated flags", () => {
+    const list = readBack(parsePath("M80 80 A45 45 0 0 1 125 125")!);
+    const a = list.commands(1)!;
+    expect(a.type()).toBe(PathCommandType.ARC_TO);
+    expect(a.args(0)).toBe(45); // rx
+    expect(a.args(3)).toBe(0); // large-arc-flag
+    expect(a.args(4)).toBe(1); // sweep-flag
+    expect(a.args(5)).toBe(125); // x
+  });
+
+  it("parses arc with concatenated flags (large=1 sweep=1 as '11')", () => {
+    // SVG spec allows the two single-digit flags with no separator; a naive
+    // number tokenizer would merge "11" into one value and drop the arc.
+    const list = readBack(parsePath("M80 80A45 45 0 11125 125")!);
+    expect(list.commandsLength()).toBe(2);
+    const a = list.commands(1)!;
+    expect(a.type()).toBe(PathCommandType.ARC_TO);
+    expect(a.args(3)).toBe(1); // large-arc-flag
+    expect(a.args(4)).toBe(1); // sweep-flag
+    expect(a.args(5)).toBe(125); // x not glued into the flags
+    expect(a.args(6)).toBe(125);
+  });
+
+  it("parses arc with concatenated flags '00' and a relative end point", () => {
+    const list = readBack(parsePath("M80 80a45 45 0 0045 45")!);
+    const a = list.commands(1)!;
+    expect(a.type()).toBe(PathCommandType.ARC_TO);
+    expect(a.args(3)).toBe(0);
+    expect(a.args(4)).toBe(0);
+    expect(a.args(5)).toBe(125); // 80 + 45
+    expect(a.args(6)).toBe(125);
+  });
+
+  it("parses repeated implicit arc commands", () => {
+    const list = readBack(parsePath("M0 0 A10 10 0 0 1 20 20 40 40 0 1 1 60 60")!);
+    expect(list.commandsLength()).toBe(3);
+    expect(list.commands(1)!.type()).toBe(PathCommandType.ARC_TO);
+    expect(list.commands(2)!.type()).toBe(PathCommandType.ARC_TO);
+    expect(list.commands(2)!.args(3)).toBe(1); // second arc large=1
+  });
+
   it("returns null for empty / whitespace-only input", () => {
     expect(parsePath("")).toBeNull();
     expect(parsePath("   ")).toBeNull();

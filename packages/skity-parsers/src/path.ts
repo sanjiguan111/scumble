@@ -1,5 +1,5 @@
 // Copyright 2026 The Lynx Authors. All rights reserved.
-// Licensed under the Apache License, Version 2.0 that can be found in the
+// Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
 import * as flatbuffers from "./generated/flatbuffers/flatbuffers.js";
@@ -11,12 +11,18 @@ import { PATH_COMMAND_TYPE, type CmdOp } from "./binary";
 /**
  * SVG path "d" parser → a nested FlatBuffer (PathCommandList) carried as bytes.
  *
- * The tokenizer (PathScanner) follows react-native-skity/src/utils/path-parser.ts.
- * Unlike that parser — which only tokenizes and leaves geometric conversion to
- * native skity — this one also *normalizes*, because the lynx-skity FlatBuffer
- * PathCommand schema is the 6-command normalized form (MOVE_TO / LINE_TO /
- * CUBIC_TO / QUAD_TO / ARC_TO / CLOSE). So relative→absolute, H/V→LINE_TO,
- * S/T smooth-bezier reflection, and A→ARC_TO are resolved here.
+ * The scanner (PathScanner) follows react-native-skity/src/utils/path-parser.ts
+ * — a hand-written, character-level state machine (whitespace/comma skipping,
+ * optional sign, integer+fraction, exponent). Unlike that parser — which only
+ * tokenizes and leaves geometric conversion to native skity — this one also
+ * *normalizes*, because the lynx-skity FlatBuffer PathCommand schema is the
+ * 6-command normalized form (MOVE_TO / LINE_TO / CUBIC_TO / QUAD_TO / ARC_TO /
+ * CLOSE). So relative→absolute, H/V→LINE_TO, and S/T smooth-bezier reflection
+ * are resolved here. The scanner is interleaved with the parser (rather than
+ * pre-tokenizing the whole string) precisely so that arc flags can be read as
+ * exactly one digit each: the SVG spec allows the large-arc/sweep flags to be
+ * written with no separator (`A 50 50 0 11 0 0` ⇠ large=1 sweep=1), which a
+ * naive number tokenizer would merge into a single bogus value.
  *
  * The result is a finished PathCommandList FlatBuffer. The native side stores
  * it verbatim on RenderNode.path_data (nested_flatbuffer) and reads it back via
@@ -31,25 +37,104 @@ const Q = PATH_COMMAND_TYPE.QUAD_TO;
 const A = PATH_COMMAND_TYPE.ARC_TO;
 const Z = PATH_COMMAND_TYPE.CLOSE;
 
-interface PathToken {
-  type: "cmd" | "number";
-  value: string | number;
-}
-
-/** Character-level tokenizer: command letters + numbers (int / float / sci-notation). */
+/**
+ * Character-level scanner for SVG path data, interleaved with the parser so arc
+ * flags can be consumed as single digits. Malformed runs report "no more data"
+ * (null) instead of throwing, so a bad token just ends the current command
+ * instead of aborting the whole path.
+ */
 class PathScanner {
-  readonly tokens: PathToken[] = [];
+  private readonly d: string;
+  private i = 0;
 
   constructor(d: string) {
-    const re = /([MmLlHhVvCcSsQqTtAaZz])|(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(d)) !== null) {
-      if (m[1] !== undefined) {
-        this.tokens.push({ type: "cmd", value: m[1] });
-      } else {
-        this.tokens.push({ type: "number", value: parseFloat(m[2]!) });
+    this.d = d;
+  }
+
+  private static isWs(c: string): boolean {
+    return c === " " || c === "\t" || c === "\n" || c === "\r" || c === ",";
+  }
+
+  private static isDigit(c: string): boolean {
+    return c >= "0" && c <= "9";
+  }
+
+  private skipWs(): void {
+    while (this.i < this.d.length && PathScanner.isWs(this.d[this.i])) this.i++;
+  }
+
+  /** Peek the next command letter (after ws/comma) without consuming it. */
+  peekCommand(): string | null {
+    this.skipWs();
+    if (this.i >= this.d.length) return null;
+    const c = this.d[this.i];
+    const u = c.toUpperCase();
+    if (
+      u === "M" || u === "L" || u === "H" || u === "V" || u === "C" ||
+      u === "S" || u === "Q" || u === "T" || u === "A" || u === "Z"
+    ) {
+      return c;
+    }
+    return null;
+  }
+
+  /** Consume and return the next command letter, or null if none remains. */
+  readCommand(): string | null {
+    const c = this.peekCommand();
+    if (c !== null) this.i++;
+    return c;
+  }
+
+  /**
+   * Consume one numeric token (optional sign, integer and/or fraction, optional
+   * exponent). Returns null and leaves the cursor untouched if the cursor is
+   * not at a number.
+   */
+  readNumber(): number | null {
+    this.skipWs();
+    if (this.i >= this.d.length) return null;
+    const start = this.i;
+    if (this.d[this.i] === "+" || this.d[this.i] === "-") this.i++;
+    let hasDigits = false;
+    while (this.i < this.d.length && PathScanner.isDigit(this.d[this.i])) {
+      this.i++;
+      hasDigits = true;
+    }
+    if (this.i < this.d.length && this.d[this.i] === ".") {
+      this.i++;
+      while (this.i < this.d.length && PathScanner.isDigit(this.d[this.i])) {
+        this.i++;
+        hasDigits = true;
       }
     }
+    if (!hasDigits) {
+      this.i = start; // not a number — leave the cursor untouched
+      return null;
+    }
+    if (this.i < this.d.length && (this.d[this.i] === "e" || this.d[this.i] === "E")) {
+      const saved = this.i;
+      this.i++;
+      if (this.i < this.d.length && (this.d[this.i] === "+" || this.d[this.i] === "-")) this.i++;
+      let expDigits = false;
+      while (this.i < this.d.length && PathScanner.isDigit(this.d[this.i])) {
+        this.i++;
+        expDigits = true;
+      }
+      if (!expDigits) this.i = saved; // the 'e' wasn't an exponent — back off
+    }
+    return parseFloat(this.d.substring(start, this.i));
+  }
+
+  /** Consume exactly one arc-flag digit (0 or 1). Returns null otherwise. */
+  readFlag(): number | null {
+    this.skipWs();
+    if (this.i >= this.d.length) return null;
+    const c = this.d[this.i];
+    if (c === "0" || c === "1") {
+      this.i++;
+      return c === "1" ? 1 : 0;
+    }
+    return null;
   }
 }
 
@@ -68,7 +153,7 @@ function buildPathCommandList(ops: CmdOp[]): ArrayBuffer {
 }
 
 export function parsePath(d: string): ArrayBuffer | null {
-  const t = new PathScanner(d).tokens;
+  const s = new PathScanner(d);
   const ops: CmdOp[] = [];
   let cx = 0,
     cy = 0; // current point
@@ -80,33 +165,23 @@ export function parsePath(d: string): ArrayBuffer | null {
     qcy = 0; // previous quadratic control point
   let hasCubic = false,
     hasQuad = false;
-  let i = 0;
 
-  // Read the next number token; NaN when none is available (signals end of arg run).
-  const num = (): number => {
-    if (i < t.length && t[i].type === "number") return t[i++].value as number;
-    return NaN;
-  };
+  const num = (): number | null => s.readNumber();
+  const flag = (): number | null => s.readFlag();
 
-  while (i < t.length) {
-    const tok = t[i];
-    if (tok.type !== "cmd") {
-      i++;
-      continue;
-    }
-    const cmd = tok.value as string;
+  let cmd: string | null;
+  while ((cmd = s.readCommand()) !== null) {
     const upper = cmd.toUpperCase();
     const rel = cmd !== upper;
-    i++;
 
     switch (upper) {
       case "M": {
-        // first pair is moveto; subsequent pairs are implicit lineto.
+        // First pair is moveto; subsequent pairs are implicit lineto.
         let first = true;
         for (;;) {
           const x = num(),
             y = num();
-          if (Number.isNaN(y)) break;
+          if (x === null || y === null) break;
           let ax = x,
             ay = y;
           if (rel) {
@@ -129,7 +204,7 @@ export function parsePath(d: string): ArrayBuffer | null {
         for (;;) {
           const x = num(),
             y = num();
-          if (Number.isNaN(y)) break;
+          if (x === null || y === null) break;
           let ax = x,
             ay = y;
           if (rel) {
@@ -145,7 +220,7 @@ export function parsePath(d: string): ArrayBuffer | null {
       case "H":
         for (;;) {
           const x = num();
-          if (Number.isNaN(x)) break;
+          if (x === null) break;
           const ax = rel ? cx + x : x;
           ops.push({ type: L, args: [ax, cy] });
           cx = ax;
@@ -155,7 +230,7 @@ export function parsePath(d: string): ArrayBuffer | null {
       case "V":
         for (;;) {
           const y = num();
-          if (Number.isNaN(y)) break;
+          if (y === null) break;
           const ay = rel ? cy + y : y;
           ops.push({ type: L, args: [cx, ay] });
           cy = ay;
@@ -170,7 +245,12 @@ export function parsePath(d: string): ArrayBuffer | null {
             y2 = num(),
             x = num(),
             y = num();
-          if (Number.isNaN(y)) break;
+          if (
+            x1 === null || y1 === null || x2 === null || y2 === null ||
+            x === null || y === null
+          ) {
+            break;
+          }
           let ax1 = x1,
             ay1 = y1,
             ax2 = x2,
@@ -200,7 +280,7 @@ export function parsePath(d: string): ArrayBuffer | null {
             y2 = num(),
             x = num(),
             y = num();
-          if (Number.isNaN(y)) break;
+          if (x2 === null || y2 === null || x === null || y === null) break;
           let ax2 = x2,
             ay2 = y2,
             ax = x,
@@ -211,6 +291,7 @@ export function parsePath(d: string): ArrayBuffer | null {
             ax += cx;
             ay += cy;
           }
+          // Reflected first control point: mirror the previous cubic's 2nd cp.
           const ax1 = hasCubic ? 2 * cx - pcx : cx;
           const ay1 = hasCubic ? 2 * cy - pcy : cy;
           ops.push({ type: C, args: [ax1, ay1, ax2, ay2, ax, ay] });
@@ -228,7 +309,7 @@ export function parsePath(d: string): ArrayBuffer | null {
             y1 = num(),
             x = num(),
             y = num();
-          if (Number.isNaN(y)) break;
+          if (x1 === null || y1 === null || x === null || y === null) break;
           let ax1 = x1,
             ay1 = y1,
             ax = x,
@@ -252,13 +333,14 @@ export function parsePath(d: string): ArrayBuffer | null {
         for (;;) {
           const x = num(),
             y = num();
-          if (Number.isNaN(y)) break;
+          if (x === null || y === null) break;
           let ax = x,
             ay = y;
           if (rel) {
             ax += cx;
             ay += cy;
           }
+          // Reflected control point: mirror the previous quad's cp.
           const ax1 = hasQuad ? 2 * cx - qcx : cx;
           const ay1 = hasQuad ? 2 * cy - qcy : cy;
           ops.push({ type: Q, args: [ax1, ay1, ax, ay] });
@@ -270,19 +352,24 @@ export function parsePath(d: string): ArrayBuffer | null {
         hasQuad = true;
         hasCubic = false;
         break;
-      case "A":
+      case "A": {
         // ARC_TO args: [rx, ry, rotation, largeArcFlag, sweepFlag, x, y].
-        // NOTE: like react-native-skity, unlabeled/concatenated arc flags are
-        // not handled (flags must be space/comma separated).
+        // Flags are read as single digits so concatenated forms like
+        // `A 50 50 0 11 0 0` (large=1, sweep=1) parse per SVG spec.
         for (;;) {
           const rx = num(),
             ry = num(),
-            rot = num(),
-            large = num(),
-            sweep = num(),
-            x = num(),
+            rot = num();
+          const large = flag(),
+            sweep = flag();
+          const x = num(),
             y = num();
-          if (Number.isNaN(y)) break;
+          if (
+            rx === null || ry === null || rot === null || large === null ||
+            sweep === null || x === null || y === null
+          ) {
+            break;
+          }
           let ax = x,
             ay = y;
           if (rel) {
@@ -295,6 +382,7 @@ export function parsePath(d: string): ArrayBuffer | null {
         }
         hasCubic = hasQuad = false;
         break;
+      }
       case "Z":
         ops.push({ type: Z, args: [] });
         cx = sx;

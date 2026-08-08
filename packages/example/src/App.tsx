@@ -31,6 +31,9 @@ export function App() {
             strokeWidth={4}
           />
         </Group>
+        {/* arc with concatenated flags (large=1 sweep=1 written as "11") —
+            exercises the parser's single-digit flag handling end to end. */}
+        <Path path="M250 250A40 40 0 11330 250" color="#a855f7" />
       </Canvas>
       <text style={{ fontSize: "16px", padding: "16px" }}>
         viewport demo — 100×100 logical space scaled to fit
