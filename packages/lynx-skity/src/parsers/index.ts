@@ -3,7 +3,7 @@
 // LICENSE file in the root directory of this source tree.
 
 /**
- * @lynx-skity/parsers — framework-agnostic value parsers for lynx-skity.
+ * lynx-skity/parsers — framework-agnostic value parsers for lynx-skity.
  *
  * Converts front-end-friendly values (CSS color strings, paint enums, CSS
  * transforms, SVG path data) into the raw numeric / ArrayBuffer values the

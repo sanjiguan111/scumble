@@ -245,7 +245,10 @@ class StringScanner {
   }
 
   private skipWhitespace() {
-    while (this.startIndex < this.content.length && /\s/.test(this.content.charAt(this.startIndex))) {
+    while (
+      this.startIndex < this.content.length &&
+      /\s/.test(this.content.charAt(this.startIndex))
+    ) {
       this.startIndex++;
     }
   }
@@ -274,7 +277,10 @@ class StringScanner {
     } else {
       if (/[a-zA-Z]/.test(ch)) {
         return this.parseIdentifierToken();
-      } else if (/[0-9]/.test(ch) || (ch === "." && /[0-9]/.test(this.content.charAt(this.startIndex + 1)))) {
+      } else if (
+        /[0-9]/.test(ch) ||
+        (ch === "." && /[0-9]/.test(this.content.charAt(this.startIndex + 1)))
+      ) {
         return this.parseNumberToken();
       } else {
         throw new Error(`Unexpected content at index ${this.startIndex}: ${this.content}`);
@@ -321,7 +327,9 @@ class StringScanner {
       const ch = this.content.charAt(this.startIndex);
       if (ch === ".") {
         if (startWithDot || containsDot) {
-          throw new Error(`Invalid number format: ${this.content.slice(startIndex, this.startIndex + 1)}`);
+          throw new Error(
+            `Invalid number format: ${this.content.slice(startIndex, this.startIndex + 1)}`,
+          );
         }
         containsDot = true;
         this.startIndex++;
@@ -521,7 +529,10 @@ function parseRGBColor(colorStr: string): number {
   }
 
   // AARRGGBB
-  return (((Math.round(a * 255) & 0xff) << 24) | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff)) >>> 0;
+  return (
+    (((Math.round(a * 255) & 0xff) << 24) | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff)) >>>
+    0
+  );
 }
 
 function hueToRGB(p: number, q: number, t: number): number {
@@ -573,7 +584,10 @@ function hslaToARGB(hue: Token, saturation: number, lightness: number, alpha: nu
   if (saturation === 0) {
     r = g = b = lightness;
   } else {
-    const q = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation;
+    const q =
+      lightness < 0.5
+        ? lightness * (1 + saturation)
+        : lightness + saturation - lightness * saturation;
     const p = 2 * lightness - q;
 
     r = Math.round(hueToRGB(p, q, h + 1 / 3) * 255);
@@ -582,7 +596,13 @@ function hslaToARGB(hue: Token, saturation: number, lightness: number, alpha: nu
   }
 
   // AARRGGBB
-  return (((Math.round(alpha * 255) & 0xff) << 24) | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff)) >>> 0;
+  return (
+    (((Math.round(alpha * 255) & 0xff) << 24) |
+      ((r & 0xff) << 16) |
+      ((g & 0xff) << 8) |
+      (b & 0xff)) >>>
+    0
+  );
 }
 
 function parseHSLColor(colorStr: string): number {
@@ -860,13 +880,25 @@ export function parseColor(color: Color): number {
       const g = color[1] ?? 0;
       const b = color[2] ?? 0;
       const a = color[3] ?? 1;
-      return ((((Math.round(a * 255) & 0xff) << 24) | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff)) >>> 0);
+      return (
+        (((Math.round(a * 255) & 0xff) << 24) |
+          ((r & 0xff) << 16) |
+          ((g & 0xff) << 8) |
+          (b & 0xff)) >>>
+        0
+      );
     } else {
       const r = color.r ?? 0;
       const g = color.g ?? 0;
       const b = color.b ?? 0;
       const a = color.a ?? 1;
-      return ((((Math.round(a * 255) & 0xff) << 24) | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff)) >>> 0);
+      return (
+        (((Math.round(a * 255) & 0xff) << 24) |
+          ((r & 0xff) << 16) |
+          ((g & 0xff) << 8) |
+          (b & 0xff)) >>>
+        0
+      );
     }
   } else if (typeof color === "string") {
     return parseColorString(color);

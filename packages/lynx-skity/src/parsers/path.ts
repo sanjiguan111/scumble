@@ -70,11 +70,16 @@ function buildPathCommandList(ops: CmdOp[]): ArrayBuffer {
 export function parsePath(d: string): ArrayBuffer | null {
   const t = new PathScanner(d).tokens;
   const ops: CmdOp[] = [];
-  let cx = 0, cy = 0; // current point
-  let sx = 0, sy = 0; // subpath start (for close)
-  let pcx = 0, pcy = 0; // previous cubic control point
-  let qcx = 0, qcy = 0; // previous quadratic control point
-  let hasCubic = false, hasQuad = false;
+  let cx = 0,
+    cy = 0; // current point
+  let sx = 0,
+    sy = 0; // subpath start (for close)
+  let pcx = 0,
+    pcy = 0; // previous cubic control point
+  let qcx = 0,
+    qcy = 0; // previous quadratic control point
+  let hasCubic = false,
+    hasQuad = false;
   let i = 0;
 
   // Read the next number token; NaN when none is available (signals end of arg run).
@@ -99,25 +104,41 @@ export function parsePath(d: string): ArrayBuffer | null {
         // first pair is moveto; subsequent pairs are implicit lineto.
         let first = true;
         for (;;) {
-          const x = num(), y = num();
+          const x = num(),
+            y = num();
           if (Number.isNaN(y)) break;
-          let ax = x, ay = y;
-          if (rel) { ax += cx; ay += cy; }
+          let ax = x,
+            ay = y;
+          if (rel) {
+            ax += cx;
+            ay += cy;
+          }
           ops.push({ type: first ? M : L, args: [ax, ay] });
-          cx = ax; cy = ay;
-          if (first) { sx = ax; sy = ay; first = false; }
+          cx = ax;
+          cy = ay;
+          if (first) {
+            sx = ax;
+            sy = ay;
+            first = false;
+          }
         }
         hasCubic = hasQuad = false;
         break;
       }
       case "L":
         for (;;) {
-          const x = num(), y = num();
+          const x = num(),
+            y = num();
           if (Number.isNaN(y)) break;
-          let ax = x, ay = y;
-          if (rel) { ax += cx; ay += cy; }
+          let ax = x,
+            ay = y;
+          if (rel) {
+            ax += cx;
+            ay += cy;
+          }
           ops.push({ type: L, args: [ax, ay] });
-          cx = ax; cy = ay;
+          cx = ax;
+          cy = ay;
         }
         hasCubic = hasQuad = false;
         break;
@@ -143,69 +164,141 @@ export function parsePath(d: string): ArrayBuffer | null {
         break;
       case "C":
         for (;;) {
-          const x1 = num(), y1 = num(), x2 = num(), y2 = num(), x = num(), y = num();
+          const x1 = num(),
+            y1 = num(),
+            x2 = num(),
+            y2 = num(),
+            x = num(),
+            y = num();
           if (Number.isNaN(y)) break;
-          let ax1 = x1, ay1 = y1, ax2 = x2, ay2 = y2, ax = x, ay = y;
-          if (rel) { ax1 += cx; ay1 += cy; ax2 += cx; ay2 += cy; ax += cx; ay += cy; }
+          let ax1 = x1,
+            ay1 = y1,
+            ax2 = x2,
+            ay2 = y2,
+            ax = x,
+            ay = y;
+          if (rel) {
+            ax1 += cx;
+            ay1 += cy;
+            ax2 += cx;
+            ay2 += cy;
+            ax += cx;
+            ay += cy;
+          }
           ops.push({ type: C, args: [ax1, ay1, ax2, ay2, ax, ay] });
-          pcx = ax2; pcy = ay2; cx = ax; cy = ay;
+          pcx = ax2;
+          pcy = ay2;
+          cx = ax;
+          cy = ay;
         }
-        hasCubic = true; hasQuad = false;
+        hasCubic = true;
+        hasQuad = false;
         break;
       case "S":
         for (;;) {
-          const x2 = num(), y2 = num(), x = num(), y = num();
+          const x2 = num(),
+            y2 = num(),
+            x = num(),
+            y = num();
           if (Number.isNaN(y)) break;
-          let ax2 = x2, ay2 = y2, ax = x, ay = y;
-          if (rel) { ax2 += cx; ay2 += cy; ax += cx; ay += cy; }
+          let ax2 = x2,
+            ay2 = y2,
+            ax = x,
+            ay = y;
+          if (rel) {
+            ax2 += cx;
+            ay2 += cy;
+            ax += cx;
+            ay += cy;
+          }
           const ax1 = hasCubic ? 2 * cx - pcx : cx;
           const ay1 = hasCubic ? 2 * cy - pcy : cy;
           ops.push({ type: C, args: [ax1, ay1, ax2, ay2, ax, ay] });
-          pcx = ax2; pcy = ay2; cx = ax; cy = ay;
+          pcx = ax2;
+          pcy = ay2;
+          cx = ax;
+          cy = ay;
         }
-        hasCubic = true; hasQuad = false;
+        hasCubic = true;
+        hasQuad = false;
         break;
       case "Q":
         for (;;) {
-          const x1 = num(), y1 = num(), x = num(), y = num();
+          const x1 = num(),
+            y1 = num(),
+            x = num(),
+            y = num();
           if (Number.isNaN(y)) break;
-          let ax1 = x1, ay1 = y1, ax = x, ay = y;
-          if (rel) { ax1 += cx; ay1 += cy; ax += cx; ay += cy; }
+          let ax1 = x1,
+            ay1 = y1,
+            ax = x,
+            ay = y;
+          if (rel) {
+            ax1 += cx;
+            ay1 += cy;
+            ax += cx;
+            ay += cy;
+          }
           ops.push({ type: Q, args: [ax1, ay1, ax, ay] });
-          qcx = ax1; qcy = ay1; cx = ax; cy = ay;
+          qcx = ax1;
+          qcy = ay1;
+          cx = ax;
+          cy = ay;
         }
-        hasQuad = true; hasCubic = false;
+        hasQuad = true;
+        hasCubic = false;
         break;
       case "T":
         for (;;) {
-          const x = num(), y = num();
+          const x = num(),
+            y = num();
           if (Number.isNaN(y)) break;
-          let ax = x, ay = y;
-          if (rel) { ax += cx; ay += cy; }
+          let ax = x,
+            ay = y;
+          if (rel) {
+            ax += cx;
+            ay += cy;
+          }
           const ax1 = hasQuad ? 2 * cx - qcx : cx;
           const ay1 = hasQuad ? 2 * cy - qcy : cy;
           ops.push({ type: Q, args: [ax1, ay1, ax, ay] });
-          qcx = ax1; qcy = ay1; cx = ax; cy = ay;
+          qcx = ax1;
+          qcy = ay1;
+          cx = ax;
+          cy = ay;
         }
-        hasQuad = true; hasCubic = false;
+        hasQuad = true;
+        hasCubic = false;
         break;
       case "A":
         // ARC_TO args: [rx, ry, rotation, largeArcFlag, sweepFlag, x, y].
         // NOTE: like react-native-skity, unlabeled/concatenated arc flags are
         // not handled (flags must be space/comma separated).
         for (;;) {
-          const rx = num(), ry = num(), rot = num(), large = num(), sweep = num(), x = num(), y = num();
+          const rx = num(),
+            ry = num(),
+            rot = num(),
+            large = num(),
+            sweep = num(),
+            x = num(),
+            y = num();
           if (Number.isNaN(y)) break;
-          let ax = x, ay = y;
-          if (rel) { ax += cx; ay += cy; }
+          let ax = x,
+            ay = y;
+          if (rel) {
+            ax += cx;
+            ay += cy;
+          }
           ops.push({ type: A, args: [rx, ry, rot, large, sweep, ax, ay] });
-          cx = ax; cy = ay;
+          cx = ax;
+          cy = ay;
         }
         hasCubic = hasQuad = false;
         break;
       case "Z":
         ops.push({ type: Z, args: [] });
-        cx = sx; cy = sy;
+        cx = sx;
+        cy = sy;
         hasCubic = hasQuad = false;
         break;
       default:

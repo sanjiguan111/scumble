@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
+import { describe, it, expect } from "vitest";
+
 import * as flatbuffers from "../generated/flatbuffers/flatbuffers.js";
 import { TransformOpList } from "../generated/skityrt/transform-op-list.js";
 import { TransformType } from "../generated/skityrt/transform-type.js";
