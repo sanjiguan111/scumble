@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
 import * as flatbuffers from "../generated/flatbuffers/flatbuffers.js";
 import { PathCommandList } from "../generated/skityrt/path-command-list.js";
 import { PathCommandType } from "../generated/skityrt/path-command-type.js";
-import { parsePath } from "../path.js";
+import { Path2D, parsePath } from "../path.js";
 
 // Read the nested-flatbuffer bytes back as a PathCommandList — this is exactly
 // what the native render side does via path_data_nested_root(). These tests
@@ -142,5 +142,68 @@ describe("parsePath → nested FlatBuffer round-trip", () => {
   it("returns null for empty / whitespace-only input", () => {
     expect(parsePath("")).toBeNull();
     expect(parsePath("   ")).toBeNull();
+  });
+});
+
+describe("Path2D → nested FlatBuffer", () => {
+  it("builds a move/line/close path", () => {
+    const p = new Path2D().moveTo(10, 10).lineTo(20, 20).close();
+    const list = readBack(p.toBytes());
+    expect(list.commandsLength()).toBe(3);
+    expect(list.commands(0)!.type()).toBe(PathCommandType.MOVE_TO);
+    expect(list.commands(1)!.type()).toBe(PathCommandType.LINE_TO);
+    expect(list.commands(2)!.type()).toBe(PathCommandType.CLOSE);
+  });
+
+  it("serializes cubicTo / quadTo args", () => {
+    const p = new Path2D()
+      .moveTo(0, 0)
+      .cubicTo(1, 2, 3, 4, 5, 6)
+      .quadTo(7, 8, 9, 10);
+    const list = readBack(p.toBytes());
+    const c = list.commands(1)!;
+    expect(c.type()).toBe(PathCommandType.CUBIC_TO);
+    expect(c.args(5)).toBe(6);
+    const q = list.commands(2)!;
+    expect(q.type()).toBe(PathCommandType.QUAD_TO);
+    expect(q.args(3)).toBe(10);
+  });
+
+  it("converts arcTo booleans to 0/1 flag bytes", () => {
+    const p = new Path2D().moveTo(0, 0).arcTo(50, 50, 0, true, true, 100, 100);
+    const a = readBack(p.toBytes()).commands(1)!;
+    expect(a.type()).toBe(PathCommandType.ARC_TO);
+    expect(a.args(3)).toBe(1); // largeArc
+    expect(a.args(4)).toBe(1); // sweep
+  });
+
+  it("addRect produces a closed rectangle subpath", () => {
+    const list = readBack(new Path2D().addRect(1, 2, 30, 40).toBytes());
+    expect(list.commandsLength()).toBe(5); // moveTo + 3 lineTo + close
+    expect(list.commands(0)!.type()).toBe(PathCommandType.MOVE_TO);
+    expect(list.commands(1)!.args(0)).toBe(31); // x+w
+    expect(list.commands(4)!.type()).toBe(PathCommandType.CLOSE);
+  });
+
+  it("addCircle emits four cubic Béziers + close", () => {
+    const list = readBack(new Path2D().addCircle(50, 50, 50).toBytes());
+    expect(list.commandsLength()).toBe(6); // moveTo + 4 cubicTo + close
+    for (let i = 1; i <= 4; i++) {
+      expect(list.commands(i)!.type()).toBe(PathCommandType.CUBIC_TO);
+    }
+    expect(list.commands(5)!.type()).toBe(PathCommandType.CLOSE);
+  });
+
+  it("is chainable and resettable, and addPath appends", () => {
+    const p = new Path2D();
+    expect(p.moveTo(0, 0)).toBe(p); // chainable
+    p.lineTo(1, 1);
+    expect(readBack(p.toBytes()).commandsLength()).toBe(2);
+    p.reset();
+    expect(readBack(p.toBytes()).commandsLength()).toBe(0);
+
+    const star = new Path2D().moveTo(0, 0).lineTo(5, 5);
+    const combined = new Path2D().moveTo(1, 1).addPath(star);
+    expect(readBack(combined.toBytes()).commandsLength()).toBe(3);
   });
 });

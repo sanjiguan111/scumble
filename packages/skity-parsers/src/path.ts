@@ -396,3 +396,129 @@ export function parsePath(d: string): ArrayBuffer | null {
 
   return ops.length ? buildPathCommandList(ops) : null;
 }
+
+// Cubic-Bezier approximation constant for a quarter circle: 4·(√2−1)/3.
+const PATH2D_KAPPA = 0.5522847498307936;
+
+/**
+ * Command-style path builder (a la the Web Canvas Path2D / skity Path2D).
+ * Accumulates the six normalized commands the native renderer understands and
+ * serializes to the same nested PathCommandList FlatBuffer that parsePath()
+ * produces, so `<Path path={path2d} />` works interchangeably with a `d` string.
+ * Methods are chainable. Geometry is authored in the same space as a `d` string
+ * (logical pixels when the canvas has a viewPort).
+ *
+ * Relative commands, smooth-cubic/quad (S/T), and H/V are string-syntax
+ * conveniences only — here you write the resolved absolute form directly
+ * (moveTo/lineTo/cubicTo/quadTo/arcTo).
+ */
+export class Path2D {
+  private readonly ops: CmdOp[] = [];
+
+  moveTo(x: number, y: number): this {
+    this.ops.push({ type: M, args: [x, y] });
+    return this;
+  }
+
+  lineTo(x: number, y: number): this {
+    this.ops.push({ type: L, args: [x, y] });
+    return this;
+  }
+
+  quadTo(cpx: number, cpy: number, x: number, y: number): this {
+    this.ops.push({ type: Q, args: [cpx, cpy, x, y] });
+    return this;
+  }
+
+  cubicTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): this {
+    this.ops.push({ type: C, args: [cp1x, cp1y, cp2x, cp2y, x, y] });
+    return this;
+  }
+
+  /**
+   * SVG-style arc. `largeArc`/`sweep` are booleans, serialized to the 0/1 flag
+   * bytes the renderer expects (same as the A command in a `d` string).
+   */
+  arcTo(
+    rx: number,
+    ry: number,
+    xAxisRotation: number,
+    largeArc: boolean,
+    sweep: boolean,
+    x: number,
+    y: number,
+  ): this {
+    this.ops.push({
+      type: A,
+      args: [rx, ry, xAxisRotation, largeArc ? 1 : 0, sweep ? 1 : 0, x, y],
+    });
+    return this;
+  }
+
+  close(): this {
+    this.ops.push({ type: Z, args: [] });
+    return this;
+  }
+
+  /** Append another Path2D's commands verbatim. */
+  addPath(other: Path2D): this {
+    for (const op of other["ops"]) this.ops.push({ type: op.type, args: op.args.slice() });
+    return this;
+  }
+
+  /** Rectangle as a closed subpath. */
+  addRect(x: number, y: number, w: number, h: number): this {
+    return this.moveTo(x, y)
+      .lineTo(x + w, y)
+      .lineTo(x + w, y + h)
+      .lineTo(x, y + h)
+      .close();
+  }
+
+  /** Circle (center + radius) approximated by four cubic Béziers. */
+  addCircle(cx: number, cy: number, r: number): this {
+    return this.addOval(cx - r, cy - r, r * 2, r * 2);
+  }
+
+  /** Oval (ellipse) inscribed in (x,y,w,h), approximated by four cubic Béziers. */
+  addOval(x: number, y: number, w: number, h: number): this {
+    const rx = w / 2,
+      ry = h / 2;
+    const kx = PATH2D_KAPPA * rx,
+      ky = PATH2D_KAPPA * ry;
+    const cx = x + rx,
+      cy = y + ry;
+    this.moveTo(cx + rx, cy);
+    this.cubicTo(cx + rx, cy + ky, cx + kx, cy + ry, cx, cy + ry);
+    this.cubicTo(cx - kx, cy + ry, cx - rx, cy + ky, cx - rx, cy);
+    this.cubicTo(cx - rx, cy - ky, cx - kx, cy - ry, cx, cy - ry);
+    this.cubicTo(cx + kx, cy - ry, cx + rx, cy - ky, cx + rx, cy);
+    return this.close();
+  }
+
+  /** Rounded rectangle (rx/ry corner radii) via four elliptical arcs. */
+  addRoundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number = rx): this {
+    rx = Math.min(rx, w / 2);
+    ry = Math.min(ry, h / 2);
+    this.moveTo(x + rx, y);
+    this.lineTo(x + w - rx, y);
+    this.arcTo(rx, ry, 0, false, true, x + w, y + ry);
+    this.lineTo(x + w, y + h - ry);
+    this.arcTo(rx, ry, 0, false, true, x + w - rx, y + h);
+    this.lineTo(x + rx, y + h);
+    this.arcTo(rx, ry, 0, false, true, x, y + h - ry);
+    this.lineTo(x, y + ry);
+    this.arcTo(rx, ry, 0, false, true, x + rx, y);
+    return this.close();
+  }
+
+  reset(): this {
+    this.ops.length = 0;
+    return this;
+  }
+
+  /** Serialize to a PathCommandList FlatBuffer (base64 it for the native prop). */
+  toBytes(): ArrayBuffer {
+    return buildPathCommandList(this.ops);
+  }
+}

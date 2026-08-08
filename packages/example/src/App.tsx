@@ -1,4 +1,4 @@
-import { Canvas, Circle, Group, Path, Rect } from "@lynx-skity/react";
+import { Canvas, Circle, Group, Path, Path2D, Rect } from "@lynx-skity/react";
 
 // skity demo via the @lynx-skity/react component layer (react-native-skity-style
 // API: <Canvas><Circle color="red" /></Canvas>). Colors accept CSS strings and
@@ -7,6 +7,26 @@ import { Canvas, Circle, Group, Path, Rect } from "@lynx-skity/react";
 // for Lynx's string prop channel (Lynx doesn't marshal NSData); the native side
 // only ever sees numbers and base64 strings, never raw structure strings.
 import "lynx-skity/elements";
+
+// Command-style Path2D (like the Web Canvas Path2D / skity Path2D): build a
+// path imperatively with moveTo/lineTo/cubicTo/arcTo/close, then hand it to
+// <Path path={...} />. Here a 5-point star built from line segments.
+const star = new Path2D();
+{
+  const cx = 350,
+    cy = 285,
+    outer = 28,
+    inner = 11;
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (Math.PI / 5) * i - Math.PI / 2;
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    if (i === 0) star.moveTo(x, y);
+    else star.lineTo(x, y);
+  }
+  star.close();
+}
 
 export function App() {
   return (
@@ -34,6 +54,8 @@ export function App() {
         {/* arc with concatenated flags (large=1 sweep=1 written as "11") —
             exercises the parser's single-digit flag handling end to end. */}
         <Path path="M250 250A40 40 0 11330 250" color="#a855f7" />
+        {/* Path2D command-style builder (the star above) */}
+        <Path path={star} color="#f59e0b" />
       </Canvas>
       <text style={{ fontSize: "16px", padding: "16px" }}>
         viewport demo — 100×100 logical space scaled to fit

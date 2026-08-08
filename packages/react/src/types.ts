@@ -128,8 +128,8 @@ export interface RRectProps extends RectProps {
 }
 
 export interface PathProps extends GraphicProps {
-  /** SVG path data string. (Path2D object + start/end trim: caveat, not yet wired.) */
-  path: string;
+  /** SVG path data string, or a Path2D object built command-style. */
+  path: string | import("@lynx-skity/parsers").Path2D;
   fillRule?: FillRule;
 }
 
