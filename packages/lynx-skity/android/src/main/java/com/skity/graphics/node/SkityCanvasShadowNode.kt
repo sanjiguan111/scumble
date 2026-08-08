@@ -111,7 +111,7 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       node.x, node.y, node.width, node.height,
       node.cx, node.cy, node.r, node.rx, node.ry,
       node.x1, node.y1, node.x2, node.y2, /*offset*/ 0f,
-      childrenVec, pathVec, pointsVec,
+      childrenVec, pathVec, /* pathData */ 0, pointsVec,
       /*gradientUnits*/ 0, /*spreadMethod*/ 0)
   }
 

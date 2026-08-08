@@ -111,8 +111,9 @@ static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &f
 
   return CreateRenderNode(fbb, /*id*/ 0, tagOff, styleOff, node.x, node.y, node.width, node.height,
                           node.cx, node.cy, node.r, node.rx, node.ry, node.x1, node.y1, node.x2,
-                          node.y2, /*offset*/ 0.f, childrenVec, pathVec, pointsVec,
-                          GradientUnits_OBJECT_BOUNDING_BOX, SpreadMethod_PAD);
+                          node.y2, /*offset*/ 0.f, childrenVec, pathVec,
+                          /*path_data*/ 0, pointsVec, GradientUnits_OBJECT_BOUNDING_BOX,
+                          SpreadMethod_PAD);
 }
 
 #pragma mark -
