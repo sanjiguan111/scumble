@@ -13,8 +13,6 @@
 // Written on the UI thread, read on the render queue.
 @property(nonatomic, strong, nullable) NSData *pendingTree;
 @property(nonatomic, assign) float pendingDensity;
-@property(nonatomic, assign) uint32_t pendingWidth;
-@property(nonatomic, assign) uint32_t pendingHeight;
 @end
 
 @implementation SkityRenderSession
@@ -27,16 +25,11 @@
   return self;
 }
 
-- (void)attachSurfaceWithLayer:(CAMetalLayer *)layer width:(uint32_t)width height:(uint32_t)height {
+- (void)attachSurfaceWithLayer:(CAMetalLayer *)layer {
   self.layer = layer;
   self.surfaceReady = YES;
   // Draw any RenderTree that arrived before the surface was ready.
   [self postDraw];
-}
-
-- (void)updateSizeWithWidth:(uint32_t)width height:(uint32_t)height {
-  // The drawable size is owned by the view's layout (SkityCanvasView sets
-  // layer.drawableSize); nothing to update in the session.
 }
 
 - (void)detachSurface {
@@ -44,14 +37,9 @@
   self.layer = nil;
 }
 
-- (void)setRenderTreeData:(NSData *)data
-                  density:(float)density
-                    width:(uint32_t)width
-                   height:(uint32_t)height {
+- (void)setRenderTreeData:(NSData *)data density:(float)density {
   self.pendingTree = data;
   self.pendingDensity = density;
-  self.pendingWidth = width;
-  self.pendingHeight = height;
   [self postDraw];
 }
 
@@ -67,10 +55,17 @@
   // Runs on the shared render queue.
   NSData *data = self.pendingTree;
   if (!self.surfaceReady || self.layer == nil || data.length == 0) return;
+  // The render bundle frequently arrives before the view's first layout
+  // (consumeRenderBundle runs before layoutSubviews sets drawableSize), so the
+  // size cannot be cached at setRenderTreeData time. Read the layer's current
+  // drawableSize here — by the time the surface is ready (layoutSubviews →
+  // attachSurface) it holds the real physical pixel size.
+  CGSize drawable = self.layer.drawableSize;
+  if (drawable.width <= 0 || drawable.height <= 0) return;
   [self.context drawLayer:self.layer
                  treeData:data
-                viewportW:self.pendingWidth
-                viewportH:self.pendingHeight
+                viewportW:(uint32_t)drawable.width
+                viewportH:(uint32_t)drawable.height
                   density:self.pendingDensity];
 }
 

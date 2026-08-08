@@ -57,17 +57,13 @@
 
   if (!_layerReady && w > 0 && h > 0) {
     _layerReady = YES;
-    [_session attachSurfaceWithLayer:ml width:(uint32_t)w height:(uint32_t)h];
+    [_session attachSurfaceWithLayer:ml];
   }
 }
 
 - (void)consumeRenderBundle:(SkityRenderBundle *)bundle {
   if (bundle == nil) return;
-  CAMetalLayer *ml = (CAMetalLayer *)self.layer;
-  [_session setRenderTreeData:bundle.renderTreeData
-                      density:bundle.density
-                        width:(uint32_t)ml.drawableSize.width
-                       height:(uint32_t)ml.drawableSize.height];
+  [_session setRenderTreeData:bundle.renderTreeData density:bundle.density];
 }
 
 - (void)destroySession {

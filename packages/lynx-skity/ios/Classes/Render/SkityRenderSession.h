@@ -15,19 +15,15 @@ NS_ASSUME_NONNULL_BEGIN
 @interface SkityRenderSession : NSObject
 
 /// Called when the backing CAMetalLayer is ready to render into.
-- (void)attachSurfaceWithLayer:(CAMetalLayer *)layer width:(uint32_t)width height:(uint32_t)height;
-
-- (void)updateSizeWithWidth:(uint32_t)width height:(uint32_t)height;
+- (void)attachSurfaceWithLayer:(CAMetalLayer *)layer;
 
 - (void)detachSurface;
 
 /// Push a new RenderTree. Drawn now if the surface is ready, otherwise held
-/// until the next attachSurface. `width`/`height` are pixel dimensions of the
-/// viewport (drawable size).
-- (void)setRenderTreeData:(NSData *)data
-                  density:(float)density
-                    width:(uint32_t)width
-                   height:(uint32_t)height;
+/// until the next attachSurface. The canvas pixel size is read fresh from the
+/// layer's drawableSize at draw time (it may still be 0 when an early bundle
+/// arrives before the first layout, so it must not be cached here).
+- (void)setRenderTreeData:(NSData *)data density:(float)density;
 
 /// Release this session. The shared render queue is not torn down.
 - (void)destroy;
