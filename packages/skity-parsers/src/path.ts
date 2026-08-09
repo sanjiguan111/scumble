@@ -152,6 +152,20 @@ function buildPathCommandList(ops: CmdOp[]): ArrayBuffer {
   return builder.asUint8Array().slice().buffer;
 }
 
+/**
+ * Parse an SVG path `d` string into a nested PathCommandList FlatBuffer. See
+ * the module doc above for the full command set and normalization rules
+ * (relative→absolute, H/V→line, S/T control-point reflection, single-digit
+ * arc flags).
+ *
+ * @param d An SVG path data string.
+ * @returns PathCommandList FlatBuffer bytes, or `null` if `d` has no commands.
+ *
+ * @example
+ * parsePath("M10 10 L20 20 Z");        // closed triangle, as bytes
+ * parsePath("M0 0 a10 10 0 11 20 0");  // arc, concatenated flags (large=1 sweep=1)
+ * parsePath("   ");                    // null
+ */
 export function parsePath(d: string): ArrayBuffer | null {
   const s = new PathScanner(d);
   const ops: CmdOp[] = [];

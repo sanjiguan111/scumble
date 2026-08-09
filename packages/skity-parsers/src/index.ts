@@ -3,13 +3,32 @@
 // LICENSE file in the root directory of this source tree.
 
 /**
- * lynx-skity/parsers — framework-agnostic value parsers for lynx-skity.
+ * @lynx-skity/parsers — framework-agnostic value parsers for lynx-skity.
  *
- * Converts front-end-friendly values (CSS color strings, paint enums, CSS
- * transforms, SVG path data) into the raw numeric / ArrayBuffer values the
- * native skity intrinsic tags consume. The native layer never parses strings.
+ * Converts the values users like to write — CSS color strings, paint enums
+ * (`"round"`, `"evenodd"`, …), CSS `transform` lists, SVG path `d` strings —
+ * into the raw numeric / FlatBuffer-byte values the native skity intrinsic
+ * tags (`<skity-*>`) consume. **The native layer never parses strings**: every
+ * string-shaped value is resolved here, in JS, before it crosses into native,
+ * which keeps all parsing logic in one place and the native side a thin memcpy.
  *
- * Shared by @lynx-skity/react and @lynx-skity/vue. See RENDER_ARCHITECTURE.md.
+ * The package also exposes {@link Path2D}, a command-style path builder with
+ * the same shape as the Web Canvas `Path2D`, for authoring paths imperatively
+ * instead of via an SVG `d` string.
+ *
+ * Framework-agnostic: shared by `@lynx-skity/react` (and a future Vue layer).
+ * It is a pure build-time utility with no native code, so it ships compiled
+ * `dist/` (the vendored FlatBuffers runtime needs a `tsc` whole-program emit
+ * to erase its type-only re-exports). See `RENDER_ARCHITECTURE.md` for the
+ * end-to-end data-flow.
+ *
+ * @example
+ * import { parseColor, parsePath, Path2D } from "@lynx-skity/parsers";
+ *
+ * parseColor("rebeccapurple");           // 0xff663399  (packed 0xAARRGGBB)
+ * parseColor("rgb(100% 50% 25% / 50%)"); // 0x80ff8040
+ * parsePath("M0 0 L10 10 Z");            // ArrayBuffer — PathCommandList bytes
+ * new Path2D().moveTo(0, 0).lineTo(10, 10).close();  // imperative equivalent
  */
 
 // Lynx's JSC runtime has no TextEncoder / TextDecoder (web APIs); the vendored
@@ -46,9 +65,15 @@
   }
 }
 
+// Shared enum-byte constants + the CmdOp type used across path/transform.
 export * from "./binary";
+// bytes ⇄ base64 — for Lynx's string-only prop channel (it won't marshal bytes).
 export * from "./base64";
+// Color: any CSS Color 4 string (or number/tuple/object) → packed 0xAARRGGBB.
 export * from "./color";
+// Paint enums: friendly string literals → skityrt LineCap/LineJoin/FillRule bytes.
 export * from "./enum";
+// Transform: a CSS `transform` list → TransformOpList FlatBuffer bytes.
 export * from "./transform";
+// Path: an SVG `d` string (or a Path2D builder) → PathCommandList FlatBuffer bytes.
 export * from "./path";

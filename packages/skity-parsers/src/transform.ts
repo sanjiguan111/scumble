@@ -9,19 +9,14 @@ import { TransformType } from "./generated/skityrt/transform-type.js";
 import { TRANSFORM_TYPE, type CmdOp } from "./binary";
 
 /**
- * CSS/SVG transform-list parser → a nested FlatBuffer (TransformOpList) carried
- * as bytes.
+ * CSS `transform` list → nested FlatBuffer (TransformOpList) bytes.
  *
- * Mirrors native SkityPropParser.parseTransform, emitting TransformOp ops
- * (type byte + args) for translate/scale/rotate/skewX/skewY/matrix. The result
- * is a finished TransformOpList FlatBuffer; the native side stores it verbatim
- * on ComputedStyle.transform_data (nested_flatbuffer) and reads it back via
- * transform_data_nested_root() — zero custom-format parsing. Returns null when
- * the string holds no ops.
- *
- * Example: "translate(10,5) scale(2) rotate(45,1,1)".
+ * {@link parseTransform} recognizes the usual transform functions; the result
+ * is stored verbatim by native on `ComputedStyle.transform_data` and read back
+ * via `transform_data_nested_root()`, so the native side does no string parsing.
  */
 
+/** Serialize normalized transform ops into a finished TransformOpList FlatBuffer. */
 function buildTransformOpList(ops: CmdOp[]): ArrayBuffer {
   const builder = new flatbuffers.Builder(128);
   const offsets: flatbuffers.Offset[] = [];
@@ -40,6 +35,28 @@ function readNumbers(s: string): number[] {
   return (s.match(re) ?? []).map(Number).filter((n) => !Number.isNaN(n));
 }
 
+/**
+ * Parse a CSS `transform` list into a nested TransformOpList FlatBuffer
+ * (carried as bytes on the `transform` prop).
+ *
+ * Recognized functions (applied in source order, left-to-right):
+ *
+ * | function              | args                                         |
+ * | --------------------- | -------------------------------------------- |
+ * | `translate(tx)`       | `ty` defaults to `0`                         |
+ * | `scale(sx)`           | `sy` defaults to `sx`                        |
+ * | `rotate(deg)`         | degrees; optional `rotate(deg, cx, cy)` pivot |
+ * | `skewX(deg)`/`skewY(deg)` | skew angle in degrees                    |
+ * | `matrix(a,b,c,d,e,f)` | full 2D affine (6 values)                    |
+ *
+ * Unrecognized functions are skipped silently. Returns `null` when the string
+ * holds no recognized ops, so the caller can omit the prop entirely.
+ *
+ * @returns TransformOpList FlatBuffer bytes, or `null`.
+ *
+ * @example
+ * parseTransform("translate(10,5) scale(2) rotate(45,1,1)");
+ */
 export function parseTransform(s: string): ArrayBuffer | null {
   const ops: CmdOp[] = [];
   const re = /([a-zA-Z]+)\s*\(([^)]*)\)/g;

@@ -15,6 +15,17 @@
  */
 const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+/**
+ * Base64-encode `bytes` for a native string prop. See the module note above
+ * for why this round-trip exists (Lynx won't marshal raw bytes through props).
+ *
+ * @param bytes Raw nested-FlatBuffer bytes (from `parsePath` / `parseTransform`
+ *   / `Path2D#toBytes`).
+ * @returns The base64 string for the `d` / `transform` prop.
+ *
+ * @example
+ * bytesToBase64(parsePath("M0 0 L10 10 Z")!);  // "AAAB..." — the string for `d`
+ */
 export function bytesToBase64(bytes: ArrayBuffer): string {
   const arr = new Uint8Array(bytes);
   let out = "";

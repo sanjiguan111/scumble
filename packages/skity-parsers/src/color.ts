@@ -10,8 +10,16 @@
 // hsl()/hsla() (hue in deg/rad/turn/grad), and hwb().
 
 /**
- * Accepted color input: a CSS color string, a packed 0xAARRGGBB number,
- * an [r, g, b, a?] tuple, or an {r, g, b, a?} object.
+ * Accepted color input. Any of:
+ * - a CSS color **string** — named colors (`"rebeccapurple"`), hex
+ *   (`"#fff"`, `"#rrggbbaa"`), and the `rgb()`/`rgba()`/`hsl()`/`hsla()`/`hwb()`
+ *   functions, including modern space-separated + `/`-alpha syntax (full
+ *   CSS Color 4);
+ * - a packed **`0xAARRGGBB` number** — passed through unchanged;
+ * - an **`[r, g, b, a?]`** tuple (RGB channels 0–255, alpha 0–1, default 1);
+ * - an **`{ r, g, b, a? }`** object (same channel ranges as the tuple).
+ *
+ * Used by the `color` / `fill` / `stroke` props on the skity components.
  */
 export type Color =
   | string
@@ -866,10 +874,25 @@ function parseColorString(colorStr: string): number {
 }
 
 /**
- * Parse a CSS color (string / number / [r,g,b,a?] / {r,g,b,a?}) to a packed
- * 0xAARRGGBB number — the value the native `fill` / `stroke` / `color` props
- * consume directly. Follows https://drafts.csswg.org/css-color-4/. Throws on
- * unsupported formats.
+ * Resolve any accepted {@link Color} to a packed `0xAARRGGBB` number — the
+ * value the native `color` / `fill` / `stroke` props consume directly.
+ *
+ * String parsing follows [CSS Color 4](https://drafts.csswg.org/css-color-4/):
+ * named colors, `#rgb`/`#rgba`/`#rrggbb`/`#rrggbbaa` hex, and the
+ * `rgb()`/`rgba()`/`hsl()`/`hsla()`/`hwb()` functions (legacy comma syntax and
+ * modern space-separated syntax with `/` alpha; hue accepts deg/rad/turn/grad).
+ * Numbers are passed through and tuples/objects are packed without parsing.
+ * Throws on strings it cannot recognize.
+ *
+ * @returns A 32-bit `0xAARRGGBB` integer (alpha in the high byte).
+ * @throws  {Error} if a string is not a recognized CSS color format.
+ *
+ * @example
+ * parseColor("red");                  // 0xffff0000
+ * parseColor("#ff8c0042");            // 0xff8c0042
+ * parseColor("hsl(120 100% 50%)");    // 0xff00ff00
+ * parseColor(0xff8c0042);             // 0xff8c0042  (number passthrough)
+ * parseColor([255, 140, 0]);          // 0xffff8c00  (alpha defaults to 1)
  */
 export function parseColor(color: Color): number {
   if (typeof color === "number") {
