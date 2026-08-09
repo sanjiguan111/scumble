@@ -16,7 +16,15 @@ function resolveRadii(radii: RRectProps["radii"]): { rx?: number; ry?: number } 
   return { rx: radii.x, ry: radii.y };
 }
 
-/** Rounded rectangle. `radii` → native uniform rx/ry. */
+/**
+ * Rounded rectangle — a `<Rect>` with corner radii. `radii` is a `number`
+ * (uniform), a `{x, y}` (uniform per-axis), or a 4-corner array (native only
+ * supports uniform rx/ry, so per-corner collapses to top-left — caveat).
+ *
+ * @example
+ * <RRect x={10} y={10} width={80} height={80} radii={16} color="red" />
+ * <RRect width={100} height={100} radii={{ x: 10, y: 20 }} color="blue" />
+ */
 export function RRect({ x, y, width, height, radii, ...rest }: RRectProps) {
   return (
     <skity-rect

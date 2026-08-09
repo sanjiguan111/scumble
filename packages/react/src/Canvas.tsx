@@ -5,12 +5,25 @@
 import type { CanvasProps } from "./types";
 
 /**
- * Root canvas. Renders the native <skity-canvas> (GPU: Android OpenGL ES/Vulkan,
- * iOS Metal). Size comes from `style` like any Lynx view.
+ * Root canvas — renders the native `<skity-canvas>` (GPU: Android OpenGL ES /
+ * Vulkan, iOS Metal). Size comes from `style` like any Lynx view, and children
+ * are positioned in that physical space by default.
  *
- * `viewPort` declares the logical coordinate space (SVG viewBox): child geometry
- * authored in those logical pixels is scaled by the renderer to fit the canvas
- * physical size (preserveAspectRatio = xMidYMid meet). Omit for 1:1 physical px.
+ * `viewPort` opts into a logical coordinate space (SVG `viewBox`): child
+ * geometry authored in those logical pixels is scaled by the renderer to fit
+ * the canvas (`preserveAspectRatio = xMidYMid meet`). Omit it for 1:1 physical
+ * pixels.
+ *
+ * @example
+ * // 1:1 physical pixels
+ * <Canvas style={{ width: 200, height: 100 }}>
+ *   <Rect x={0} y={0} width={50} height={50} color="red" />
+ * </Canvas>
+ *
+ * // logical 100×100 space scaled to fit
+ * <Canvas style={{ width: "100%", height: 160 }} viewPort={{ width: 100, height: 100 }}>
+ *   <Rect x={5} y={5} width={40} height={40} color="red" />
+ * </Canvas>
  */
 export function Canvas({ children, style, viewPort }: CanvasProps) {
   return (

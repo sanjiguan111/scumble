@@ -12,7 +12,11 @@ import { parseColor, parseStrokeCap, parseStrokeJoin } from "@lynx-skity/graphic
 
 import type { GraphicProps } from "../types";
 
-/** The paint slice of the skity intrinsic props. */
+/**
+ * The paint slice of the skity intrinsic props — the output shape of
+ * {@link resolvePaint}. Colors are packed `0xAARRGGBB`; `strokeCap`/`strokeJoin`
+ * are enum bytes (`LineCap`/`LineJoin`).
+ */
 export interface ResolvedPaint {
   fill?: number;
   stroke?: number;
@@ -23,6 +27,14 @@ export interface ResolvedPaint {
   opacity?: number;
 }
 
+/**
+ * Normalize a shape's {@link GraphicProps} into the `{fill?, stroke?, …}`
+ * scalars the skity intrinsic tags accept. `color` is run through `parseColor`
+ * and routed to `fill` or `stroke` by `style` (default `"fill"`); `strokeCap`/
+ * `strokeJoin` are mapped to enum bytes. `blendMode`/`zIndex` are intentionally
+ * dropped (not honored natively yet). A `color`-less shape resolves to an empty
+ * object, so the native side draws nothing.
+ */
 export function resolvePaint(props: GraphicProps): ResolvedPaint {
   const { color, style = "fill", strokeWidth, strokeCap, strokeJoin, strokeMiter, opacity } = props;
 

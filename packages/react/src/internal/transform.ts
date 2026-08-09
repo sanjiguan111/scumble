@@ -2,23 +2,33 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-// Converts a react-native-skity transform (a single Translate/Scale/Rotate
-// object, or a 4x4 column-major number[16]) into the nested FlatBuffer
-// TransformOpList bytes the native skity-group expects. The object is first
-// turned into a CSS transform string, then @lynx-skity/graphics.parseTransform
-// serializes it to bytes; the native side only memcpys the bytes (no string
-// parsing). Returns undefined for no transform.
+/**
+ * Transform normalization for the React layer — see {@link resolveTransform}.
+ */
 
 import { bytesToBase64, parseTransform } from "@lynx-skity/graphics";
 
 import type { RotateProps, Transform } from "../types";
 
-// Converts a react-native-skity transform (single Translate/Scale/Rotate object,
-// or 4x4 column-major number[16]) into a base64-encoded TransformOpList the
-// native skity-group expects. The object is first turned into a CSS string,
-// @lynx-skity/graphics serializes it to nested FlatBuffer bytes, then base64 for
-// Lynx's string prop channel (Lynx doesn't marshal NSData); the native side
-// decodes + memcpys. Returns undefined for no transform.
+/**
+ * Convert a react-native-skity transform — a single `{translateX,translateY}` /
+ * `{scaleX,scaleY}` / `{rotate,…}` object (rotate in degrees) or a 4×4
+ * column-major `number[16]` matrix — into a base64-encoded `TransformOpList`
+ * for the native `<skity-group>` `transform` prop.
+ *
+ * The object is first turned into a CSS `transform` string, then
+ * `@lynx-skity/graphics`'s `parseTransform` serializes it to nested FlatBuffer
+ * bytes, which are base64-encoded for Lynx's string-only prop channel (Lynx
+ * won't marshal raw bytes); the native side decodes + memcpys. Returns
+ * `undefined` when there is no transform, so the prop can be omitted entirely.
+ *
+ * @returns The base64 string for the `transform` prop, or `undefined`.
+ *
+ * @example
+ * resolveTransform({ translateX: 10, translateY: 5 });     // "…"
+ * resolveTransform({ rotate: 45, x: 50, y: 50 });          // rotate about pivot
+ * resolveTransform([1,0,0,0, 0,1,0,0, 0,0,1,0, 10,5,0,1]); // 4×4 matrix
+ */
 export function resolveTransform(t: Transform | undefined): string | undefined {
   if (!t) return undefined;
 

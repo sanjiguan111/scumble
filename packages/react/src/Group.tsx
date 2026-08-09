@@ -6,11 +6,23 @@ import { resolveTransform } from "./internal/transform";
 import type { GroupProps } from "./types";
 
 /**
- * Grouping node. Applies a transform to its subtree via the native <skity-group>.
+ * Grouping node — applies a `transform` to its subtree via the native
+ * `<skity-group>`.
  *
- * Caveat: native skity-group does NOT inherit paint (color/style/opacity) to
- * children today, and has no clip — matching the current react-native-skity
- * behavior. Paint inheritance / clip arrive with Task 3 (native slim-down).
+ * `transform` accepts a single translate/scale/rotate object (rotate in degrees)
+ * or a 4×4 column-major matrix, the react-native-skity shape.
+ *
+ * Caveat: the native skity-group does NOT inherit paint (`color` / `style` /
+ * `opacity`) to children today, and has no clip — matching current
+ * react-native-skity behavior.
+ *
+ * @example
+ * <Group transform={{ translateX: 10, translateY: 10 }}>
+ *   <Circle cx={0} cy={0} radius={20} color="red" />
+ * </Group>
+ * <Group transform={{ rotate: 45, x: 50, y: 50 }}>
+ *   <Rect x={0} y={0} width={100} height={20} color="blue" />
+ * </Group>
  */
 export function Group({ transform, children }: GroupProps) {
   return <skity-group transform={resolveTransform(transform)}>{children}</skity-group>;

@@ -5,7 +5,12 @@
 import { resolvePaint } from "../internal/paint";
 import type { CircleProps } from "../types";
 
-/** Circle. `radius` maps to the native `r`. */
+/**
+ * Circle. `radius` maps to the native `r`; `cx`/`cy` default to 0.
+ *
+ * @example
+ * <Circle cx={50} cy={50} radius={30} color="#3b82f6" />
+ */
 export function Circle({ cx, cy, radius, ...rest }: CircleProps) {
   return <skity-circle cx={cx ?? 0} cy={cy ?? 0} r={radius} {...resolvePaint(rest)} />;
 }

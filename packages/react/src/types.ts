@@ -57,19 +57,35 @@ export type BlendMode =
   | "color"
   | "luminosity";
 
-/** Paint attributes every shape (and Canvas/Group) may carry. */
+/**
+ * Paint + compositing attributes every shape (and `Canvas` / `Group`) may carry.
+ *
+ * `color` is resolved with `@lynx-skity/graphics`'s `parseColor` and routed to
+ * the native `fill` or `stroke` prop according to `style` (default `"fill"`).
+ * The stroke attributes apply only when `style === "stroke"`.
+ */
 export interface GraphicProps {
-  /** Any CSS color string ("red"/"#fff"/"rgb(..)"), a 0xAARRGGBB number, {r,g,b,a?}, or [r,g,b,a?]. */
+  /**
+   * Fill or stroke color — any CSS color string (`"red"` / `"#fff"` /
+   * `"rgb(..)"`), a packed `0xAARRGGBB` number, an `{r,g,b,a?}` object, or an
+   * `[r,g,b,a?]` tuple. Omit for a transparent (no-op) shape.
+   */
   color?: import("@lynx-skity/graphics").Color;
+  /** Whether `color` fills or strokes the shape. Defaults to `"fill"`. */
   style?: PaintStyle;
+  /** Stroke width (dp). Stroke-only. */
   strokeWidth?: number;
+  /** Cap style for the open endpoints of a stroke. Stroke-only. */
   strokeCap?: StrokeCap;
+  /** Join style for the corners of a stroke. Stroke-only. */
   strokeJoin?: StrokeJoin;
+  /** Miter limit for `"miter"` joins. Stroke-only. */
   strokeMiter?: number;
+  /** Shape opacity, 0–1 (folded into the paint's color alpha). */
   opacity?: number;
-  /** Accepted but not yet honored natively (caveat). */
+  /** Blend mode. Accepted for API parity but NOT honored natively yet (caveat). */
   blendMode?: BlendMode;
-  /** Accepted for API parity; native z-ordering follows tree order today. */
+  /** z-index. Accepted for parity; native z-ordering follows tree order today. */
   zIndex?: number;
 }
 
@@ -99,15 +115,22 @@ export type Transform = TranslateProps | ScaleProps | RotateProps | number[];
 // ---- shape props ----
 
 export interface CircleProps extends GraphicProps {
+  /** Center x (dp). Defaults to 0. */
   cx?: number;
+  /** Center y (dp). Defaults to 0. */
   cy?: number;
+  /** Radius (dp). Required. */
   radius: number;
 }
 
 export interface RectProps extends GraphicProps {
+  /** Left edge x (dp). Defaults to 0. */
   x?: number;
+  /** Top edge y (dp). Defaults to 0. */
   y?: number;
+  /** Width (dp). Required. */
   width: number;
+  /** Height (dp). Required. */
   height: number;
 }
 
@@ -135,6 +158,7 @@ export interface PathProps extends GraphicProps {
 
 export interface GroupProps extends GraphicProps {
   children?: ReactNode;
+  /** A single translate/scale/rotate object (rotate in degrees) or a 4×4 column-major matrix, applied to the subtree. */
   transform?: Transform;
   // clip / clipIntersect from react-native-skity are intentionally omitted:
   // native skity-group has no clip today (caveat).
@@ -144,8 +168,9 @@ export interface CanvasProps {
   children?: ReactNode;
   style?: StandardProps["style"];
   /**
-   * Logical viewport (SVG viewBox semantics). Accepted for API parity but NOT
-   * yet wired to the native RenderTree.viewport (caveat — TODO Task 3).
+   * Logical viewport (SVG `viewBox`). When set, child geometry authored in this
+   * logical pixel space is scaled by the renderer to fit the canvas
+   * (`preserveAspectRatio = xMidYMid meet`). Omit for 1:1 physical pixels.
    */
   viewPort?: { x?: number; y?: number; width: number; height: number };
 }

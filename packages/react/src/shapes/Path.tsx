@@ -13,6 +13,13 @@ import type { PathProps } from "../types";
  * concatenation) or a Path2D object built command-style. Either way it ends up
  * as PathCommandList bytes, base64-encoded for Lynx's string prop channel; the
  * native side decodes + memcpys the bytes (no string→structure parsing).
+ *
+ * @example
+ * // from an SVG d string
+ * <Path path="M10 10 L90 90 Z" color="#22c55e" />
+ * // from a Path2D (command-style)
+ * const p = new Path2D().moveTo(10, 10).lineTo(90, 90).close();
+ * <Path path={p} color="#22c55e" />
  */
 export function Path({ path, fillRule, ...rest }: PathProps) {
   const pathBytes = typeof path === "string" ? parsePath(path) : path.toBytes();
