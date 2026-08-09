@@ -13,8 +13,8 @@ dist/
 # generate-fbs`, runs on postinstall; needs the habitat-fetched flatc).
 **/shared/skity/generated/
 **/android/src/main/fbs-gen/
-# TypeScript FlatBuffer stubs + vendored flatbuffers runtime (parsers).
-packages/skity-parsers/src/generated/
+# TypeScript FlatBuffer stubs + vendored flatbuffers runtime (@lynx-skity/graphics).
+packages/graphics/src/generated/
 
 # Android / Gradle
 **/.gradle/

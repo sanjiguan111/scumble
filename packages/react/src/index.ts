@@ -15,7 +15,7 @@ export { RRect } from "./shapes/RRect";
 export { Path } from "./shapes/Path";
 // Path2D (command-style path builder) is re-exported so callers can import it
 // from @lynx-skity/react alongside <Path>.
-export { Path2D } from "@lynx-skity/parsers";
+export { Path2D } from "@lynx-skity/graphics";
 
 export type {
   Color,

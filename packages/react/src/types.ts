@@ -6,13 +6,13 @@
 // "friendly" props users write; the component layer normalizes them into the
 // numeric/string values the skity intrinsic tags (<skity-*>) consume.
 //
-// Color parsing is delegated to lynx-skity/parsers (parseColor); this package
+// Color parsing is delegated to lynx-skity/graphics (parseColor); this package
 // does not reinvent it.
 
 import type { ReactNode } from "@lynx-js/react";
 import type { StandardProps } from "@lynx-js/types";
 
-export type { Color } from "@lynx-skity/parsers";
+export type { Color } from "@lynx-skity/graphics";
 
 /** Fill or stroke. Defaults to "fill" at the component layer. */
 export type PaintStyle = "fill" | "stroke";
@@ -60,7 +60,7 @@ export type BlendMode =
 /** Paint attributes every shape (and Canvas/Group) may carry. */
 export interface GraphicProps {
   /** Any CSS color string ("red"/"#fff"/"rgb(..)"), a 0xAARRGGBB number, {r,g,b,a?}, or [r,g,b,a?]. */
-  color?: import("@lynx-skity/parsers").Color;
+  color?: import("@lynx-skity/graphics").Color;
   style?: PaintStyle;
   strokeWidth?: number;
   strokeCap?: StrokeCap;
@@ -129,7 +129,7 @@ export interface RRectProps extends RectProps {
 
 export interface PathProps extends GraphicProps {
   /** SVG path data string, or a Path2D object built command-style. */
-  path: string | import("@lynx-skity/parsers").Path2D;
+  path: string | import("@lynx-skity/graphics").Path2D;
   fillRule?: FillRule;
 }
 

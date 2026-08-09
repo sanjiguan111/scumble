@@ -8,7 +8,7 @@
 // augments `@lynx-js/types` IntrinsicElements so the tags are accepted in JSX.
 //
 // The native side never parses strings. Variable-length fields (path d,
-// transform) are pre-serialized FlatBuffer bytes from @lynx-skity/parsers
+// transform) are pre-serialized FlatBuffer bytes from @lynx-skity/graphics
 // (PathCommandList / TransformOpList); enums are numbers already mapped to
 // skityrt bytes. See RENDER_ARCHITECTURE.md §3/§5.
 import type { StandardProps } from "@lynx-js/types";
@@ -21,15 +21,15 @@ export interface SkityPaintProps {
   /** Stroke color, 0xAARRGGBB. Omit for no stroke. */
   stroke?: number;
   strokeWidth?: number;
-  /** LineCap byte (BUTT=0, ROUND=1, SQUARE=2) from @lynx-skity/parsers. */
+  /** LineCap byte (BUTT=0, ROUND=1, SQUARE=2) from @lynx-skity/graphics. */
   strokeCap?: number;
-  /** LineJoin byte (MITER=0, ROUND=1, BEVEL=2) from @lynx-skity/parsers. */
+  /** LineJoin byte (MITER=0, ROUND=1, BEVEL=2) from @lynx-skity/graphics. */
   strokeJoin?: number;
   strokeMiter?: number;
-  /** FillRule byte (NONZERO=0, EVENODD=1) from @lynx-skity/parsers. */
+  /** FillRule byte (NONZERO=0, EVENODD=1) from @lynx-skity/graphics. */
   fillRule?: number;
   opacity?: number;
-  /** Base64-encoded TransformOpList bytes (@lynx-skity/parsers); native decodes + memcpys. */
+  /** Base64-encoded TransformOpList bytes (@lynx-skity/graphics); native decodes + memcpys. */
   transform?: string;
 }
 
@@ -72,7 +72,7 @@ export interface SkityLineProps extends SkityCommonProps {
   y2: number;
 }
 export interface SkityPathProps extends SkityCommonProps {
-  /** Base64-encoded PathCommandList bytes (@lynx-skity/parsers); native decodes + memcpys. */
+  /** Base64-encoded PathCommandList bytes (@lynx-skity/graphics); native decodes + memcpys. */
   d?: string;
 }
 export interface SkityGroupProps extends SkityCommonProps {}

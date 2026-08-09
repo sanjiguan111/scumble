@@ -3,7 +3,7 @@
 // LICENSE file in the root directory of this source tree.
 
 /**
- * @lynx-skity/parsers — framework-agnostic value parsers for lynx-skity.
+ * @lynx-skity/graphics — framework-agnostic value parsers for lynx-skity.
  *
  * Converts the values users like to write — CSS color strings, paint enums
  * (`"round"`, `"evenodd"`, …), CSS `transform` lists, SVG path `d` strings —
@@ -23,7 +23,7 @@
  * end-to-end data-flow.
  *
  * @example
- * import { parseColor, parsePath, Path2D } from "@lynx-skity/parsers";
+ * import { parseColor, parsePath, Path2D } from "@lynx-skity/graphics";
  *
  * parseColor("rebeccapurple");           // 0xff663399  (packed 0xAARRGGBB)
  * parseColor("rgb(100% 50% 25% / 50%)"); // 0x80ff8040

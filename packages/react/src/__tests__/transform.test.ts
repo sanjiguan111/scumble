@@ -4,14 +4,14 @@
 
 import { describe, it, expect } from "vitest";
 
-import { bytesToBase64, parseTransform } from "@lynx-skity/parsers";
+import { bytesToBase64, parseTransform } from "@lynx-skity/graphics";
 
 import { resolveTransform } from "../internal/transform";
 
 // resolveTransform returns a base64-encoded TransformOpList (the nested
 // FlatBuffer bytes go through Lynx's string prop channel). Assert equality
 // against bytesToBase64(parseTransform(<expected css>)) — the serialization
-// itself is covered by @lynx-skity/parsers' own round-trip tests.
+// itself is covered by @lynx-skity/graphics' own round-trip tests.
 function expectBytes(actual: string | undefined, expectedCss: string) {
   const expected = parseTransform(expectedCss);
   expect(typeof actual).toBe("string");

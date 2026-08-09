@@ -5,18 +5,18 @@
 // Converts a react-native-skity transform (a single Translate/Scale/Rotate
 // object, or a 4x4 column-major number[16]) into the nested FlatBuffer
 // TransformOpList bytes the native skity-group expects. The object is first
-// turned into a CSS transform string, then @lynx-skity/parsers.parseTransform
+// turned into a CSS transform string, then @lynx-skity/graphics.parseTransform
 // serializes it to bytes; the native side only memcpys the bytes (no string
 // parsing). Returns undefined for no transform.
 
-import { bytesToBase64, parseTransform } from "@lynx-skity/parsers";
+import { bytesToBase64, parseTransform } from "@lynx-skity/graphics";
 
 import type { RotateProps, Transform } from "../types";
 
 // Converts a react-native-skity transform (single Translate/Scale/Rotate object,
 // or 4x4 column-major number[16]) into a base64-encoded TransformOpList the
 // native skity-group expects. The object is first turned into a CSS string,
-// @lynx-skity/parsers serializes it to nested FlatBuffer bytes, then base64 for
+// @lynx-skity/graphics serializes it to nested FlatBuffer bytes, then base64 for
 // Lynx's string prop channel (Lynx doesn't marshal NSData); the native side
 // decodes + memcpys. Returns undefined for no transform.
 export function resolveTransform(t: Transform | undefined): string | undefined {
