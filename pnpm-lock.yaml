@@ -32,6 +32,9 @@ importers:
       '@lynx-js/rspeedy':
         specifier: ^0.16.2
         version: 0.16.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@rspack/core@2.1.8(@swc/helpers@0.5.23))(typescript@5.9.3)(webpack@5.109.2(postcss@8.5.25))
+      '@lynx-skity/graphics':
+        specifier: workspace:*
+        version: link:../graphics
       '@lynx-skity/react':
         specifier: workspace:*
         version: link:../react

@@ -14,11 +14,9 @@
   "scripts": {
     "test": "vitest run"
   },
-  "dependencies": {
-    "@lynx-skity/graphics": "workspace:*",
-    "lynx-skity": "workspace:*"
-  },
   "peerDependencies": {
+    "@lynx-skity/graphics": "workspace:*",
+    "lynx-skity": "workspace:*",
     "@lynx-js/react": "*",
     "@lynx-js/types": "*"
   },
