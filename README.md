@@ -46,6 +46,16 @@ Full design + roadmap: [`packages/lynx-skity/RENDER_ARCHITECTURE.md`](packages/l
 | [`@lynx-skity/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                         |
 | [`example`](packages/example)               | rspeedy demo app consuming all of the above.                                                                                       |
 
+## Installation
+
+Consumers install all three packages explicitly — `@lynx-skity/react` declares
+the other two as **peerDependencies**, so they are not pulled transitively (the
+host owns the versions, no surprise nested copy):
+
+```bash
+pnpm add @lynx-skity/react @lynx-skity/graphics lynx-skity
+```
+
 ## Getting started
 
 ```bash
