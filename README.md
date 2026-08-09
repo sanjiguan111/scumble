@@ -82,4 +82,4 @@ types, paint inheritance, gradients/shaders, and filters. See the
 
 ## License
 
-[Apache License 2.0](LICENSE) · Copyright 2026 The Lynx Authors.
+[Apache License 2.0](LICENSE)
