@@ -39,6 +39,9 @@ xcuserdata/
 # TypeScript incremental build info
 *.tsbuildinfo
 
+# IDE (Android Studio / IntelliJ)
+.idea/
+
 # Misc
 *.log
 .DS_Store
