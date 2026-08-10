@@ -25,6 +25,8 @@
     "android/CMakeLists.txt",
     "android/build.gradle.kts",
     "ios/Classes",
+    "ios/addon_use.h",
+    "ios/generated",
     "shared/skity/SkityRenderer.cc",
     "shared/skity/SkityRenderer.h",
     "shared/skity/generated",
