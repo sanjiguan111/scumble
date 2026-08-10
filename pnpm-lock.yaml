@@ -35,12 +35,12 @@ importers:
       '@lynx-skity/graphics':
         specifier: workspace:*
         version: link:../graphics
+      '@lynx-skity/native':
+        specifier: workspace:*
+        version: link:../native
       '@lynx-skity/react':
         specifier: workspace:*
         version: link:../react
-      lynx-skity:
-        specifier: workspace:*
-        version: link:../lynx-skity
     devDependencies:
       '@lynx-js/types':
         specifier: 3.9.0
@@ -64,7 +64,7 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.1.2)(vite@8.2.1(@types/node@26.1.2)(terser@5.49.1))
 
-  packages/lynx-skity:
+  packages/native:
     dependencies:
       '@lynx-js/lynx-library-headers':
         specifier: '*'
@@ -91,9 +91,9 @@ importers:
       '@lynx-skity/graphics':
         specifier: workspace:*
         version: link:../graphics
-      lynx-skity:
+      '@lynx-skity/native':
         specifier: workspace:*
-        version: link:../lynx-skity
+        version: link:../native
     devDependencies:
       vitest:
         specifier: ^4.1.10

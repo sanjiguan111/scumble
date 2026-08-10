@@ -25,23 +25,23 @@ react-native-skity-style declarative drawing API — `<Canvas><Circle color="red
         │
 @lynx-skity/graphics ─ pure-JS core (parseColor / parsePath / Path2D / parseTransform)
         │             produces primitive values (int / float / FlatBuffer bytes)
- lynx-skity          ─ native tag contract (<skity-*>) + skityrt FlatBuffer schema
+ @lynx-skity/native  ─ native tag contract (<skity-*>) + skityrt FlatBuffer schema
         │             ─── skityrt::RenderTree FlatBuffer ───
    skity GPU backend ─ Android GLES/Vulkan · iOS Metal
 ```
 
 Dependency direction is a single DAG: `@lynx-skity/react` → `@lynx-skity/graphics` →
-`lynx-skity`. The native side never does "string → structure" parsing — all of it lives
+`@lynx-skity/native`. The native side never does "string → structure" parsing — all of it lives
 in `@lynx-skity/graphics`; variable-length data (path / transform) travels as nested
 FlatBuffer bytes, base64-encoded over Lynx's string-only prop channel.
 
-Full design + roadmap: [`packages/lynx-skity/RENDER_ARCHITECTURE.md`](packages/lynx-skity/RENDER_ARCHITECTURE.md).
+Full design + roadmap: [`packages/native/RENDER_ARCHITECTURE.md`](packages/native/RENDER_ARCHITECTURE.md).
 
 ## Packages
 
 | Package                                     | What it is                                                                                                                         |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [`lynx-skity`](packages/lynx-skity)         | The native Lynx library — intrinsic `<skity-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `SkityRenderer`. |
+| [`@lynx-skity/native`](packages/native)         | The native Lynx library — intrinsic `<skity-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `SkityRenderer`. |
 | [`@lynx-skity/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                               |
 | [`@lynx-skity/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                         |
 | [`example`](packages/example)               | rspeedy demo app consuming all of the above.                                                                                       |
@@ -53,7 +53,7 @@ the other two as **peerDependencies**, so they are not pulled transitively (the
 host owns the versions, no surprise nested copy):
 
 ```bash
-pnpm add @lynx-skity/react @lynx-skity/graphics lynx-skity
+pnpm add @lynx-skity/react @lynx-skity/graphics @lynx-skity/native
 ```
 
 ## Getting started
@@ -78,7 +78,7 @@ Edit `packages/example/src/App.tsx` and reload to iterate.
 
 Basic rendering and the data pipeline work on both platforms. In progress: more shape
 types, paint inheritance, gradients/shaders, and filters. See the
-[render architecture & roadmap](packages/lynx-skity/RENDER_ARCHITECTURE.md).
+[render architecture & roadmap](packages/native/RENDER_ARCHITECTURE.md).
 
 ## License
 

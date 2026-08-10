@@ -2,11 +2,11 @@ import { Canvas, Circle, Group, Path, Path2D, Rect } from "@lynx-skity/react";
 
 // skity demo via the @lynx-skity/react component layer (react-native-skity-style
 // API: <Canvas><Circle color="red" /></Canvas>). Colors accept CSS strings and
-// are packed to 0xAARRGGBB by lynx-skity/graphics at the component layer; path d
+// are packed to 0xAARRGGBB by @lynx-skity/graphics at the component layer; path d
 // and transform are parsed to nested FlatBuffer bytes there, then base64-encoded
 // for Lynx's string prop channel (Lynx doesn't marshal NSData); the native side
 // only ever sees numbers and base64 strings, never raw structure strings.
-import "lynx-skity/elements";
+import "@lynx-skity/native/elements";
 
 // Command-style Path2D (like the Web Canvas Path2D / skity Path2D): build a
 // path imperatively with moveTo/lineTo/cubicTo/arcTo/close, then hand it to

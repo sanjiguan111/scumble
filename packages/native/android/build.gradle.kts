@@ -58,7 +58,7 @@ android {
   sourceSets {
     getByName("main") {
       // FlatBuffers-generated Java stubs (package com.skity.graphics.skityrt),
-      // produced by `npm run generate-fbs` from packages/lynx-skity/schema/*.fbs.
+      // produced by `npm run generate-fbs` from packages/native/schema/*.fbs.
       java.srcDir("src/main/fbs-gen")
       // FlatBuffers Java runtime (com.google.flatbuffers.*), vendored by habitat
       // (DEPS.py). The generated stubs extend its Table / FlatBufferBuilder.
@@ -84,7 +84,7 @@ dependencies {
   primjsNativeAar("org.lynxsdk.lynx:primjs:$lynxPrimjsVersion@aar")
 
   // skity rendering engine (prefab). Consumed in CMake via find_package(skity);
-  // see packages/lynx-skity/shared/skity/SkityRenderer.
+  // see packages/native/shared/skity/SkityRenderer.
   implementation("org.lynxsdk.lynx:skity-native:1.1.0-alpha.3")
 }
 

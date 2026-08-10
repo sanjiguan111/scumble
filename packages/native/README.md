@@ -1,4 +1,4 @@
-# lynx-skity
+# @lynx-skity/native
 
 Native Lynx library.
 

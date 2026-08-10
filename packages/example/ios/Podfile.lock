@@ -54,7 +54,7 @@ PODS:
   - skity (1.1.0-alpha.3)
 
 DEPENDENCIES:
-  - lynx-skity (from `/Users/bytedance/Workspace/github/lynx-skity/packages/lynx-skity`)
+  - lynx-skity (from `/Users/bytedance/Workspace/github/lynx-skity/packages/native`)
   - Lynx/Framework (= 4.0.1)
   - LynxLibraryRegistry (from `/Users/bytedance/Workspace/github/lynx-skity/packages/example/ios/generated/lynx-library`)
   - LynxService/Http (= 4.0.1)
@@ -73,7 +73,7 @@ SPEC REPOS:
 
 EXTERNAL SOURCES:
   lynx-skity:
-    :path: "/Users/bytedance/Workspace/github/lynx-skity/packages/lynx-skity"
+    :path: "/Users/bytedance/Workspace/github/lynx-skity/packages/native"
   LynxLibraryRegistry:
     :path: "/Users/bytedance/Workspace/github/lynx-skity/packages/example/ios/generated/lynx-library"
 

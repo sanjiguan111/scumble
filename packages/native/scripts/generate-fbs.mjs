@@ -2,11 +2,11 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-// Generates C++ + Java FlatBuffers stubs from packages/lynx-skity/schema/*.fbs
+// Generates C++ + Java FlatBuffers stubs from packages/native/schema/*.fbs
 // using the flatc binary fetched by habitat (DEPS.py → shared/third_party/flatc).
 //
 // Runs automatically on `postinstall`, and manually via
-// `pnpm --filter lynx-skity generate-fbs` (re-run after editing the .fbs).
+// `pnpm --filter @lynx-skity/native generate-fbs` (re-run after editing the .fbs).
 //
 // Generates WITHOUT --gen-all: each header only defines its own types and
 // #includes the others (guarded), so multiple stubs can be included together
@@ -31,7 +31,7 @@ const schemaDir = resolve(pkgRoot, "schema");
 if (!existsSync(flatc)) {
   console.warn("[lynx-skity] flatc not found at", flatc);
   console.warn(
-    "[lynx-skity] Run `tools/hab sync` first, then `pnpm --filter lynx-skity generate-fbs`.",
+    "[lynx-skity] Run `tools/hab sync` first, then `pnpm --filter @lynx-skity/native generate-fbs`.",
   );
   // Non-fatal: an install must not break just because habitat hasn't synced yet.
   process.exit(0);

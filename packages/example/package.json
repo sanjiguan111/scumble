@@ -14,7 +14,7 @@
     "@lynx-js/rspeedy": "^0.16.2",
     "@lynx-skity/graphics": "workspace:*",
     "@lynx-skity/react": "workspace:*",
-    "lynx-skity": "workspace:*"
+    "@lynx-skity/native": "workspace:*"
   },
   "devDependencies": {
     "@lynx-js/types": "3.9.0",

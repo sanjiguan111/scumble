@@ -24,7 +24,7 @@ Pod::Spec.new do |s|
   s.ios.frameworks = 'Metal', 'QuartzCore', 'UIKit', 'CoreGraphics'
 
   # ${PODS_TARGET_SRCROOT} = this pod's source root = the podspec dir
-  # (packages/lynx-skity), so shared/skity and the FlatBuffer stubs resolve.
+  # (packages/native), so shared/skity and the FlatBuffer stubs resolve.
   # skity's own headers (<skity/skity.hpp>, <skity/gpu/...>) come from the
   # skity pod dependency.
   s.pod_target_xcconfig = {

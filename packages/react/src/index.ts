@@ -11,8 +11,8 @@
  * numeric / base64-byte props the native tags consume. All string parsing is
  * delegated to `@lynx-skity/graphics`; the native side never parses strings.
  *
- * The intrinsic tags are registered by the `lynx-skity` library — importing
- * `lynx-skity/elements` once augments the JSX `IntrinsicElements` so the tags
+ * The intrinsic tags are registered by the `@lynx-skity/native` library — importing
+ * `@lynx-skity/native/elements` once augments the JSX `IntrinsicElements` so the tags
  * type-check.
  *
  * @example
@@ -27,10 +27,10 @@
  * </Canvas>
  */
 
-// Importing lynx-skity/elements augments @lynx-js/types IntrinsicElements with
+// Importing @lynx-skity/native/elements augments @lynx-js/types IntrinsicElements with
 // the <skity-*> tags this package renders. Consumers transitively get the types
 // via @lynx-js/types once this side-effect import is in the program.
-import "lynx-skity/elements";
+import "@lynx-skity/native/elements";
 
 // ---- containers ----
 export { Canvas } from "./Canvas";

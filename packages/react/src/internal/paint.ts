@@ -4,7 +4,7 @@
 // Normalizes a shape's GraphicProps (color + style + stroke attributes) into
 // the {fill?, stroke?, ...} scalars the skity intrinsic tags accept. The native
 // layer takes a packed 0xAARRGGBB number for fill/stroke and number bytes for
-// enums — parseColor / parseStrokeCap / parseStrokeJoin (from lynx-skity/graphics)
+// enums — parseColor / parseStrokeCap / parseStrokeJoin (from @lynx-skity/graphics)
 // do all string resolution here; the native side never parses strings.
 
 import { parseColor, parseStrokeCap, parseStrokeJoin } from "@lynx-skity/graphics";

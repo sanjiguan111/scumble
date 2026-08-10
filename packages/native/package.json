@@ -1,5 +1,5 @@
 {
-  "name": "lynx-skity",
+  "name": "@lynx-skity/native",
   "version": "0.0.1",
   "description": "A native Lynx library",
   "license": "Apache-2.0",

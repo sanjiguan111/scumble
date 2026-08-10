@@ -3,7 +3,7 @@
 //
 // Type declarations for the skity intrinsic elements (<skity-canvas>,
 // <skity-rect>, ...). No React component wrappers are provided — consumers use
-// the intrinsic tags directly. Importing this module (or `lynx-skity`)
+// the intrinsic tags directly. Importing this module (or `@lynx-skity/native`)
 // augments `@lynx-js/types` IntrinsicElements so the tags are accepted in JSX.
 //
 // The native side never parses strings. Variable-length fields (path d,

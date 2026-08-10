@@ -16,7 +16,7 @@
   },
   "peerDependencies": {
     "@lynx-skity/graphics": "workspace:*",
-    "lynx-skity": "workspace:*",
+    "@lynx-skity/native": "workspace:*",
     "@lynx-js/react": "*",
     "@lynx-js/types": "*"
   },

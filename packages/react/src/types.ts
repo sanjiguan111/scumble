@@ -5,7 +5,7 @@
 // "friendly" props users write; the component layer normalizes them into the
 // numeric/string values the skity intrinsic tags (<skity-*>) consume.
 //
-// Color parsing is delegated to lynx-skity/graphics (parseColor); this package
+// Color parsing is delegated to @lynx-skity/graphics (parseColor); this package
 // does not reinvent it.
 
 import type { ReactNode } from "@lynx-js/react";

@@ -1,4 +1,4 @@
-# lynx-skity Render Architecture & Roadmap
+# @lynx-skity/native Render Architecture & Roadmap
 
 > Status: basic rendering + data flow are working (Android OpenGL ES/Vulkan + iOS Metal, green on 2026-08-07).
 > This document captures the **functional-development phase**: target architecture, design principles, and work breakdown for ongoing work.
@@ -29,15 +29,15 @@ Following this line, the ownership of every attribute falls out naturally. The d
         │  transform→... · gradient            │
         └───────┬───────────────────────────────┘
                 │  produces "primitive values" (int/float/ArrayBuffer)
-        ┌───────▼───────────────────────────────┐
-        │  lynx-skity  (base contract layer,    │  intrinsic tags + elements.ts types
-        │  framework-agnostic)                   │  native accepts int/float/base64-string,
-        │  <skity-circle cx cy r fill=0xAARRGGBB>│  zero string parsing
-        │  ─── FlatBuffer skityrt::RenderTree ───│
-        └─────────────────────────────────────────┘
+        ┌───────▼───────────────────────────────────────┐
+        │  @lynx-skity/native (base contract layer,     │  intrinsic tags + elements.ts types
+        │  framework-agnostic)                           │  native accepts int/float/base64-string,
+        │  <skity-circle cx cy r fill=0xAARRGGBB>        │  zero string parsing
+        │  ─── FlatBuffer skityrt::RenderTree ───────────│
+        └─────────────────────────────────────────────────┘
 ```
 
-Dependency direction is a single directed acyclic chain: `@lynx-skity/{react,vue}` → `@lynx-skity/graphics` → `lynx-skity` (tag contract).
+Dependency direction is a single directed acyclic chain: `@lynx-skity/{react,vue}` → `@lynx-skity/graphics` → `@lynx-skity/native` (tag contract).
 
 ## 3. Responsibility split
 
@@ -53,7 +53,7 @@ The "three states" of color `0xAARRGGBB` are a deliberate trade-off and stay as-
 
 ## 4. Schema status & extensions
 
-The schema lives in `packages/lynx-skity/schema/render_tree*.fbs` (namespace `skityrt`); `scripts/generate-fbs.mjs` runs flatc to emit C++ (`shared/skity/generated/`), Java stubs (`android/.../fbs-gen/`), and TypeScript stubs (`packages/graphics/src/generated/`). iOS reuses the C++ stubs directly.
+The schema lives in `packages/native/schema/render_tree*.fbs` (namespace `skityrt`); `scripts/generate-fbs.mjs` runs flatc to emit C++ (`shared/skity/generated/`), Java stubs (`android/.../fbs-gen/`), and TypeScript stubs (`packages/graphics/src/generated/`). iOS reuses the C++ stubs directly.
 
 **Existing structures:**
 
@@ -128,14 +128,14 @@ Dependency-ordered; each step is independently reviewable:
 
 ## 10. Key file index
 
-- Schema: `packages/lynx-skity/schema/render_tree{,_common,_style}.fbs`
-- Codegen: `packages/lynx-skity/scripts/generate-fbs.mjs` (`pnpm --filter lynx-skity generate-fbs`)
-- Front-end tag types: `packages/lynx-skity/src/elements.ts` (`declare module` augments `IntrinsicElements`)
+- Schema: `packages/native/schema/render_tree{,_common,_style}.fbs`
+- Codegen: `packages/native/scripts/generate-fbs.mjs` (`pnpm --filter @lynx-skity/native generate-fbs`)
+- Front-end tag types: `packages/native/src/elements.ts` (`declare module` augments `IntrinsicElements`)
 - Parsers: `packages/graphics/` (`@lynx-skity/graphics`)
 - Front-end usage: `packages/example/src/App.tsx`
 - Native registration: Android `android/.../graphics/SkityBehavior.kt` + `SkityInit.kt`; iOS `ios/Classes/Node/SkityCanvasShadowNode.mm` + `SkityNodeBase.m`
 - prop setters: Android `android/.../graphics/node/SkityNodeBase.kt`; iOS `ios/Classes/Node/SkityNodeBase.m`
 - parser: **deleted** in Task 3 (was `node/SkityPropParser.kt` / `Node/SkityPropParser.m` — string parsing now lives in `@lynx-skity/graphics`)
 - serialization: Android `android/.../graphics/node/SkityCanvasShadowNode.kt` (measure/buildRenderNode/buildStyle/buildPaint); iOS `ios/Classes/Node/SkityCanvasShadowNode.mm`
-- renderer: `packages/lynx-skity/shared/skity/SkityRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density,W,H)` + viewport)
+- renderer: `packages/native/shared/skity/SkityRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density,W,H)` + viewport)
 - backends: Android `android/src/main/cpp/skity/{gles,vulkan}_render_backend.cpp`; iOS `ios/Classes/Render/`
