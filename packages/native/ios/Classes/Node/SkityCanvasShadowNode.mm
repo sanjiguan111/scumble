@@ -45,17 +45,17 @@ static Offset<ComputedStyle> SkityBuildStyle(flatbuffers::FlatBufferBuilder &fbb
   // CSS transform arrives as JS-built TransformOpList bytes; memcpy verbatim.
   Offset<flatbuffers::Vector<uint8_t>> transformDataOff = 0;
   if (node.transformData.length > 0) {
-    transformDataOff = fbb.CreateVector((const uint8_t *)node.transformData.bytes,
-                                        node.transformData.length);
+    transformDataOff =
+        fbb.CreateVector((const uint8_t *)node.transformData.bytes, node.transformData.length);
   }
   // display = INLINE(0), visibility = VISIBLE(0); dasharray/dashoffset TODO.
-  return CreateComputedStyle(
-      fbb, fillOff, strokeOff, node.strokeWidth, static_cast<LineCap>(node.strokeCap),
-      static_cast<LineJoin>(node.strokeJoin),
-      /*stroke_dasharray*/ 0, /*stroke_dashoffset*/ 0.f, node.strokeMiter,
-      static_cast<FillRule>(node.fillRule), node.opacity,
-      /*display*/ Display_INLINE, /*visibility*/ Visibility_VISIBLE,
-      /*transform*/ 0, transformDataOff);
+  return CreateComputedStyle(fbb, fillOff, strokeOff, node.strokeWidth,
+                             static_cast<LineCap>(node.strokeCap),
+                             static_cast<LineJoin>(node.strokeJoin),
+                             /*stroke_dasharray*/ 0, /*stroke_dashoffset*/ 0.f, node.strokeMiter,
+                             static_cast<FillRule>(node.fillRule), node.opacity,
+                             /*display*/ Display_INLINE, /*visibility*/ Visibility_VISIBLE,
+                             /*transform*/ 0, transformDataOff);
 }
 
 static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &fbb,
@@ -73,8 +73,7 @@ static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &f
   // path d arrives as JS-built PathCommandList bytes; memcpy verbatim.
   Offset<flatbuffers::Vector<uint8_t>> pathDataOff = 0;
   if (node.pathData.length > 0) {
-    pathDataOff =
-        fbb.CreateVector((const uint8_t *)node.pathData.bytes, node.pathData.length);
+    pathDataOff = fbb.CreateVector((const uint8_t *)node.pathData.bytes, node.pathData.length);
   }
   auto tagOff = fbb.CreateString([node.skityTagName UTF8String]);
 
@@ -105,11 +104,10 @@ LYNX_REGISTER_SHADOW_NODE("skity-canvas")
 
 // Canvas-only props (inherited geometry/paint/transform/d props come from
 // SkityNodeBase's group). preserveAspectRatio is fixed at X_MID/MEET for now.
-LYNX_PROPS_GROUP_DECLARE(
-    LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber *),
-    LYNX_PROP_DECLARE("viewportY", setViewportY:, NSNumber *),
-    LYNX_PROP_DECLARE("viewportWidth", setViewportWidth:, NSNumber *),
-    LYNX_PROP_DECLARE("viewportHeight", setViewportHeight:, NSNumber *))
+LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber *),
+                         LYNX_PROP_DECLARE("viewportY", setViewportY:, NSNumber *),
+                         LYNX_PROP_DECLARE("viewportWidth", setViewportWidth:, NSNumber *),
+                         LYNX_PROP_DECLARE("viewportHeight", setViewportHeight:, NSNumber *))
 
 - (NSString *)skityTagName {
   return @"canvas";
@@ -129,17 +127,23 @@ LYNX_PROPS_GROUP_DECLARE(
 
 #pragma mark - Viewport setters
 
+// setNeedsLayout on every setter so a prop change forces a layout pass →
+// measure re-serializes the tree → repaint. Mirrors SkityNodeBase.m.
 LYNX_PROP_SETTER("viewportX", setViewportX, NSNumber *) {
   _viewportX = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("viewportY", setViewportY, NSNumber *) {
   _viewportY = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("viewportWidth", setViewportWidth, NSNumber *) {
   _viewportWidth = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
   _viewportHeight = value.floatValue;
+  [self setNeedsLayout];
 }
 
 #pragma mark - LynxCustomMeasureDelegate

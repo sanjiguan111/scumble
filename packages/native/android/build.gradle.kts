@@ -1,6 +1,11 @@
 plugins {
   id("com.android.library")
   alias(libs.plugins.kotlin.android)
+  // lynx-processor is a Java annotation processor; annotationProcessor() only
+  // scans Java sources, so Kotlin @LynxProp setters (ShadowNode / UI) never get
+  // a generated PropsSetter ("PropsSetter not generated for class …"). kapt
+  // bridges the APT to Kotlin. Mirrors lynx-native-svg's android build.gradle.
+  alias(libs.plugins.kotlin.kapt)
 }
 
 val lynxPrimjsVersion = providers.gradleProperty("lynx.primjs.version").orElse("4.+").get()
@@ -78,7 +83,7 @@ dependencies {
   implementation("org.lynxsdk.lynx:lynx:4.0.1")
   implementation("androidx.annotation:annotation:1.8.2")
   implementation("org.lynxsdk.lynx:service-api:4.0.1")
-  annotationProcessor("org.lynxsdk.lynx:lynx-processor:4.0.1")
+  kapt("org.lynxsdk.lynx:lynx-processor:4.0.1")
 
   implementation("org.lynxsdk.lynx:primjs:$lynxPrimjsVersion")
   primjsNativeAar("org.lynxsdk.lynx:primjs:$lynxPrimjsVersion@aar")

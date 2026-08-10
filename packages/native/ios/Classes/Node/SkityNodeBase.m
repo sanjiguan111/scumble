@@ -55,90 +55,122 @@ LYNX_PROPS_GROUP_DECLARE(
   return self;
 }
 
+// Every setter calls setNeedsLayout so a prop change forces a layout pass → the
+// canvas's measure() re-serializes the tree → repaint. Pure-style props
+// (fill/stroke/opacity/d/transform) don't change layout on their own, so
+// without this they'd update the field but never reach the render bundle.
+// setNeedsLayout coalesces (next vsync), so a batch of prop updates triggers a
+// single measure. Android mirrors this with markDirty() per setter.
 #pragma mark - Geometry setters
 
 LYNX_PROP_SETTER("x", setX, NSNumber *) {
   _x = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y", setY, NSNumber *) {
   _y = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("width", setWidth, NSNumber *) {
   _width = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("height", setHeight, NSNumber *) {
   _height = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("cx", setCx, NSNumber *) {
   _cx = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("cy", setCy, NSNumber *) {
   _cy = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("r", setR, NSNumber *) {
   _r = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("rx", setRx, NSNumber *) {
   _rx = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("ry", setRy, NSNumber *) {
   _ry = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("x1", setX1, NSNumber *) {
   _x1 = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y1", setY1, NSNumber *) {
   _y1 = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("x2", setX2, NSNumber *) {
   _x2 = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y2", setY2, NSNumber *) {
   _y2 = value.floatValue;
+  [self setNeedsLayout];
 }
 
 #pragma mark - Paint setters
 
 LYNX_PROP_SETTER("color", setColor, NSNumber *) {
   _fillColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fill", setFill, NSNumber *) {
   _fillColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("stroke", setStroke, NSNumber *) {
   _strokeColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeWidth", setStrokeWidth, NSNumber *) {
   _strokeWidth = value.floatValue;
+  [self setNeedsLayout];
 }
 // Enums arrive as numbers already mapped to skityrt bytes (parsers layer).
 LYNX_PROP_SETTER("strokeCap", setStrokeCap, NSNumber *) {
   _strokeCap = (uint8_t)value.intValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeJoin", setStrokeJoin, NSNumber *) {
   _strokeJoin = (uint8_t)value.intValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeMiter", setStrokeMiter, NSNumber *) {
   _strokeMiter = value.floatValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fillRule", setFillRule, NSNumber *) {
   _fillRule = (uint8_t)value.intValue;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("opacity", setOpacity, NSNumber *) {
   _opacity = value.floatValue;
+  [self setNeedsLayout];
 }
 
 #pragma mark - Transform & path setters (base64 → decode → memcpy)
 
 LYNX_PROP_SETTER("transform", setTransform, NSString *) {
-  NSData *decoded = [[NSData alloc] initWithBase64EncodedString:value
-                                                       options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _transformData = decoded.length > 0 ? decoded : nil;
+  [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("d", setD, NSString *) {
-  NSData *decoded = [[NSData alloc] initWithBase64EncodedString:value
-                                                       options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _pathData = decoded.length > 0 ? decoded : nil;
+  [self setNeedsLayout];
 }
 
 @end

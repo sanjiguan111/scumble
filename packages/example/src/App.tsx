@@ -1,3 +1,4 @@
+import { useState } from "@lynx-js/react";
 import { Canvas, Circle, Group, Path, Path2D, Rect } from "@lynx-skity/react";
 
 // skity demo via the @lynx-skity/react component layer (react-native-skity-style
@@ -28,9 +29,17 @@ const star = new Path2D();
   star.close();
 }
 
+// Colors cycled by the tap-to-change-color demo below. Verifies that a pure-style
+// prop change (fill color) reaches the render bundle and repaints — before the
+// setNeedsLayout/markDirty trigger, tapping here updated the ShadowNode field but
+// nothing redrew.
+const TAP_COLORS = ["#ef4444", "#22c55e", "#3b82f6", "#f59e0b", "#a855f7"];
+
 export function App() {
+  const [tapIdx, setTapIdx] = useState(0);
+  const toggleTap = () => setTapIdx((i) => (i + 1) % TAP_COLORS.length);
   return (
-    <view style={{ width: "100%", height: "100%", backgroundColor: "#ffffff" }}>
+    <scroll-view style={{ width: "100%", height: "100%", backgroundColor: "#ffffff" }}>
       <text style={{ fontSize: "20px", padding: "16px" }}>lynx-skity demo</text>
       <Canvas style={{ width: "100%", height: "400px" }}>
         {/* filled red rectangle */}
@@ -68,7 +77,18 @@ export function App() {
         <Circle cx={70} cy={30} radius={20} color="#3b82f6" />
         <Path path="M5 95 L50 60 L95 95 Z" color="#22c55e" />
       </Canvas>
+      {/* tap-to-cycle color: verifies a pure-style prop (fill color) change
+          triggers re-serialize + repaint. Before the setNeedsLayout/markDirty
+          trigger, tapping did nothing visible. */}
+      <text style={{ fontSize: "16px", padding: "16px" }}>
+        点击切换颜色 (tap to cycle) · {TAP_COLORS[tapIdx]}
+      </text>
+      <view bindtap={toggleTap} style={{ width: "100%", height: "160px" }}>
+        <Canvas style={{ width: "100%", height: "160px" }} viewPort={{ width: 100, height: 100 }}>
+          <Circle cx={50} cy={50} radius={35} color={TAP_COLORS[tapIdx]} />
+        </Canvas>
+      </view>
       <text style={{ padding: "16px" }}>Rendered by skity GPU Backend.</text>
-    </view>
+    </scroll-view>
   );
 }

@@ -54,32 +54,105 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var transformData: ByteArray? = null
   @JvmField var pathData: ByteArray? = null
 
+  // Every setter calls markDirty() so a prop change forces a layout pass → the
+  // container canvas's measure() re-serializes the tree → repaint. Pure-style
+  // props (fill/stroke/opacity/d/transform) don't change layout on their own;
+  // without markDirty they'd update the field but never reach the render bundle.
+  // onAfterUpdateTransaction does NOT fire on the canvas when a *child*'s prop
+  // changes, so the trigger must be per-setter. markDirty() coalesces into one
+  // layout pass per batch. (iOS mirrors this with setNeedsLayout per setter.)
   // ---- geometry setters ----
-  @LynxProp(name = "x") fun setX(v: Float) { x = v }
-  @LynxProp(name = "y") fun setY(v: Float) { y = v }
-  @LynxProp(name = "width") fun setWidth(v: Float) { width = v }
-  @LynxProp(name = "height") fun setHeight(v: Float) { height = v }
-  @LynxProp(name = "cx") fun setCx(v: Float) { cx = v }
-  @LynxProp(name = "cy") fun setCy(v: Float) { cy = v }
-  @LynxProp(name = "r") fun setR(v: Float) { r = v }
-  @LynxProp(name = "rx") fun setRx(v: Float) { rx = v }
-  @LynxProp(name = "ry") fun setRy(v: Float) { ry = v }
-  @LynxProp(name = "x1") fun setX1(v: Float) { x1 = v }
-  @LynxProp(name = "y1") fun setY1(v: Float) { y1 = v }
-  @LynxProp(name = "x2") fun setX2(v: Float) { x2 = v }
-  @LynxProp(name = "y2") fun setY2(v: Float) { y2 = v }
+  @LynxProp(name = "x") fun setX(v: Float) {
+    x = v
+    markDirty()
+  }
+  @LynxProp(name = "y") fun setY(v: Float) {
+    y = v
+    markDirty()
+  }
+  @LynxProp(name = "width") fun setWidth(v: Float) {
+    width = v
+    markDirty()
+  }
+  @LynxProp(name = "height") fun setHeight(v: Float) {
+    height = v
+    markDirty()
+  }
+  @LynxProp(name = "cx") fun setCx(v: Float) {
+    cx = v
+    markDirty()
+  }
+  @LynxProp(name = "cy") fun setCy(v: Float) {
+    cy = v
+    markDirty()
+  }
+  @LynxProp(name = "r") fun setR(v: Float) {
+    r = v
+    markDirty()
+  }
+  @LynxProp(name = "rx") fun setRx(v: Float) {
+    rx = v
+    markDirty()
+  }
+  @LynxProp(name = "ry") fun setRy(v: Float) {
+    ry = v
+    markDirty()
+  }
+  @LynxProp(name = "x1") fun setX1(v: Float) {
+    x1 = v
+    markDirty()
+  }
+  @LynxProp(name = "y1") fun setY1(v: Float) {
+    y1 = v
+    markDirty()
+  }
+  @LynxProp(name = "x2") fun setX2(v: Float) {
+    x2 = v
+    markDirty()
+  }
+  @LynxProp(name = "y2") fun setY2(v: Float) {
+    y2 = v
+    markDirty()
+  }
 
   // ---- paint setters ----
-  @LynxProp(name = "color") fun setColor(v: Double) { fillColor = v.toLong() and 0xFFFFFFFFL }
-  @LynxProp(name = "fill") fun setFill(v: Double) { fillColor = v.toLong() and 0xFFFFFFFFL }
-  @LynxProp(name = "stroke") fun setStroke(v: Double) { strokeColor = v.toLong() and 0xFFFFFFFFL }
-  @LynxProp(name = "strokeWidth") fun setStrokeWidth(v: Float) { strokeWidth = v }
+  @LynxProp(name = "color") fun setColor(v: Double) {
+    fillColor = v.toLong() and 0xFFFFFFFFL
+    markDirty()
+  }
+  @LynxProp(name = "fill") fun setFill(v: Double) {
+    fillColor = v.toLong() and 0xFFFFFFFFL
+    markDirty()
+  }
+  @LynxProp(name = "stroke") fun setStroke(v: Double) {
+    strokeColor = v.toLong() and 0xFFFFFFFFL
+    markDirty()
+  }
+  @LynxProp(name = "strokeWidth") fun setStrokeWidth(v: Float) {
+    strokeWidth = v
+    markDirty()
+  }
   // Enums arrive as numbers already mapped to skityrt bytes (parsers layer).
-  @LynxProp(name = "strokeCap") fun setStrokeCap(v: Int) { strokeCap = v.toByte() }
-  @LynxProp(name = "strokeJoin") fun setStrokeJoin(v: Int) { strokeJoin = v.toByte() }
-  @LynxProp(name = "strokeMiter") fun setStrokeMiter(v: Float) { strokeMiter = v }
-  @LynxProp(name = "fillRule") fun setFillRule(v: Int) { fillRule = v.toByte() }
-  @LynxProp(name = "opacity") fun setOpacity(v: Float) { opacity = v }
+  @LynxProp(name = "strokeCap") fun setStrokeCap(v: Int) {
+    strokeCap = v.toByte()
+    markDirty()
+  }
+  @LynxProp(name = "strokeJoin") fun setStrokeJoin(v: Int) {
+    strokeJoin = v.toByte()
+    markDirty()
+  }
+  @LynxProp(name = "strokeMiter") fun setStrokeMiter(v: Float) {
+    strokeMiter = v
+    markDirty()
+  }
+  @LynxProp(name = "fillRule") fun setFillRule(v: Int) {
+    fillRule = v.toByte()
+    markDirty()
+  }
+  @LynxProp(name = "opacity") fun setOpacity(v: Float) {
+    opacity = v
+    markDirty()
+  }
 
   // ---- transform & path (base64-encoded nested FlatBuffer; decode + memcpy) ----
   // Lynx props marshal String but not ByteArray, so the JS-built PathCommandList
@@ -88,10 +161,12 @@ abstract class SkityNodeBase : ShadowNode() {
   @LynxProp(name = "transform") fun setTransform(v: String) {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     transformData = if (decoded.isNotEmpty()) decoded else null
+    markDirty()
   }
   @LynxProp(name = "d") fun setD(v: String) {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     pathData = if (decoded.isNotEmpty()) decoded else null
+    markDirty()
   }
 
   /** Shape & group nodes are virtual (no platform view); the canvas node overrides this. */

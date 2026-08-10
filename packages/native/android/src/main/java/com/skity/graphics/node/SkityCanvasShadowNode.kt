@@ -47,10 +47,12 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   private var viewportWidth = 0f
   private var viewportHeight = 0f
 
-  @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v }
-  @LynxProp(name = "viewportY") fun setViewportY(v: Float) { viewportY = v }
-  @LynxProp(name = "viewportWidth") fun setViewportWidth(v: Float) { viewportWidth = v }
-  @LynxProp(name = "viewportHeight") fun setViewportHeight(v: Float) { viewportHeight = v }
+  // Each setter calls markDirty() to force a layout pass → measure → repaint,
+  // mirroring SkityNodeBase's per-setter trigger.
+  @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v; markDirty() }
+  @LynxProp(name = "viewportY") fun setViewportY(v: Float) { viewportY = v; markDirty() }
+  @LynxProp(name = "viewportWidth") fun setViewportWidth(v: Float) { viewportWidth = v; markDirty() }
+  @LynxProp(name = "viewportHeight") fun setViewportHeight(v: Float) { viewportHeight = v; markDirty() }
 
   private var renderBundle: SkityRenderBundle? = null
 
