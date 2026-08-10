@@ -16,11 +16,11 @@
 #endif
 
 #ifndef NAPI_USE
-#define NAPI_USE(modname)                                                 \
-  EXTERN_C_START                                                          \
-  extern void _napi_register_xx_##modname(void);                          \
-  __attribute__((used)) static void* _napi_module_##modname##_p =         \
-      (void*)&_napi_register_xx_##modname;                                 \
+#define NAPI_USE(modname)                                                                          \
+  EXTERN_C_START                                                                                   \
+  extern void _napi_register_xx_##modname(void);                                                   \
+  __attribute__((used)) static void *_napi_module_##modname##_p =                                  \
+      (void *)&_napi_register_xx_##modname;                                                        \
   EXTERN_C_END
 #endif
 

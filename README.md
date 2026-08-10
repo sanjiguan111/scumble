@@ -41,7 +41,7 @@ Full design + roadmap: [`packages/native/RENDER_ARCHITECTURE.md`](packages/nativ
 
 | Package                                     | What it is                                                                                                                         |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [`@lynx-skity/native`](packages/native)         | The native Lynx library — intrinsic `<skity-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `SkityRenderer`. |
+| [`@lynx-skity/native`](packages/native)     | The native Lynx library — intrinsic `<skity-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `SkityRenderer`. |
 | [`@lynx-skity/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                               |
 | [`@lynx-skity/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                         |
 | [`example`](packages/example)               | rspeedy demo app consuming all of the above.                                                                                       |

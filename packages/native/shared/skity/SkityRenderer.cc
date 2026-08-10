@@ -302,8 +302,8 @@ void ApplyViewport(const RenderTree *tree, Canvas *canvas, float canvasWidthPx,
     sy = scaleY;
     tx = ty = 0.f;
   } else {
-    float s = (mos == AspectRatioMeetOrSlice_MEET) ? std::min(scaleX, scaleY)
-                                                    : std::max(scaleX, scaleY);
+    float s =
+        (mos == AspectRatioMeetOrSlice_MEET) ? std::min(scaleX, scaleY) : std::max(scaleX, scaleY);
     sx = sy = s;
     float freeW = canvasDpW - vw * s;
     float freeH = canvasDpH - vh * s;
@@ -359,8 +359,8 @@ void DrawNode(const RenderNode *node, Canvas *canvas) {
 
 } // namespace
 
-void SkityRenderer::Draw(const RenderTree *tree, Canvas *canvas, float density,
-                         float canvasWidth, float canvasHeight) {
+void SkityRenderer::Draw(const RenderTree *tree, Canvas *canvas, float density, float canvasWidth,
+                         float canvasHeight) {
   if (tree == nullptr || canvas == nullptr) return;
   const RenderNode *root = tree->root();
   if (root == nullptr) return;

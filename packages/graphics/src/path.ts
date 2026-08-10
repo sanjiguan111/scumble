@@ -69,8 +69,16 @@ class PathScanner {
     const c = this.d[this.i];
     const u = c.toUpperCase();
     if (
-      u === "M" || u === "L" || u === "H" || u === "V" || u === "C" ||
-      u === "S" || u === "Q" || u === "T" || u === "A" || u === "Z"
+      u === "M" ||
+      u === "L" ||
+      u === "H" ||
+      u === "V" ||
+      u === "C" ||
+      u === "S" ||
+      u === "Q" ||
+      u === "T" ||
+      u === "A" ||
+      u === "Z"
     ) {
       return c;
     }
@@ -259,8 +267,12 @@ export function parsePath(d: string): ArrayBuffer | null {
             x = num(),
             y = num();
           if (
-            x1 === null || y1 === null || x2 === null || y2 === null ||
-            x === null || y === null
+            x1 === null ||
+            y1 === null ||
+            x2 === null ||
+            y2 === null ||
+            x === null ||
+            y === null
           ) {
             break;
           }
@@ -378,8 +390,13 @@ export function parsePath(d: string): ArrayBuffer | null {
           const x = num(),
             y = num();
           if (
-            rx === null || ry === null || rot === null || large === null ||
-            sweep === null || x === null || y === null
+            rx === null ||
+            ry === null ||
+            rot === null ||
+            large === null ||
+            sweep === null ||
+            x === null ||
+            y === null
           ) {
             break;
           }

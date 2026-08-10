@@ -41,11 +41,11 @@ Dependency direction is a single directed acyclic chain: `@lynx-skity/{react,vue
 
 ## 3. Responsibility split
 
-| Data nature                       | Examples                                                                  | Owner                                   | Transport                                     |
-| --------------------------------- | ------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------- |
-| Parse-free scalars                | color `0xAARRGGBB`, geometry `cx/cy/r/x/y/w/h`, `strokeWidth`, enum bytes | base tag prop (unchanged)               | `@LynxProp` number                            |
+| Data nature                       | Examples                                                                  | Owner                                   | Transport                                                                            |
+| --------------------------------- | ------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------ |
+| Parse-free scalars                | color `0xAARRGGBB`, geometry `cx/cy/r/x/y/w/h`, `strokeWidth`, enum bytes | base tag prop (unchanged)               | `@LynxProp` number                                                                   |
 | Parsed / nested structures        | path `d`, CSS `transform`, `Gradient`, `Shader`, `dasharray`, `points`    | **front-end parse → serialize**         | nested FlatBuffer bytes, base64 over a string prop (Lynx props don't marshal binary) |
-| canvas-level coordinate transform | `viewport` (logical → physical px)                                        | canvas node declares + renderer applies | `RenderTree` top-level field                  |
+| canvas-level coordinate transform | `viewport` (logical → physical px)                                        | canvas node declares + renderer applies | `RenderTree` top-level field                                                         |
 
 Note: even enum strings like `strokeCap="round"` are front-loaded — the framework component accepts a friendly string, the parser maps it to a byte, the base prop receives a number. The native side is left with no enum parsing either; the principle stays consistent.
 

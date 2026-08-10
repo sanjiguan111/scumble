@@ -155,10 +155,7 @@ describe("Path2D → nested FlatBuffer", () => {
   });
 
   it("serializes cubicTo / quadTo args", () => {
-    const p = new Path2D()
-      .moveTo(0, 0)
-      .cubicTo(1, 2, 3, 4, 5, 6)
-      .quadTo(7, 8, 9, 10);
+    const p = new Path2D().moveTo(0, 0).cubicTo(1, 2, 3, 4, 5, 6).quadTo(7, 8, 9, 10);
     const list = readBack(p.toBytes());
     const c = list.commands(1)!;
     expect(c.type()).toBe(PathCommandType.CUBIC_TO);
