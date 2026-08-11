@@ -77,10 +77,11 @@ static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &f
   }
   auto tagOff = fbb.CreateString([node.skityTagName UTF8String]);
 
-  return CreateRenderNode(fbb, /*id*/ 0, tagOff, styleOff, node.x, node.y, node.width, node.height,
-                          node.cx, node.cy, node.r, node.rx, node.ry, node.x1, node.y1, node.x2,
-                          node.y2, /*offset*/ 0.f, childrenVec, /*path_commands*/ 0, pathDataOff,
-                          /*points*/ 0, GradientUnits_OBJECT_BOUNDING_BOX, SpreadMethod_PAD);
+  return CreateRenderNode(fbb, node.nativeId, tagOff, styleOff, node.x, node.y, node.width,
+                          node.height, node.cx, node.cy, node.r, node.rx, node.ry, node.x1, node.y1,
+                          node.x2, node.y2, /*offset*/ 0.f, childrenVec, /*path_commands*/ 0,
+                          pathDataOff, /*points*/ 0, GradientUnits_OBJECT_BOUNDING_BOX,
+                          SpreadMethod_PAD);
 }
 
 #pragma mark -
@@ -92,6 +93,9 @@ static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &f
 @property(nonatomic, assign) float viewportY;
 @property(nonatomic, assign) float viewportWidth;
 @property(nonatomic, assign) float viewportHeight;
+// Monotonic node-id allocator for the retained render tree (Phase 2). Starts at
+// 1; assigned lazily in measureWithMeasureParam: via assignNativeIdsRecursive:.
+@property(nonatomic, assign) int32_t nextNodeId;
 @end
 
 @implementation SkityCanvasShadowNode
@@ -121,6 +125,7 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
   self = [super initWithSign:sign tagName:tagName];
   if (self) {
     self.customMeasureDelegate = self;
+    _nextNodeId = 1;
   }
   return self;
 }
@@ -150,6 +155,10 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
 
 - (MeasureResult)measureWithMeasureParam:(MeasureParam *)param
                           MeasureContext:(MeasureContext *)context {
+  // Phase 2: assign stable node ids to every node in the shadow tree before
+  // serializing, so the retained tree on the render thread can address nodes by
+  // id (SyncFromSnapshot + Step 1b CommandBatch).
+  [self assignNativeIdsRecursive:self];
   float density = [UIScreen mainScreen].scale;
 
   // Layout is driven by Lynx (style width/height). Resolve a concrete size from
@@ -207,6 +216,20 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
 
 - (void)alignWithAlignParam:(AlignParam *)param AlignContext:(AlignContext *)context {
   // no-op — layout is handled by Lynx
+}
+
+// DFS the shadow tree and assign a fresh nativeId to any node still at 0.
+// Stable ids let the render-thread retained tree reconcile snapshots in place
+// (Phase 2). Runs at the top of measure once per layout pass.
+- (void)assignNativeIdsRecursive:(SkityNodeBase *)node {
+  if (node.nativeId == 0) {
+    node.nativeId = self.nextNodeId++;
+  }
+  for (LynxShadowNode *child in node.children) {
+    if ([child isKindOfClass:[SkityNodeBase class]]) {
+      [self assignNativeIdsRecursive:(SkityNodeBase *)child];
+    }
+  }
 }
 
 #pragma mark - Extra Bundle

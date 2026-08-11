@@ -6,19 +6,26 @@
 #import <Metal/Metal.h>
 
 #include <memory>
+#include <unordered_map>
 
 #include <skity/gpu/gpu_context_mtl.h>
 #include <skity/gpu/gpu_surface.hpp>
 #include <skity/skity.hpp>
 
-#include "SkityRenderer.h"         // shared/skity — cross-platform renderer
-#include "render_tree_generated.h" // skityrt::GetRenderTree
+#include "SkityRenderer.h"          // shared/skity — cross-platform renderer
+#include "render_tree_generated.h"  // skityrt::GetRenderTree
+#include "retained_render_tree.h"   // skityrt::RetainedRenderTree (per-layer)
 
 @implementation SkityMetalContext {
   id<MTLDevice> _device;
   id<MTLCommandQueue> _queue;
   std::unique_ptr<skity::GPUContext> _gpuContext;
   dispatch_queue_t _renderQueue;
+  // Per-canvas retained render trees, keyed by the CAMetalLayer pointer. The
+  // context is a process-wide singleton, but each canvas (layer) owns an
+  // independent tree; all access is serialized on _renderQueue (single-threaded
+  // by contract), so no lock is needed.
+  std::unordered_map<intptr_t, std::unique_ptr<skityrt::RetainedRenderTree>> _retainedTrees;
 }
 
 + (instancetype)sharedInstance {
@@ -52,6 +59,17 @@
           density:(float)density {
   if (layer == nil || treeData.length == 0 || _gpuContext == nullptr) return;
 
+  // Reconcile the snapshot into this layer's retained tree (id-aware in-place
+  // update). Single-threaded on the render queue; the tree persists across
+  // frames so Step 1b's incremental CommandBatch can mutate it directly.
+  intptr_t key = reinterpret_cast<intptr_t>(layer);
+  auto &slot = _retainedTrees[key];
+  if (slot == nullptr) {
+    slot = std::make_unique<skityrt::RetainedRenderTree>();
+  }
+  const auto *fb = skityrt::GetRenderTree(static_cast<const void *>(treeData.bytes));
+  slot->SyncFromSnapshot(fb);
+
   @autoreleasepool {
     id<CAMetalDrawable> drawable = [layer nextDrawable];
     if (drawable == nil) return;
@@ -73,11 +91,10 @@
     auto *canvas = surface->LockCanvas();
     if (canvas == nullptr) return;
 
-    // Decode the FlatBuffer and draw. This is the shared C++ entry point that
-    // Android also reaches (via JNI → AppRenderer → GLESRenderBackend).
-    const auto *tree = skityrt::GetRenderTree(static_cast<const void *>(treeData.bytes));
+    // Draw from the retained tree (not the FlatBuffer snapshot). This is the
+    // shared C++ entry point that Android also reaches (via JNI → AppRenderer).
     // w/h are the Metal drawable size in physical pixels (viewportW/viewportH).
-    skityrt::SkityRenderer::Draw(tree, canvas, density, static_cast<float>(w),
+    skityrt::SkityRenderer::Draw(slot.get(), canvas, density, static_cast<float>(w),
                                  static_cast<float>(h));
 
     canvas->Flush();
@@ -87,6 +104,11 @@
     [cmd presentDrawable:drawable];
     [cmd commit];
   }
+}
+
+- (void)purgeRetainedTreeForLayer:(CAMetalLayer *)layer {
+  if (layer == nil) return;
+  _retainedTrees.erase(reinterpret_cast<intptr_t>(layer));
 }
 
 @end

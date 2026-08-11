@@ -26,7 +26,7 @@ public:
   void OnSurfaceCreated() override;
   void OnSurfaceDestroyed() override;
   void OnSurfaceChanged(int width, int height) override;
-  void DrawFrame(const uint8_t *data, std::size_t size, float density) override;
+  void DrawFrame(const skityrt::RetainedRenderTree *tree, float density) override;
 
 private:
   bool InitSurface();

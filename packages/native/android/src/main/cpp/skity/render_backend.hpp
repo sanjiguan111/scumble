@@ -3,15 +3,16 @@
 //
 // RenderBackend: abstract GPU backend (GLES / Vulkan) for the skity canvas
 // element. Mirrors Skity-Android's render_backend.hpp, minus the demo-scene
-// surface; instead of SetScene it renders a FlatBuffer RenderTree via
+// surface; instead of SetScene it renders a retained render tree via
 // SkityRenderer. Native-window/surface lifecycle matches Android's
 // SurfaceView / GLSurfaceView callbacks.
 #pragma once
 
 #include <android/native_window.h>
 
-#include <cstddef>
 #include <cstdint>
+
+#include "retained_render_tree.h" // skityrt::RetainedRenderTree (DrawFrame)
 
 namespace lynxskity {
 
@@ -26,10 +27,10 @@ public:
   virtual void OnSurfaceDestroyed() = 0;
   virtual void OnSurfaceChanged(int width, int height) = 0;
 
-  // Render the latest RenderTree bytes onto a freshly acquired skity surface.
-  // Called on the render thread. `density` scales logical dp → pixels inside
-  // SkityRenderer (canvas->scale(density)).
-  virtual void DrawFrame(const uint8_t *data, std::size_t size, float density) = 0;
+  // Render the retained tree onto a freshly acquired skity surface. Called on
+  // the render thread. `density` scales logical dp → pixels inside SkityRenderer
+  // (canvas->scale(density)).
+  virtual void DrawFrame(const skityrt::RetainedRenderTree *tree, float density) = 0;
 };
 
 } // namespace lynxskity

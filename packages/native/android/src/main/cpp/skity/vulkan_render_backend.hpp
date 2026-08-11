@@ -15,7 +15,7 @@
 namespace lynxskity {
 
 // Vulkan backend: creates a skity GPUContextVK + a GPUNativeWindowVK bound to
-// the host TextureView's ANativeWindow, and renders a RenderTree via the
+// the host TextureView's ANativeWindow, and renders the retained tree via the
 // presenter (AcquireNextSurface → LockCanvas → SkityRenderer → Present). All
 // Vulkan state is thread-local, so this backend must be driven from a single
 // render thread (SkityVulkanRenderThread, separate from the GL thread).
@@ -31,7 +31,7 @@ public:
   void OnSurfaceCreated() override;
   void OnSurfaceDestroyed() override;
   void OnSurfaceChanged(int width, int height) override;
-  void DrawFrame(const uint8_t *data, std::size_t size, float density) override;
+  void DrawFrame(const skityrt::RetainedRenderTree *tree, float density) override;
 
 private:
   bool EnsureContext();

@@ -7,17 +7,18 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <mutex>
-#include <vector>
+
+#include "retained_render_tree.h" // skityrt::RetainedRenderTree
 
 namespace lynxskity {
 
 class RenderBackend;
 
-// Owns a RenderBackend + the latest RenderTree bytes pushed from the Lynx
-// ShadowNode layer (via JNI). The UI thread updates the bytes; the render
-// thread reads them in DrawFrame(). Mirrors Skity-Android's AppRenderer, minus
-// demo scene/MSAA, plus a thread-safe RenderTree slot.
+// Owns a RenderBackend + the retained render tree reconciled from RenderTree
+// snapshots pushed from the Lynx ShadowNode layer (via JNI). The UI thread
+// feeds snapshot bytes; the render thread syncs them into the retained tree and
+// draws. Single-threaded by contract (render thread), so the tree needs no lock.
+// Mirrors Skity-Android's AppRenderer minus demo scene/MSAA.
 class AppRenderer {
 public:
   // backend_type: 1 = GLES (default), 2 = Vulkan.
@@ -31,13 +32,12 @@ public:
   void OnSurfaceChanged(int width, int height);
   void DrawFrame();
 
-  // Called from the Lynx/UI thread with the serialized RenderTree.
+  // Called from the Lynx/UI thread with a serialized RenderTree snapshot.
   void SetRenderTree(const uint8_t *data, std::size_t size, float density);
 
 private:
   std::unique_ptr<RenderBackend> backend_;
-  std::mutex data_mutex_;
-  std::vector<uint8_t> render_tree_;
+  skityrt::RetainedRenderTree retained_tree_;
   float density_ = 1.f;
 };
 

@@ -15,8 +15,10 @@ Pod::Spec.new do |s|
   # trees are inside the pod root and CocoaPods compiles them (source_files
   # outside the podspec dir are silently skipped, which is why this can't live
   # under ios/ while referencing ../shared).
-  s.source_files = 'ios/Classes/**/*.{h,m,mm}', 'shared/skity/SkityRenderer.{h,cc}'
-  s.public_header_files = 'ios/Classes/**/*.h', 'shared/skity/SkityRenderer.h'
+  s.source_files = 'ios/Classes/**/*.{h,m,mm}', 'shared/skity/SkityRenderer.{h,cc}',
+                   'shared/skity/retained_render_tree.{h,cc}'
+  s.public_header_files = 'ios/Classes/**/*.h', 'shared/skity/SkityRenderer.h',
+                          'shared/skity/retained_render_tree.h'
 
   s.dependency 'Lynx'
   s.dependency 'skity', '1.1.0-alpha.3'

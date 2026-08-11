@@ -54,6 +54,11 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var transformData: ByteArray? = null
   @JvmField var pathData: ByteArray? = null
 
+  // Phase 2: stable node id assigned by the canvas node for the retained tree.
+  // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
+  // snapshot is serialized. Never reused.
+  @JvmField var nativeId: Int = 0
+
   // Every setter calls markDirty() so a prop change forces a layout pass → the
   // container canvas's measure() re-serializes the tree → repaint. Pure-style
   // props (fill/stroke/opacity/d/transform) don't change layout on their own;

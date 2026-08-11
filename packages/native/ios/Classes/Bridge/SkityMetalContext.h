@@ -36,6 +36,10 @@ NS_ASSUME_NONNULL_BEGIN
         viewportH:(uint32_t)h
           density:(float)density;
 
+/// Drop the retained render tree cached for `layer` (called when the session
+/// detaches). Keeps the per-layer tree map from growing unbounded.
+- (void)purgeRetainedTreeForLayer:(CAMetalLayer *)layer;
+
 @end
 
 NS_ASSUME_NONNULL_END

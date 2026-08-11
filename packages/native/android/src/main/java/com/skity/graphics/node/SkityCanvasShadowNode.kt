@@ -47,6 +47,10 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   private var viewportWidth = 0f
   private var viewportHeight = 0f
 
+  // Monotonic node-id allocator for the retained render tree (Phase 2). Starts
+  // at 1; assigned lazily in measure() via assignNativeIds(). Never reused.
+  private var nextNodeId = 1
+
   // Each setter calls markDirty() to force a layout pass → measure → repaint,
   // mirroring SkityNodeBase's per-setter trigger.
   @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v; markDirty() }
@@ -70,6 +74,10 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
 
   override fun measure(mp: MeasureParam?, mc: MeasureContext?): MeasureResult? {
     if (mp == null) return null
+    // Phase 2: assign stable node ids to every node in the shadow tree before
+    // serializing, so the retained tree on the render thread can address nodes
+    // by id (SyncFromSnapshot + Step 1b CommandBatch).
+    assignNativeIds(this)
     val density = context.resources.displayMetrics.density
 
     // Layout is driven by Lynx (style width/height). Resolve to a concrete size
@@ -115,6 +123,18 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     // no-op — layout is handled by Lynx
   }
 
+  // DFS the shadow tree and assign a fresh nativeId to any node still at 0.
+  // Stable ids let the render-thread retained tree reconcile snapshots in place
+  // (Phase 2). Runs at the top of measure() once per layout pass.
+  private fun assignNativeIds(node: SkityNodeBase) {
+    if (node.nativeId == 0) node.nativeId = nextNodeId++
+    val count = node.childCount
+    for (i in 0 until count) {
+      val child = node.getChildAt(i)
+      if (child is SkityNodeBase) assignNativeIds(child)
+    }
+  }
+
   // ---- FlatBuffer serialization (built leaves → root) ----
 
   private fun buildRenderNode(fbb: FlatBufferBuilder, node: SkityNodeBase): Int {
@@ -132,7 +152,7 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     val tagOff = fbb.createString(node.skityTagName)
 
     return RenderNode.createRenderNode(
-      fbb, /*id*/ 0, tagOff, styleOff,
+      fbb, node.nativeId, tagOff, styleOff,
       node.x, node.y, node.width, node.height,
       node.cx, node.cy, node.r, node.rx, node.ry,
       node.x1, node.y1, node.x2, node.y2, /*offset*/ 0f,

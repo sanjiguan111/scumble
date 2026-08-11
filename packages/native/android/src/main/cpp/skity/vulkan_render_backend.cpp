@@ -8,8 +8,7 @@
 #include <skity/gpu/gpu_presenter.hpp>
 #include <skity/render/canvas.hpp>
 
-#include "SkityRenderer.h"         // lynx-skity cross-platform renderer
-#include "render_tree_generated.h" // skityrt FlatBuffer reader
+#include "SkityRenderer.h" // lynx-skity cross-platform renderer (RetainedRenderTree)
 
 namespace lynxskity {
 
@@ -89,8 +88,8 @@ void VulkanRenderBackend::OnSurfaceChanged(int width, int height) {
   EnsureNativeWindow();
 }
 
-void VulkanRenderBackend::DrawFrame(const uint8_t *data, std::size_t size, float density) {
-  if (data == nullptr || size == 0) {
+void VulkanRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, float density) {
+  if (tree == nullptr) {
     return;
   }
   if (!EnsureNativeWindow()) {
@@ -120,7 +119,6 @@ void VulkanRenderBackend::DrawFrame(const uint8_t *data, std::size_t size, float
     return;
   }
 
-  const auto *tree = skityrt::GetRenderTree(data);
   skityrt::SkityRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
                                static_cast<float>(height_));
 

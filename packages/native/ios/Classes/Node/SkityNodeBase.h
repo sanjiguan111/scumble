@@ -51,6 +51,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong, nullable) NSData *transformData;
 @property(nonatomic, strong, nullable) NSData *pathData;
 
+// Phase 2: stable node id assigned by the canvas node for the retained tree.
+// 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
+// snapshot is serialized. Never reused.
+@property(nonatomic, assign) int32_t nativeId;
+
 @end
 
 NS_ASSUME_NONNULL_END

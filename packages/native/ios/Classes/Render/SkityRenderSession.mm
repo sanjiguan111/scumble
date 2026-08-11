@@ -32,6 +32,7 @@
 }
 
 - (void)detachSurface {
+  [self.context purgeRetainedTreeForLayer:self.layer];
   self.surfaceReady = NO;
   self.layer = nil;
 }

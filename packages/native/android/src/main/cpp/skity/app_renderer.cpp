@@ -6,6 +6,8 @@
 #include "shared_gl_context.hpp"
 #include "vulkan_render_backend.hpp"
 
+#include "render_tree_generated.h" // skityrt::GetRenderTree (snapshot parse)
+
 namespace lynxskity {
 
 namespace {
@@ -55,26 +57,18 @@ void AppRenderer::DrawFrame() {
   if (backend_ == nullptr) {
     return;
   }
-  std::vector<uint8_t> data;
-  float density = 1.f;
-  {
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    data = render_tree_;
-    density = density_;
-  }
-  if (data.empty()) {
-    return;
-  }
-  backend_->DrawFrame(data.data(), data.size(), density);
+  backend_->DrawFrame(&retained_tree_, density_);
 }
 
 void AppRenderer::SetRenderTree(const uint8_t *data, std::size_t size, float density) {
   if (data == nullptr || size == 0) {
     return;
   }
-  std::lock_guard<std::mutex> lock(data_mutex_);
-  render_tree_.assign(data, data + size);
   density_ = density;
+  // Parse the snapshot on the render thread (this runs inside the Handler.post
+  // that also does DrawFrame) and reconcile it into the retained tree in place.
+  const auto *tree = skityrt::GetRenderTree(data);
+  retained_tree_.SyncFromSnapshot(tree);
 }
 
 } // namespace lynxskity

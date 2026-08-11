@@ -7,8 +7,7 @@
 #include <skity/gpu/gpu_context_gl.hpp>
 #include <skity/gpu/gpu_surface.hpp>
 
-#include "SkityRenderer.h"         // lynx-skity cross-platform renderer
-#include "render_tree_generated.h" // skityrt FlatBuffer reader
+#include "SkityRenderer.h" // lynx-skity cross-platform renderer (RetainedRenderTree)
 #include "shared_gl_context.hpp"
 
 namespace lynxskity {
@@ -84,9 +83,9 @@ void GLESRenderBackend::OnSurfaceChanged(int width, int height) {
   height_ = height;
 }
 
-void GLESRenderBackend::DrawFrame(const uint8_t *data, std::size_t size, float density) {
+void GLESRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, float density) {
   if (width_ <= 0 || height_ <= 0 || shared_ == nullptr || shared_->skity_context == nullptr ||
-      egl_surface_ == EGL_NO_SURFACE || data == nullptr || size == 0) {
+      egl_surface_ == EGL_NO_SURFACE || tree == nullptr) {
     return;
   }
 
@@ -116,7 +115,6 @@ void GLESRenderBackend::DrawFrame(const uint8_t *data, std::size_t size, float d
   glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  const auto *tree = skityrt::GetRenderTree(data);
   skityrt::SkityRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
                                static_cast<float>(height_));
 
