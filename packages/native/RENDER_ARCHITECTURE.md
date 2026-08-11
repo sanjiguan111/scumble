@@ -144,10 +144,13 @@ Dependency-ordered; each step is independently reviewable:
 
 ## 11. Phase 2 roadmap — retained render tree + command stream
 
-> Status: **design / not yet implemented.** This section records the agreed
-> direction for the next architecture phase. It revises the §1 principle ("native
-> never holds structure") — Phase 2 deliberately moves from a *stateless
-> serializer* to a *stateful rendering engine*, motivated by animation.
+> Status: **Step 1 + Step 2 implemented (2026-08-11, branch `phase2/step1-retained-tree`).**
+> Step 1 (retained tree + paint command channel) and Step 2 (structural commands —
+> topology by command) are done and verified (dual-platform build; iOS static
+> zero-regression; dynamic Insert/Remove). Step 3 (geometry+viewport commands,
+> retire measure/snapshot) + Step 4 (cleanup markDirty) remain. This section
+> revises the §1 principle ("native never holds structure") — Phase 2 moves from
+> a *stateless serializer* to a *stateful rendering engine*, motivated by animation.
 
 ### 11.1 Motivation
 
@@ -326,15 +329,17 @@ removing the view). Shape/group nodes stay virtual.
 
 ### 11.10 Migration path (incremental, each step independently revertable)
 
-1. **Paint command channel.** Stand up the C++ retained tree + `CommandBatch`
-   plumbing; route only pure-paint setters (`SetPaint`/`SetPathData`/`SetTransform`)
-   through it, with `extraBundle` still coexisting as the fallback full-tree
-   path. Animation payoff lands here.
-2. **Structural commands + node id.** `InsertNode`/`RemoveNode`/`MoveNode`; the
-   render-thread tree is now the source of truth for topology.
+1. **Paint command channel** ✓ done (commits `defc114`/`baff691`). Stand up the
+   C++ retained tree + `CommandBatch` plumbing; route pure-paint setters
+   (`SetPaint`/`SetPathData`/`SetTransform`) through it, `extraBundle` coexisting.
+2. **Structural commands + node id** ✓ done (commit `b567ff8`). `InsertNode`/
+   `RemoveNode`/`MoveNode` from precise ShadowNode hooks (Android `addChildAt`/
+   `removeChildAt`, iOS `didAddSubComponent:`/`willRemoveComponent:`); the
+   render-thread tree is the source of truth for topology. Snapshot demoted to a
+   field-value refresh (SyncFromSnapshot no longer rebuilds topology).
 3. **Geometry + viewport via commands.** `SetGeometry`/`SetViewport`; delete
    `measure`, `buildRenderNode`, `extraBundle`, `SkityRenderBundle`. Lynx layout
-   owns canvas size end-to-end.
+   owns canvas size end-to-end. **(next)**
 4. Cleanup: remove the dead `markDirty`/`setNeedsLayout` calls; update this doc
    and the §1 principle.
 
