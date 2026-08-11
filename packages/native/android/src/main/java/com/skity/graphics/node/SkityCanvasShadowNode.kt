@@ -17,6 +17,9 @@ import com.skity.graphics.skityrt.AspectRatioMeetOrSlice
 import com.skity.graphics.skityrt.Command
 import com.skity.graphics.skityrt.CommandBatch
 import com.skity.graphics.skityrt.ComputedStyle
+import com.skity.graphics.skityrt.InsertNode
+import com.skity.graphics.skityrt.MoveNode
+import com.skity.graphics.skityrt.RemoveNode
 import com.skity.graphics.skityrt.SetPaint
 import com.skity.graphics.skityrt.SetPathData
 import com.skity.graphics.skityrt.SetTransform
@@ -26,6 +29,17 @@ import com.skity.graphics.skityrt.RenderTree
 import com.skity.graphics.skityrt.ResolvedPaint
 import com.skity.graphics.skityrt.RGBAColor
 import com.skity.graphics.skityrt.ViewBox
+
+/**
+ * Phase 2 Step 2 structural operations enqueued by SkityNodeBase's addChildAt/
+ * removeChildAt hooks and drained into a CommandBatch in measure(). A Remove +
+ * Insert of the same id in one batch is merged into a Move by enqueueStructural.
+ */
+sealed class StructuralOp {
+  data class Insert(val nodeId: Int, val parentId: Int, val index: Int, val tag: String) : StructuralOp()
+  data class Remove(val nodeId: Int) : StructuralOp()
+  data class Move(val nodeId: Int, val newParentId: Int, val index: Int) : StructuralOp()
+}
 
 /**
  * Container ShadowNode for `<skity-canvas>`. Implements [CustomMeasureFunc]:
@@ -59,6 +73,32 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   // Phase 2 Step 1b: monotonic CommandBatch version (debug counter for now).
   private var nextCommandVersion = 0L
 
+  // Phase 2 Step 2: pending structural ops (Insert/Remove/Move) enqueued by the
+  // SkityNodeBase hooks; drained into the CommandBatch at the top of measure().
+  private val pendingStructural: MutableList<StructuralOp> = mutableListOf()
+  // The canvas has no skity parent, so addChildAt never fires for it — measure
+  // synthesizes its root InsertNode once.
+  private var canvasInserted = false
+
+  /** Allocate a fresh stable node id (called at hook time by SkityNodeBase). */
+  fun takeNextNodeId(): Int = nextNodeId++
+
+  /** Enqueue a structural op. A Remove + later Insert of the same id in the same
+   * batch is merged into a Move (Lynx has no move primitive; it's remove+insert). */
+  fun enqueueStructural(op: StructuralOp) {
+    if (op is StructuralOp.Insert) {
+      val remIdx = pendingStructural.indexOfFirst {
+        it is StructuralOp.Remove && it.nodeId == op.nodeId
+      }
+      if (remIdx >= 0) {
+        pendingStructural.removeAt(remIdx)
+        pendingStructural.add(StructuralOp.Move(op.nodeId, op.parentId, op.index))
+        return
+      }
+    }
+    pendingStructural.add(op)
+  }
+
   // Each setter calls markDirty() to force a layout pass → measure → repaint,
   // mirroring SkityNodeBase's per-setter trigger.
   @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v; markDirty() }
@@ -82,11 +122,16 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
 
   override fun measure(mp: MeasureParam?, mc: MeasureContext?): MeasureResult? {
     if (mp == null) return null
-    // Phase 2: assign stable node ids to every node in the shadow tree before
-    // serializing, so the retained tree on the render thread can address nodes
-    // by id (SyncFromSnapshot + Step 1b CommandBatch).
-    assignNativeIds(this)
-    // Phase 2 Step 1b: drain dirty paint/path/transform into a CommandBatch.
+    // Phase 2 Step 2: the canvas has no skity parent so addChildAt never fires
+    // for it — synthesize its root InsertNode once (the retained tree's root).
+    if (!canvasInserted) {
+      val cid = ensureNativeId()
+      if (cid != 0) {
+        pendingStructural.add(0, StructuralOp.Insert(cid, -1, 0, skityTagName))
+        canvasInserted = true
+      }
+    }
+    // Drain structural + paint/path/transform commands into a CommandBatch.
     val commandBatch = buildCommandBatchIfNeeded(this)
     val density = context.resources.displayMetrics.density
 
@@ -134,16 +179,28 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     // no-op — layout is handled by Lynx
   }
 
-  // DFS the shadow tree and assign a fresh nativeId to any node still at 0.
-  // Stable ids let the render-thread retained tree reconcile snapshots in place
-  // (Phase 2). Runs at the top of measure() once per layout pass.
-  private fun assignNativeIds(node: SkityNodeBase) {
-    if (node.nativeId == 0) node.nativeId = nextNodeId++
-    val count = node.childCount
-    for (i in 0 until count) {
-      val child = node.getChildAt(i)
-      if (child is SkityNodeBase) assignNativeIds(child)
+  // ---- Phase 2 Step 2: structural command drain ----
+
+  /** Drain pending structural ops into the CommandBatch (Insert → Move → Remove
+   * order: parents before children, the node exists when Move runs, removed last). */
+  private fun drainStructural(
+    fbb: FlatBufferBuilder, offsets: MutableList<Int>, types: MutableList<Byte>,
+  ) {
+    if (pendingStructural.isEmpty()) return
+    for (op in pendingStructural) if (op is StructuralOp.Insert) {
+      val tagOff = fbb.createString(op.tag)
+      offsets += InsertNode.createInsertNode(fbb, op.nodeId, op.parentId, op.index.toLong(), tagOff)
+      types += Command.InsertNode
     }
+    for (op in pendingStructural) if (op is StructuralOp.Move) {
+      offsets += MoveNode.createMoveNode(fbb, op.nodeId, op.newParentId, op.index.toLong())
+      types += Command.MoveNode
+    }
+    for (op in pendingStructural) if (op is StructuralOp.Remove) {
+      offsets += RemoveNode.createRemoveNode(fbb, op.nodeId)
+      types += Command.RemoveNode
+    }
+    pendingStructural.clear()
   }
 
   // ---- Phase 2 Step 1b: incremental command channel ----
@@ -154,7 +211,8 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     val fbb = FlatBufferBuilder(256)
     val offsets = mutableListOf<Int>()
     val types = mutableListOf<Byte>()
-    collectCommands(fbb, root, offsets, types)
+    drainStructural(fbb, offsets, types) // Step 2: topology before paint
+    collectCommands(fbb, root, offsets, types) // Step 1b: paint/path/transform
     if (offsets.isEmpty()) return null
     val typesVec = CommandBatch.createCommandsTypeVector(fbb, types.toByteArray())
     val cmdsVec = CommandBatch.createCommandsVector(fbb, offsets.toIntArray())

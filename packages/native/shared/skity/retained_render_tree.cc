@@ -3,6 +3,8 @@
 
 #include "retained_render_tree.h"
 
+#include <algorithm>
+
 #include "command_batch_generated.h"
 #include "render_tree_common_generated.h"
 #include "render_tree_generated.h"
@@ -42,7 +44,8 @@ void CopyBytes(const ::flatbuffers::Vector<uint8_t>* src, std::vector<uint8_t>* 
   }
 }
 
-// RenderNode (FlatBuffer) → existing RetainedNode (in-place field update).
+// RenderNode (FlatBuffer) → existing RetainedNode (in-place FIELD update only;
+// topology is owned by commands, never touched here).
 void UpdateNodeFromFB(RetainedNode* node, const RenderNode* fb) {
   const ::flatbuffers::String* tag = fb->tag_name();
   node->tag_name = tag != nullptr ? tag->str() : std::string();
@@ -140,6 +143,61 @@ RetainedNode* RetainedRenderTree::Find(int32_t id) const {
   return it != node_map_.end() ? it->second.get() : nullptr;
 }
 
+// ---- Structural helpers (Step 2) ----
+
+RetainedNode* RetainedRenderTree::CreateNode(int32_t id) {
+  auto it = node_map_.find(id);
+  if (it != node_map_.end()) return it->second.get(); // idempotent
+  auto owned = std::make_unique<RetainedNode>();
+  owned->id = id;
+  RetainedNode* raw = owned.get();
+  node_map_.emplace(id, std::move(owned));
+  return raw;
+}
+
+void RetainedRenderTree::AttachChild(RetainedNode* parent, RetainedNode* child, uint32_t index) {
+  if (parent == nullptr || child == nullptr) return;
+  uint32_t clamped = std::min<uint32_t>(index, static_cast<uint32_t>(parent->children.size()));
+  parent->children.insert(parent->children.begin() + clamped, child);
+  child->parent = parent;
+}
+
+void RetainedRenderTree::DetachFromParent(RetainedNode* node) {
+  if (node == nullptr) return;
+  RetainedNode* p = node->parent;
+  if (p == nullptr) return;
+  auto& v = p->children;
+  v.erase(std::remove(v.begin(), v.end(), node), v.end());
+  node->parent = nullptr;
+}
+
+bool RetainedRenderTree::IsAncestor(RetainedNode* maybe_ancestor, RetainedNode* node) const {
+  for (RetainedNode* p = node; p != nullptr; p = p->parent) {
+    if (p == maybe_ancestor) return true;
+  }
+  return false;
+}
+
+void RetainedRenderTree::EraseSubtree(int32_t id) {
+  auto it = node_map_.find(id);
+  if (it == node_map_.end()) return;
+  RetainedNode* node = it->second.get();
+  DetachFromParent(node);
+  if (node == root_) root_ = nullptr;
+  // Collect the whole subtree's ids, then erase from node_map_ (unique_ptr frees).
+  std::vector<int32_t> ids;
+  std::vector<RetainedNode*> stack{node};
+  while (!stack.empty()) {
+    RetainedNode* n = stack.back();
+    stack.pop_back();
+    ids.push_back(n->id);
+    for (RetainedNode* c : n->children) stack.push_back(c);
+  }
+  for (int32_t i : ids) node_map_.erase(i);
+}
+
+// ---- ApplyCommandBatch (Step 1b + Step 2) ----
+
 void RetainedRenderTree::ApplyCommandBatch(const uint8_t* data, std::size_t size) {
   if (data == nullptr || size == 0) return;
   const CommandBatch* batch = GetCommandBatch(data);
@@ -171,70 +229,91 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t* data, std::size_t size
       if (node != nullptr) AssignOwnedBytes(td->data(), &node->style.transform_data);
       break;
     }
+    case Command_InsertNode: {
+      const auto* ins = static_cast<const InsertNode*>(obj);
+      RetainedNode* node = CreateNode(ins->node_id());
+      const ::flatbuffers::String* tag = ins->tag_name();
+      node->tag_name = tag != nullptr ? tag->str() : std::string();
+      if (ins->parent_id() < 0) {
+        // Root insert (the canvas itself).
+        root_ = node;
+        node->parent = nullptr;
+      } else {
+        RetainedNode* parent = Find(ins->parent_id());
+        if (parent != nullptr) AttachChild(parent, node, ins->index());
+        // Parent not yet present (out-of-order): node created but unattached;
+        // a later batch or the snapshot root fallback will place it.
+      }
+      break;
+    }
+    case Command_RemoveNode: {
+      const auto* rm = static_cast<const RemoveNode*>(obj);
+      EraseSubtree(rm->node_id());
+      break;
+    }
+    case Command_MoveNode: {
+      const auto* mv = static_cast<const MoveNode*>(obj);
+      RetainedNode* node = Find(mv->node_id());
+      if (node == nullptr) break;
+      if (mv->new_parent_id() < 0) {
+        DetachFromParent(node);
+        root_ = node;
+        node->parent = nullptr;
+      } else {
+        RetainedNode* newParent = Find(mv->new_parent_id());
+        if (newParent == nullptr) break;
+        if (IsAncestor(node, newParent)) break; // reject cycle (move into own subtree)
+        DetachFromParent(node);
+        AttachChild(newParent, node, mv->index());
+      }
+      break;
+    }
     default:
       break;
     }
   }
 }
 
-RetainedNode* RetainedRenderTree::SyncNode(const RenderNode* fb, RetainedNode* parent,
-                                           std::unordered_set<int32_t>* visited) {
-  if (fb == nullptr) return nullptr;
+// ---- Snapshot field sync (no topology) ----
+
+void RetainedRenderTree::SyncNodeFields(const RenderNode* fb, RetainedNode* parent) {
+  if (fb == nullptr) return;
   int32_t id = fb->id();
-  // Step 1 contract: the snapshot carries a native-assigned id (>= 1) on every
-  // node (assigned in measure() before serialization). A negative id here means
-  // the contract was violated; drop the subtree rather than corrupt the map.
-  if (id < 0) return nullptr;
-  visited->insert(id);
+  if (id < 0) return;
 
-  RetainedNode* node = nullptr;
-  auto it = node_map_.find(id);
-  if (it != node_map_.end()) {
-    node = it->second.get();  // reuse: in-place update, stable pointer
-  } else {
-    auto owned = std::make_unique<RetainedNode>();
-    node = owned.get();
-    node->id = id;
-    node_map_.emplace(id, std::move(owned));
+  RetainedNode* node = Find(id);
+  if (node == nullptr) {
+    // Only the snapshot root is created here (canvas has no InsertNode of its
+    // own; measure synthesizes one, but this is the safety net). Non-root
+    // unknown ids are skipped — topology is owned by commands.
+    if (parent == nullptr) {
+      node = CreateNode(id);
+      root_ = node;
+      node->parent = nullptr;
+    } else {
+      return;
+    }
   }
-
-  UpdateNodeFromFB(node, fb);
-  node->parent = parent;
-  node->children.clear();  // rebuilt below from the snapshot's child order
+  UpdateNodeFromFB(node, fb); // field-only
+  // Do NOT touch node->children / node->parent — commands own topology.
 
   const ::flatbuffers::Vector<::flatbuffers::Offset<RenderNode>>* kids = fb->children();
   auto n = kids != nullptr ? kids->size() : 0u;
   for (size_t i = 0; i < n; i++) {
-    RetainedNode* child = SyncNode(kids->Get(i), node, visited);
-    if (child != nullptr) node->children.push_back(child);
-  }
-  return node;
-}
-
-void RetainedRenderTree::PruneUnvisited(const std::unordered_set<int32_t>& visited) {
-  for (auto it = node_map_.begin(); it != node_map_.end();) {
-    if (visited.find(it->first) == visited.end()) {
-      it = node_map_.erase(it);
-    } else {
-      ++it;
-    }
+    SyncNodeFields(kids->Get(i), node);
   }
 }
 
 void RetainedRenderTree::SyncFromSnapshot(const RenderTree* fb) {
-  root_ = nullptr;
   if (fb == nullptr) {
-    node_map_.clear();
     viewport_ = RetainedViewport{};
-    return;
+    return; // topology persists; explicit Remove clears nodes
   }
   UpdateViewportFromFB(fb, &viewport_);
-  std::unordered_set<int32_t> visited;
   const RenderNode* fb_root = fb->root();
   if (fb_root != nullptr) {
-    root_ = SyncNode(fb_root, nullptr, &visited);
+    SyncNodeFields(fb_root, nullptr);
   }
-  PruneUnvisited(visited);
 }
 
 }  // namespace skityrt

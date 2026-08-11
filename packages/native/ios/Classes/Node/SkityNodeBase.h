@@ -14,6 +14,8 @@
 #import <Foundation/Foundation.h>
 #import <Lynx/LynxShadowNode.h>
 
+@class SkityCanvasShadowNode;
+
 NS_ASSUME_NONNULL_BEGIN
 
 // PaintField bitmask (mirrors skityrt::PaintField in command_batch.fbs). Obj-C
@@ -76,6 +78,11 @@ enum SkityPaintField {
 @property(nonatomic, assign) uint32_t dirtyPaintMask;
 @property(nonatomic, assign) BOOL dirtyPath;
 @property(nonatomic, assign) BOOL dirtyTransform;
+
+// Phase 2 Step 2: structural hooks. Lynx has no "move" primitive — a move is a
+// remove + insert, which the canvas merges into a MoveNode (same id, same batch).
+- (nullable SkityCanvasShadowNode *)findCanvasOwner;
+- (int32_t)ensureNativeId; // 0 if not yet under a canvas
 
 @end
 

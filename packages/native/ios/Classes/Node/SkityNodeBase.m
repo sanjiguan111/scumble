@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 #import "SkityNodeBase.h"
+#import "SkityCanvasShadowNode.h"
 
 #import <Lynx/LynxPropsProcessor.h>
 
@@ -184,6 +185,54 @@ LYNX_PROP_SETTER("d", setD, NSString *) {
   _pathData = decoded.length > 0 ? decoded : nil;
   _dirtyPath = YES;
   [self setNeedsLayout];
+}
+
+#pragma mark - Phase 2 Step 2: structural hooks
+
+- (SkityCanvasShadowNode *)findCanvasOwner {
+  LynxShadowNode *n = self;
+  while (n != nil) {
+    if ([n isKindOfClass:[SkityCanvasShadowNode class]]) {
+      return (SkityCanvasShadowNode *)n;
+    }
+    n = [n parent];
+  }
+  return nil;
+}
+
+- (int32_t)ensureNativeId {
+  if (_nativeId != 0) return _nativeId;
+  SkityCanvasShadowNode *canvas = [self findCanvasOwner];
+  if (canvas == nil) return 0;
+  _nativeId = [canvas takeNextNodeId];
+  return _nativeId;
+}
+
+- (void)didAddSubComponent:(LynxShadowNode *)subComponent {
+  [super didAddSubComponent:subComponent];
+  if (![subComponent isKindOfClass:[SkityNodeBase class]]) return;
+  SkityNodeBase *child = (SkityNodeBase *)subComponent;
+  SkityCanvasShadowNode *canvas = [self findCanvasOwner];
+  if (canvas == nil) return;
+  int32_t childId = [child ensureNativeId];
+  int32_t parentId = [self ensureNativeId];
+  if (childId == 0 || parentId == 0) return;
+  NSUInteger idx = [[self children] indexOfObject:child];
+  if (idx == NSNotFound) return;
+  [canvas enqueueStructuralInsert:childId
+                          parentId:parentId
+                             index:(uint32_t)idx
+                                tag:child.skityTagName];
+}
+
+- (void)willRemoveComponent:(LynxShadowNode *)subComponent {
+  [super willRemoveComponent:subComponent];
+  if (![subComponent isKindOfClass:[SkityNodeBase class]]) return;
+  SkityNodeBase *child = (SkityNodeBase *)subComponent;
+  if (child.nativeId == 0) return;
+  SkityCanvasShadowNode *canvas = [self findCanvasOwner];
+  if (canvas == nil) return;
+  [canvas enqueueStructuralRemove:child.nativeId];
 }
 
 @end

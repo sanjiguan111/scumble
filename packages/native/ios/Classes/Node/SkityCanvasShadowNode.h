@@ -23,6 +23,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// Latest render bundle, consumed (and cleared) by getExtraBundle.
 @property(nonatomic, strong, nullable) SkityRenderBundle *renderBundle;
 
+// Phase 2 Step 2: structural command queue (called by SkityNodeBase hooks).
+- (int32_t)takeNextNodeId;
+- (void)enqueueStructuralInsert:(int32_t)nodeId
+                       parentId:(int32_t)parentId
+                          index:(uint32_t)index
+                             tag:(NSString *)tag;
+- (void)enqueueStructuralRemove:(int32_t)nodeId;
+
 @end
 
 NS_ASSUME_NONNULL_END

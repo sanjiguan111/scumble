@@ -33,6 +33,9 @@ union Command {
   SetPaint,     // paint fields, gated by fields_dirty
   SetPathData,  // PathCommandList bytes (memcpy from the JS-built blob)
   SetTransform, // TransformOpList bytes (memcpy from the JS-built blob)
+  InsertNode,   // Step 2: create a node under parent_id at index; parent_id==-1 => root (canvas)
+  RemoveNode,   // Step 2: destroy a node + its subtree
+  MoveNode,     // Step 2: reparent / reorder; subtree follows
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; ResolvedPaint is
@@ -62,6 +65,27 @@ table SetTransform {
   node_id:int = -1;
   // JS-built TransformOpList bytes, memcpy'd verbatim by the TASM side.
   data:[ubyte] (nested_flatbuffer: "TransformOpList");
+}
+
+// Phase 2 Step 2: structural commands. Topology is driven by these (the
+// retained tree is the source of truth); the snapshot only refreshes field
+// values. A batch orders them Insert -> Move -> Remove (parents before children,
+// the node exists when Move runs, removed last).
+table InsertNode {
+  node_id:int = -1;
+  parent_id:int = -1; // -1 => root insert (canvas itself has no skity parent)
+  index:uint = 0;     // position within parent.children
+  tag_name:string;    // e.g. "rect", "g", "canvas"
+}
+
+table RemoveNode {
+  node_id:int = -1;
+}
+
+table MoveNode {
+  node_id:int = -1;
+  new_parent_id:int = -1; // -1 => becomes root
+  index:uint = 0;
 }
 
 table CommandBatch {

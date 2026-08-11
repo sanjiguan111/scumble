@@ -2,10 +2,9 @@
 // LICENSE file in the root directory of this source tree.
 //
 // Phase 2 retained render tree. The render thread owns a mutable in-memory tree
-// that mirrors the latest RenderTree snapshot, reconciled in place by node id.
-// SyncFromSnapshot reconciles it with a full snapshot; ApplyCommandBatch (added
-// in Step 1b) applies incremental paint/path/transform mutations. See
-// RENDER_ARCHITECTURE.md §11.
+// whose TOPOLOGY is driven by structural commands (InsertNode/RemoveNode/
+// MoveNode — Step 2); the snapshot only refreshes field values (geometry/paint/
+// viewport). See RENDER_ARCHITECTURE.md §11.
 #ifndef SKITY_RETAINED_RENDER_TREE_H_
 #define SKITY_RETAINED_RENDER_TREE_H_
 
@@ -14,7 +13,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "render_tree_common_generated.h"  // LineCap/LineJoin/FillRule/Display/Visibility
@@ -48,8 +46,7 @@ struct RetainedComputedStyle {
 
 // Mutable, owning counterpart of RenderNode. Lifetime is owned exclusively by
 // RetainedRenderTree's id→node map; `children` holds non-owning pointers into
-// that map so reparenting/reorder does not free nodes (stable pointers for
-// Step 2's command-only path).
+// that map so reparenting/reorder does not free nodes (stable pointers).
 struct RetainedNode {
   int32_t id = -1;
   std::string tag_name;
@@ -76,32 +73,40 @@ struct RetainedViewport {
 };
 
 // The retained tree. Owned by the render thread and touched only there
-// (Android AppRenderer / iOS SkityRenderSession). Single-threaded by contract.
+// (Android AppRenderer / iOS SkityMetalContext per-layer map). Single-threaded.
 class RetainedRenderTree {
  public:
   RetainedRenderTree() = default;
   ~RetainedRenderTree() = default;
 
-  // Reconcile with a freshly arrived snapshot. Id-aware in-place update: nodes
-  // whose id already exists are updated in place (stable pointer); new ids are
-  // created; ids absent from this snapshot are dropped. Safe with null (clears).
+  // Refresh field values from a snapshot. Topology is NOT touched (owned by
+  // structural commands); the root is created here if missing (canvas has no
+  // skity parent, so its InsertNode is synthesized in measure). Null clears the
+  // viewport only — nodes persist until an explicit RemoveNode.
   void SyncFromSnapshot(const RenderTree* fb);
 
-  // O(1) lookup by node id (used by ApplyCommandBatch in Step 1b).
+  // O(1) lookup by node id.
   RetainedNode* Find(int32_t id) const;
 
-  // Apply an incremental CommandBatch (Step 1b): each command addresses a node
-  // by id and mutates paint / path_data / transform_data in place. Unknown ids
-  // are skipped. Safe with null/empty (no-op).
+  // Apply an incremental CommandBatch: Step 1b paint/path/transform + Step 2
+  // structural Insert/Remove/Move. Topology commands are authoritative.
   void ApplyCommandBatch(const uint8_t* data, std::size_t size);
 
   const RetainedNode* root() const { return root_; }
   const RetainedViewport& viewport() const { return viewport_; }
 
  private:
-  RetainedNode* SyncNode(const RenderNode* fb, RetainedNode* parent,
-                         std::unordered_set<int32_t>* visited);
-  void PruneUnvisited(const std::unordered_set<int32_t>& visited);
+  // Structural helpers (Step 2).
+  RetainedNode* CreateNode(int32_t id);
+  void AttachChild(RetainedNode* parent, RetainedNode* child, uint32_t index);
+  void DetachFromParent(RetainedNode* node);
+  void EraseSubtree(int32_t id);
+  // True if `maybe_ancestor` is `node` or an ancestor of it (cycle guard).
+  bool IsAncestor(RetainedNode* maybe_ancestor, RetainedNode* node) const;
+
+  // Snapshot field sync (no topology). `parent` is only used to detect the
+  // root level (parent == nullptr => create root if missing).
+  void SyncNodeFields(const RenderNode* fb, RetainedNode* parent);
 
   // id → owning node. Owns every RetainedNode; `children`/`root_` are raw
   // pointers into these.

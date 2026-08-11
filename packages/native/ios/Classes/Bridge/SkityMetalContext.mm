@@ -69,11 +69,13 @@
     slot = std::make_unique<skityrt::RetainedRenderTree>();
   }
   const auto *fb = skityrt::GetRenderTree(static_cast<const void *>(treeData.bytes));
-  slot->SyncFromSnapshot(fb);
-  // Phase 2 Step 1b: apply incremental commands after the snapshot sync.
+  // Phase 2 Step 2: apply commands BEFORE syncing fields — Insert creates nodes
+  // so Sync can then populate their fields. (Step 1b was Sync→Apply; Step 2
+  // topology-by-command requires Apply→Sync.)
   if (commands != nil && commands.length > 0) {
     slot->ApplyCommandBatch(static_cast<const uint8_t *>(commands.bytes), commands.length);
   }
+  slot->SyncFromSnapshot(fb);
 
   @autoreleasepool {
     id<CAMetalDrawable> drawable = [layer nextDrawable];

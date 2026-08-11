@@ -19,6 +19,18 @@
 using namespace skityrt;
 using namespace flatbuffers;
 
+// Phase 2 Step 2 structural op (enqueued by SkityNodeBase hooks, drained in
+// measure into the CommandBatch). parentId doubles as MoveNode's new_parent_id.
+namespace {
+struct SkityStructuralOp {
+  enum Kind { kInsert, kRemove, kMove } kind;
+  int32_t nodeId;
+  int32_t parentId;
+  uint32_t index;
+  std::string tag; // Insert only
+};
+} // namespace
+
 #pragma mark - FlatBuffer serialization (built leaves → root)
 // 1:1 port of SkityCanvasShadowNode.kt's buildRenderNode / buildStyle / buildPaint,
 // using the C++ FlatBuffer stubs in shared/skity/generated. Path/transform arrive
@@ -85,7 +97,32 @@ static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &f
                           SpreadMethod_PAD);
 }
 
-#pragma mark - CommandBatch (Phase 2 Step 1b)
+#pragma mark - CommandBatch (Step 1b paint/path/transform + Step 2 structural)
+
+// Drain pending structural ops into the CommandBatch (Insert → Move → Remove).
+static void SkityDrainStructural(flatbuffers::FlatBufferBuilder &fbb,
+                                 std::vector<SkityStructuralOp> &pending,
+                                 std::vector<flatbuffers::Offset<void>> &offsets,
+                                 std::vector<uint8_t> &types) {
+  if (pending.empty()) return;
+  for (const auto &op : pending) if (op.kind == SkityStructuralOp::kInsert) {
+    auto tagOff = fbb.CreateString(op.tag);
+    auto off = skityrt::CreateInsertNode(fbb, op.nodeId, op.parentId, op.index, tagOff);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_InsertNode);
+  }
+  for (const auto &op : pending) if (op.kind == SkityStructuralOp::kMove) {
+    auto off = skityrt::CreateMoveNode(fbb, op.nodeId, op.parentId, op.index);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_MoveNode);
+  }
+  for (const auto &op : pending) if (op.kind == SkityStructuralOp::kRemove) {
+    auto off = skityrt::CreateRemoveNode(fbb, op.nodeId);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_RemoveNode);
+  }
+  pending.clear();
+}
 
 // Drain dirty paint/path/transform across the shadow tree into a CommandBatch
 // FlatBuffer. Clears the dirty flags. Built on the TASM thread in measure() and
@@ -132,19 +169,6 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
   }
 }
 
-static NSData *SkityBuildCommandBatch(SkityCanvasShadowNode *root, uint32_t version) {
-  flatbuffers::FlatBufferBuilder fbb(256);
-  std::vector<flatbuffers::Offset<void>> offsets;
-  std::vector<uint8_t> types;
-  SkityCollectCommands(fbb, root, offsets, types);
-  if (offsets.empty()) return nil;
-  auto typesVec = fbb.CreateVector<uint8_t>(types);
-  auto cmdsVec = fbb.CreateVector<flatbuffers::Offset<void>>(offsets);
-  auto batch = skityrt::CreateCommandBatch(fbb, version, typesVec, cmdsVec);
-  fbb.Finish(batch);
-  return [NSData dataWithBytes:fbb.GetBufferPointer() length:fbb.GetSize()];
-}
-
 #pragma mark -
 
 @interface SkityCanvasShadowNode ()
@@ -161,7 +185,10 @@ static NSData *SkityBuildCommandBatch(SkityCanvasShadowNode *root, uint32_t vers
 @property(nonatomic, assign) uint32_t nextCommandVersion;
 @end
 
-@implementation SkityCanvasShadowNode
+@implementation SkityCanvasShadowNode {
+  std::vector<SkityStructuralOp> _pendingStructural;
+  BOOL _canvasInserted;
+}
 
 #if LYNX_LAZY_LOAD
 LYNX_LAZY_REGISTER_SHADOW_NODE("skity-canvas")
@@ -193,6 +220,57 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
   return self;
 }
 
+#pragma mark - Phase 2 Step 2: structural command queue
+
+- (int32_t)takeNextNodeId {
+  int32_t id = self.nextNodeId;
+  self.nextNodeId = id + 1;
+  return id;
+}
+
+- (void)enqueueStructuralInsert:(int32_t)nodeId
+                       parentId:(int32_t)parentId
+                          index:(uint32_t)index
+                             tag:(NSString *)tag {
+  // Move merge: a pending Remove for nodeId in this batch => convert to Move.
+  for (auto &op : _pendingStructural) {
+    if (op.kind == SkityStructuralOp::kRemove && op.nodeId == nodeId) {
+      op.kind = SkityStructuralOp::kMove;
+      op.parentId = parentId;
+      op.index = index;
+      return;
+    }
+  }
+  SkityStructuralOp op;
+  op.kind = SkityStructuralOp::kInsert;
+  op.nodeId = nodeId;
+  op.parentId = parentId;
+  op.index = index;
+  op.tag = std::string([tag UTF8String] ?: "");
+  _pendingStructural.push_back(op);
+}
+
+- (void)enqueueStructuralRemove:(int32_t)nodeId {
+  SkityStructuralOp op;
+  op.kind = SkityStructuralOp::kRemove;
+  op.nodeId = nodeId;
+  _pendingStructural.push_back(op);
+}
+
+- (NSData *)buildCommandBatch:(uint32_t)version {
+  flatbuffers::FlatBufferBuilder fbb(256);
+  std::vector<flatbuffers::Offset<void>> offsets;
+  std::vector<uint8_t> types;
+  SkityDrainStructural(fbb, _pendingStructural, offsets, types);
+  SkityCollectCommands(fbb, self, offsets, types);
+  if (offsets.empty()) return nil;
+  auto typesVec = fbb.CreateVector<uint8_t>(types);
+  auto cmdsVec = fbb.CreateVector<flatbuffers::Offset<void>>(offsets);
+  auto batch = skityrt::CreateCommandBatch(fbb, version, typesVec, cmdsVec);
+  fbb.Finish(batch);
+  return [NSData dataWithBytes:fbb.GetBufferPointer() length:fbb.GetSize()];
+}
+
 #pragma mark - Viewport setters
 
 // setNeedsLayout on every setter so a prop change forces a layout pass →
@@ -218,13 +296,24 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
 
 - (MeasureResult)measureWithMeasureParam:(MeasureParam *)param
                           MeasureContext:(MeasureContext *)context {
-  // Phase 2: assign stable node ids to every node in the shadow tree before
-  // serializing, so the retained tree on the render thread can address nodes by
-  // id (SyncFromSnapshot + Step 1b CommandBatch).
-  [self assignNativeIdsRecursive:self];
-  // Phase 2 Step 1b: drain dirty paint/path/transform into a CommandBatch.
+  // Phase 2 Step 2: the canvas has no skity parent so didAddSubComponent: never
+  // fires for it — synthesize its root InsertNode once (retained tree's root).
+  if (!_canvasInserted) {
+    int32_t cid = [self ensureNativeId];
+    if (cid != 0) {
+      SkityStructuralOp op;
+      op.kind = SkityStructuralOp::kInsert;
+      op.nodeId = cid;
+      op.parentId = -1;
+      op.index = 0;
+      op.tag = std::string([self.skityTagName UTF8String] ?: "");
+      _pendingStructural.insert(_pendingStructural.begin(), op);
+      _canvasInserted = YES;
+    }
+  }
+  // Drain structural + paint/path/transform commands into a CommandBatch.
   uint32_t version = self.nextCommandVersion;
-  NSData *commandBatch = SkityBuildCommandBatch(self, version);
+  NSData *commandBatch = [self buildCommandBatch:version];
   if (commandBatch != nil) self.nextCommandVersion = version + 1;
   float density = [UIScreen mainScreen].scale;
 
@@ -284,20 +373,6 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
 
 - (void)alignWithAlignParam:(AlignParam *)param AlignContext:(AlignContext *)context {
   // no-op — layout is handled by Lynx
-}
-
-// DFS the shadow tree and assign a fresh nativeId to any node still at 0.
-// Stable ids let the render-thread retained tree reconcile snapshots in place
-// (Phase 2). Runs at the top of measure once per layout pass.
-- (void)assignNativeIdsRecursive:(SkityNodeBase *)node {
-  if (node.nativeId == 0) {
-    node.nativeId = self.nextNodeId++;
-  }
-  for (LynxShadowNode *child in node.children) {
-    if ([child isKindOfClass:[SkityNodeBase class]]) {
-      [self assignNativeIdsRecursive:(SkityNodeBase *)child];
-    }
-  }
 }
 
 #pragma mark - Extra Bundle

@@ -66,13 +66,15 @@ class SkityVulkanRenderSession : SkityRenderSession {
   private fun drawIfReady() {
     val data = pendingTree ?: return
     if (!surfaceReady || rendererHandle == 0L) return
-    SkityNative.nativeSetRenderTree(rendererHandle, data, pendingDensity)
-    // Phase 2 Step 1b: apply incremental commands after the snapshot sync.
+    // Phase 2 Step 2: apply commands BEFORE the snapshot sync — Insert creates
+    // nodes so Sync can populate their fields. (Step 1b was Sync→Apply; Step 2
+    // topology-by-command requires Apply→Sync.)
     val commands = pendingCommands
     if (commands != null) {
       SkityNative.nativeApplyCommands(rendererHandle, commands)
       pendingCommands = null
     }
+    SkityNative.nativeSetRenderTree(rendererHandle, data, pendingDensity)
     SkityNative.nativeDrawFrame(rendererHandle)
   }
 

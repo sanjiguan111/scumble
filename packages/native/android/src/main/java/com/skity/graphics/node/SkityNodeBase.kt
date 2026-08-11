@@ -209,6 +209,51 @@ abstract class SkityNodeBase : ShadowNode() {
     markDirty()
   }
 
+  // ---- Phase 2 Step 2: structural hooks ----
+  // Lynx ShadowNode has no "move" primitive — a move is remove + insert, which
+  // the canvas's enqueueStructural merges into a MoveNode (same id, same batch).
+
+  /** Walk parents to the owning SkityCanvasShadowNode (owns the retained-tree
+   * id allocator + pending structural queue). */
+  fun findCanvasOwner(): SkityCanvasShadowNode? {
+    var n: ShadowNode? = this
+    while (n != null) {
+      if (n is SkityCanvasShadowNode) return n
+      n = n.parent
+    }
+    return null
+  }
+
+  /** Lazily assign a stable nativeId at hook time (not measure time), so the
+   * InsertNode from addChildAt has an id. Returns 0 if not yet under a canvas. */
+  fun ensureNativeId(): Int {
+    if (nativeId != 0) return nativeId
+    val canvas = findCanvasOwner() ?: return 0
+    nativeId = canvas.takeNextNodeId()
+    return nativeId
+  }
+
+  override fun addChildAt(child: ShadowNode, i: Int) {
+    super.addChildAt(child, i)
+    if (child is SkityNodeBase) {
+      val canvas = findCanvasOwner() ?: return
+      val childId = child.ensureNativeId()
+      val parentId = ensureNativeId()
+      if (childId != 0 && parentId != 0) {
+        canvas.enqueueStructural(StructuralOp.Insert(childId, parentId, i, child.skityTagName))
+      }
+    }
+  }
+
+  override fun removeChildAt(i: Int): ShadowNode {
+    val child = getChildAt(i) // capture before super removes (getChildAt is final)
+    val removed = super.removeChildAt(i)
+    if (child is SkityNodeBase && child.nativeId != 0) {
+      findCanvasOwner()?.enqueueStructural(StructuralOp.Remove(child.nativeId))
+    }
+    return removed
+  }
+
   /** Shape & group nodes are virtual (no platform view); the canvas node overrides this. */
   override fun isVirtual(): Boolean = true
 }

@@ -38,9 +38,23 @@ const TAP_COLORS = ["#ef4444", "#22c55e", "#3b82f6", "#f59e0b", "#a855f7"];
 export function App() {
   const [tapIdx, setTapIdx] = useState(0);
   const toggleTap = () => setTapIdx((i) => (i + 1) % TAP_COLORS.length);
+  // Phase 2 Step 2 dynamic structure test: toggle mounts/unmounts the magenta
+  // rect, exercising InsertNode/RemoveNode on the retained tree.
+  // Phase 2 Step 2 dynamic structure test: tap toggles the magenta rect's
+  // mount/unmount, exercising InsertNode/RemoveNode on the retained tree.
+  const [showStruct, setShowStruct] = useState(true);
   return (
     <scroll-view style={{ width: "100%", height: "100%", backgroundColor: "#ffffff" }}>
       <text style={{ fontSize: "20px", padding: "16px" }}>lynx-skity demo</text>
+      <text style={{ fontSize: "16px", padding: "16px" }}>
+        structural test — tap to add/remove magenta rect · {showStruct ? "ON" : "OFF"}
+      </text>
+      <view bindtap={() => setShowStruct((s) => !s)} style={{ width: "100%", height: "120px" }}>
+        <Canvas style={{ width: "100%", height: "120px" }}>
+          <Circle cx={50} cy={60} radius={30} color="#3b82f6" />
+          {showStruct && <Rect x={100} y={30} width={60} height={60} color="#ff00ff" />}
+        </Canvas>
+      </view>
       <Canvas style={{ width: "100%", height: "400px" }}>
         {/* filled red rectangle */}
         <Rect x={20} y={20} width={140} height={90} color="#ff0000" />
