@@ -71,4 +71,12 @@ void AppRenderer::SetRenderTree(const uint8_t *data, std::size_t size, float den
   retained_tree_.SyncFromSnapshot(tree);
 }
 
+void AppRenderer::ApplyCommands(const uint8_t *data, std::size_t size) {
+  if (data == nullptr || size == 0) {
+    return;
+  }
+  // Applied on the render thread (same Handler.post as SetRenderTree/DrawFrame).
+  retained_tree_.ApplyCommandBatch(data, size);
+}
+
 } // namespace lynxskity

@@ -16,6 +16,20 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+// PaintField bitmask (mirrors skityrt::PaintField in command_batch.fbs). Obj-C
+// compatible (no C++) so SkityNodeBase.m setters OR bits directly.
+enum SkityPaintField {
+  kSkityPaintFieldNone = 0,
+  kSkityPaintFieldFill = 1,
+  kSkityPaintFieldStroke = 2,
+  kSkityPaintFieldStrokeWidth = 4,
+  kSkityPaintFieldStrokeCap = 8,
+  kSkityPaintFieldStrokeJoin = 16,
+  kSkityPaintFieldStrokeMiter = 32,
+  kSkityPaintFieldFillRule = 64,
+  kSkityPaintFieldOpacity = 128,
+};
+
 @interface SkityNodeBase : LynxShadowNode
 
 /// The skity tag name (e.g. "rect", "circle", "canvas", "g"). Subclasses must
@@ -55,6 +69,13 @@ NS_ASSUME_NONNULL_BEGIN
 // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
 // snapshot is serialized. Never reused.
 @property(nonatomic, assign) int32_t nativeId;
+
+// Phase 2 Step 1b: dirty flags for the incremental command channel. Paint
+// accumulates as a SkityPaintField bitmask; path/transform are booleans. The
+// canvas ShadowNode drains these into a CommandBatch in measure() and clears.
+@property(nonatomic, assign) uint32_t dirtyPaintMask;
+@property(nonatomic, assign) BOOL dirtyPath;
+@property(nonatomic, assign) BOOL dirtyTransform;
 
 @end
 

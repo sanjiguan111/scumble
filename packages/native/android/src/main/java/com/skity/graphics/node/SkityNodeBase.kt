@@ -20,6 +20,11 @@ import kotlin.jvm.JvmField
  *
  * Fields use @JvmField (exposed as plain fields, no synthetic getX/setX), so
  * they don't clash with the @LynxProp setters below (e.g. setX) on the JVM.
+ *
+ * Phase 2 Step 1b: the 11 pure-paint/path/transform setters also set a dirty
+ * flag (dirtyPaint bitmask / dirtyPath / dirtyTransform); the canvas ShadowNode
+ * drains these into a CommandBatch in measure() for the incremental command
+ * channel. Geometry setters stay on the snapshot path (no dirty flag).
  */
 abstract class SkityNodeBase : ShadowNode() {
 
@@ -58,6 +63,25 @@ abstract class SkityNodeBase : ShadowNode() {
   // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
   // snapshot is serialized. Never reused.
   @JvmField var nativeId: Int = 0
+
+  // Phase 2 Step 1b: dirty flags for the incremental command channel. Paint
+  // accumulates as a PaintField bitmask; path/transform are booleans. The canvas
+  // ShadowNode drains these into a CommandBatch in measure() and clears them.
+  @JvmField var dirtyPaint: Int = 0
+  @JvmField var dirtyPath: Boolean = false
+  @JvmField var dirtyTransform: Boolean = false
+
+  /** PaintField bitmask values (mirrors skityrt::PaintField in command_batch.fbs). */
+  object PaintField {
+    const val FILL = 1
+    const val STROKE = 2
+    const val STROKE_WIDTH = 4
+    const val STROKE_CAP = 8
+    const val STROKE_JOIN = 16
+    const val STROKE_MITER = 32
+    const val FILL_RULE = 64
+    const val OPACITY = 128
+  }
 
   // Every setter calls markDirty() so a prop change forces a layout pass → the
   // container canvas's measure() re-serializes the tree → repaint. Pure-style
@@ -120,42 +144,51 @@ abstract class SkityNodeBase : ShadowNode() {
     markDirty()
   }
 
-  // ---- paint setters ----
+  // ---- paint setters (dirty → command channel) ----
   @LynxProp(name = "color") fun setColor(v: Double) {
     fillColor = v.toLong() and 0xFFFFFFFFL
+    dirtyPaint = dirtyPaint or PaintField.FILL
     markDirty()
   }
   @LynxProp(name = "fill") fun setFill(v: Double) {
     fillColor = v.toLong() and 0xFFFFFFFFL
+    dirtyPaint = dirtyPaint or PaintField.FILL
     markDirty()
   }
   @LynxProp(name = "stroke") fun setStroke(v: Double) {
     strokeColor = v.toLong() and 0xFFFFFFFFL
+    dirtyPaint = dirtyPaint or PaintField.STROKE
     markDirty()
   }
   @LynxProp(name = "strokeWidth") fun setStrokeWidth(v: Float) {
     strokeWidth = v
+    dirtyPaint = dirtyPaint or PaintField.STROKE_WIDTH
     markDirty()
   }
   // Enums arrive as numbers already mapped to skityrt bytes (parsers layer).
   @LynxProp(name = "strokeCap") fun setStrokeCap(v: Int) {
     strokeCap = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.STROKE_CAP
     markDirty()
   }
   @LynxProp(name = "strokeJoin") fun setStrokeJoin(v: Int) {
     strokeJoin = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.STROKE_JOIN
     markDirty()
   }
   @LynxProp(name = "strokeMiter") fun setStrokeMiter(v: Float) {
     strokeMiter = v
+    dirtyPaint = dirtyPaint or PaintField.STROKE_MITER
     markDirty()
   }
   @LynxProp(name = "fillRule") fun setFillRule(v: Int) {
     fillRule = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.FILL_RULE
     markDirty()
   }
   @LynxProp(name = "opacity") fun setOpacity(v: Float) {
     opacity = v
+    dirtyPaint = dirtyPaint or PaintField.OPACITY
     markDirty()
   }
 
@@ -166,11 +199,13 @@ abstract class SkityNodeBase : ShadowNode() {
   @LynxProp(name = "transform") fun setTransform(v: String) {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     transformData = if (decoded.isNotEmpty()) decoded else null
+    dirtyTransform = true
     markDirty()
   }
   @LynxProp(name = "d") fun setD(v: String) {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     pathData = if (decoded.isNotEmpty()) decoded else null
+    dirtyPath = true
     markDirty()
   }
 

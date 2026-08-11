@@ -62,7 +62,9 @@
 
 - (void)consumeRenderBundle:(SkityRenderBundle *)bundle {
   if (bundle == nil) return;
-  [_session setRenderTreeData:bundle.renderTreeData density:bundle.density];
+  [_session setRenderTreeData:bundle.renderTreeData
+                      density:bundle.density
+                     commands:bundle.commandBatchData];
 }
 
 - (void)destroySession {

@@ -90,6 +90,11 @@ class RetainedRenderTree {
   // O(1) lookup by node id (used by ApplyCommandBatch in Step 1b).
   RetainedNode* Find(int32_t id) const;
 
+  // Apply an incremental CommandBatch (Step 1b): each command addresses a node
+  // by id and mutates paint / path_data / transform_data in place. Unknown ids
+  // are skipped. Safe with null/empty (no-op).
+  void ApplyCommandBatch(const uint8_t* data, std::size_t size);
+
   const RetainedNode* root() const { return root_; }
   const RetainedViewport& viewport() const { return viewport_; }
 

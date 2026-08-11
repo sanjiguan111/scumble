@@ -24,6 +24,9 @@ class SkityVulkanRenderSession : SkityRenderSession {
   private var pendingTree: ByteArray? = null
   @Volatile
   private var pendingDensity: Float = 1f
+  // Phase 2 Step 1b: incremental CommandBatch bytes (null = no commands).
+  @Volatile
+  private var pendingCommands: ByteArray? = null
 
   private fun ensureRenderer() {
     if (rendererHandle == 0L) {
@@ -53,9 +56,10 @@ class SkityVulkanRenderSession : SkityRenderSession {
     }
   }
 
-  override fun setRenderTree(data: ByteArray, density: Float) {
+  override fun setRenderTree(data: ByteArray, density: Float, commands: ByteArray?) {
     pendingTree = data
     pendingDensity = density
+    pendingCommands = commands
     renderHandler.post { drawIfReady() }
   }
 
@@ -63,6 +67,12 @@ class SkityVulkanRenderSession : SkityRenderSession {
     val data = pendingTree ?: return
     if (!surfaceReady || rendererHandle == 0L) return
     SkityNative.nativeSetRenderTree(rendererHandle, data, pendingDensity)
+    // Phase 2 Step 1b: apply incremental commands after the snapshot sync.
+    val commands = pendingCommands
+    if (commands != null) {
+      SkityNative.nativeApplyCommands(rendererHandle, commands)
+      pendingCommands = null
+    }
     SkityNative.nativeDrawFrame(rendererHandle)
   }
 

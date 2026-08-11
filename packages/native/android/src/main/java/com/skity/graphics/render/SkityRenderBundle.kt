@@ -14,6 +14,8 @@ data class SkityRenderBundle(
   val viewportWidth: Float,
   val viewportHeight: Float,
   val density: Float,
+  // Phase 2 Step 1b: incremental CommandBatch bytes (null when nothing dirty).
+  val commandBatchBytes: ByteArray? = null,
 ) {
   // ByteArray identity equality by default is fine — bundles are not compared.
   override fun equals(other: Any?): Boolean = this === other

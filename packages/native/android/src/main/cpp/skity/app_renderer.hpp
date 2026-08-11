@@ -35,6 +35,9 @@ public:
   // Called from the Lynx/UI thread with a serialized RenderTree snapshot.
   void SetRenderTree(const uint8_t *data, std::size_t size, float density);
 
+  // Phase 2 Step 1b: apply an incremental CommandBatch to the retained tree.
+  void ApplyCommands(const uint8_t *data, std::size_t size);
+
 private:
   std::unique_ptr<RenderBackend> backend_;
   skityrt::RetainedRenderTree retained_tree_;

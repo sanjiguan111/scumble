@@ -37,9 +37,12 @@ if (!existsSync(flatc)) {
   process.exit(0);
 }
 
-const fbsFiles = ["render_tree_common.fbs", "render_tree_style.fbs", "render_tree.fbs"].map((f) =>
-  resolve(schemaDir, f),
-);
+const fbsFiles = [
+  "render_tree_common.fbs",
+  "render_tree_style.fbs",
+  "render_tree.fbs",
+  "command_batch.fbs",
+].map((f) => resolve(schemaDir, f));
 
 const cppOut = resolve(pkgRoot, "shared/skity/generated");
 const javaOut = resolve(pkgRoot, "android/src/main/fbs-gen");

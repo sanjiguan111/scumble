@@ -122,4 +122,20 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeSetRenderTree(
   env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
 }
 
+JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyCommands(
+    JNIEnv *env, jclass /*clazz*/, jlong handle, jbyteArray commands) {
+  auto *renderer = FromHandle(handle);
+  if (renderer == nullptr || commands == nullptr) {
+    return;
+  }
+  jsize length = env->GetArrayLength(commands);
+  jbyte *bytes = env->GetByteArrayElements(commands, nullptr);
+  if (bytes == nullptr) {
+    return;
+  }
+  renderer->ApplyCommands(reinterpret_cast<const uint8_t *>(bytes),
+                          static_cast<std::size_t>(length));
+  env->ReleaseByteArrayElements(commands, bytes, JNI_ABORT);
+}
+
 } // extern "C"

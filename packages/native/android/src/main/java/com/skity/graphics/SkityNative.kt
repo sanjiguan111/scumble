@@ -53,4 +53,7 @@ object SkityNative {
 
   @JvmStatic
   external fun nativeSetRenderTree(handle: Long, data: ByteArray, density: Float)
+
+  @JvmStatic
+  external fun nativeApplyCommands(handle: Long, commands: ByteArray)
 }

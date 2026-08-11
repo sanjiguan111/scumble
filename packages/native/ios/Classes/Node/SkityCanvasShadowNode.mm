@@ -10,6 +10,7 @@
 #import <Lynx/LynxShadowNode.h>
 #import <UIKit/UIScreen.h>
 
+#include "command_batch_generated.h"
 #include "flatbuffers/flatbuffers.h"
 #include "render_tree_common_generated.h"
 #include "render_tree_generated.h"
@@ -84,6 +85,66 @@ static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &f
                           SpreadMethod_PAD);
 }
 
+#pragma mark - CommandBatch (Phase 2 Step 1b)
+
+// Drain dirty paint/path/transform across the shadow tree into a CommandBatch
+// FlatBuffer. Clears the dirty flags. Built on the TASM thread in measure() and
+// piggybacked on the render bundle to the render thread alongside the snapshot.
+static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeBase *node,
+                                 std::vector<flatbuffers::Offset<void>> &offsets,
+                                 std::vector<uint8_t> &types) {
+  if (node.dirtyPaintMask != 0) {
+    auto off = skityrt::CreateSetPaint(
+        fbb, node.nativeId, static_cast<skityrt::PaintField>(node.dirtyPaintMask),
+        static_cast<uint32_t>(node.fillColor.unsignedIntValue),
+        static_cast<uint32_t>(node.strokeColor.unsignedIntValue),
+        node.strokeWidth, static_cast<skityrt::LineCap>(node.strokeCap),
+        static_cast<skityrt::LineJoin>(node.strokeJoin), node.strokeMiter,
+        static_cast<skityrt::FillRule>(node.fillRule), node.opacity);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetPaint);
+    node.dirtyPaintMask = 0;
+  }
+  if (node.dirtyPath) {
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
+    if (node.pathData.length > 0) {
+      dataOff = fbb.CreateVector((const uint8_t *)node.pathData.bytes, node.pathData.length);
+    }
+    auto off = skityrt::CreateSetPathData(fbb, node.nativeId, dataOff);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetPathData);
+    node.dirtyPath = NO;
+  }
+  if (node.dirtyTransform) {
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
+    if (node.transformData.length > 0) {
+      dataOff = fbb.CreateVector((const uint8_t *)node.transformData.bytes, node.transformData.length);
+    }
+    auto off = skityrt::CreateSetTransform(fbb, node.nativeId, dataOff);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetTransform);
+    node.dirtyTransform = NO;
+  }
+  for (LynxShadowNode *child in node.children) {
+    if ([child isKindOfClass:[SkityNodeBase class]]) {
+      SkityCollectCommands(fbb, (SkityNodeBase *)child, offsets, types);
+    }
+  }
+}
+
+static NSData *SkityBuildCommandBatch(SkityCanvasShadowNode *root, uint32_t version) {
+  flatbuffers::FlatBufferBuilder fbb(256);
+  std::vector<flatbuffers::Offset<void>> offsets;
+  std::vector<uint8_t> types;
+  SkityCollectCommands(fbb, root, offsets, types);
+  if (offsets.empty()) return nil;
+  auto typesVec = fbb.CreateVector<uint8_t>(types);
+  auto cmdsVec = fbb.CreateVector<flatbuffers::Offset<void>>(offsets);
+  auto batch = skityrt::CreateCommandBatch(fbb, version, typesVec, cmdsVec);
+  fbb.Finish(batch);
+  return [NSData dataWithBytes:fbb.GetBufferPointer() length:fbb.GetSize()];
+}
+
 #pragma mark -
 
 @interface SkityCanvasShadowNode ()
@@ -96,6 +157,8 @@ static Offset<RenderNode> SkityBuildRenderNode(flatbuffers::FlatBufferBuilder &f
 // Monotonic node-id allocator for the retained render tree (Phase 2). Starts at
 // 1; assigned lazily in measureWithMeasureParam: via assignNativeIdsRecursive:.
 @property(nonatomic, assign) int32_t nextNodeId;
+// Phase 2 Step 1b: monotonic CommandBatch version (debug counter for now).
+@property(nonatomic, assign) uint32_t nextCommandVersion;
 @end
 
 @implementation SkityCanvasShadowNode
@@ -159,6 +222,10 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
   // serializing, so the retained tree on the render thread can address nodes by
   // id (SyncFromSnapshot + Step 1b CommandBatch).
   [self assignNativeIdsRecursive:self];
+  // Phase 2 Step 1b: drain dirty paint/path/transform into a CommandBatch.
+  uint32_t version = self.nextCommandVersion;
+  NSData *commandBatch = SkityBuildCommandBatch(self, version);
+  if (commandBatch != nil) self.nextCommandVersion = version + 1;
   float density = [UIScreen mainScreen].scale;
 
   // Layout is driven by Lynx (style width/height). Resolve a concrete size from
@@ -205,7 +272,8 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
     NSData *data = [NSData dataWithBytes:fbb.GetBufferPointer() length:fbb.GetSize()];
     self.renderBundle = [[SkityRenderBundle alloc] initWithData:data
                                                        viewport:CGSizeMake(w, h)
-                                                        density:density];
+                                                        density:density
+                                                commandBatchData:commandBatch];
   }
 
   MeasureResult result;

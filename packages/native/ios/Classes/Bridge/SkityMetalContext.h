@@ -32,6 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// via JNI. Must be called on renderQueue.
 - (void)drawLayer:(CAMetalLayer *)layer
          treeData:(NSData *)treeData
+         commands:(nullable NSData *)commands
         viewportW:(uint32_t)w
         viewportH:(uint32_t)h
           density:(float)density;

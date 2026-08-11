@@ -54,6 +54,7 @@
 
 - (void)drawLayer:(CAMetalLayer *)layer
          treeData:(NSData *)treeData
+         commands:(NSData *)commands
         viewportW:(uint32_t)w
         viewportH:(uint32_t)h
           density:(float)density {
@@ -69,6 +70,10 @@
   }
   const auto *fb = skityrt::GetRenderTree(static_cast<const void *>(treeData.bytes));
   slot->SyncFromSnapshot(fb);
+  // Phase 2 Step 1b: apply incremental commands after the snapshot sync.
+  if (commands != nil && commands.length > 0) {
+    slot->ApplyCommandBatch(static_cast<const uint8_t *>(commands.bytes), commands.length);
+  }
 
   @autoreleasepool {
     id<CAMetalDrawable> drawable = [layer nextDrawable];

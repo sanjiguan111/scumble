@@ -12,6 +12,7 @@
 // Written on the UI thread, read on the render queue.
 @property(nonatomic, strong, nullable) NSData *pendingTree;
 @property(nonatomic, assign) float pendingDensity;
+@property(nonatomic, strong, nullable) NSData *pendingCommands;
 @end
 
 @implementation SkityRenderSession
@@ -37,9 +38,10 @@
   self.layer = nil;
 }
 
-- (void)setRenderTreeData:(NSData *)data density:(float)density {
+- (void)setRenderTreeData:(NSData *)data density:(float)density commands:(NSData *)commands {
   self.pendingTree = data;
   self.pendingDensity = density;
+  self.pendingCommands = commands;
   [self postDraw];
 }
 
@@ -64,9 +66,11 @@
   if (drawable.width <= 0 || drawable.height <= 0) return;
   [self.context drawLayer:self.layer
                  treeData:data
+                 commands:self.pendingCommands
                 viewportW:(uint32_t)drawable.width
                 viewportH:(uint32_t)drawable.height
                   density:self.pendingDensity];
+  self.pendingCommands = nil;
 }
 
 - (void)destroy {

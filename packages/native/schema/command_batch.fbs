@@ -1,0 +1,74 @@
+// command_batch.fbs
+// Phase 2 incremental command stream. Step 1b carries pure-paint / path /
+// transform mutations; structure + geometry still arrive via the RenderTree
+// snapshot channel (see RENDER_ARCHITECTURE.md §11.10).
+//
+// The retained render tree on the render thread applies each CommandBatch
+// after syncing from the latest snapshot.
+
+include "render_tree_common.fbs"; // LineCap, LineJoin, FillRule
+include "render_tree_style.fbs";  // PathCommandList, TransformOpList
+
+namespace skityrt;
+
+// Bit flags identifying which SetPaint fields are intentionally set in this
+// command. FlatBuffer defaults make "field == 0" ambiguous (0 is a valid
+// color / cap / ...), so the producer sets the bit for every field it wants the
+// consumer to apply; the consumer ignores fields whose bits are 0.
+enum PaintField : uint {
+  NONE         = 0,
+  FILL         = 1,
+  STROKE       = 2,
+  STROKE_WIDTH = 4,
+  STROKE_CAP   = 8,
+  STROKE_JOIN  = 16,
+  STROKE_MITER = 32,
+  FILL_RULE    = 64,
+  OPACITY      = 128,
+}
+
+// One logical mutation. Step 1b covers only paint / path / transform. Step 2
+// will add InsertNode / RemoveNode / MoveNode; Step 3 SetGeometry / SetViewport.
+union Command {
+  SetPaint,     // paint fields, gated by fields_dirty
+  SetPathData,  // PathCommandList bytes (memcpy from the JS-built blob)
+  SetTransform, // TransformOpList bytes (memcpy from the JS-built blob)
+}
+
+// Paint mutation. fill_color / stroke_color are 0xAARRGGBB; ResolvedPaint is
+// implicitly COLOR when the corresponding bit is set. "Inactive paint"
+// (Phase 1 null fillColor) is encoded by NOT setting the bit (the value is
+// then ignored by the consumer).
+table SetPaint {
+  node_id:int = -1;
+  fields_dirty:PaintField = NONE;
+  fill_color:uint = 0; // valid only if FILL bit set
+  stroke_color:uint = 0; // valid only if STROKE bit set
+  stroke_width:float = 1.0;
+  stroke_cap:LineCap = BUTT;
+  stroke_join:LineJoin = MITER;
+  stroke_miter:float = 4.0;
+  fill_rule:FillRule = NONZERO;
+  opacity:float = 1.0;
+}
+
+table SetPathData {
+  node_id:int = -1;
+  // JS-built PathCommandList bytes, memcpy'd verbatim by the TASM side.
+  data:[ubyte] (nested_flatbuffer: "PathCommandList");
+}
+
+table SetTransform {
+  node_id:int = -1;
+  // JS-built TransformOpList bytes, memcpy'd verbatim by the TASM side.
+  data:[ubyte] (nested_flatbuffer: "TransformOpList");
+}
+
+table CommandBatch {
+  // Monotonic per-canvas sequence number (debug only in Step 1b; Step 2 makes
+  // it load-bearing for ordering once the snapshot channel is retired).
+  version:uint = 0;
+  commands:[Command];
+}
+
+root_type CommandBatch;

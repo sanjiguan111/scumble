@@ -61,6 +61,8 @@ LYNX_PROPS_GROUP_DECLARE(
 // without this they'd update the field but never reach the render bundle.
 // setNeedsLayout coalesces (next vsync), so a batch of prop updates triggers a
 // single measure. Android mirrors this with markDirty() per setter.
+// Phase 2 Step 1b: paint/path/transform setters also set a dirty flag drained
+// into a CommandBatch in measure(). Geometry setters stay snapshot-only.
 #pragma mark - Geometry setters
 
 LYNX_PROP_SETTER("x", setX, NSNumber *) {
@@ -116,43 +118,52 @@ LYNX_PROP_SETTER("y2", setY2, NSNumber *) {
   [self setNeedsLayout];
 }
 
-#pragma mark - Paint setters
+#pragma mark - Paint setters (dirty → command channel)
 
 LYNX_PROP_SETTER("color", setColor, NSNumber *) {
   _fillColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
+  _dirtyPaintMask |= kSkityPaintFieldFill;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fill", setFill, NSNumber *) {
   _fillColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
+  _dirtyPaintMask |= kSkityPaintFieldFill;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("stroke", setStroke, NSNumber *) {
   _strokeColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
+  _dirtyPaintMask |= kSkityPaintFieldStroke;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeWidth", setStrokeWidth, NSNumber *) {
   _strokeWidth = value.floatValue;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeWidth;
   [self setNeedsLayout];
 }
 // Enums arrive as numbers already mapped to skityrt bytes (parsers layer).
 LYNX_PROP_SETTER("strokeCap", setStrokeCap, NSNumber *) {
   _strokeCap = (uint8_t)value.intValue;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeCap;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeJoin", setStrokeJoin, NSNumber *) {
   _strokeJoin = (uint8_t)value.intValue;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeJoin;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeMiter", setStrokeMiter, NSNumber *) {
   _strokeMiter = value.floatValue;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeMiter;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fillRule", setFillRule, NSNumber *) {
   _fillRule = (uint8_t)value.intValue;
+  _dirtyPaintMask |= kSkityPaintFieldFillRule;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("opacity", setOpacity, NSNumber *) {
   _opacity = value.floatValue;
+  _dirtyPaintMask |= kSkityPaintFieldOpacity;
   [self setNeedsLayout];
 }
 
@@ -163,6 +174,7 @@ LYNX_PROP_SETTER("transform", setTransform, NSString *) {
       [[NSData alloc] initWithBase64EncodedString:value
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _transformData = decoded.length > 0 ? decoded : nil;
+  _dirtyTransform = YES;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("d", setD, NSString *) {
@@ -170,6 +182,7 @@ LYNX_PROP_SETTER("d", setD, NSString *) {
       [[NSData alloc] initWithBase64EncodedString:value
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _pathData = decoded.length > 0 ? decoded : nil;
+  _dirtyPath = YES;
   [self setNeedsLayout];
 }
 

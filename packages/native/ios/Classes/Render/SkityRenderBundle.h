@@ -24,7 +24,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// Screen scale (points → pixels), passed through to SkityRenderer::Draw.
 @property(nonatomic, assign, readonly) float density;
 
-- (instancetype)initWithData:(NSData *)data viewport:(CGSize)viewportSize density:(float)density;
+/// Phase 2 Step 1b: incremental CommandBatch bytes (nil when nothing dirty).
+@property(nonatomic, strong, readonly, nullable) NSData *commandBatchData;
+
+- (instancetype)initWithData:(NSData *)data
+                     viewport:(CGSize)viewportSize
+                      density:(float)density
+              commandBatchData:(nullable NSData *)commandBatchData;
 
 @end
 

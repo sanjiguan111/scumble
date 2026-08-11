@@ -22,7 +22,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// until the next attachSurface. The canvas pixel size is read fresh from the
 /// layer's drawableSize at draw time (it may still be 0 when an early bundle
 /// arrives before the first layout, so it must not be cached here).
-- (void)setRenderTreeData:(NSData *)data density:(float)density;
+- (void)setRenderTreeData:(NSData *)data
+                  density:(float)density
+                 commands:(nullable NSData *)commands;
 
 /// Release this session. The shared render queue is not torn down.
 - (void)destroy;

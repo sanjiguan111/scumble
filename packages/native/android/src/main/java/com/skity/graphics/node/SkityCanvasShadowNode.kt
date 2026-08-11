@@ -14,7 +14,12 @@ import com.lynx.tasm.behavior.shadow.MeasureResult
 import com.skity.graphics.render.SkityRenderBundle
 import com.skity.graphics.skityrt.AspectRatioAlign
 import com.skity.graphics.skityrt.AspectRatioMeetOrSlice
+import com.skity.graphics.skityrt.Command
+import com.skity.graphics.skityrt.CommandBatch
 import com.skity.graphics.skityrt.ComputedStyle
+import com.skity.graphics.skityrt.SetPaint
+import com.skity.graphics.skityrt.SetPathData
+import com.skity.graphics.skityrt.SetTransform
 import com.skity.graphics.skityrt.PreserveAspectRatio
 import com.skity.graphics.skityrt.RenderNode
 import com.skity.graphics.skityrt.RenderTree
@@ -51,6 +56,9 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   // at 1; assigned lazily in measure() via assignNativeIds(). Never reused.
   private var nextNodeId = 1
 
+  // Phase 2 Step 1b: monotonic CommandBatch version (debug counter for now).
+  private var nextCommandVersion = 0L
+
   // Each setter calls markDirty() to force a layout pass → measure → repaint,
   // mirroring SkityNodeBase's per-setter trigger.
   @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v; markDirty() }
@@ -78,6 +86,8 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     // serializing, so the retained tree on the render thread can address nodes
     // by id (SyncFromSnapshot + Step 1b CommandBatch).
     assignNativeIds(this)
+    // Phase 2 Step 1b: drain dirty paint/path/transform into a CommandBatch.
+    val commandBatch = buildCommandBatchIfNeeded(this)
     val density = context.resources.displayMetrics.density
 
     // Layout is driven by Lynx (style width/height). Resolve to a concrete size
@@ -114,7 +124,8 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       // single source of truth (avoids double-applying).
       val treeOff = RenderTree.endRenderTree(fbb)
       fbb.finish(treeOff)
-      renderBundle = SkityRenderBundle(fbb.sizedByteArray(), w / density, h / density, density)
+      renderBundle =
+        SkityRenderBundle(fbb.sizedByteArray(), w / density, h / density, density, commandBatch)
     }
     return MeasureResult(w, h)
   }
@@ -132,6 +143,58 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     for (i in 0 until count) {
       val child = node.getChildAt(i)
       if (child is SkityNodeBase) assignNativeIds(child)
+    }
+  }
+
+  // ---- Phase 2 Step 1b: incremental command channel ----
+
+  /** Drain dirty paint/path/transform props across the shadow tree into a
+   * CommandBatch FlatBuffer (or null if nothing is dirty). Clears the flags. */
+  private fun buildCommandBatchIfNeeded(root: SkityNodeBase): ByteArray? {
+    val fbb = FlatBufferBuilder(256)
+    val offsets = mutableListOf<Int>()
+    val types = mutableListOf<Byte>()
+    collectCommands(fbb, root, offsets, types)
+    if (offsets.isEmpty()) return null
+    val typesVec = CommandBatch.createCommandsTypeVector(fbb, types.toByteArray())
+    val cmdsVec = CommandBatch.createCommandsVector(fbb, offsets.toIntArray())
+    val batch = CommandBatch.createCommandBatch(fbb, nextCommandVersion, typesVec, cmdsVec)
+    nextCommandVersion += 1
+    CommandBatch.finishCommandBatchBuffer(fbb, batch)
+    return fbb.sizedByteArray()
+  }
+
+  private fun collectCommands(
+    fbb: FlatBufferBuilder, node: SkityNodeBase,
+    offsets: MutableList<Int>, types: MutableList<Byte>,
+  ) {
+    if (node.dirtyPaint != 0) {
+      offsets += SetPaint.createSetPaint(
+        fbb, node.nativeId, node.dirtyPaint.toLong(),
+        node.fillColor ?: 0L, node.strokeColor ?: 0L,
+        node.strokeWidth, node.strokeCap, node.strokeJoin,
+        node.strokeMiter, node.fillRule, node.opacity)
+      types += Command.SetPaint
+      node.dirtyPaint = 0
+    }
+    if (node.dirtyPath) {
+      val data = node.pathData
+      val off = if (data != null && data.isNotEmpty()) SetPathData.createDataVector(fbb, data) else 0
+      offsets += SetPathData.createSetPathData(fbb, node.nativeId, off)
+      types += Command.SetPathData
+      node.dirtyPath = false
+    }
+    if (node.dirtyTransform) {
+      val data = node.transformData
+      val off = if (data != null && data.isNotEmpty()) SetTransform.createDataVector(fbb, data) else 0
+      offsets += SetTransform.createSetTransform(fbb, node.nativeId, off)
+      types += Command.SetTransform
+      node.dirtyTransform = false
+    }
+    val count = node.childCount
+    for (i in 0 until count) {
+      val child = node.getChildAt(i)
+      if (child is SkityNodeBase) collectCommands(fbb, child, offsets, types)
     }
   }
 

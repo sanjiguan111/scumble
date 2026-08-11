@@ -87,7 +87,7 @@ class SkityCanvasView(context: Context) : FrameLayout(context) {
     val bundle = pendingBundle ?: return
     // Hand the bundle to the render session. The session keeps it as pending
     // and draws once the GL surface is ready (SkityGLRenderSession.drawIfReady).
-    session.setRenderTree(bundle.renderTreeBytes, bundle.density)
+    session.setRenderTree(bundle.renderTreeBytes, bundle.density, bundle.commandBatchBytes)
   }
 
   /** Release the render thread + native renderer. Called from LynxUI.onDetach. */

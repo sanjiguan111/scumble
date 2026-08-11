@@ -3,6 +3,7 @@
 
 #include "retained_render_tree.h"
 
+#include "command_batch_generated.h"
 #include "render_tree_common_generated.h"
 #include "render_tree_generated.h"
 #include "render_tree_style_generated.h"
@@ -102,11 +103,78 @@ void UpdateViewportFromFB(const RenderTree* fb, RetainedViewport* out) {
   }
 }
 
+// Apply a SetPaint command to a retained node. Only fields whose PaintField bit
+// is set in fields_dirty are written; the rest are left untouched (FlatBuffer
+// defaults make "field == 0" a valid value, so the bitmask is authoritative).
+void ApplySetPaint(const SetPaint* p, RetainedNode* node) {
+  uint32_t dirty = static_cast<uint32_t>(p->fields_dirty());
+  if (dirty & PaintField_FILL) {
+    node->style.fill.type = 1; // COLOR
+    node->style.fill.color = p->fill_color();
+  }
+  if (dirty & PaintField_STROKE) {
+    node->style.stroke.type = 1; // COLOR
+    node->style.stroke.color = p->stroke_color();
+  }
+  if (dirty & PaintField_STROKE_WIDTH) node->style.stroke_width = p->stroke_width();
+  if (dirty & PaintField_STROKE_CAP) node->style.stroke_cap = p->stroke_cap();
+  if (dirty & PaintField_STROKE_JOIN) node->style.stroke_join = p->stroke_join();
+  if (dirty & PaintField_STROKE_MITER) node->style.stroke_miter = p->stroke_miter();
+  if (dirty & PaintField_FILL_RULE) node->style.fill_rule = p->fill_rule();
+  if (dirty & PaintField_OPACITY) node->style.opacity = p->opacity();
+}
+
+// memcpy a nested-flatbuffer byte vector ([ubyte]) into an owning std::vector.
+void AssignOwnedBytes(const ::flatbuffers::Vector<uint8_t>* src, std::vector<uint8_t>* dst) {
+  if (src != nullptr && src->size() > 0) {
+    dst->assign(src->Data(), src->Data() + src->size());
+  } else {
+    dst->clear();
+  }
+}
+
 }  // namespace
 
 RetainedNode* RetainedRenderTree::Find(int32_t id) const {
   auto it = node_map_.find(id);
   return it != node_map_.end() ? it->second.get() : nullptr;
+}
+
+void RetainedRenderTree::ApplyCommandBatch(const uint8_t* data, std::size_t size) {
+  if (data == nullptr || size == 0) return;
+  const CommandBatch* batch = GetCommandBatch(data);
+  if (batch == nullptr) return;
+  const auto* cmds = batch->commands();
+  const auto* types = batch->commands_type();
+  if (cmds == nullptr || types == nullptr) return;
+  auto count = cmds->size();
+  for (::flatbuffers::uoffset_t i = 0; i < count && i < types->size(); i++) {
+    Command type = types->GetEnum<Command>(i);
+    const void* obj = cmds->Get(i);
+    if (obj == nullptr) continue;
+    switch (type) {
+    case Command_SetPaint: {
+      const auto* p = static_cast<const SetPaint*>(obj);
+      RetainedNode* node = Find(p->node_id());
+      if (node != nullptr) ApplySetPaint(p, node);
+      break;
+    }
+    case Command_SetPathData: {
+      const auto* pd = static_cast<const SetPathData*>(obj);
+      RetainedNode* node = Find(pd->node_id());
+      if (node != nullptr) AssignOwnedBytes(pd->data(), &node->path_data);
+      break;
+    }
+    case Command_SetTransform: {
+      const auto* td = static_cast<const SetTransform*>(obj);
+      RetainedNode* node = Find(td->node_id());
+      if (node != nullptr) AssignOwnedBytes(td->data(), &node->style.transform_data);
+      break;
+    }
+    default:
+      break;
+    }
+  }
 }
 
 RetainedNode* RetainedRenderTree::SyncNode(const RenderNode* fb, RetainedNode* parent,
