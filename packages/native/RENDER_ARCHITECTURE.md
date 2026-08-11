@@ -139,3 +139,273 @@ Dependency-ordered; each step is independently reviewable:
 - serialization: Android `android/.../graphics/node/SkityCanvasShadowNode.kt` (measure/buildRenderNode/buildStyle/buildPaint); iOS `ios/Classes/Node/SkityCanvasShadowNode.mm`
 - renderer: `packages/native/shared/skity/SkityRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density,W,H)` + viewport)
 - backends: Android `android/src/main/cpp/skity/{gles,vulkan}_render_backend.cpp`; iOS `ios/Classes/Render/`
+
+---
+
+## 11. Phase 2 roadmap — retained render tree + command stream
+
+> Status: **design / not yet implemented.** This section records the agreed
+> direction for the next architecture phase. It revises the §1 principle ("native
+> never holds structure") — Phase 2 deliberately moves from a *stateless
+> serializer* to a *stateful rendering engine*, motivated by animation.
+
+### 11.1 Motivation
+
+Phase 1 is a stateless serializer: any single prop change → `markDirty` → Lynx
+layout pass → `measure()` rebuilds the **entire** `RenderTree` FlatBuffer →
+`extraBundle` ships an immutable snapshot across three threads. This is simple
+and thread-safe (zero shared mutable state), but for **animation** — a high
+frequency of small updates — the cost is not the GPU draw, it is the Lynx layout
+pass + the full-tree re-serialization that runs on every changed prop. The Lynx
+ShadowNode tree is already incremental (only the changed setter fires); Phase 1
+flattens that back into a full rebuild.
+
+**Goal:** make a single prop change cost O(1) on the renderer thread, and take
+the pure-painting props **off the Lynx layout pipeline entirely**.
+
+### 11.2 Target architecture
+
+> **Two threads, decoupled.** The TASM thread only serializes *changes* into
+> commands and posts them. The render thread owns a retained C++ render tree,
+> drains the command queue, applies it, and draws. The `extraBundle` snapshot
+> channel is retired.
+
+```
+TASM thread                 UI thread              render thread
+──────────                  ─────────              ─────────────
+setter → emit Command       onLayout /             drain command queue
+       → batch              onSizeChanged          → apply to retained tree
+       → post ───────────────────────────────────▶
+                            ── session.updateSize ▶ adjust surface
+                                                   read density locally
+                                                   Draw(tree, canvas, …)
+```
+
+The render tree is **exclusive to the render thread** — no locks, no shared
+mutable state across threads. Cross-thread hand-off is now a *command stream*
+(still an immutable message) instead of a *full-tree snapshot*.
+
+### 11.3 Why FlatBuffers is the right wire format here
+
+An earlier idea was to use nested FlatBuffers to **splice a full tree** from
+per-node blobs. That is undermined by FlatBuffer immutability (a changed child
+invalidates every ancestor blob). Phase 2 uses FlatBuffers for **incremental
+command messages** instead — commands are one-shot immutable messages, so
+immutability is a feature, not a liability. Path/transform payloads reuse the
+existing `(nested_flatbuffer: …)` blob channel verbatim.
+
+### 11.4 Command stream schema (draft — finalized at implementation)
+
+```fbs
+// render_tree_command.fbs  (Phase 2 draft)
+include "render_tree_common.fbs";
+include "render_tree_style.fbs";
+namespace skityrt;
+
+// One logical change to the retained tree. Union members are grouped by concern
+// so the layout/paint split (§11.6) falls out of which command a setter emits.
+union Command {
+  SetGeometry,    // cx/cy/r/x/y/w/h/… (virtual nodes, absolute logical px)
+  SetPaint,       // fill/stroke color, strokeWidth, cap/join/miter/fillRule/opacity
+  SetPathData,    // node_id + nested PathCommandList bytes (memcpy)
+  SetTransform,   // node_id + nested TransformOpList bytes (memcpy)
+  SetViewport,    // canvas viewBox
+  InsertNode,     // create node under a parent at an index
+  RemoveNode,     // destroy node (+ subtree)
+  MoveNode,       // reparent / reorder
+}
+
+table SetGeometry {
+  node_id:uint;
+  x:float; y:float; width:float; height:float;   // sparse semantics: see §11.6
+  cx:float; cy:float; r:float; rx:float; ry:float;
+  x1:float; y1:float; x2:float; y2:float;
+}
+
+table SetPaint {
+  node_id:uint;
+  fill_color:uint;     // 0xAARRGGBB; sentinel (e.g. 0xFFFFFFFF+1) = NONE
+  stroke_color:uint;
+  stroke_width:float; stroke_cap:LineCap; stroke_join:LineJoin;
+  stroke_miter:float; fill_rule:FillRule; opacity:float;
+}
+
+table SetPathData  { node_id:uint; data:[ubyte] (nested_flatbuffer: "PathCommandList"); }
+table SetTransform { node_id:uint; data:[ubyte] (nested_flatbuffer: "TransformOpList"); }
+table SetViewport  { node_id:uint; x:float; y:float; width:float; height:float; }
+table InsertNode   { node_id:uint; parent_id:uint; index:uint; tag_name:string; }
+table RemoveNode   { node_id:uint; }
+table MoveNode     { node_id:uint; new_parent_id:uint; index:uint; }
+
+table CommandBatch {
+  version:uint;        // monotonic tree version; renderer detects gaps / reorder
+  commands:[Command];
+}
+root_type CommandBatch;
+```
+
+Open detail (resolve at implementation): whether `SetGeometry`/`SetPaint` carry
+*all* fields and use an "unchanged" sentinel, or split into per-field commands.
+The schema above keeps one table per concern with sentinel values for "not set";
+optional scalars (`(optional)`, flatc ≥ 1.12) are the cleaner alternative if the
+codegen target supports them everywhere.
+
+### 11.5 Node identity
+
+Commands address nodes by a stable `node_id` shared between the TASM-side shadow
+node and the render-thread node.
+
+- **Preferred:** reuse the Lynx shadow node's native id/sign (iOS
+  `initWithSign:`, Android `ShadowNode` id) directly. **Must verify** it stays
+  stable across insert/remove/reorder and isn't reused after unmount.
+- **Fallback:** TASM-side monotonic id allocator, assigned at mount, carried on
+  the shadow node.
+- Render thread keeps an `id → RenderNode*` map for O(1) command application.
+
+### 11.6 The layout/paint split — and why `markDirty` goes away
+
+This is the key simplification the whole design turns on:
+
+- The **canvas size** comes from `style` (Lynx layout, standard) — see
+  `Canvas.tsx`: *"Size comes from `style` like any Lynx view."* Lynx lays the
+  canvas out without any help from skity.
+- **Child nodes are virtual**; their geometry (`cx/cy/r`, path data, …) is
+  authored in absolute logical pixels and **does not participate in Lynx
+  layout** at all.
+
+Therefore **every skity prop — geometry included — is pure rendering data** that
+can go straight to a command. Nothing in the skity tag set needs `markDirty` to
+trigger a layout pass; the current per-setter `markDirty()` / `setNeedsLayout`
+exists *only* to force `measure()` to re-serialize (see the comment block in
+`SkityNodeBase.kt`). Once `measure` is gone (§11.9), **all of those triggers are
+deleted** — they would only cause wasted layout passes. (This reverses the
+"every setter must markDirty" conclusion recorded for Phase 1.)
+
+### 11.7 Transaction batching
+
+`measure` currently rides on the Lynx layout pass, which gave it a free
+coalescing of multiple prop changes per frame. Removing `measure` removes that
+free lunch: batching multiple setters into one `CommandBatch` becomes the command
+channel's explicit job.
+
+- Each setter appends to a per-canvas pending buffer on the TASM thread.
+- A flush at a reliable "end of update transaction / end of frame" point packs
+  the buffer into one `CommandBatch` and posts it.
+- **Open detail:** the reliable flush hook must be found empirically. Note the
+  Phase 1 finding that the root `onAfterUpdateTransaction` does **not** fire for
+  child-prop changes — so a naive transaction hook on the canvas won't cover
+  child setters. Candidates: an explicit flush driven by the Lynx frame
+  callback, or a "first setter marks pending + deferred flush" pattern.
+
+### 11.8 Structural sync
+
+Mount/unmount/insert/remove/move in the Lynx element tree must be hooked
+(`InsertNode` / `RemoveNode` / `MoveNode`) so the render-thread tree stays
+consistent. Hook Lynx ShadowNode's structure-change overrides on both platforms.
+This is the most bug-prone area of a retained external tree — orphans, id reuse
+collisions, child-order races — and needs dedicated round-trip tests.
+
+### 11.9 What gets retired
+
+Removing the snapshot channel dissolves the `measure` function, which today
+couples "compute size" with "serialize the whole tree":
+
+| Today (in `measure` / Phase 1) | Phase 2 owner |
+| --- | --- |
+| Compute canvas size | **Deleted** — Lynx layout via `style` |
+| Build the `RenderTree` FlatBuffer (leaf→root) | **Deleted** — command stream |
+| `buildRenderNode` / `buildStyle` / `buildPaint` | **Deleted** |
+| `SkityRenderBundle` + `getExtraBundle` + `updateExtraData` + `consumeRenderBundle` | **Deleted** |
+| `setCustomMeasureFunc` (Android) / `customMeasureDelegate` (iOS) | **Not called** |
+| `density` capture in measure | Render thread reads it locally (it already is the single source of truth in `Draw`) |
+| Canvas physical size in bundle | `onSurfaceTextureSizeChanged` / `onSizeChanged` → `session.updateSize` (already exists) |
+
+**Kept:** `isVirtual = false` on the canvas (it still needs a platform view —
+`TextureView` / `MetalLayer` — to host the GPU surface; removing `measure` ≠
+removing the view). Shape/group nodes stay virtual.
+
+### 11.10 Migration path (incremental, each step independently revertable)
+
+1. **Paint command channel.** Stand up the C++ retained tree + `CommandBatch`
+   plumbing; route only pure-paint setters (`SetPaint`/`SetPathData`/`SetTransform`)
+   through it, with `extraBundle` still coexisting as the fallback full-tree
+   path. Animation payoff lands here.
+2. **Structural commands + node id.** `InsertNode`/`RemoveNode`/`MoveNode`; the
+   render-thread tree is now the source of truth for topology.
+3. **Geometry + viewport via commands.** `SetGeometry`/`SetViewport`; delete
+   `measure`, `buildRenderNode`, `extraBundle`, `SkityRenderBundle`. Lynx layout
+   owns canvas size end-to-end.
+4. Cleanup: remove the dead `markDirty`/`setNeedsLayout` calls; update this doc
+   and the §1 principle.
+
+### 11.11 Trade-offs & risks
+
+- This is a turn from **stateless serializer** to **stateful engine**. The §1
+  principle ("the native side never holds structure") is revised: native now
+  holds a render tree, but still does **zero string parsing** — parsing stays in
+  JS (§3), only the *retained state* moves native-side.
+- Cost: a command system, node-id mapping, structural sync, and transaction
+  batching to own and test on both platforms.
+- Payoff: animation off the Lynx layout pipeline (the real frame-rate win), and
+  a native home for future SVG capabilities (selectors, style inheritance).
+
+### 11.12 Cross-thread dispatch — how commands reach the render thread
+
+The render thread and its dispatch mechanism already exist in Phase 1; Phase 2
+reuses them unchanged.
+
+**Mechanism (per platform):**
+
+- Android (`SkityRenderThread.kt`): a process-wide `HandlerThread` + a `Handler`
+  bound to its `Looper`. Any thread holding `SkityRenderThread.handler` calls
+  `handler.post { … }` to enqueue work on the render thread.
+- iOS (`SkityMetalContext.mm`): a shared *serial* GCD queue
+  (`dispatch_queue_create("com.skity.lynx.queue", DISPATCH_QUEUE_SERIAL)`). Any
+  thread holding the queue calls `dispatch_async(queue, ^{ … })`.
+
+**Key fact — single-threaded ownership already holds.** Every native call
+(`nativeSetRenderTree` / `nativeDrawFrame` on Android; `drawLayer` →
+`GetRenderTree` + `Draw` on iOS) is wrapped in a `post` / `dispatch_async`, so
+the native renderer object (`rendererHandle` / `GPUContext`) is touched only on
+the render thread. The Phase 2 retained tree attaches to that same object; no
+new synchronization is needed for the tree itself.
+
+**What changes in Phase 2 is *not* the mechanism — it's the sender, the payload,
+and one piece of wiring:**
+
+| | Phase 1 (today) | Phase 2 |
+| --- | --- | --- |
+| Dispatch mechanism | `Handler.post` / `dispatch_async` | **reused unchanged** |
+| Sender | UI thread (`onDraw`) | TASM thread (setter) |
+| Payload | `pendingTree` full-tree snapshot | `CommandBatch` incremental |
+| Thread hops | TASM → UI → render (two) | TASM → render (one) |
+
+**The one new piece of wiring** is how a TASM-side shadow node reaches the
+render-thread dispatch port. Today the `handler` / `renderQueue` reference lives
+on the UI side (`SkityCanvasView` → session → handler); the shadow node cannot
+see it. Two landing options:
+
+- **(a) Native registry.** A `canvasSign → rendererHandle` map, registered at
+  attach. The shadow node calls `nativePostCommands(sign, batchBytes)`; the JNI
+  method runs on the TASM thread, looks up the renderer's dispatch port, and
+  posts the bytes to the render-thread queue.
+- **(b) Native handle on the shadow node.** The render thread builds a retained
+  tree root per canvas and hands back a `long handle` stored on the shadow node.
+  A setter calls `nativeApplyCommands(handle, batchBytes)`; the native method
+  posts to the render thread that owns `handle`.
+
+Both mirror today's `nativeSetRenderTree(handle, data, density)` shape — only
+the semantics flip from "set whole tree" to "apply commands". The final step is
+always `handler.post` / `dispatch_async`.
+
+**Why this stays lock-free:**
+
+- The retained tree is read/written only on the render thread (apply + draw).
+- A `CommandBatch` is an immutable byte array: the producer (TASM) never touches
+  it after serialization; the consumer (render thread) has exclusive access —
+  producer and consumer never overlap.
+- The only shared state is the dispatch port itself (Handler's `MessageQueue` /
+  the GCD queue), which is already a thread-safe concurrent queue.
+
+This is the most concrete engineering step of Phase 2: the dispatch model does
+not change, only the TASM→render-thread wiring and the payload do.
