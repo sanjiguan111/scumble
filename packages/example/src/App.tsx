@@ -44,7 +44,7 @@ export function App() {
   // mount/unmount, exercising InsertNode/RemoveNode on the retained tree.
   const [showStruct, setShowStruct] = useState(true);
   return (
-    <scroll-view style={{ width: "100%", height: "100%", backgroundColor: "#ffffff" }}>
+    <scroll-view style={{ width: "100%", height: "100%", backgroundColor: "#ffffff" }} scroll-y>
       <text style={{ fontSize: "20px", padding: "16px" }}>lynx-skity demo</text>
       <text style={{ fontSize: "16px", padding: "16px" }}>
         structural test — tap to add/remove magenta rect · {showStruct ? "ON" : "OFF"}
