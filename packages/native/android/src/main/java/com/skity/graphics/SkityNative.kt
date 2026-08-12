@@ -6,8 +6,9 @@ import android.view.Surface
 
 /**
  * JNI bindings to libskityrender.so (app_renderer + GLES/Vulkan backends +
- * SkityRenderer). Handle-based, mirroring Skity-Android's SkityNative, plus
- * [nativeSetRenderTree] to feed the FlatBuffer RenderTree from the ShadowNode.
+ * SkityRenderer). Handle-based, mirroring Skity-Android's SkityNative. The
+ * render tree is driven solely by [nativeApplyCommands] (Step 3b retired the
+ * snapshot channel — no nativeSetRenderTree).
  *
  * All functions are @JvmStatic, so the JNI side receives `jclass` (not the
  * object instance) as the 2nd parameter.
@@ -22,7 +23,7 @@ object SkityNative {
   const val BACKEND_VULKAN = 2
 
   @JvmStatic
-  external fun nativeCreateRenderer(backendType: Int, sharedGLHandle: Long): Long
+  external fun nativeCreateRenderer(backendType: Int, sharedGLHandle: Long, density: Float): Long
 
   @JvmStatic
   external fun nativeDestroyRenderer(handle: Long)
@@ -50,9 +51,6 @@ object SkityNative {
 
   @JvmStatic
   external fun nativeDrawFrame(handle: Long)
-
-  @JvmStatic
-  external fun nativeSetRenderTree(handle: Long, data: ByteArray, density: Float)
 
   @JvmStatic
   external fun nativeApplyCommands(handle: Long, commands: ByteArray)

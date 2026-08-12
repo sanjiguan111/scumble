@@ -5,16 +5,15 @@ package com.skity.graphics.ui
 import android.content.Context
 import com.lynx.tasm.behavior.LynxContext
 import com.lynx.tasm.behavior.ui.LynxUI
-import com.skity.graphics.render.SkityRenderBundle
 
 /**
- * LynxUI for `<skity-canvas>`. Receives the serialized RenderTree bundle from
- * the ShadowNode via Lynx's extra-data channel and forwards it to the
- * GLSurfaceView for skity rendering.
+ * LynxUI for `<skity-canvas>`. Receives the CommandBatch bytes from the
+ * ShadowNode via Lynx's extra-data channel (Step 3b: the snapshot bundle is
+ * retired — commands are the only payload) and forwards them to the view.
  *
- * Mirrors lynx-native-svg's UISvg (updateExtraData → view.consumeRenderBundle);
- * the difference is the backing view renders with skity on a GL surface instead
- * of android.graphics.Canvas.
+ * Mirrors lynx-native-svg's UISvg (updateExtraData → view.consume*); the
+ * difference is the backing view renders with skity on a GL surface instead of
+ * android.graphics.Canvas.
  */
 class SkityCanvasUI(context: LynxContext) : LynxUI<SkityCanvasView>(context) {
 
@@ -24,8 +23,8 @@ class SkityCanvasUI(context: LynxContext) : LynxUI<SkityCanvasView>(context) {
 
   override fun updateExtraData(extraData: Any?) {
     super.updateExtraData(extraData)
-    if (extraData is SkityRenderBundle) {
-      view?.consumeRenderBundle(extraData)
+    if (extraData is ByteArray) {
+      view?.consumeCommands(extraData)
     }
   }
 

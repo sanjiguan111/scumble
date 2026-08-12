@@ -2,9 +2,9 @@
 // LICENSE file in the root directory of this source tree.
 //
 // Phase 2 retained render tree. The render thread owns a mutable in-memory tree
-// whose TOPOLOGY is driven by structural commands (InsertNode/RemoveNode/
-// MoveNode — Step 2); the snapshot only refreshes field values (geometry/paint/
-// viewport). See RENDER_ARCHITECTURE.md §11.
+// driven entirely by the CommandBatch stream (structural Insert/Remove/Move +
+// paint/path/transform/geometry/viewport setters). Step 3b retired the snapshot
+// channel — the tree is the single source of truth. See RENDER_ARCHITECTURE.md §11.
 #ifndef SKITY_RETAINED_RENDER_TREE_H_
 #define SKITY_RETAINED_RENDER_TREE_H_
 
@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "render_tree_common_generated.h" // LineCap/LineJoin/FillRule/Display/Visibility
-#include "render_tree_generated.h"        // skityrt::RenderTree (snapshot source)
+#include "render_tree_generated.h" // AspectRatioAlign/AspectRatioMeetOrSlice (RetainedViewport enums)
 
 namespace skityrt {
 
@@ -79,12 +79,6 @@ public:
   RetainedRenderTree() = default;
   ~RetainedRenderTree() = default;
 
-  // Refresh field values from a snapshot. Topology is NOT touched (owned by
-  // structural commands); the root is created here if missing (canvas has no
-  // skity parent, so its InsertNode is synthesized in measure). Null clears the
-  // viewport only — nodes persist until an explicit RemoveNode.
-  void SyncFromSnapshot(const RenderTree *fb);
-
   // O(1) lookup by node id.
   RetainedNode *Find(int32_t id) const;
 
@@ -103,10 +97,6 @@ private:
   void EraseSubtree(int32_t id);
   // True if `maybe_ancestor` is `node` or an ancestor of it (cycle guard).
   bool IsAncestor(RetainedNode *maybe_ancestor, RetainedNode *node) const;
-
-  // Snapshot field sync (no topology). `parent` is only used to detect the
-  // root level (parent == nullptr => create root if missing).
-  void SyncNodeFields(const RenderNode *fb, RetainedNode *parent);
 
   // id → owning node. Owns every RetainedNode; `children`/`root_` are raw
   // pointers into these.

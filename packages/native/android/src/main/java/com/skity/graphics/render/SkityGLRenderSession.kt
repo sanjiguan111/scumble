@@ -16,7 +16,7 @@ import com.skity.graphics.SkityNative
  * available (early consumeRenderBundle) is NOT lost — it's held as pending and
  * drawn once [attachSurface] completes.
  */
-class SkityGLRenderSession : SkityRenderSession {
+class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
 
   // Shared process-wide render thread (see SkityRenderThread).
   private val renderHandler = SkityRenderThread.handler
@@ -26,20 +26,15 @@ class SkityGLRenderSession : SkityRenderSession {
   @Volatile
   private var surfaceReady: Boolean = false
 
-  // Written on the UI thread (setRenderTree), read on the render thread
-  // (drawIfReady). Held until the surface is ready so an early bundle isn't lost.
-  @Volatile
-  private var pendingTree: ByteArray? = null
-  @Volatile
-  private var pendingDensity: Float = 1f
-  // Phase 2 Step 1b: incremental CommandBatch bytes (null = no commands).
+  // Phase 2: incremental CommandBatch bytes (null = no commands pending). Written
+  // on the UI thread (applyCommands), read + cleared on the render thread.
   @Volatile
   private var pendingCommands: ByteArray? = null
 
   private fun ensureRenderer() {
     if (rendererHandle == 0L) {
       rendererHandle = SkityNative.nativeCreateRenderer(
-        SkityNative.BACKEND_GLES, SkityRenderThread.sharedGLContextHandle)
+        SkityNative.BACKEND_GLES, SkityRenderThread.sharedGLContextHandle, density)
     }
   }
 
@@ -62,34 +57,31 @@ class SkityGLRenderSession : SkityRenderSession {
     renderHandler.post {
       if (rendererHandle != 0L) {
         SkityNative.nativeOnSurfaceChanged(rendererHandle, width, height)
+        drawIfReady() // size changed → redraw the retained tree at the new size
       }
     }
   }
 
   /**
-   * Push a new RenderTree. Kept as pending; drawn now if the surface is ready,
-   * otherwise drawn on the next attachSurface. Called from the UI thread
-   * (consumeRenderBundle → onDraw).
+   * Push a CommandBatch. Kept as pending; applied + drawn now if the surface is
+   * ready, otherwise on the next attachSurface. Called from the UI thread
+   * (consumeCommands). Step 3b: no snapshot — commands are the only payload.
    */
-  override fun setRenderTree(data: ByteArray, density: Float, commands: ByteArray?) {
-    pendingTree = data
-    pendingDensity = density
+  override fun applyCommands(commands: ByteArray) {
     pendingCommands = commands
     renderHandler.post { drawIfReady() }
   }
 
   private fun drawIfReady() {
-    val data = pendingTree ?: return
     if (!surfaceReady || rendererHandle == 0L) return
-    // Phase 2 Step 2: apply commands BEFORE the snapshot sync — Insert creates
-    // nodes so Sync can populate their fields. (Step 1b was Sync→Apply; Step 2
-    // topology-by-command requires Apply→Sync.)
+    // Step 3b: commands are the only mutation path (snapshot retired). The
+    // retained tree persists across frames, so every draw uses the current tree
+    // state; a null pendingCommands just redraws (e.g. after a resize).
     val commands = pendingCommands
     if (commands != null) {
       SkityNative.nativeApplyCommands(rendererHandle, commands)
       pendingCommands = null
     }
-    SkityNative.nativeSetRenderTree(rendererHandle, data, pendingDensity)
     SkityNative.nativeDrawFrame(rendererHandle)
   }
 

@@ -3,7 +3,6 @@
 package com.skity.graphics.ui
 
 import android.content.Context
-import android.graphics.Canvas
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import android.view.TextureView
@@ -11,20 +10,19 @@ import android.widget.FrameLayout
 import com.skity.graphics.SkityInit
 import com.skity.graphics.SkityNative
 import com.skity.graphics.render.SkityGLRenderSession
-import com.skity.graphics.render.SkityRenderBundle
 import com.skity.graphics.render.SkityRenderSession
 import com.skity.graphics.render.SkityVulkanRenderSession
 
 /**
  * ViewGroup backing `<skity-canvas>`. Contains a [TextureView] (which renders
  * to a GPU texture, so it can be laid out / transformed / nested like a normal
- * view, unlike GLSurfaceView) and drives skity GLES rendering on a dedicated
+ * view, unlike GLSurfaceView) and drives skity rendering on a dedicated
  * [SkityGLRenderSession] render thread.
  *
- * consumeRenderBundle stores the latest bundle and invalidates the view; the
- * actual hand-off to the render session happens in [onDraw], so the timing is
- * tied to the view's draw pass (the bundle is never lost even if it arrives
- * before the SurfaceTexture — the session keeps it pending).
+ * consumeCommands forwards CommandBatch bytes straight to the render session
+ * (Step 3b: no snapshot bundle; the session posts apply + draw to the render
+ * thread, and an early command before the SurfaceTexture is ready is held
+ * pending by the session).
  */
 class SkityCanvasView(context: Context) : FrameLayout(context) {
 
@@ -32,21 +30,17 @@ class SkityCanvasView(context: Context) : FrameLayout(context) {
   // run on separate shared render threads (EGL/Vulkan queue are thread-local).
   private val session: SkityRenderSession =
     if (SkityInit.backend == SkityNative.BACKEND_VULKAN) {
-      SkityVulkanRenderSession()
+      SkityVulkanRenderSession(context.resources.displayMetrics.density)
     } else {
-      SkityGLRenderSession()
+      SkityGLRenderSession(context.resources.displayMetrics.density)
     }
   private val textureView = TextureView(context)
-
-  private var pendingBundle: SkityRenderBundle? = null
 
   init {
     addView(
       textureView,
       LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
     )
-    // Enable onDraw so consumeRenderBundle → invalidate → onDraw drives rendering.
-    setWillNotDraw(false)
     // Transparent background: where skity draws nothing (glClearColor alpha=0
     // in GLESRenderBackend), let the Lynx view behind show through instead of
     // TextureView's default opaque black.
@@ -74,20 +68,9 @@ class SkityCanvasView(context: Context) : FrameLayout(context) {
       }
   }
 
-  /** Store the latest RenderTree and invalidate so onDraw dispatches it. */
-  fun consumeRenderBundle(bundle: SkityRenderBundle?) {
-    if (bundle != null) {
-      pendingBundle = bundle
-      invalidate()
-    }
-  }
-
-  override fun onDraw(canvas: Canvas) {
-    super.onDraw(canvas)
-    val bundle = pendingBundle ?: return
-    // Hand the bundle to the render session. The session keeps it as pending
-    // and draws once the GL surface is ready (SkityGLRenderSession.drawIfReady).
-    session.setRenderTree(bundle.renderTreeBytes, bundle.density, bundle.commandBatchBytes)
+  /** Forward CommandBatch bytes to the render session (posts apply + draw). */
+  fun consumeCommands(commands: ByteArray) {
+    session.applyCommands(commands)
   }
 
   /** Release the render thread + native renderer. Called from LynxUI.onDetach. */

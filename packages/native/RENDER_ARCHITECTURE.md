@@ -277,12 +277,14 @@ This is the key simplification the whole design turns on:
   layout** at all.
 
 Therefore **every skity prop — geometry included — is pure rendering data** that
-can go straight to a command. Nothing in the skity tag set needs `markDirty` to
-trigger a layout pass; the current per-setter `markDirty()` / `setNeedsLayout`
-exists _only_ to force `measure()` to re-serialize (see the comment block in
-`SkityNodeBase.kt`). Once `measure` is gone (§11.9), **all of those triggers are
-deleted** — they would only cause wasted layout passes. (This reverses the
-"every setter must markDirty" conclusion recorded for Phase 1.)
+can go straight to a command. _Originally_ the plan was to delete every
+`markDirty()` / `setNeedsLayout` once `measure` was gone. **Step 3b revised
+this** (Lynx 4.0.1): no ShadowNode frame/vsync callback is exposed, and the
+layout-pass-driven `measure` is the only reliable coalescing/flush point (iOS
+has no TASM-thread CADisplayLink equivalent). So `markDirty`/`setNeedsLayout`
+are **kept** as the flush trigger even though the snapshot body is gone —
+paint-only updates still ride a layout pass. Deleting them (the real animation
+win) is deferred until Lynx exposes a frame callback.
 
 ### 11.7 Transaction batching
 
@@ -294,11 +296,16 @@ channel's explicit job.
 - Each setter appends to a per-canvas pending buffer on the TASM thread.
 - A flush at a reliable "end of update transaction / end of frame" point packs
   the buffer into one `CommandBatch` and posts it.
-- **Open detail:** the reliable flush hook must be found empirically. Note the
-  Phase 1 finding that the root `onAfterUpdateTransaction` does **not** fire for
-  child-prop changes — so a naive transaction hook on the canvas won't cover
-  child setters. Candidates: an explicit flush driven by the Lynx frame
-  callback, or a "first setter marks pending + deferred flush" pattern.
+- **Resolved (Step 3b, Lynx 4.0.1):** the "reliable flush hook" is the layout
+  pass itself — `measure` (iOS `measureWithMeasureParam:`) drains the pending
+  buffer into one `CommandBatch` per pass. `setCustomMeasureFunc` /
+  `customMeasureDelegate` registration is **kept** (emptying only the snapshot
+  body) because `onLayoutBefore`/`measure` only fire for nodes that registered a
+  measure function. No Lynx frame callback is exposed to ShadowNodes, and iOS
+  has no TASM-thread CADisplayLink, so the layout pass remains the only
+  cross-platform flush point (lynx-native-svg uses the same pattern). The root
+  `onAfterUpdateTransaction` caveat still holds (per-node, not parent-fired) —
+  which is exactly why the per-setter `markDirty`→layout→`measure` path is used.
 
 ### 11.8 Structural sync
 
@@ -313,15 +320,15 @@ collisions, child-order races — and needs dedicated round-trip tests.
 Removing the snapshot channel dissolves the `measure` function, which today
 couples "compute size" with "serialize the whole tree":
 
-| Today (in `measure` / Phase 1)                                                     | Phase 2 owner                                                                           |
-| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Compute canvas size                                                                | **Deleted** — Lynx layout via `style`                                                   |
-| Build the `RenderTree` FlatBuffer (leaf→root)                                      | **Deleted** — command stream                                                            |
-| `buildRenderNode` / `buildStyle` / `buildPaint`                                    | **Deleted**                                                                             |
-| `SkityRenderBundle` + `getExtraBundle` + `updateExtraData` + `consumeRenderBundle` | **Deleted**                                                                             |
-| `setCustomMeasureFunc` (Android) / `customMeasureDelegate` (iOS)                   | **Not called**                                                                          |
-| `density` capture in measure                                                       | Render thread reads it locally (it already is the single source of truth in `Draw`)     |
-| Canvas physical size in bundle                                                     | `onSurfaceTextureSizeChanged` / `onSizeChanged` → `session.updateSize` (already exists) |
+| Today (in `measure` / Phase 1)                                                     | Phase 2 owner                                                                                                     |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Compute canvas size                                                                | **Deleted** — Lynx layout via `style`                                                                             |
+| Build the `RenderTree` FlatBuffer (leaf→root)                                      | **Deleted** — command stream                                                                                      |
+| `buildRenderNode` / `buildStyle` / `buildPaint`                                    | **Deleted**                                                                                                       |
+| `SkityRenderBundle` + `getExtraBundle` + `updateExtraData` + `consumeRenderBundle` | **Deleted**                                                                                                       |
+| `setCustomMeasureFunc` (Android) / `customMeasureDelegate` (iOS)                   | **Kept registered** (Step 3b: only the snapshot _body_ is deleted; the registration is the flush trigger — §11.7) |
+| `density` capture in measure                                                       | Render thread reads it locally (it already is the single source of truth in `Draw`)                               |
+| Canvas physical size in bundle                                                     | `onSurfaceTextureSizeChanged` / `onSizeChanged` → `session.updateSize` (already exists)                           |
 
 **Kept:** `isVirtual = false` on the canvas (it still needs a platform view —
 `TextureView` / `MetalLayer` — to host the GPU surface; removing `measure` ≠
@@ -347,11 +354,18 @@ removing the view). Shape/group nodes stay virtual.
      fallback, so the new commands land as same-value no-ops under the Apply→Sync
      ordering until 3b. Verified by zero-regression (the commands are masked by
      the coexisting snapshot).
-   - **3b (next).** Retire the snapshot channel: delete `measure`/
-     `buildRenderNode`/`buildStyle`/`buildPaint`/`extraBundle`/
-     `SkityRenderBundle`; stand up a direct TASM→render-thread dispatch (§11.12)
-     and a reliable flush hook (§11.7), since removing `measure` removes the
-     free coalescing/flush it gave the command channel.
+   - **3b ✓ done (plan A — mirrors lynx-native-svg).** Retired the snapshot
+     channel: deleted `buildRenderNode`/`buildStyle`/`buildPaint`/`extraBundle`/
+     `SkityRenderBundle` + `SyncFromSnapshot` + `nativeSetRenderTree`; `measure`'s
+     body now only drains the CommandBatch (the sole extra-bundle payload) +
+     returns size; the render thread's retained tree is the single source of
+     truth. **`measure` registration + `markDirty`/`setNeedsLayout` are kept** as
+     the flush trigger: investigation (Lynx 4.0.1) found no ShadowNode frame/vsync
+     callback is exposed, and `onLayoutBefore`/`measure` only fire when a measure
+     function is registered — so deleting them loses the only coalescing point
+     (iOS has no TASM-thread CADisplayLink equivalent). The "delete markDirty →
+     paint-only updates skip layout" win is therefore **deferred until Lynx
+     exposes a frame callback**. See §11.6/§11.7/§11.9 for the revised reasoning.
 4. Cleanup: remove the dead `markDirty`/`setNeedsLayout` calls; update this doc
    and the §1 principle.
 

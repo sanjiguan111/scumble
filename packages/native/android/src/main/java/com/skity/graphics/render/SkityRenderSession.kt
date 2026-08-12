@@ -12,7 +12,7 @@ import android.view.Surface
 interface SkityRenderSession {
   fun attachSurface(surface: Surface, width: Int, height: Int)
   fun updateSize(width: Int, height: Int)
-  fun setRenderTree(data: ByteArray, density: Float, commands: ByteArray? = null)
+  fun applyCommands(commands: ByteArray)
   fun detachSurface()
   fun destroy()
 }

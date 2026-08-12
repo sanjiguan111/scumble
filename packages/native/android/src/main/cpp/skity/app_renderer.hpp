@@ -14,16 +14,16 @@ namespace lynxskity {
 
 class RenderBackend;
 
-// Owns a RenderBackend + the retained render tree reconciled from RenderTree
-// snapshots pushed from the Lynx ShadowNode layer (via JNI). The UI thread
-// feeds snapshot bytes; the render thread syncs them into the retained tree and
-// draws. Single-threaded by contract (render thread), so the tree needs no lock.
+// Owns a RenderBackend + the retained render tree. The render thread applies
+// incremental CommandBatch mutations (Step 3b retired the snapshot channel —
+// the tree is the single source of truth) and draws. Single-threaded by
+// contract (render thread), so the tree needs no lock.
 // Mirrors Skity-Android's AppRenderer minus demo scene/MSAA.
 class AppRenderer {
 public:
   // backend_type: 1 = GLES (default), 2 = Vulkan.
   // shared_gl_handle: handle to a SharedGLContext (GL only; 0 for Vulkan).
-  explicit AppRenderer(int backend_type, int64_t shared_gl_handle);
+  explicit AppRenderer(int backend_type, int64_t shared_gl_handle, float density);
   ~AppRenderer();
 
   void SetNativeWindow(ANativeWindow *native_window);
@@ -32,10 +32,8 @@ public:
   void OnSurfaceChanged(int width, int height);
   void DrawFrame();
 
-  // Called from the Lynx/UI thread with a serialized RenderTree snapshot.
-  void SetRenderTree(const uint8_t *data, std::size_t size, float density);
-
-  // Phase 2 Step 1b: apply an incremental CommandBatch to the retained tree.
+  // Phase 2: apply an incremental CommandBatch to the retained tree (the only
+  // mutation path now — Step 3b retired the snapshot channel).
   void ApplyCommands(const uint8_t *data, std::size_t size);
 
 private:

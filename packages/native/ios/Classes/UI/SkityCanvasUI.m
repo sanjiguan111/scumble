@@ -6,7 +6,6 @@
 #import <Lynx/LynxComponentRegistry.h>
 
 #import "SkityCanvasView.h"
-#import "SkityRenderBundle.h"
 
 @implementation SkityCanvasUI
 
@@ -22,8 +21,8 @@ LYNX_REGISTER_UI("skity-canvas")
 
 - (void)onReceiveUIOperation:(id)extraData {
   [super onReceiveUIOperation:extraData];
-  if ([extraData isKindOfClass:[SkityRenderBundle class]]) {
-    [(SkityCanvasView *)self.view consumeRenderBundle:(SkityRenderBundle *)extraData];
+  if ([extraData isKindOfClass:[NSData class]]) {
+    [(SkityCanvasView *)self.view consumeCommands:(NSData *)extraData];
   }
 }
 

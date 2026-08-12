@@ -2,8 +2,8 @@
 // LICENSE file in the root directory of this source tree.
 //
 // JNI bridge between SkityNative.kt and lynxskity::AppRenderer. Handle-based,
-// mirroring Skity-Android's native_bridge.cpp, plus nativeSetRenderTree to feed
-// the FlatBuffer RenderTree produced by SkityCanvasShadowNode.
+// mirroring Skity-Android's native_bridge.cpp. The render tree is driven solely
+// by nativeApplyCommands (Step 3b retired the snapshot channel).
 #include <jni.h>
 
 #include <android/native_window.h>
@@ -26,8 +26,9 @@ lynxskity::AppRenderer *FromHandle(jlong handle) {
 extern "C" {
 
 JNIEXPORT jlong JNICALL Java_com_skity_graphics_SkityNative_nativeCreateRenderer(
-    JNIEnv * /*env*/, jclass /*clazz*/, jint backend_type, jlong shared_gl_handle) {
-  return reinterpret_cast<jlong>(new lynxskity::AppRenderer(backend_type, shared_gl_handle));
+    JNIEnv * /*env*/, jclass /*clazz*/, jint backend_type, jlong shared_gl_handle, jfloat density) {
+  return reinterpret_cast<jlong>(
+      new lynxskity::AppRenderer(backend_type, shared_gl_handle, density));
 }
 
 JNIEXPORT jlong JNICALL Java_com_skity_graphics_SkityNative_nativeCreateSharedGLContext(
@@ -104,22 +105,6 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeDrawFrame(JNIEn
                                                                            jclass /*clazz*/,
                                                                            jlong handle) {
   if (auto *r = FromHandle(handle)) r->DrawFrame();
-}
-
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeSetRenderTree(
-    JNIEnv *env, jclass /*clazz*/, jlong handle, jbyteArray data, jfloat density) {
-  auto *renderer = FromHandle(handle);
-  if (renderer == nullptr || data == nullptr) {
-    return;
-  }
-  jsize length = env->GetArrayLength(data);
-  jbyte *bytes = env->GetByteArrayElements(data, nullptr);
-  if (bytes == nullptr) {
-    return;
-  }
-  renderer->SetRenderTree(reinterpret_cast<const uint8_t *>(bytes),
-                          static_cast<std::size_t>(length), density);
-  env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
 }
 
 JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyCommands(

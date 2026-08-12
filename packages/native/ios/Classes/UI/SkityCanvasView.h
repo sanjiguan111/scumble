@@ -3,19 +3,17 @@
 //
 /// UIView backing <skity-canvas>. Its backing layer is a CAMetalLayer (rendered
 /// to by skity Metal on the shared SkityMetalContext render queue). Mirrors
-/// react-native-skity/ios/SkityView.mm's layer setup; the bundle hand-off
-/// timing follows android/.../ui/SkityCanvasView.kt.
+/// react-native-skity/ios/SkityView.mm's layer setup.
 #import <UIKit/UIKit.h>
-
-@class SkityRenderBundle;
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface SkityCanvasView : UIView
 
-/// Store the latest RenderTree and forward it to the render session. The
-/// session keeps it pending until the CAMetalLayer is ready (layoutSubviews).
-- (void)consumeRenderBundle:(nullable SkityRenderBundle *)bundle;
+/// Forward CommandBatch bytes to the render session (Step 3b: no snapshot
+/// bundle). The session posts apply + draw; an early command before the
+/// CAMetalLayer is ready (layoutSubviews) is held pending by the session.
+- (void)consumeCommands:(NSData *)commands;
 
 /// Release the render session. Called from SkityCanvasUI.detachView.
 - (void)destroySession;

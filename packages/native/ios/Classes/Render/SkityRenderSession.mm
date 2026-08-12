@@ -4,14 +4,13 @@
 #import "SkityRenderSession.h"
 
 #import "SkityMetalContext.h"
+#import <UIKit/UIScreen.h>
 
 @interface SkityRenderSession ()
 @property(nonatomic, strong) SkityMetalContext *context;
 @property(nonatomic, weak) CAMetalLayer *layer;
 @property(nonatomic, assign) BOOL surfaceReady;
 // Written on the UI thread, read on the render queue.
-@property(nonatomic, strong, nullable) NSData *pendingTree;
-@property(nonatomic, assign) float pendingDensity;
 @property(nonatomic, strong, nullable) NSData *pendingCommands;
 @end
 
@@ -38,9 +37,7 @@
   self.layer = nil;
 }
 
-- (void)setRenderTreeData:(NSData *)data density:(float)density commands:(NSData *)commands {
-  self.pendingTree = data;
-  self.pendingDensity = density;
+- (void)applyCommands:(NSData *)commands {
   self.pendingCommands = commands;
   [self postDraw];
 }
@@ -55,27 +52,22 @@
 
 - (void)drawIfReady {
   // Runs on the shared render queue.
-  NSData *data = self.pendingTree;
-  if (!self.surfaceReady || self.layer == nil || data.length == 0) return;
-  // The render bundle frequently arrives before the view's first layout
-  // (consumeRenderBundle runs before layoutSubviews sets drawableSize), so the
-  // size cannot be cached at setRenderTreeData time. Read the layer's current
-  // drawableSize here — by the time the surface is ready (layoutSubviews →
-  // attachSurface) it holds the real physical pixel size.
+  if (!self.surfaceReady || self.layer == nil) return;
+  // The retained tree persists across frames (Step 3b: no snapshot), so every
+  // postDraw redraws the current state. Size is read fresh from the layer's
+  // drawableSize (an early command may arrive before layoutSubviews sets it).
   CGSize drawable = self.layer.drawableSize;
   if (drawable.width <= 0 || drawable.height <= 0) return;
   [self.context drawLayer:self.layer
-                 treeData:data
                  commands:self.pendingCommands
                 viewportW:(uint32_t)drawable.width
                 viewportH:(uint32_t)drawable.height
-                  density:self.pendingDensity];
+                  density:[UIScreen mainScreen].scale];
   self.pendingCommands = nil;
 }
 
 - (void)destroy {
   [self detachSurface];
-  self.pendingTree = nil;
 }
 
 @end

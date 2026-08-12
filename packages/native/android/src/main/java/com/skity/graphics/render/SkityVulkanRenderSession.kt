@@ -11,7 +11,7 @@ import com.skity.graphics.SkityNative
  * [SkityGLRenderSession]; differences: backend [SkityNative.BACKEND_VULKAN] and
  * the dedicated Vulkan render thread.
  */
-class SkityVulkanRenderSession : SkityRenderSession {
+class SkityVulkanRenderSession(private val density: Float) : SkityRenderSession {
 
   private val renderHandler = SkityVulkanRenderThread.handler
 
@@ -20,18 +20,14 @@ class SkityVulkanRenderSession : SkityRenderSession {
   @Volatile
   private var surfaceReady: Boolean = false
 
-  @Volatile
-  private var pendingTree: ByteArray? = null
-  @Volatile
-  private var pendingDensity: Float = 1f
-  // Phase 2 Step 1b: incremental CommandBatch bytes (null = no commands).
+  // Phase 2: incremental CommandBatch bytes (null = no commands pending).
   @Volatile
   private var pendingCommands: ByteArray? = null
 
   private fun ensureRenderer() {
     if (rendererHandle == 0L) {
       // Vulkan manages its own context; no shared GL handle.
-      rendererHandle = SkityNative.nativeCreateRenderer(SkityNative.BACKEND_VULKAN, 0L)
+      rendererHandle = SkityNative.nativeCreateRenderer(SkityNative.BACKEND_VULKAN, 0L, density)
     }
   }
 
@@ -52,29 +48,25 @@ class SkityVulkanRenderSession : SkityRenderSession {
     renderHandler.post {
       if (rendererHandle != 0L) {
         SkityNative.nativeOnSurfaceChanged(rendererHandle, width, height)
+        drawIfReady()
       }
     }
   }
 
-  override fun setRenderTree(data: ByteArray, density: Float, commands: ByteArray?) {
-    pendingTree = data
-    pendingDensity = density
+  override fun applyCommands(commands: ByteArray) {
     pendingCommands = commands
     renderHandler.post { drawIfReady() }
   }
 
   private fun drawIfReady() {
-    val data = pendingTree ?: return
     if (!surfaceReady || rendererHandle == 0L) return
-    // Phase 2 Step 2: apply commands BEFORE the snapshot sync — Insert creates
-    // nodes so Sync can populate their fields. (Step 1b was Sync→Apply; Step 2
-    // topology-by-command requires Apply→Sync.)
+    // Step 3b: commands are the only mutation path (snapshot retired). The
+    // retained tree persists across frames; a null pendingCommands just redraws.
     val commands = pendingCommands
     if (commands != null) {
       SkityNative.nativeApplyCommands(rendererHandle, commands)
       pendingCommands = null
     }
-    SkityNative.nativeSetRenderTree(rendererHandle, data, pendingDensity)
     SkityNative.nativeDrawFrame(rendererHandle)
   }
 

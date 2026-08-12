@@ -26,12 +26,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// like EGL/Vulkan queues, must stay on one thread.
 @property(nonatomic, readonly) dispatch_queue_t renderQueue;
 
-/// Render one frame of a skityrt::RenderTree FlatBuffer into `layer`. The
-/// RenderTree is decoded by the shared cross-platform SkityRenderer::Draw
+/// Apply a CommandBatch to this layer's retained tree and render one frame.
+/// The tree is decoded by the shared cross-platform SkityRenderer::Draw
 /// (shared/skity/SkityRenderer.cc) — the same C++ entry point Android reaches
-/// via JNI. Must be called on renderQueue.
+/// via JNI. Must be called on renderQueue. Step 3b: no snapshot — commands are
+/// the only mutation path.
 - (void)drawLayer:(CAMetalLayer *)layer
-         treeData:(NSData *)treeData
          commands:(nullable NSData *)commands
         viewportW:(uint32_t)w
         viewportH:(uint32_t)h

@@ -12,9 +12,8 @@
 #include <skity/gpu/gpu_surface.hpp>
 #include <skity/skity.hpp>
 
-#include "SkityRenderer.h"         // shared/skity — cross-platform renderer
-#include "render_tree_generated.h" // skityrt::GetRenderTree
-#include "retained_render_tree.h"  // skityrt::RetainedRenderTree (per-layer)
+#include "SkityRenderer.h"        // shared/skity — cross-platform renderer
+#include "retained_render_tree.h" // skityrt::RetainedRenderTree (per-layer)
 
 @implementation SkityMetalContext {
   id<MTLDevice> _device;
@@ -53,29 +52,22 @@
 }
 
 - (void)drawLayer:(CAMetalLayer *)layer
-         treeData:(NSData *)treeData
          commands:(NSData *)commands
         viewportW:(uint32_t)w
         viewportH:(uint32_t)h
           density:(float)density {
-  if (layer == nil || treeData.length == 0 || _gpuContext == nullptr) return;
+  if (layer == nil || _gpuContext == nullptr) return;
 
-  // Reconcile the snapshot into this layer's retained tree (id-aware in-place
-  // update). Single-threaded on the render queue; the tree persists across
-  // frames so Step 1b's incremental CommandBatch can mutate it directly.
   intptr_t key = reinterpret_cast<intptr_t>(layer);
   auto &slot = _retainedTrees[key];
   if (slot == nullptr) {
     slot = std::make_unique<skityrt::RetainedRenderTree>();
   }
-  const auto *fb = skityrt::GetRenderTree(static_cast<const void *>(treeData.bytes));
-  // Phase 2 Step 2: apply commands BEFORE syncing fields — Insert creates nodes
-  // so Sync can then populate their fields. (Step 1b was Sync→Apply; Step 2
-  // topology-by-command requires Apply→Sync.)
+  // Step 3b: commands are the only mutation path (snapshot retired). The tree
+  // persists across frames; a null commands just redraws the current state.
   if (commands != nil && commands.length > 0) {
     slot->ApplyCommandBatch(static_cast<const uint8_t *>(commands.bytes), commands.length);
   }
-  slot->SyncFromSnapshot(fb);
 
   @autoreleasepool {
     id<CAMetalDrawable> drawable = [layer nextDrawable];

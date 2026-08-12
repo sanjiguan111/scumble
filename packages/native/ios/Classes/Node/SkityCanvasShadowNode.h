@@ -1,27 +1,25 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-/// Container ShadowNode for <skity-canvas>. Implements LynxCustomMeasureDelegate:
-/// during measure it walks the child SkityNodeBase tree and serializes it
-/// directly into a skityrt::RenderTree FlatBuffer (built leaf→root), wraps it
-/// in a SkityRenderBundle, and exposes it via getExtraBundle — which Lynx hands
-/// to SkityCanvasUI.onReceiveUIOperation:.
+/// Container ShadowNode for <skity-canvas>. Implements LynxCustomMeasureDelegate
+/// so Lynx keeps calling measure each layout pass — but measure no longer
+/// serializes a snapshot: it only drains dirty props into a CommandBatch and
+/// exposes it via getExtraBundle. The render thread's retained tree is the
+/// single source of truth (Step 3b retired the snapshot channel).
+/// markDirty/setNeedsLayout is kept as the flush trigger (Lynx 4.0.1 exposes no
+/// ShadowNode frame callback; mirrors lynx-native-svg).
 ///
-/// iOS counterpart of android/.../node/SkityCanvasShadowNode.kt. skity has no
-/// DOMBuilder (unlike lynx-native-svg), so all string parsing happens in
-/// front-end JS (@lynx-skity/parsers); this node ferries scalars + memcpy's
-/// nested FlatBuffer bytes and emits the final RenderTree directly.
+/// iOS counterpart of android/.../node/SkityCanvasShadowNode.kt.
 #import "SkityNodeBase.h"
 #import <Lynx/LynxCustomMeasureDelegate.h>
-
-@class SkityRenderBundle;
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface SkityCanvasShadowNode : SkityNodeBase <LynxCustomMeasureDelegate>
 
-/// Latest render bundle, consumed (and cleared) by getExtraBundle.
-@property(nonatomic, strong, nullable) SkityRenderBundle *renderBundle;
+/// Pending CommandBatch bytes (the only extra-bundle payload now — snapshot
+/// retired). Drained in measure, consumed by getExtraBundle.
+@property(nonatomic, strong, nullable) NSData *pendingCommandBatch;
 
 // Phase 2 Step 2: structural command queue (called by SkityNodeBase hooks).
 - (int32_t)takeNextNodeId;
