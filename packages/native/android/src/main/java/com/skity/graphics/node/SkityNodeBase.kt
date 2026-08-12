@@ -24,7 +24,8 @@ import kotlin.jvm.JvmField
  * Phase 2 Step 1b: the 11 pure-paint/path/transform setters also set a dirty
  * flag (dirtyPaint bitmask / dirtyPath / dirtyTransform); the canvas ShadowNode
  * drains these into a CommandBatch in measure() for the incremental command
- * channel. Geometry setters stay on the snapshot path (no dirty flag).
+ * channel. Step 3a: geometry setters also set a dirty bitmask (dirtyGeometry),
+ * drained the same way; viewport setters mark dirtyViewport on the canvas node.
  */
 abstract class SkityNodeBase : ShadowNode() {
 
@@ -64,10 +65,12 @@ abstract class SkityNodeBase : ShadowNode() {
   // snapshot is serialized. Never reused.
   @JvmField var nativeId: Int = 0
 
-  // Phase 2 Step 1b: dirty flags for the incremental command channel. Paint
-  // accumulates as a PaintField bitmask; path/transform are booleans. The canvas
-  // ShadowNode drains these into a CommandBatch in measure() and clears them.
+  // Phase 2: dirty flags for the incremental command channel. Paint accumulates
+  // as a PaintField bitmask; geometry as a GeometryField bitmask (Step 3a);
+  // path/transform are booleans. The canvas ShadowNode drains these into a
+  // CommandBatch in measure() and clears them.
   @JvmField var dirtyPaint: Int = 0
+  @JvmField var dirtyGeometry: Int = 0
   @JvmField var dirtyPath: Boolean = false
   @JvmField var dirtyTransform: Boolean = false
 
@@ -83,6 +86,23 @@ abstract class SkityNodeBase : ShadowNode() {
     const val OPACITY = 128
   }
 
+  /** GeometryField bitmask values (mirrors skityrt::GeometryField in command_batch.fbs). */
+  object GeometryField {
+    const val X = 1
+    const val Y = 2
+    const val WIDTH = 4
+    const val HEIGHT = 8
+    const val CX = 16
+    const val CY = 32
+    const val R = 64
+    const val RX = 128
+    const val RY = 256
+    const val X1 = 512
+    const val Y1 = 1024
+    const val X2 = 2048
+    const val Y2 = 4096
+  }
+
   // Every setter calls markDirty() so a prop change forces a layout pass → the
   // container canvas's measure() re-serializes the tree → repaint. Pure-style
   // props (fill/stroke/opacity/d/transform) don't change layout on their own;
@@ -90,57 +110,70 @@ abstract class SkityNodeBase : ShadowNode() {
   // onAfterUpdateTransaction does NOT fire on the canvas when a *child*'s prop
   // changes, so the trigger must be per-setter. markDirty() coalesces into one
   // layout pass per batch. (iOS mirrors this with setNeedsLayout per setter.)
-  // ---- geometry setters ----
+  // ---- geometry setters (dirty → command channel, Step 3a) ----
   @LynxProp(name = "x") fun setX(v: Float) {
     x = v
+    dirtyGeometry = dirtyGeometry or GeometryField.X
     markDirty()
   }
   @LynxProp(name = "y") fun setY(v: Float) {
     y = v
+    dirtyGeometry = dirtyGeometry or GeometryField.Y
     markDirty()
   }
   @LynxProp(name = "width") fun setWidth(v: Float) {
     width = v
+    dirtyGeometry = dirtyGeometry or GeometryField.WIDTH
     markDirty()
   }
   @LynxProp(name = "height") fun setHeight(v: Float) {
     height = v
+    dirtyGeometry = dirtyGeometry or GeometryField.HEIGHT
     markDirty()
   }
   @LynxProp(name = "cx") fun setCx(v: Float) {
     cx = v
+    dirtyGeometry = dirtyGeometry or GeometryField.CX
     markDirty()
   }
   @LynxProp(name = "cy") fun setCy(v: Float) {
     cy = v
+    dirtyGeometry = dirtyGeometry or GeometryField.CY
     markDirty()
   }
   @LynxProp(name = "r") fun setR(v: Float) {
     r = v
+    dirtyGeometry = dirtyGeometry or GeometryField.R
     markDirty()
   }
   @LynxProp(name = "rx") fun setRx(v: Float) {
     rx = v
+    dirtyGeometry = dirtyGeometry or GeometryField.RX
     markDirty()
   }
   @LynxProp(name = "ry") fun setRy(v: Float) {
     ry = v
+    dirtyGeometry = dirtyGeometry or GeometryField.RY
     markDirty()
   }
   @LynxProp(name = "x1") fun setX1(v: Float) {
     x1 = v
+    dirtyGeometry = dirtyGeometry or GeometryField.X1
     markDirty()
   }
   @LynxProp(name = "y1") fun setY1(v: Float) {
     y1 = v
+    dirtyGeometry = dirtyGeometry or GeometryField.Y1
     markDirty()
   }
   @LynxProp(name = "x2") fun setX2(v: Float) {
     x2 = v
+    dirtyGeometry = dirtyGeometry or GeometryField.X2
     markDirty()
   }
   @LynxProp(name = "y2") fun setY2(v: Float) {
     y2 = v
+    dirtyGeometry = dirtyGeometry or GeometryField.Y2
     markDirty()
   }
 

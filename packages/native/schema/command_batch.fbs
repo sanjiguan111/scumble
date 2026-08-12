@@ -1,7 +1,8 @@
 // command_batch.fbs
-// Phase 2 incremental command stream. Step 1b carries pure-paint / path /
-// transform mutations; structure + geometry still arrive via the RenderTree
-// snapshot channel (see RENDER_ARCHITECTURE.md §11.10).
+// Phase 2 incremental command stream. Step 1b carries paint/path/transform;
+// Step 2 adds structural Insert/Remove/Move; Step 3a adds geometry/viewport.
+// The snapshot channel still coexists as a full-tree fallback until Step 3b
+// retires it (see RENDER_ARCHITECTURE.md §11.10).
 //
 // The retained render tree on the render thread applies each CommandBatch
 // after syncing from the latest snapshot.
@@ -27,8 +28,10 @@ enum PaintField : uint {
   OPACITY      = 128,
 }
 
-// One logical mutation. Step 1b covers only paint / path / transform. Step 2
-// will add InsertNode / RemoveNode / MoveNode; Step 3 SetGeometry / SetViewport.
+// One logical mutation. Step 1b: paint/path/transform. Step 2: structural.
+// Step 3a: geometry/viewport. While the snapshot channel still coexists, the
+// geometry/viewport commands land as same-value no-ops under the Apply→Sync
+// ordering; they become load-bearing once Step 3b retires the snapshot.
 union Command {
   SetPaint,     // paint fields, gated by fields_dirty
   SetPathData,  // PathCommandList bytes (memcpy from the JS-built blob)
@@ -36,6 +39,8 @@ union Command {
   InsertNode,   // Step 2: create a node under parent_id at index; parent_id==-1 => root (canvas)
   RemoveNode,   // Step 2: destroy a node + its subtree
   MoveNode,     // Step 2: reparent / reorder; subtree follows
+  SetGeometry,  // Step 3a: per-field geometry, gated by fields_dirty
+  SetViewport,  // Step 3a: canvas logical viewport (viewBox)
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; ResolvedPaint is
@@ -86,6 +91,59 @@ table MoveNode {
   node_id:int = -1;
   new_parent_id:int = -1; // -1 => becomes root
   index:uint = 0;
+}
+
+// Bit flags identifying which SetGeometry fields are intentionally set. Same
+// rationale as PaintField: 0 is a valid geometry value (e.g. radius 0), so the
+// bitmask is authoritative — the consumer writes only fields whose bits are set.
+enum GeometryField : uint {
+  NONE   = 0,
+  X      = 1,
+  Y      = 2,
+  WIDTH  = 4,
+  HEIGHT = 8,
+  CX     = 16,
+  CY     = 32,
+  R      = 64,
+  RX     = 128,
+  RY     = 256,
+  X1     = 512,
+  Y1     = 1024,
+  X2     = 2048,
+  Y2     = 4096,
+}
+
+// Per-field geometry mutation. Only fields whose GeometryField bit is set in
+// fields_dirty are written; the rest are left untouched. Values are logical px
+// in the canvas viewport coordinate space (same as RenderNode geometry).
+table SetGeometry {
+  node_id:int = -1;
+  fields_dirty:GeometryField = NONE;
+  x:float = 0;
+  y:float = 0;
+  width:float = 0;
+  height:float = 0;
+  cx:float = 0;
+  cy:float = 0;
+  r:float = 0;
+  rx:float = 0;
+  ry:float = 0;
+  x1:float = 0;
+  y1:float = 0;
+  x2:float = 0;
+  y2:float = 0;
+}
+
+// Canvas logical viewport (SVG viewBox). Targets the tree-level viewport (not a
+// node field), so node_id is the canvas root id (kept for symmetry/logging;
+// the consumer ignores it). width<=0 || height<=0 disables the viewport
+// (logical px == physical px), mirroring the snapshot's UpdateViewportFromFB.
+table SetViewport {
+  node_id:int = -1;
+  x:float = 0;
+  y:float = 0;
+  width:float = 0;
+  height:float = 0;
 }
 
 table CommandBatch {

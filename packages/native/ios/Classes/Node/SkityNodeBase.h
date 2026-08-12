@@ -32,6 +32,25 @@ enum SkityPaintField {
   kSkityPaintFieldOpacity = 128,
 };
 
+// GeometryField bitmask (mirrors skityrt::GeometryField in command_batch.fbs).
+// Obj-C compatible (no C++) so SkityNodeBase.m setters OR bits directly.
+enum SkityGeometryField {
+  kSkityGeomNone = 0,
+  kSkityGeomX = 1,
+  kSkityGeomY = 2,
+  kSkityGeomWidth = 4,
+  kSkityGeomHeight = 8,
+  kSkityGeomCX = 16,
+  kSkityGeomCY = 32,
+  kSkityGeomR = 64,
+  kSkityGeomRX = 128,
+  kSkityGeomRY = 256,
+  kSkityGeomX1 = 512,
+  kSkityGeomY1 = 1024,
+  kSkityGeomX2 = 2048,
+  kSkityGeomY2 = 4096,
+};
+
 @interface SkityNodeBase : LynxShadowNode
 
 /// The skity tag name (e.g. "rect", "circle", "canvas", "g"). Subclasses must
@@ -72,10 +91,12 @@ enum SkityPaintField {
 // snapshot is serialized. Never reused.
 @property(nonatomic, assign) int32_t nativeId;
 
-// Phase 2 Step 1b: dirty flags for the incremental command channel. Paint
-// accumulates as a SkityPaintField bitmask; path/transform are booleans. The
-// canvas ShadowNode drains these into a CommandBatch in measure() and clears.
+// Phase 2: dirty flags for the incremental command channel. Paint accumulates
+// as a SkityPaintField bitmask; geometry as a SkityGeometryField bitmask
+// (Step 3a); path/transform are booleans. The canvas ShadowNode drains these
+// into a CommandBatch in measure() and clears.
 @property(nonatomic, assign) uint32_t dirtyPaintMask;
+@property(nonatomic, assign) uint32_t dirtyGeometryMask;
 @property(nonatomic, assign) BOOL dirtyPath;
 @property(nonatomic, assign) BOOL dirtyTransform;
 

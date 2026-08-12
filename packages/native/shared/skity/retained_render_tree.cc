@@ -14,14 +14,14 @@ namespace skityrt {
 namespace {
 
 // ResolvedPaint (FlatBuffer) → RetainedPaint. color packed to 0xAARRGGBB.
-void CopyPaint(const ResolvedPaint* src, RetainedPaint* dst) {
+void CopyPaint(const ResolvedPaint *src, RetainedPaint *dst) {
   if (src == nullptr || src->type() == 0 /*NONE*/) {
     dst->type = 0;
     return;
   }
   dst->type = src->type();
   if (src->type() == 1 /*COLOR*/) {
-    const RGBAColor* c = src->color();
+    const RGBAColor *c = src->color();
     if (c != nullptr) {
       uint32_t a = c->a() & 0xffu;
       uint32_t r = c->r() & 0xffu;
@@ -36,7 +36,7 @@ void CopyPaint(const ResolvedPaint* src, RetainedPaint* dst) {
   // later step.
 }
 
-void CopyBytes(const ::flatbuffers::Vector<uint8_t>* src, std::vector<uint8_t>* dst) {
+void CopyBytes(const ::flatbuffers::Vector<uint8_t> *src, std::vector<uint8_t> *dst) {
   if (src != nullptr && src->size() > 0) {
     dst->assign(src->Data(), src->Data() + src->size());
   } else {
@@ -46,11 +46,11 @@ void CopyBytes(const ::flatbuffers::Vector<uint8_t>* src, std::vector<uint8_t>* 
 
 // RenderNode (FlatBuffer) → existing RetainedNode (in-place FIELD update only;
 // topology is owned by commands, never touched here).
-void UpdateNodeFromFB(RetainedNode* node, const RenderNode* fb) {
-  const ::flatbuffers::String* tag = fb->tag_name();
+void UpdateNodeFromFB(RetainedNode *node, const RenderNode *fb) {
+  const ::flatbuffers::String *tag = fb->tag_name();
   node->tag_name = tag != nullptr ? tag->str() : std::string();
 
-  const ComputedStyle* s = fb->style();
+  const ComputedStyle *s = fb->style();
   if (s != nullptr) {
     CopyPaint(s->fill(), &node->style.fill);
     CopyPaint(s->stroke(), &node->style.stroke);
@@ -82,7 +82,7 @@ void UpdateNodeFromFB(RetainedNode* node, const RenderNode* fb) {
   node->y2 = fb->y2();
 
   CopyBytes(fb->path_data(), &node->path_data);
-  const ::flatbuffers::Vector<float>* pts = fb->points();
+  const ::flatbuffers::Vector<float> *pts = fb->points();
   if (pts != nullptr) {
     node->points.assign(pts->begin(), pts->end());
   } else {
@@ -90,15 +90,15 @@ void UpdateNodeFromFB(RetainedNode* node, const RenderNode* fb) {
   }
 }
 
-void UpdateViewportFromFB(const RenderTree* fb, RetainedViewport* out) {
-  const ViewBox* vp = fb->viewport();
+void UpdateViewportFromFB(const RenderTree *fb, RetainedViewport *out) {
+  const ViewBox *vp = fb->viewport();
   if (vp != nullptr && vp->width() > 0.f && vp->height() > 0.f) {
     out->enabled = true;
     out->x = vp->x();
     out->y = vp->y();
     out->width = vp->width();
     out->height = vp->height();
-    const PreserveAspectRatio* pa = fb->preserve_aspect();
+    const PreserveAspectRatio *pa = fb->preserve_aspect();
     out->align = pa != nullptr ? pa->align() : AspectRatioAlign_X_MID;
     out->meet_or_slice = pa != nullptr ? pa->meet_or_slice() : AspectRatioMeetOrSlice_MEET;
   } else {
@@ -109,7 +109,7 @@ void UpdateViewportFromFB(const RenderTree* fb, RetainedViewport* out) {
 // Apply a SetPaint command to a retained node. Only fields whose PaintField bit
 // is set in fields_dirty are written; the rest are left untouched (FlatBuffer
 // defaults make "field == 0" a valid value, so the bitmask is authoritative).
-void ApplySetPaint(const SetPaint* p, RetainedNode* node) {
+void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
   uint32_t dirty = static_cast<uint32_t>(p->fields_dirty());
   if (dirty & PaintField_FILL) {
     node->style.fill.type = 1; // COLOR
@@ -127,8 +127,44 @@ void ApplySetPaint(const SetPaint* p, RetainedNode* node) {
   if (dirty & PaintField_OPACITY) node->style.opacity = p->opacity();
 }
 
+// Apply a SetGeometry command. Only fields whose GeometryField bit is set in
+// fields_dirty are written (same bitmask rationale as ApplySetPaint — 0 is a
+// valid geometry value, e.g. radius 0).
+void ApplySetGeometry(const SetGeometry *g, RetainedNode *node) {
+  uint32_t dirty = static_cast<uint32_t>(g->fields_dirty());
+  if (dirty & GeometryField_X) node->x = g->x();
+  if (dirty & GeometryField_Y) node->y = g->y();
+  if (dirty & GeometryField_WIDTH) node->width = g->width();
+  if (dirty & GeometryField_HEIGHT) node->height = g->height();
+  if (dirty & GeometryField_CX) node->cx = g->cx();
+  if (dirty & GeometryField_CY) node->cy = g->cy();
+  if (dirty & GeometryField_R) node->r = g->r();
+  if (dirty & GeometryField_RX) node->rx = g->rx();
+  if (dirty & GeometryField_RY) node->ry = g->ry();
+  if (dirty & GeometryField_X1) node->x1 = g->x1();
+  if (dirty & GeometryField_Y1) node->y1 = g->y1();
+  if (dirty & GeometryField_X2) node->x2 = g->x2();
+  if (dirty & GeometryField_Y2) node->y2 = g->y2();
+}
+
+// Apply a SetViewport command to the tree-level viewport (canvas viewBox).
+// width<=0 || height<=0 disables the viewport, mirroring UpdateViewportFromFB.
+// align / meet_or_slice keep their X_MID / MEET defaults (preserveAspectRatio is
+// not yet command-driven; the snapshot path fixes these values too).
+void ApplySetViewport(const SetViewport *v, RetainedViewport *out) {
+  if (v->width() > 0.f && v->height() > 0.f) {
+    out->enabled = true;
+    out->x = v->x();
+    out->y = v->y();
+    out->width = v->width();
+    out->height = v->height();
+  } else {
+    out->enabled = false;
+  }
+}
+
 // memcpy a nested-flatbuffer byte vector ([ubyte]) into an owning std::vector.
-void AssignOwnedBytes(const ::flatbuffers::Vector<uint8_t>* src, std::vector<uint8_t>* dst) {
+void AssignOwnedBytes(const ::flatbuffers::Vector<uint8_t> *src, std::vector<uint8_t> *dst) {
   if (src != nullptr && src->size() > 0) {
     dst->assign(src->Data(), src->Data() + src->size());
   } else {
@@ -136,43 +172,43 @@ void AssignOwnedBytes(const ::flatbuffers::Vector<uint8_t>* src, std::vector<uin
   }
 }
 
-}  // namespace
+} // namespace
 
-RetainedNode* RetainedRenderTree::Find(int32_t id) const {
+RetainedNode *RetainedRenderTree::Find(int32_t id) const {
   auto it = node_map_.find(id);
   return it != node_map_.end() ? it->second.get() : nullptr;
 }
 
 // ---- Structural helpers (Step 2) ----
 
-RetainedNode* RetainedRenderTree::CreateNode(int32_t id) {
+RetainedNode *RetainedRenderTree::CreateNode(int32_t id) {
   auto it = node_map_.find(id);
   if (it != node_map_.end()) return it->second.get(); // idempotent
   auto owned = std::make_unique<RetainedNode>();
   owned->id = id;
-  RetainedNode* raw = owned.get();
+  RetainedNode *raw = owned.get();
   node_map_.emplace(id, std::move(owned));
   return raw;
 }
 
-void RetainedRenderTree::AttachChild(RetainedNode* parent, RetainedNode* child, uint32_t index) {
+void RetainedRenderTree::AttachChild(RetainedNode *parent, RetainedNode *child, uint32_t index) {
   if (parent == nullptr || child == nullptr) return;
   uint32_t clamped = std::min<uint32_t>(index, static_cast<uint32_t>(parent->children.size()));
   parent->children.insert(parent->children.begin() + clamped, child);
   child->parent = parent;
 }
 
-void RetainedRenderTree::DetachFromParent(RetainedNode* node) {
+void RetainedRenderTree::DetachFromParent(RetainedNode *node) {
   if (node == nullptr) return;
-  RetainedNode* p = node->parent;
+  RetainedNode *p = node->parent;
   if (p == nullptr) return;
-  auto& v = p->children;
+  auto &v = p->children;
   v.erase(std::remove(v.begin(), v.end(), node), v.end());
   node->parent = nullptr;
 }
 
-bool RetainedRenderTree::IsAncestor(RetainedNode* maybe_ancestor, RetainedNode* node) const {
-  for (RetainedNode* p = node; p != nullptr; p = p->parent) {
+bool RetainedRenderTree::IsAncestor(RetainedNode *maybe_ancestor, RetainedNode *node) const {
+  for (RetainedNode *p = node; p != nullptr; p = p->parent) {
     if (p == maybe_ancestor) return true;
   }
   return false;
@@ -181,65 +217,67 @@ bool RetainedRenderTree::IsAncestor(RetainedNode* maybe_ancestor, RetainedNode* 
 void RetainedRenderTree::EraseSubtree(int32_t id) {
   auto it = node_map_.find(id);
   if (it == node_map_.end()) return;
-  RetainedNode* node = it->second.get();
+  RetainedNode *node = it->second.get();
   DetachFromParent(node);
   if (node == root_) root_ = nullptr;
   // Collect the whole subtree's ids, then erase from node_map_ (unique_ptr frees).
   std::vector<int32_t> ids;
-  std::vector<RetainedNode*> stack{node};
+  std::vector<RetainedNode *> stack{node};
   while (!stack.empty()) {
-    RetainedNode* n = stack.back();
+    RetainedNode *n = stack.back();
     stack.pop_back();
     ids.push_back(n->id);
-    for (RetainedNode* c : n->children) stack.push_back(c);
+    for (RetainedNode *c : n->children)
+      stack.push_back(c);
   }
-  for (int32_t i : ids) node_map_.erase(i);
+  for (int32_t i : ids)
+    node_map_.erase(i);
 }
 
 // ---- ApplyCommandBatch (Step 1b + Step 2) ----
 
-void RetainedRenderTree::ApplyCommandBatch(const uint8_t* data, std::size_t size) {
+void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size) {
   if (data == nullptr || size == 0) return;
-  const CommandBatch* batch = GetCommandBatch(data);
+  const CommandBatch *batch = GetCommandBatch(data);
   if (batch == nullptr) return;
-  const auto* cmds = batch->commands();
-  const auto* types = batch->commands_type();
+  const auto *cmds = batch->commands();
+  const auto *types = batch->commands_type();
   if (cmds == nullptr || types == nullptr) return;
   auto count = cmds->size();
   for (::flatbuffers::uoffset_t i = 0; i < count && i < types->size(); i++) {
     Command type = types->GetEnum<Command>(i);
-    const void* obj = cmds->Get(i);
+    const void *obj = cmds->Get(i);
     if (obj == nullptr) continue;
     switch (type) {
     case Command_SetPaint: {
-      const auto* p = static_cast<const SetPaint*>(obj);
-      RetainedNode* node = Find(p->node_id());
+      const auto *p = static_cast<const SetPaint *>(obj);
+      RetainedNode *node = Find(p->node_id());
       if (node != nullptr) ApplySetPaint(p, node);
       break;
     }
     case Command_SetPathData: {
-      const auto* pd = static_cast<const SetPathData*>(obj);
-      RetainedNode* node = Find(pd->node_id());
+      const auto *pd = static_cast<const SetPathData *>(obj);
+      RetainedNode *node = Find(pd->node_id());
       if (node != nullptr) AssignOwnedBytes(pd->data(), &node->path_data);
       break;
     }
     case Command_SetTransform: {
-      const auto* td = static_cast<const SetTransform*>(obj);
-      RetainedNode* node = Find(td->node_id());
+      const auto *td = static_cast<const SetTransform *>(obj);
+      RetainedNode *node = Find(td->node_id());
       if (node != nullptr) AssignOwnedBytes(td->data(), &node->style.transform_data);
       break;
     }
     case Command_InsertNode: {
-      const auto* ins = static_cast<const InsertNode*>(obj);
-      RetainedNode* node = CreateNode(ins->node_id());
-      const ::flatbuffers::String* tag = ins->tag_name();
+      const auto *ins = static_cast<const InsertNode *>(obj);
+      RetainedNode *node = CreateNode(ins->node_id());
+      const ::flatbuffers::String *tag = ins->tag_name();
       node->tag_name = tag != nullptr ? tag->str() : std::string();
       if (ins->parent_id() < 0) {
         // Root insert (the canvas itself).
         root_ = node;
         node->parent = nullptr;
       } else {
-        RetainedNode* parent = Find(ins->parent_id());
+        RetainedNode *parent = Find(ins->parent_id());
         if (parent != nullptr) AttachChild(parent, node, ins->index());
         // Parent not yet present (out-of-order): node created but unattached;
         // a later batch or the snapshot root fallback will place it.
@@ -247,25 +285,36 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t* data, std::size_t size
       break;
     }
     case Command_RemoveNode: {
-      const auto* rm = static_cast<const RemoveNode*>(obj);
+      const auto *rm = static_cast<const RemoveNode *>(obj);
       EraseSubtree(rm->node_id());
       break;
     }
     case Command_MoveNode: {
-      const auto* mv = static_cast<const MoveNode*>(obj);
-      RetainedNode* node = Find(mv->node_id());
+      const auto *mv = static_cast<const MoveNode *>(obj);
+      RetainedNode *node = Find(mv->node_id());
       if (node == nullptr) break;
       if (mv->new_parent_id() < 0) {
         DetachFromParent(node);
         root_ = node;
         node->parent = nullptr;
       } else {
-        RetainedNode* newParent = Find(mv->new_parent_id());
+        RetainedNode *newParent = Find(mv->new_parent_id());
         if (newParent == nullptr) break;
         if (IsAncestor(node, newParent)) break; // reject cycle (move into own subtree)
         DetachFromParent(node);
         AttachChild(newParent, node, mv->index());
       }
+      break;
+    }
+    case Command_SetGeometry: {
+      const auto *g = static_cast<const SetGeometry *>(obj);
+      RetainedNode *node = Find(g->node_id());
+      if (node != nullptr) ApplySetGeometry(g, node);
+      break;
+    }
+    case Command_SetViewport: {
+      const auto *v = static_cast<const SetViewport *>(obj);
+      ApplySetViewport(v, &viewport_); // canvas-level, not a node field
       break;
     }
     default:
@@ -276,12 +325,12 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t* data, std::size_t size
 
 // ---- Snapshot field sync (no topology) ----
 
-void RetainedRenderTree::SyncNodeFields(const RenderNode* fb, RetainedNode* parent) {
+void RetainedRenderTree::SyncNodeFields(const RenderNode *fb, RetainedNode *parent) {
   if (fb == nullptr) return;
   int32_t id = fb->id();
   if (id < 0) return;
 
-  RetainedNode* node = Find(id);
+  RetainedNode *node = Find(id);
   if (node == nullptr) {
     // Only the snapshot root is created here (canvas has no InsertNode of its
     // own; measure synthesizes one, but this is the safety net). Non-root
@@ -297,23 +346,23 @@ void RetainedRenderTree::SyncNodeFields(const RenderNode* fb, RetainedNode* pare
   UpdateNodeFromFB(node, fb); // field-only
   // Do NOT touch node->children / node->parent — commands own topology.
 
-  const ::flatbuffers::Vector<::flatbuffers::Offset<RenderNode>>* kids = fb->children();
+  const ::flatbuffers::Vector<::flatbuffers::Offset<RenderNode>> *kids = fb->children();
   auto n = kids != nullptr ? kids->size() : 0u;
   for (size_t i = 0; i < n; i++) {
     SyncNodeFields(kids->Get(i), node);
   }
 }
 
-void RetainedRenderTree::SyncFromSnapshot(const RenderTree* fb) {
+void RetainedRenderTree::SyncFromSnapshot(const RenderTree *fb) {
   if (fb == nullptr) {
     viewport_ = RetainedViewport{};
     return; // topology persists; explicit Remove clears nodes
   }
   UpdateViewportFromFB(fb, &viewport_);
-  const RenderNode* fb_root = fb->root();
+  const RenderNode *fb_root = fb->root();
   if (fb_root != nullptr) {
     SyncNodeFields(fb_root, nullptr);
   }
 }
 
-}  // namespace skityrt
+} // namespace skityrt

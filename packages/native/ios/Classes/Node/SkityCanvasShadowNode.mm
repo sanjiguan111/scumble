@@ -105,22 +105,25 @@ static void SkityDrainStructural(flatbuffers::FlatBufferBuilder &fbb,
                                  std::vector<flatbuffers::Offset<void>> &offsets,
                                  std::vector<uint8_t> &types) {
   if (pending.empty()) return;
-  for (const auto &op : pending) if (op.kind == SkityStructuralOp::kInsert) {
-    auto tagOff = fbb.CreateString(op.tag);
-    auto off = skityrt::CreateInsertNode(fbb, op.nodeId, op.parentId, op.index, tagOff);
-    offsets.push_back(off.Union());
-    types.push_back(skityrt::Command_InsertNode);
-  }
-  for (const auto &op : pending) if (op.kind == SkityStructuralOp::kMove) {
-    auto off = skityrt::CreateMoveNode(fbb, op.nodeId, op.parentId, op.index);
-    offsets.push_back(off.Union());
-    types.push_back(skityrt::Command_MoveNode);
-  }
-  for (const auto &op : pending) if (op.kind == SkityStructuralOp::kRemove) {
-    auto off = skityrt::CreateRemoveNode(fbb, op.nodeId);
-    offsets.push_back(off.Union());
-    types.push_back(skityrt::Command_RemoveNode);
-  }
+  for (const auto &op : pending)
+    if (op.kind == SkityStructuralOp::kInsert) {
+      auto tagOff = fbb.CreateString(op.tag);
+      auto off = skityrt::CreateInsertNode(fbb, op.nodeId, op.parentId, op.index, tagOff);
+      offsets.push_back(off.Union());
+      types.push_back(skityrt::Command_InsertNode);
+    }
+  for (const auto &op : pending)
+    if (op.kind == SkityStructuralOp::kMove) {
+      auto off = skityrt::CreateMoveNode(fbb, op.nodeId, op.parentId, op.index);
+      offsets.push_back(off.Union());
+      types.push_back(skityrt::Command_MoveNode);
+    }
+  for (const auto &op : pending)
+    if (op.kind == SkityStructuralOp::kRemove) {
+      auto off = skityrt::CreateRemoveNode(fbb, op.nodeId);
+      offsets.push_back(off.Union());
+      types.push_back(skityrt::Command_RemoveNode);
+    }
   pending.clear();
 }
 
@@ -134,8 +137,8 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     auto off = skityrt::CreateSetPaint(
         fbb, node.nativeId, static_cast<skityrt::PaintField>(node.dirtyPaintMask),
         static_cast<uint32_t>(node.fillColor.unsignedIntValue),
-        static_cast<uint32_t>(node.strokeColor.unsignedIntValue),
-        node.strokeWidth, static_cast<skityrt::LineCap>(node.strokeCap),
+        static_cast<uint32_t>(node.strokeColor.unsignedIntValue), node.strokeWidth,
+        static_cast<skityrt::LineCap>(node.strokeCap),
         static_cast<skityrt::LineJoin>(node.strokeJoin), node.strokeMiter,
         static_cast<skityrt::FillRule>(node.fillRule), node.opacity);
     offsets.push_back(off.Union());
@@ -155,12 +158,22 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
   if (node.dirtyTransform) {
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
     if (node.transformData.length > 0) {
-      dataOff = fbb.CreateVector((const uint8_t *)node.transformData.bytes, node.transformData.length);
+      dataOff =
+          fbb.CreateVector((const uint8_t *)node.transformData.bytes, node.transformData.length);
     }
     auto off = skityrt::CreateSetTransform(fbb, node.nativeId, dataOff);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetTransform);
     node.dirtyTransform = NO;
+  }
+  if (node.dirtyGeometryMask != 0) {
+    auto off = skityrt::CreateSetGeometry(
+        fbb, node.nativeId, static_cast<skityrt::GeometryField>(node.dirtyGeometryMask), node.x,
+        node.y, node.width, node.height, node.cx, node.cy, node.r, node.rx, node.ry, node.x1,
+        node.y1, node.x2, node.y2);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetGeometry);
+    node.dirtyGeometryMask = 0;
   }
   for (LynxShadowNode *child in node.children) {
     if ([child isKindOfClass:[SkityNodeBase class]]) {
@@ -188,6 +201,7 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
 @implementation SkityCanvasShadowNode {
   std::vector<SkityStructuralOp> _pendingStructural;
   BOOL _canvasInserted;
+  BOOL _dirtyViewport; // Step 3a: a SetViewport command is pending.
 }
 
 #if LYNX_LAZY_LOAD
@@ -231,7 +245,7 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
 - (void)enqueueStructuralInsert:(int32_t)nodeId
                        parentId:(int32_t)parentId
                           index:(uint32_t)index
-                             tag:(NSString *)tag {
+                            tag:(NSString *)tag {
   // Move merge: a pending Remove for nodeId in this batch => convert to Move.
   for (auto &op : _pendingStructural) {
     if (op.kind == SkityStructuralOp::kRemove && op.nodeId == nodeId) {
@@ -262,6 +276,14 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
   std::vector<flatbuffers::Offset<void>> offsets;
   std::vector<uint8_t> types;
   SkityDrainStructural(fbb, _pendingStructural, offsets, types);
+  // Step 3a: canvas-level viewport (targets the tree viewport, not a node).
+  if (_dirtyViewport) {
+    auto off = skityrt::CreateSetViewport(fbb, self.nativeId, _viewportX, _viewportY,
+                                          _viewportWidth, _viewportHeight);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetViewport);
+    _dirtyViewport = NO;
+  }
   SkityCollectCommands(fbb, self, offsets, types);
   if (offsets.empty()) return nil;
   auto typesVec = fbb.CreateVector<uint8_t>(types);
@@ -277,18 +299,22 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
 // measure re-serializes the tree → repaint. Mirrors SkityNodeBase.m.
 LYNX_PROP_SETTER("viewportX", setViewportX, NSNumber *) {
   _viewportX = value.floatValue;
+  _dirtyViewport = YES;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("viewportY", setViewportY, NSNumber *) {
   _viewportY = value.floatValue;
+  _dirtyViewport = YES;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("viewportWidth", setViewportWidth, NSNumber *) {
   _viewportWidth = value.floatValue;
+  _dirtyViewport = YES;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
   _viewportHeight = value.floatValue;
+  _dirtyViewport = YES;
   [self setNeedsLayout];
 }
 
@@ -362,7 +388,7 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
     self.renderBundle = [[SkityRenderBundle alloc] initWithData:data
                                                        viewport:CGSizeMake(w, h)
                                                         density:density
-                                                commandBatchData:commandBatch];
+                                               commandBatchData:commandBatch];
   }
 
   MeasureResult result;

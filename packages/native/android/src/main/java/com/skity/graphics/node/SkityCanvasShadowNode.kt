@@ -20,9 +20,11 @@ import com.skity.graphics.skityrt.ComputedStyle
 import com.skity.graphics.skityrt.InsertNode
 import com.skity.graphics.skityrt.MoveNode
 import com.skity.graphics.skityrt.RemoveNode
+import com.skity.graphics.skityrt.SetGeometry
 import com.skity.graphics.skityrt.SetPaint
 import com.skity.graphics.skityrt.SetPathData
 import com.skity.graphics.skityrt.SetTransform
+import com.skity.graphics.skityrt.SetViewport
 import com.skity.graphics.skityrt.PreserveAspectRatio
 import com.skity.graphics.skityrt.RenderNode
 import com.skity.graphics.skityrt.RenderTree
@@ -66,6 +68,9 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   private var viewportWidth = 0f
   private var viewportHeight = 0f
 
+  // Phase 2 Step 3a: dirty flag for the SetViewport command (canvas-level).
+  private var dirtyViewport = false
+
   // Monotonic node-id allocator for the retained render tree (Phase 2). Starts
   // at 1; assigned lazily in measure() via assignNativeIds(). Never reused.
   private var nextNodeId = 1
@@ -101,10 +106,10 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
 
   // Each setter calls markDirty() to force a layout pass → measure → repaint,
   // mirroring SkityNodeBase's per-setter trigger.
-  @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v; markDirty() }
-  @LynxProp(name = "viewportY") fun setViewportY(v: Float) { viewportY = v; markDirty() }
-  @LynxProp(name = "viewportWidth") fun setViewportWidth(v: Float) { viewportWidth = v; markDirty() }
-  @LynxProp(name = "viewportHeight") fun setViewportHeight(v: Float) { viewportHeight = v; markDirty() }
+  @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v; dirtyViewport = true; markDirty() }
+  @LynxProp(name = "viewportY") fun setViewportY(v: Float) { viewportY = v; dirtyViewport = true; markDirty() }
+  @LynxProp(name = "viewportWidth") fun setViewportWidth(v: Float) { viewportWidth = v; dirtyViewport = true; markDirty() }
+  @LynxProp(name = "viewportHeight") fun setViewportHeight(v: Float) { viewportHeight = v; dirtyViewport = true; markDirty() }
 
   private var renderBundle: SkityRenderBundle? = null
 
@@ -203,6 +208,18 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     pendingStructural.clear()
   }
 
+  /** Drain the canvas viewport into a SetViewport command (Step 3a). Canvas-level,
+   *  so it targets the retained tree's viewport, not a node field. */
+  private fun drainViewport(
+    fbb: FlatBufferBuilder, offsets: MutableList<Int>, types: MutableList<Byte>,
+  ) {
+    if (!dirtyViewport) return
+    offsets += SetViewport.createSetViewport(
+      fbb, nativeId, viewportX, viewportY, viewportWidth, viewportHeight)
+    types += Command.SetViewport
+    dirtyViewport = false
+  }
+
   // ---- Phase 2 Step 1b: incremental command channel ----
 
   /** Drain dirty paint/path/transform props across the shadow tree into a
@@ -212,7 +229,8 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     val offsets = mutableListOf<Int>()
     val types = mutableListOf<Byte>()
     drainStructural(fbb, offsets, types) // Step 2: topology before paint
-    collectCommands(fbb, root, offsets, types) // Step 1b: paint/path/transform
+    drainViewport(fbb, offsets, types)   // Step 3a: canvas viewport
+    collectCommands(fbb, root, offsets, types) // paint/path/transform/geometry
     if (offsets.isEmpty()) return null
     val typesVec = CommandBatch.createCommandsTypeVector(fbb, types.toByteArray())
     val cmdsVec = CommandBatch.createCommandsVector(fbb, offsets.toIntArray())
@@ -248,6 +266,15 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       offsets += SetTransform.createSetTransform(fbb, node.nativeId, off)
       types += Command.SetTransform
       node.dirtyTransform = false
+    }
+    if (node.dirtyGeometry != 0) {
+      offsets += SetGeometry.createSetGeometry(
+        fbb, node.nativeId, node.dirtyGeometry.toLong(),
+        node.x, node.y, node.width, node.height,
+        node.cx, node.cy, node.r, node.rx, node.ry,
+        node.x1, node.y1, node.x2, node.y2)
+      types += Command.SetGeometry
+      node.dirtyGeometry = 0
     }
     val count = node.childCount
     for (i in 0 until count) {

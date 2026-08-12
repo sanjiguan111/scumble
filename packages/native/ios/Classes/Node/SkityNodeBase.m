@@ -63,59 +63,72 @@ LYNX_PROPS_GROUP_DECLARE(
 // setNeedsLayout coalesces (next vsync), so a batch of prop updates triggers a
 // single measure. Android mirrors this with markDirty() per setter.
 // Phase 2 Step 1b: paint/path/transform setters also set a dirty flag drained
-// into a CommandBatch in measure(). Geometry setters stay snapshot-only.
+// into a CommandBatch in measure(). Step 3a: geometry setters do too.
 #pragma mark - Geometry setters
 
 LYNX_PROP_SETTER("x", setX, NSNumber *) {
   _x = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomX;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y", setY, NSNumber *) {
   _y = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomY;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("width", setWidth, NSNumber *) {
   _width = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomWidth;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("height", setHeight, NSNumber *) {
   _height = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomHeight;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("cx", setCx, NSNumber *) {
   _cx = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomCX;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("cy", setCy, NSNumber *) {
   _cy = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomCY;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("r", setR, NSNumber *) {
   _r = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomR;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("rx", setRx, NSNumber *) {
   _rx = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomRX;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("ry", setRy, NSNumber *) {
   _ry = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomRY;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("x1", setX1, NSNumber *) {
   _x1 = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomX1;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y1", setY1, NSNumber *) {
   _y1 = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomY1;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("x2", setX2, NSNumber *) {
   _x2 = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomX2;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y2", setY2, NSNumber *) {
   _y2 = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomY2;
   [self setNeedsLayout];
 }
 
@@ -220,9 +233,9 @@ LYNX_PROP_SETTER("d", setD, NSString *) {
   NSUInteger idx = [[self children] indexOfObject:child];
   if (idx == NSNotFound) return;
   [canvas enqueueStructuralInsert:childId
-                          parentId:parentId
-                             index:(uint32_t)idx
-                                tag:child.skityTagName];
+                         parentId:parentId
+                            index:(uint32_t)idx
+                              tag:child.skityTagName];
 }
 
 - (void)willRemoveComponent:(LynxShadowNode *)subComponent {

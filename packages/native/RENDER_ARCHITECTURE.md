@@ -150,7 +150,7 @@ Dependency-ordered; each step is independently reviewable:
 > zero-regression; dynamic Insert/Remove). Step 3 (geometry+viewport commands,
 > retire measure/snapshot) + Step 4 (cleanup markDirty) remain. This section
 > revises the §1 principle ("native never holds structure") — Phase 2 moves from
-> a *stateless serializer* to a *stateful rendering engine*, motivated by animation.
+> a _stateless serializer_ to a _stateful rendering engine_, motivated by animation.
 
 ### 11.1 Motivation
 
@@ -168,7 +168,7 @@ the pure-painting props **off the Lynx layout pipeline entirely**.
 
 ### 11.2 Target architecture
 
-> **Two threads, decoupled.** The TASM thread only serializes *changes* into
+> **Two threads, decoupled.** The TASM thread only serializes _changes_ into
 > commands and posts them. The render thread owns a retained C++ render tree,
 > drains the command queue, applies it, and draws. The `extraBundle` snapshot
 > channel is retired.
@@ -185,8 +185,8 @@ setter → emit Command       onLayout /             drain command queue
 ```
 
 The render tree is **exclusive to the render thread** — no locks, no shared
-mutable state across threads. Cross-thread hand-off is now a *command stream*
-(still an immutable message) instead of a *full-tree snapshot*.
+mutable state across threads. Cross-thread hand-off is now a _command stream_
+(still an immutable message) instead of a _full-tree snapshot_.
 
 ### 11.3 Why FlatBuffers is the right wire format here
 
@@ -248,7 +248,7 @@ root_type CommandBatch;
 ```
 
 Open detail (resolve at implementation): whether `SetGeometry`/`SetPaint` carry
-*all* fields and use an "unchanged" sentinel, or split into per-field commands.
+_all_ fields and use an "unchanged" sentinel, or split into per-field commands.
 The schema above keeps one table per concern with sentinel values for "not set";
 optional scalars (`(optional)`, flatc ≥ 1.12) are the cleaner alternative if the
 codegen target supports them everywhere.
@@ -270,7 +270,7 @@ node and the render-thread node.
 This is the key simplification the whole design turns on:
 
 - The **canvas size** comes from `style` (Lynx layout, standard) — see
-  `Canvas.tsx`: *"Size comes from `style` like any Lynx view."* Lynx lays the
+  `Canvas.tsx`: _"Size comes from `style` like any Lynx view."_ Lynx lays the
   canvas out without any help from skity.
 - **Child nodes are virtual**; their geometry (`cx/cy/r`, path data, …) is
   authored in absolute logical pixels and **does not participate in Lynx
@@ -279,7 +279,7 @@ This is the key simplification the whole design turns on:
 Therefore **every skity prop — geometry included — is pure rendering data** that
 can go straight to a command. Nothing in the skity tag set needs `markDirty` to
 trigger a layout pass; the current per-setter `markDirty()` / `setNeedsLayout`
-exists *only* to force `measure()` to re-serialize (see the comment block in
+exists _only_ to force `measure()` to re-serialize (see the comment block in
 `SkityNodeBase.kt`). Once `measure` is gone (§11.9), **all of those triggers are
 deleted** — they would only cause wasted layout passes. (This reverses the
 "every setter must markDirty" conclusion recorded for Phase 1.)
@@ -313,15 +313,15 @@ collisions, child-order races — and needs dedicated round-trip tests.
 Removing the snapshot channel dissolves the `measure` function, which today
 couples "compute size" with "serialize the whole tree":
 
-| Today (in `measure` / Phase 1) | Phase 2 owner |
-| --- | --- |
-| Compute canvas size | **Deleted** — Lynx layout via `style` |
-| Build the `RenderTree` FlatBuffer (leaf→root) | **Deleted** — command stream |
-| `buildRenderNode` / `buildStyle` / `buildPaint` | **Deleted** |
-| `SkityRenderBundle` + `getExtraBundle` + `updateExtraData` + `consumeRenderBundle` | **Deleted** |
-| `setCustomMeasureFunc` (Android) / `customMeasureDelegate` (iOS) | **Not called** |
-| `density` capture in measure | Render thread reads it locally (it already is the single source of truth in `Draw`) |
-| Canvas physical size in bundle | `onSurfaceTextureSizeChanged` / `onSizeChanged` → `session.updateSize` (already exists) |
+| Today (in `measure` / Phase 1)                                                     | Phase 2 owner                                                                           |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Compute canvas size                                                                | **Deleted** — Lynx layout via `style`                                                   |
+| Build the `RenderTree` FlatBuffer (leaf→root)                                      | **Deleted** — command stream                                                            |
+| `buildRenderNode` / `buildStyle` / `buildPaint`                                    | **Deleted**                                                                             |
+| `SkityRenderBundle` + `getExtraBundle` + `updateExtraData` + `consumeRenderBundle` | **Deleted**                                                                             |
+| `setCustomMeasureFunc` (Android) / `customMeasureDelegate` (iOS)                   | **Not called**                                                                          |
+| `density` capture in measure                                                       | Render thread reads it locally (it already is the single source of truth in `Draw`)     |
+| Canvas physical size in bundle                                                     | `onSurfaceTextureSizeChanged` / `onSizeChanged` → `session.updateSize` (already exists) |
 
 **Kept:** `isVirtual = false` on the canvas (it still needs a platform view —
 `TextureView` / `MetalLayer` — to host the GPU surface; removing `measure` ≠
@@ -339,7 +339,19 @@ removing the view). Shape/group nodes stay virtual.
    field-value refresh (SyncFromSnapshot no longer rebuilds topology).
 3. **Geometry + viewport via commands.** `SetGeometry`/`SetViewport`; delete
    `measure`, `buildRenderNode`, `extraBundle`, `SkityRenderBundle`. Lynx layout
-   owns canvas size end-to-end. **(next)**
+   owns canvas size end-to-end.
+   - **3a ✓ done.** `SetGeometry`/`SetViewport` added to the schema; geometry +
+     viewport setters mark dirty (`dirtyGeometry` bitmask / `dirtyViewport`) and
+     drain through the command channel alongside paint/path/transform. `measure`
+     and the snapshot channel are **kept** as the flush point + full-tree
+     fallback, so the new commands land as same-value no-ops under the Apply→Sync
+     ordering until 3b. Verified by zero-regression (the commands are masked by
+     the coexisting snapshot).
+   - **3b (next).** Retire the snapshot channel: delete `measure`/
+     `buildRenderNode`/`buildStyle`/`buildPaint`/`extraBundle`/
+     `SkityRenderBundle`; stand up a direct TASM→render-thread dispatch (§11.12)
+     and a reliable flush hook (§11.7), since removing `measure` removes the
+     free coalescing/flush it gave the command channel.
 4. Cleanup: remove the dead `markDirty`/`setNeedsLayout` calls; update this doc
    and the §1 principle.
 
@@ -348,7 +360,7 @@ removing the view). Shape/group nodes stay virtual.
 - This is a turn from **stateless serializer** to **stateful engine**. The §1
   principle ("the native side never holds structure") is revised: native now
   holds a render tree, but still does **zero string parsing** — parsing stays in
-  JS (§3), only the *retained state* moves native-side.
+  JS (§3), only the _retained state_ moves native-side.
 - Cost: a command system, node-id mapping, structural sync, and transaction
   batching to own and test on both platforms.
 - Payoff: animation off the Lynx layout pipeline (the real frame-rate win), and
@@ -364,7 +376,7 @@ reuses them unchanged.
 - Android (`SkityRenderThread.kt`): a process-wide `HandlerThread` + a `Handler`
   bound to its `Looper`. Any thread holding `SkityRenderThread.handler` calls
   `handler.post { … }` to enqueue work on the render thread.
-- iOS (`SkityMetalContext.mm`): a shared *serial* GCD queue
+- iOS (`SkityMetalContext.mm`): a shared _serial_ GCD queue
   (`dispatch_queue_create("com.skity.lynx.queue", DISPATCH_QUEUE_SERIAL)`). Any
   thread holding the queue calls `dispatch_async(queue, ^{ … })`.
 
@@ -375,15 +387,15 @@ the native renderer object (`rendererHandle` / `GPUContext`) is touched only on
 the render thread. The Phase 2 retained tree attaches to that same object; no
 new synchronization is needed for the tree itself.
 
-**What changes in Phase 2 is *not* the mechanism — it's the sender, the payload,
+**What changes in Phase 2 is _not_ the mechanism — it's the sender, the payload,
 and one piece of wiring:**
 
-| | Phase 1 (today) | Phase 2 |
-| --- | --- | --- |
-| Dispatch mechanism | `Handler.post` / `dispatch_async` | **reused unchanged** |
-| Sender | UI thread (`onDraw`) | TASM thread (setter) |
-| Payload | `pendingTree` full-tree snapshot | `CommandBatch` incremental |
-| Thread hops | TASM → UI → render (two) | TASM → render (one) |
+|                    | Phase 1 (today)                   | Phase 2                    |
+| ------------------ | --------------------------------- | -------------------------- |
+| Dispatch mechanism | `Handler.post` / `dispatch_async` | **reused unchanged**       |
+| Sender             | UI thread (`onDraw`)              | TASM thread (setter)       |
+| Payload            | `pendingTree` full-tree snapshot  | `CommandBatch` incremental |
+| Thread hops        | TASM → UI → render (two)          | TASM → render (one)        |
 
 **The one new piece of wiring** is how a TASM-side shadow node reaches the
 render-thread dispatch port. Today the `handler` / `renderQueue` reference lives
