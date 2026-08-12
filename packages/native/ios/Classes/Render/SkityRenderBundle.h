@@ -28,9 +28,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong, readonly, nullable) NSData *commandBatchData;
 
 - (instancetype)initWithData:(NSData *)data
-                     viewport:(CGSize)viewportSize
-                      density:(float)density
-              commandBatchData:(nullable NSData *)commandBatchData;
+                    viewport:(CGSize)viewportSize
+                     density:(float)density
+            commandBatchData:(nullable NSData *)commandBatchData;
 
 @end
 

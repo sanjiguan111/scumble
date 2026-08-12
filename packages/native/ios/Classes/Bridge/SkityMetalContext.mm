@@ -12,9 +12,9 @@
 #include <skity/gpu/gpu_surface.hpp>
 #include <skity/skity.hpp>
 
-#include "SkityRenderer.h"          // shared/skity — cross-platform renderer
-#include "render_tree_generated.h"  // skityrt::GetRenderTree
-#include "retained_render_tree.h"   // skityrt::RetainedRenderTree (per-layer)
+#include "SkityRenderer.h"         // shared/skity — cross-platform renderer
+#include "render_tree_generated.h" // skityrt::GetRenderTree
+#include "retained_render_tree.h"  // skityrt::RetainedRenderTree (per-layer)
 
 @implementation SkityMetalContext {
   id<MTLDevice> _device;

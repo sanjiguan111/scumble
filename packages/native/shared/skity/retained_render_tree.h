@@ -15,8 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "render_tree_common_generated.h"  // LineCap/LineJoin/FillRule/Display/Visibility
-#include "render_tree_generated.h"         // skityrt::RenderTree (snapshot source)
+#include "render_tree_common_generated.h" // LineCap/LineJoin/FillRule/Display/Visibility
+#include "render_tree_generated.h"        // skityrt::RenderTree (snapshot source)
 
 namespace skityrt {
 
@@ -41,7 +41,7 @@ struct RetainedComputedStyle {
   float opacity = 1.f;
   Display display = Display_INLINE;
   Visibility visibility = Visibility_VISIBLE;
-  std::vector<uint8_t> transform_data;  // JS-built TransformOpList bytes
+  std::vector<uint8_t> transform_data; // JS-built TransformOpList bytes
 };
 
 // Mutable, owning counterpart of RenderNode. Lifetime is owned exclusively by
@@ -57,11 +57,11 @@ struct RetainedNode {
   float cx = 0, cy = 0, r = 0, rx = 0, ry = 0;
   float x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
-  std::vector<uint8_t> path_data;  // JS-built PathCommandList bytes (owned)
-  std::vector<float> points;       // polyline/polygon [x0,y0,x1,y1,...]
+  std::vector<uint8_t> path_data; // JS-built PathCommandList bytes (owned)
+  std::vector<float> points;      // polyline/polygon [x0,y0,x1,y1,...]
 
-  std::vector<RetainedNode*> children;  // non-owning; owned by RetainedRenderTree
-  RetainedNode* parent = nullptr;
+  std::vector<RetainedNode *> children; // non-owning; owned by RetainedRenderTree
+  RetainedNode *parent = nullptr;
 };
 
 // In-memory viewport state (decoupled from the FlatBuffer ViewBox table).
@@ -75,7 +75,7 @@ struct RetainedViewport {
 // The retained tree. Owned by the render thread and touched only there
 // (Android AppRenderer / iOS SkityMetalContext per-layer map). Single-threaded.
 class RetainedRenderTree {
- public:
+public:
   RetainedRenderTree() = default;
   ~RetainedRenderTree() = default;
 
@@ -83,38 +83,38 @@ class RetainedRenderTree {
   // structural commands); the root is created here if missing (canvas has no
   // skity parent, so its InsertNode is synthesized in measure). Null clears the
   // viewport only — nodes persist until an explicit RemoveNode.
-  void SyncFromSnapshot(const RenderTree* fb);
+  void SyncFromSnapshot(const RenderTree *fb);
 
   // O(1) lookup by node id.
-  RetainedNode* Find(int32_t id) const;
+  RetainedNode *Find(int32_t id) const;
 
   // Apply an incremental CommandBatch: Step 1b paint/path/transform + Step 2
   // structural Insert/Remove/Move. Topology commands are authoritative.
-  void ApplyCommandBatch(const uint8_t* data, std::size_t size);
+  void ApplyCommandBatch(const uint8_t *data, std::size_t size);
 
-  const RetainedNode* root() const { return root_; }
-  const RetainedViewport& viewport() const { return viewport_; }
+  const RetainedNode *root() const { return root_; }
+  const RetainedViewport &viewport() const { return viewport_; }
 
- private:
+private:
   // Structural helpers (Step 2).
-  RetainedNode* CreateNode(int32_t id);
-  void AttachChild(RetainedNode* parent, RetainedNode* child, uint32_t index);
-  void DetachFromParent(RetainedNode* node);
+  RetainedNode *CreateNode(int32_t id);
+  void AttachChild(RetainedNode *parent, RetainedNode *child, uint32_t index);
+  void DetachFromParent(RetainedNode *node);
   void EraseSubtree(int32_t id);
   // True if `maybe_ancestor` is `node` or an ancestor of it (cycle guard).
-  bool IsAncestor(RetainedNode* maybe_ancestor, RetainedNode* node) const;
+  bool IsAncestor(RetainedNode *maybe_ancestor, RetainedNode *node) const;
 
   // Snapshot field sync (no topology). `parent` is only used to detect the
   // root level (parent == nullptr => create root if missing).
-  void SyncNodeFields(const RenderNode* fb, RetainedNode* parent);
+  void SyncNodeFields(const RenderNode *fb, RetainedNode *parent);
 
   // id → owning node. Owns every RetainedNode; `children`/`root_` are raw
   // pointers into these.
   std::unordered_map<int32_t, std::unique_ptr<RetainedNode>> node_map_;
-  RetainedNode* root_ = nullptr;
+  RetainedNode *root_ = nullptr;
   RetainedViewport viewport_;
 };
 
-}  // namespace skityrt
+} // namespace skityrt
 
-#endif  // SKITY_RETAINED_RENDER_TREE_H_
+#endif // SKITY_RETAINED_RENDER_TREE_H_

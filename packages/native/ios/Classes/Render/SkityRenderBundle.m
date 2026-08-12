@@ -6,9 +6,9 @@
 @implementation SkityRenderBundle
 
 - (instancetype)initWithData:(NSData *)data
-                     viewport:(CGSize)viewportSize
-                      density:(float)density
-              commandBatchData:(NSData *)commandBatchData {
+                    viewport:(CGSize)viewportSize
+                     density:(float)density
+            commandBatchData:(NSData *)commandBatchData {
   self = [super init];
   if (self) {
     _renderTreeData = data;

@@ -28,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)enqueueStructuralInsert:(int32_t)nodeId
                        parentId:(int32_t)parentId
                           index:(uint32_t)index
-                             tag:(NSString *)tag;
+                            tag:(NSString *)tag;
 - (void)enqueueStructuralRemove:(int32_t)nodeId;
 
 @end
