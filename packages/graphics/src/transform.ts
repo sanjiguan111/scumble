@@ -72,9 +72,25 @@ export function parseTransform(s: string): ArrayBuffer | null {
         ops.push({ type: TRANSFORM_TYPE.SCALE, args: [sx, a[1] ?? sx] });
         break;
       }
-      case "rotate":
-        ops.push({ type: TRANSFORM_TYPE.ROTATE, args: [a[0] ?? 0, a[1] ?? 0, a[2] ?? 0] });
+      case "rotate": {
+        // Expand rotate(deg[, cx, cy]) into an explicit 2D affine matrix instead
+        // of emitting a ROTATE op. The native ROTATE path leans on skity
+        // Canvas::Rotate's degree/radian + matrix-concat convention, which moved
+        // the subtree off-screen for any non-zero angle (rotate(0) was the
+        // identity, so only it rendered). A matrix is unambiguous — native just
+        // Concats it (SkityRenderer ApplyTransform MATRIX).
+        const deg = a[0] ?? 0;
+        const cx = a[1] ?? 0;
+        const cy = a[2] ?? 0;
+        const rad = (deg * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        // rotate about (cx,cy): x' = cos·x − sin·y + e, y' = sin·x + cos·y + f
+        const e = cx * (1 - cos) + cy * sin;
+        const f = cy * (1 - cos) - cx * sin;
+        ops.push({ type: TRANSFORM_TYPE.MATRIX, args: [cos, sin, -sin, cos, e, f] });
         break;
+      }
       case "skewx":
         ops.push({ type: TRANSFORM_TYPE.SKEW_X, args: [a[0] ?? 0] });
         break;
