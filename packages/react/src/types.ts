@@ -91,13 +91,17 @@ export interface GraphicProps {
 // ---- transforms (react-native-skity: single object, degrees; or 4x4 matrix) ----
 
 export interface TranslateProps {
-  translateX: number;
-  translateY: number;
+  /** Defaults to 0. */
+  translateX?: number;
+  /** Defaults to 0. */
+  translateY?: number;
 }
 
 export interface ScaleProps {
-  scaleX: number;
-  scaleY: number;
+  /** Defaults to 1 (or scaleY if only that is given). */
+  scaleX?: number;
+  /** Defaults to scaleX (or 1 if only that is given). */
+  scaleY?: number;
 }
 
 export interface RotateProps {

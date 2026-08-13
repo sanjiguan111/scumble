@@ -36,10 +36,11 @@ export function resolveTransform(t: Transform | undefined): string | undefined {
     // 4x4 column-major → 2D affine matrix(a, b, c, d, e, f).
     // col-major layout: m[col*4 + row]; affine uses m0,m1,m4,m5,m12,m13.
     css = `matrix(${t[0]},${t[1]},${t[4]},${t[5]},${t[12]},${t[13]})`;
-  } else if ("translateX" in t && "translateY" in t) {
-    css = `translate(${t.translateX},${t.translateY})`;
-  } else if ("scaleX" in t && "scaleY" in t) {
-    css = `scale(${t.scaleX},${t.scaleY})`;
+  } else if ("translateX" in t || "translateY" in t) {
+    css = `translate(${t.translateX ?? 0},${t.translateY ?? 0})`;
+  } else if ("scaleX" in t || "scaleY" in t) {
+    const sx = t.scaleX ?? 1;
+    css = `scale(${sx},${t.scaleY ?? sx})`;
   } else {
     const r = t as RotateProps;
     css =
