@@ -5,6 +5,7 @@
 
 #import <Metal/Metal.h>
 
+#include <atomic>
 #include <memory>
 #include <unordered_map>
 
@@ -51,22 +52,25 @@
   return _renderQueue;
 }
 
+- (void)applyCommandBatch:(NSData *)commands treeKey:(NSInteger)treeKey {
+  if (commands == nil || commands.length == 0) return;
+  auto &slot = _retainedTrees[static_cast<intptr_t>(treeKey)];
+  if (slot == nullptr) {
+    slot = std::make_unique<skityrt::RetainedRenderTree>();
+  }
+  slot->ApplyCommandBatch(static_cast<const uint8_t *>(commands.bytes), commands.length);
+}
+
 - (void)drawLayer:(CAMetalLayer *)layer
-         commands:(NSData *)commands
+          treeKey:(NSInteger)treeKey
         viewportW:(uint32_t)w
         viewportH:(uint32_t)h
           density:(float)density {
   if (layer == nil || _gpuContext == nullptr) return;
 
-  intptr_t key = reinterpret_cast<intptr_t>(layer);
-  auto &slot = _retainedTrees[key];
+  auto &slot = _retainedTrees[static_cast<intptr_t>(treeKey)];
   if (slot == nullptr) {
     slot = std::make_unique<skityrt::RetainedRenderTree>();
-  }
-  // Step 3b: commands are the only mutation path (snapshot retired). The tree
-  // persists across frames; a null commands just redraws the current state.
-  if (commands != nil && commands.length > 0) {
-    slot->ApplyCommandBatch(static_cast<const uint8_t *>(commands.bytes), commands.length);
   }
 
   @autoreleasepool {
@@ -105,9 +109,17 @@
   }
 }
 
-- (void)purgeRetainedTreeForLayer:(CAMetalLayer *)layer {
-  if (layer == nil) return;
-  _retainedTrees.erase(reinterpret_cast<intptr_t>(layer));
++ (NSInteger)nextTreeKey {
+  static std::atomic<NSInteger> s_next{1};
+  return s_next.fetch_add(1, std::memory_order_relaxed);
+}
+
+- (void)purgeRetainedTreeForKey:(NSInteger)treeKey {
+  // Erase on the render queue so it serializes with drawLayer: — both touch
+  // _retainedTrees, and a concurrent erase (previously this ran on the UI/TASM
+  // thread via detachSurface) would dangle the `slot` reference held across a
+  // frame: use-after-free / corrupt frames on rapid page switches.
+  dispatch_async(_renderQueue, ^{ self->_retainedTrees.erase(static_cast<intptr_t>(treeKey)); });
 }
 
 @end

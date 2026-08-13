@@ -20,10 +20,6 @@ class SkityVulkanRenderSession(private val density: Float) : SkityRenderSession 
   @Volatile
   private var surfaceReady: Boolean = false
 
-  // Phase 2: incremental CommandBatch bytes (null = no commands pending).
-  @Volatile
-  private var pendingCommands: ByteArray? = null
-
   private fun ensureRenderer() {
     if (rendererHandle == 0L) {
       // Vulkan manages its own context; no shared GL handle.
@@ -54,19 +50,19 @@ class SkityVulkanRenderSession(private val density: Float) : SkityRenderSession 
   }
 
   override fun applyCommands(commands: ByteArray) {
-    pendingCommands = commands
-    renderHandler.post { drawIfReady() }
+    // Apply each batch in full on the render thread, then draw (see
+    // SkityGLRenderSession.applyCommands for why the pending slot was dropped).
+    renderHandler.post {
+      ensureRenderer()
+      if (rendererHandle != 0L) {
+        SkityNative.nativeApplyCommands(rendererHandle, commands)
+      }
+      drawIfReady()
+    }
   }
 
   private fun drawIfReady() {
     if (!surfaceReady || rendererHandle == 0L) return
-    // Step 3b: commands are the only mutation path (snapshot retired). The
-    // retained tree persists across frames; a null pendingCommands just redraws.
-    val commands = pendingCommands
-    if (commands != null) {
-      SkityNative.nativeApplyCommands(rendererHandle, commands)
-      pendingCommands = null
-    }
     SkityNative.nativeDrawFrame(rendererHandle)
   }
 

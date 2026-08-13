@@ -10,8 +10,10 @@
 @property(nonatomic, strong) SkityMetalContext *context;
 @property(nonatomic, weak) CAMetalLayer *layer;
 @property(nonatomic, assign) BOOL surfaceReady;
-// Written on the UI thread, read on the render queue.
-@property(nonatomic, strong, nullable) NSData *pendingCommands;
+// Process-unique key into SkityMetalContext's retained-tree map. Allocated per
+// session so a remounted canvas (new session) never reuses a prior canvas's
+// tree even if the CAMetalLayer pointer is recycled by malloc.
+@property(nonatomic, assign) NSInteger treeKey;
 @end
 
 @implementation SkityRenderSession
@@ -20,6 +22,7 @@
   self = [super init];
   if (self) {
     _context = [SkityMetalContext sharedInstance];
+    _treeKey = [SkityMetalContext nextTreeKey];
   }
   return self;
 }
@@ -32,14 +35,27 @@
 }
 
 - (void)detachSurface {
-  [self.context purgeRetainedTreeForLayer:self.layer];
+  [self.context purgeRetainedTreeForKey:self.treeKey];
   self.surfaceReady = NO;
   self.layer = nil;
 }
 
 - (void)applyCommands:(NSData *)commands {
-  self.pendingCommands = commands;
-  [self postDraw];
+  // Apply each batch in full on the render queue, then draw. Previously the
+  // batch sat in a single `pendingCommands` slot that the next batch would
+  // overwrite before drawIfReady ran — under rapid updates that dropped the
+  // first batch's structural Insert, so nodes never entered the retained tree
+  // and never rendered. Applying directly on the render queue guarantees every
+  // batch is applied.
+  __weak __typeof__(self) weakSelf = self;
+  NSData *cmds = commands;
+  dispatch_async(self.context.renderQueue, ^{
+    __strong __typeof__(weakSelf) strongSelf = weakSelf;
+    if (cmds != nil && cmds.length > 0) {
+      [strongSelf.context applyCommandBatch:cmds treeKey:strongSelf.treeKey];
+    }
+    [strongSelf drawIfReady];
+  });
 }
 
 - (void)postDraw {
@@ -51,23 +67,27 @@
 }
 
 - (void)drawIfReady {
-  // Runs on the shared render queue.
+  // Runs on the shared render queue. Draw only — commands are applied in
+  // applyCommands: (or already in the tree when the surface attaches).
   if (!self.surfaceReady || self.layer == nil) return;
-  // The retained tree persists across frames (Step 3b: no snapshot), so every
-  // postDraw redraws the current state. Size is read fresh from the layer's
-  // drawableSize (an early command may arrive before layoutSubviews sets it).
   CGSize drawable = self.layer.drawableSize;
   if (drawable.width <= 0 || drawable.height <= 0) return;
   [self.context drawLayer:self.layer
-                 commands:self.pendingCommands
+                  treeKey:self.treeKey
                 viewportW:(uint32_t)drawable.width
                 viewportH:(uint32_t)drawable.height
                   density:[UIScreen mainScreen].scale];
-  self.pendingCommands = nil;
 }
 
 - (void)destroy {
   [self detachSurface];
+}
+
+- (void)dealloc {
+  // Safety net: if detachView/destroy was skipped or delayed, still drop the
+  // tree on dealloc so the retained-tree map can't leak or be inherited by a
+  // later canvas. Idempotent with detachSurface (erase on a missing key no-ops).
+  [_context purgeRetainedTreeForKey:_treeKey];
 }
 
 @end

@@ -26,11 +26,6 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
   @Volatile
   private var surfaceReady: Boolean = false
 
-  // Phase 2: incremental CommandBatch bytes (null = no commands pending). Written
-  // on the UI thread (applyCommands), read + cleared on the render thread.
-  @Volatile
-  private var pendingCommands: ByteArray? = null
-
   private fun ensureRenderer() {
     if (rendererHandle == 0L) {
       rendererHandle = SkityNative.nativeCreateRenderer(
@@ -68,20 +63,25 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
    * (consumeCommands). Step 3b: no snapshot — commands are the only payload.
    */
   override fun applyCommands(commands: ByteArray) {
-    pendingCommands = commands
-    renderHandler.post { drawIfReady() }
+    // Apply each batch in full on the render thread, then draw. Previously the
+    // batch sat in a single `pendingCommands` slot that the next batch would
+    // overwrite before drawIfReady ran — under rapid updates that dropped the
+    // first batch's structural Insert, so nodes never entered the retained tree
+    // and never rendered. ensureRenderer() lets commands apply even before the
+    // surface is ready (the tree lives on the renderer, independent of surface).
+    renderHandler.post {
+      ensureRenderer()
+      if (rendererHandle != 0L) {
+        SkityNative.nativeApplyCommands(rendererHandle, commands)
+      }
+      drawIfReady()
+    }
   }
 
   private fun drawIfReady() {
     if (!surfaceReady || rendererHandle == 0L) return
-    // Step 3b: commands are the only mutation path (snapshot retired). The
-    // retained tree persists across frames, so every draw uses the current tree
-    // state; a null pendingCommands just redraws (e.g. after a resize).
-    val commands = pendingCommands
-    if (commands != null) {
-      SkityNative.nativeApplyCommands(rendererHandle, commands)
-      pendingCommands = null
-    }
+    // Draw only — commands are applied in applyCommands (or already in the tree
+    // when the surface attaches).
     SkityNative.nativeDrawFrame(rendererHandle)
   }
 
