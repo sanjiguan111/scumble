@@ -20,13 +20,13 @@ import type { PathProps } from "../types";
  * const p = new Path2D().moveTo(10, 10).lineTo(90, 90).close();
  * <Path path={p} color="#22c55e" />
  */
-export function Path({ path, fillRule, ...rest }: PathProps) {
+export function Path({ path, fillRule, children, ...rest }: PathProps) {
   const pathBytes = typeof path === "string" ? parsePath(path) : path.toBytes();
   return (
     <skity-path
       d={pathBytes ? bytesToBase64(pathBytes) : undefined}
       fillRule={fillRule !== undefined ? parseFillRule(fillRule) : undefined}
-      {...resolvePaint(rest)}
+      {...resolvePaint(rest, children)}
     />
   );
 }

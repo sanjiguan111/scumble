@@ -10,6 +10,6 @@ import type { CircleProps } from "../types";
  * @example
  * <Circle cx={50} cy={50} radius={30} color="#3b82f6" />
  */
-export function Circle({ cx, cy, radius, ...rest }: CircleProps) {
-  return <skity-circle cx={cx ?? 0} cy={cy ?? 0} r={radius} {...resolvePaint(rest)} />;
+export function Circle({ cx, cy, radius, children, ...rest }: CircleProps) {
+  return <skity-circle cx={cx ?? 0} cy={cy ?? 0} r={radius} {...resolvePaint(rest, children)} />;
 }

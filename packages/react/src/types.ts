@@ -86,6 +86,24 @@ export interface GraphicProps {
   blendMode?: BlendMode;
   /** z-index. Accepted for parity; native z-ordering follows tree order today. */
   zIndex?: number;
+  /** Child shaders (e.g. `<LinearGradient>`) consumed by the shape's paint. */
+  children?: ReactNode;
+}
+
+/** A 2D point — the shape returned by {@link vec}. */
+export type Vec = { x: number; y: number };
+
+/**
+ * Props for {@link LinearGradient}, mirroring @shopify/react-native-skia.
+ * `start`/`end` are **absolute user-space pixels** (not 0–1 normalized) — pass
+ * the same values you would to RN-Skia.
+ */
+export interface LinearGradientProps {
+  start: import("@lynx-skity/graphics").Point;
+  end: import("@lynx-skity/graphics").Point;
+  colors: import("@lynx-skity/graphics").Color[];
+  positions?: number[];
+  mode?: "clamp" | "repeat" | "mirror";
 }
 
 // ---- transforms (react-native-skity: single object, degrees; or 4x4 matrix) ----

@@ -24,7 +24,7 @@ function resolveRadii(radii: RRectProps["radii"]): { rx?: number; ry?: number } 
  * <RRect x={10} y={10} width={80} height={80} radii={16} color="red" />
  * <RRect width={100} height={100} radii={{ x: 10, y: 20 }} color="blue" />
  */
-export function RRect({ x, y, width, height, radii, ...rest }: RRectProps) {
+export function RRect({ x, y, width, height, radii, children, ...rest }: RRectProps) {
   return (
     <skity-rect
       x={x ?? 0}
@@ -32,7 +32,7 @@ export function RRect({ x, y, width, height, radii, ...rest }: RRectProps) {
       width={width}
       height={height}
       {...resolveRadii(radii)}
-      {...resolvePaint(rest)}
+      {...resolvePaint(rest, children)}
     />
   );
 }

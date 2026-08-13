@@ -20,6 +20,14 @@ function makeStar(cx: number, cy: number, outer: number, inner: number): Path2D 
   return p;
 }
 
+// Two nested rects as a single path (two subpaths). even-odd punches the inner
+// rect out (回字); nonzero fills over it. makeStar's star outline is a
+// non-self-intersecting polygon, for which both fill rules fill identically —
+// so nested subpaths are needed to demonstrate even-odd visually.
+function nestedRects(x: number): Path2D {
+  return new Path2D().addRect(x, 40, 100, 100).addRect(x + 25, 65, 50, 50);
+}
+
 export function PaintDemo() {
   return (
     <view>
@@ -61,9 +69,12 @@ export function PaintDemo() {
         ))}
       </DemoSection>
 
-      <DemoSection title="fillRule" caption="同一星形：nonzero(实心) vs even-odd(中心镂空)">
-        <Path path={makeStar(90, 100, 55, 22)} color="#f59e0b" />
-        <Path path={makeStar(250, 100, 55, 22)} color="#f59e0b" fillRule="even-odd" />
+      <DemoSection
+        title="fillRule"
+        caption="嵌套路径：nonzero(内框被覆盖) vs even-odd(内框镂空成回字)"
+      >
+        <Path path={nestedRects(60)} color="#f59e0b" />
+        <Path path={nestedRects(200)} color="#f59e0b" fillRule="even-odd" />
       </DemoSection>
     </view>
   );

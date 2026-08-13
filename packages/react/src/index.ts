@@ -43,6 +43,11 @@ export { Path } from "./shapes/Path";
 // Path2D (command-style path builder) is re-exported from the graphics core so
 // callers can import it from @lynx-skity/react alongside <Path>.
 export { Path2D } from "@lynx-skity/graphics";
+// ---- shaders ----
+// LinearGradient is a declarative child of a shape (react-native-skia style):
+// `<Rect><LinearGradient .../></Rect>`. vec() builds the {x,y} points it takes.
+export { LinearGradient } from "./shaders/LinearGradient";
+export { vec } from "./internal/vec";
 
 export type {
   Color,
@@ -64,9 +69,11 @@ export type {
   PathProps,
   GroupProps,
   CanvasProps,
+  Vec,
+  LinearGradientProps,
 } from "./types";
 
-// TODO(Task 3 / native support): Paint (multi-pass), LinearGradient /
-// RadialGradient / ConicGradient / SweepGradient, ColorFilter, Ellipse, Line —
-// these react-native-skity components are withheld until the native renderer
-// supports them (gradients/shaders) or the tags are wired (ellipse/line props).
+// Linear gradient FILL is supported (the <LinearGradient> child shader → native
+// Gradient FlatBuffer → skity Shader::MakeLinear). Still TODO: gradient stroke,
+// Radial / Sweep / Conic gradients, Paint (multi-pass), ColorFilter, and the
+// Ellipse / Line component wrappers — pending native shader coverage or wiring.

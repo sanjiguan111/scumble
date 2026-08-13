@@ -26,6 +26,8 @@ enum PaintField : uint {
   STROKE_MITER = 32,
   FILL_RULE    = 64,
   OPACITY      = 128,
+  FILL_GRADIENT   = 256, // fill_gradient bytes (nested Gradient FlatBuffer)
+  STROKE_GRADIENT = 512, // stroke_gradient bytes (nested Gradient FlatBuffer)
 }
 
 // One logical mutation. Step 1b: paint/path/transform. Step 2: structural.
@@ -43,15 +45,18 @@ union Command {
   SetViewport,  // Step 3a: canvas logical viewport (viewBox)
 }
 
-// Paint mutation. fill_color / stroke_color are 0xAARRGGBB; ResolvedPaint is
-// implicitly COLOR when the corresponding bit is set. "Inactive paint"
-// (Phase 1 null fillColor) is encoded by NOT setting the bit (the value is
-// then ignored by the consumer).
+// Paint mutation. fill_color / stroke_color are 0xAARRGGBB; the paint is
+// implicitly COLOR when the FILL/STROKE bit is set, or GRADIENT when the
+// FILL_GRADIENT/STROKE_GRADIENT bit is set (the *_gradient bytes are a nested
+// Gradient FlatBuffer built on the JS side, memcpy'd verbatim like SetPathData).
+// "Inactive paint" (null fillColor) is encoded by NOT setting any of these bits.
 table SetPaint {
   node_id:int = -1;
   fields_dirty:PaintField = NONE;
   fill_color:uint = 0; // valid only if FILL bit set
   stroke_color:uint = 0; // valid only if STROKE bit set
+  fill_gradient:[ubyte] (nested_flatbuffer: "Gradient"); // valid only if FILL_GRADIENT bit set
+  stroke_gradient:[ubyte] (nested_flatbuffer: "Gradient"); // valid only if STROKE_GRADIENT bit set
   stroke_width:float = 1.0;
   stroke_cap:LineCap = BUTT;
   stroke_join:LineJoin = MITER;

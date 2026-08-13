@@ -76,3 +76,5 @@ export * from "./enum";
 export * from "./transform";
 // Path: an SVG `d` string (or a Path2D builder) → PathCommandList FlatBuffer bytes.
 export * from "./path";
+// Gradient: a linear gradient spec → nested Gradient FlatBuffer bytes (USER_SPACE).
+export * from "./gradient";

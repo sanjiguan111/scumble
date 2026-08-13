@@ -34,9 +34,11 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("strokeMiter", setStrokeMiter:, NSNumber *),
     LYNX_PROP_DECLARE("fillRule", setFillRule:, NSNumber *),
     LYNX_PROP_DECLARE("opacity", setOpacity:, NSNumber *),
-    // transform & path (base64-encoded nested FlatBuffer bytes)
+    // transform & path & gradient (base64-encoded nested FlatBuffer bytes)
     LYNX_PROP_DECLARE("transform", setTransform:, NSString *),
-    LYNX_PROP_DECLARE("d", setD:, NSString *))
+    LYNX_PROP_DECLARE("d", setD:, NSString *),
+    LYNX_PROP_DECLARE("fillGradient", setFillGradient:, NSString *),
+    LYNX_PROP_DECLARE("strokeGradient", setStrokeGradient:, NSString *))
 
 - (NSString *)skityTagName {
   return @"";
@@ -197,6 +199,22 @@ LYNX_PROP_SETTER("d", setD, NSString *) {
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _pathData = decoded.length > 0 ? decoded : nil;
   _dirtyPath = YES;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("fillGradient", setFillGradient, NSString *) {
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _fillGradientData = decoded.length > 0 ? decoded : nil;
+  _dirtyPaintMask |= kSkityPaintFieldFillGradient;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("strokeGradient", setStrokeGradient, NSString *) {
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _strokeGradientData = decoded.length > 0 ? decoded : nil;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeGradient;
   [self setNeedsLayout];
 }
 

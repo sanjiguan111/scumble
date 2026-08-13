@@ -21,11 +21,13 @@
 namespace skityrt {
 
 // Mutable, owning counterpart of ResolvedPaint. type: 0=NONE, 1=COLOR, 2=GRADIENT.
-// color is packed 0xAARRGGBB (alpha is the raw 0-255 value; opacity is applied
-// by the renderer, not stored here).
+// color is packed 0xAARRGGBB (valid for COLOR; opacity is applied by the renderer,
+// not stored here). gradient_data holds a nested Gradient FlatBuffer (valid for
+// GRADIENT; JS-built, memcpy'd verbatim like RetainedNode::path_data).
 struct RetainedPaint {
   uint8_t type = 0;
   uint32_t color = 0;
+  std::vector<uint8_t> gradient_data;
 };
 
 // Mutable, owning counterpart of ComputedStyle. Variable-length fields are owned

@@ -216,9 +216,18 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     offsets: MutableList<Int>, types: MutableList<Byte>,
   ) {
     if (node.dirtyPaint != 0) {
+      // Gradient bytes (nested Gradient FlatBuffer) ride the same SetPaint
+      // command as opaque [ubyte] vectors — same pattern as SetPathData.
+      val fillGrad = node.fillGradientData
+      val fillGradOff = if (fillGrad != null && fillGrad.isNotEmpty())
+          SetPaint.createFillGradientVector(fbb, fillGrad) else 0
+      val strokeGrad = node.strokeGradientData
+      val strokeGradOff = if (strokeGrad != null && strokeGrad.isNotEmpty())
+          SetPaint.createStrokeGradientVector(fbb, strokeGrad) else 0
       offsets += SetPaint.createSetPaint(
         fbb, node.nativeId, node.dirtyPaint.toLong(),
         node.fillColor ?: 0L, node.strokeColor ?: 0L,
+        fillGradOff, strokeGradOff,
         node.strokeWidth, node.strokeCap, node.strokeJoin,
         node.strokeMiter, node.fillRule, node.opacity)
       types += Command.SetPaint

@@ -30,6 +30,10 @@ export interface SkityPaintProps {
   opacity?: number;
   /** Base64-encoded TransformOpList bytes (@lynx-skity/graphics); native decodes + memcpys. */
   transform?: string;
+  /** Base64-encoded Gradient bytes (@lynx-skity/graphics); the fill paint's shader. */
+  fillGradient?: string;
+  /** Base64-encoded Gradient bytes; the stroke paint's shader. */
+  strokeGradient?: string;
 }
 
 export interface SkityCommonProps extends StandardProps, SkityPaintProps {}

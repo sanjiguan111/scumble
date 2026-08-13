@@ -11,6 +11,10 @@
 namespace skityrt {
 namespace {
 
+// Forward decl — defined below (after the Apply* helpers). ApplySetPaint uses
+// it to copy the gradient bytes; the definition sits further down in this file.
+void AssignOwnedBytes(const ::flatbuffers::Vector<uint8_t> *src, std::vector<uint8_t> *dst);
+
 // Apply a SetPaint command to a retained node. Only fields whose PaintField bit
 // is set in fields_dirty are written; the rest are left untouched (FlatBuffer
 // defaults make "field == 0" a valid value, so the bitmask is authoritative).
@@ -23,6 +27,14 @@ void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
   if (dirty & PaintField_STROKE) {
     node->style.stroke.type = 1; // COLOR
     node->style.stroke.color = p->stroke_color();
+  }
+  if (dirty & PaintField_FILL_GRADIENT) {
+    node->style.fill.type = 2; // GRADIENT
+    AssignOwnedBytes(p->fill_gradient(), &node->style.fill.gradient_data);
+  }
+  if (dirty & PaintField_STROKE_GRADIENT) {
+    node->style.stroke.type = 2; // GRADIENT
+    AssignOwnedBytes(p->stroke_gradient(), &node->style.stroke.gradient_data);
   }
   if (dirty & PaintField_STROKE_WIDTH) node->style.stroke_width = p->stroke_width();
   if (dirty & PaintField_STROKE_CAP) node->style.stroke_cap = p->stroke_cap();

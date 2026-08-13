@@ -64,11 +64,23 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
                                  std::vector<flatbuffers::Offset<void>> &offsets,
                                  std::vector<uint8_t> &types) {
   if (node.dirtyPaintMask != 0) {
+    // Gradient bytes (nested Gradient FlatBuffer) ride the same SetPaint command
+    // as opaque [ubyte] vectors — same pattern as SetPathData/SetTransform.
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> fillGradOff = 0;
+    if (node.fillGradientData.length > 0) {
+      fillGradOff = fbb.CreateVector((const uint8_t *)node.fillGradientData.bytes,
+                                     node.fillGradientData.length);
+    }
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> strokeGradOff = 0;
+    if (node.strokeGradientData.length > 0) {
+      strokeGradOff = fbb.CreateVector((const uint8_t *)node.strokeGradientData.bytes,
+                                       node.strokeGradientData.length);
+    }
     auto off = skityrt::CreateSetPaint(
         fbb, node.nativeId, static_cast<skityrt::PaintField>(node.dirtyPaintMask),
         static_cast<uint32_t>(node.fillColor.unsignedIntValue),
-        static_cast<uint32_t>(node.strokeColor.unsignedIntValue), node.strokeWidth,
-        static_cast<skityrt::LineCap>(node.strokeCap),
+        static_cast<uint32_t>(node.strokeColor.unsignedIntValue), fillGradOff, strokeGradOff,
+        node.strokeWidth, static_cast<skityrt::LineCap>(node.strokeCap),
         static_cast<skityrt::LineJoin>(node.strokeJoin), node.strokeMiter,
         static_cast<skityrt::FillRule>(node.fillRule), node.opacity);
     offsets.push_back(off.Union());

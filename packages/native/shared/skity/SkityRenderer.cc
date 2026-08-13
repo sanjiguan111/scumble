@@ -14,6 +14,8 @@
 #include <cmath>
 #include <string>
 
+#include <skity/effect/shader.hpp>
+
 #include "render_tree_common_generated.h"
 #include "render_tree_style_generated.h"
 
@@ -25,6 +27,7 @@ using skity::Matrix;
 using skity::Paint;
 using skity::Path;
 using skity::Rect;
+using skity::Shader;
 
 // Degrees → radians (avoid relying on platform M_PI).
 constexpr float kDegToRad = 0.01745329251994329577f;
@@ -183,9 +186,62 @@ void ApplyTransform(const RetainedComputedStyle *style, Canvas *canvas) {
   }
 }
 
-// TODO(skity): gradient shaders (linear/radial) — populate paint.SetShader(...)
-// once the skity Shader creation API is confirmed. Until then only solid-color
-// fill/stroke are emitted; gradient paints are treated as inactive.
+// Build a skity Shader from a nested Gradient FlatBuffer (USER_SPACE coords, so
+// no bbox lookup is needed). Spike: LINEAR only — RADIAL/Sweep/Conical return
+// nullptr (TODO). Returns nullptr on empty/invalid data so the paint is treated
+// as inactive (draws nothing), matching the COLOR-inactive behavior.
+std::shared_ptr<Shader> BuildGradientShader(const std::vector<uint8_t> &data) {
+  if (data.empty()) return nullptr;
+  const Gradient *g = ::flatbuffers::GetRoot<Gradient>(data.data());
+  if (g == nullptr || g->type() != 0 /*LINEAR*/) return nullptr; // spike: linear only
+  const auto *stops = g->stops();
+  auto count = stops != nullptr ? stops->size() : 0u;
+  if (count < 2) return nullptr;
+
+  std::vector<skity::Vec4> colors(count);
+  std::vector<float> pos(count);
+  for (::flatbuffers::uoffset_t i = 0; i < count; i++) {
+    const GradientStop *s = stops->Get(i);
+    const RGBAColor *c = s != nullptr ? s->color() : nullptr;
+    if (c != nullptr) {
+      colors[i] = skity::Vec4(c->r() / 255.f, c->g() / 255.f, c->b() / 255.f, c->a() / 255.f);
+    } else {
+      colors[i] = skity::Vec4(0.f, 0.f, 0.f, 1.f);
+    }
+    pos[i] = s != nullptr ? s->offset() : static_cast<float>(i) / (count - 1);
+  }
+
+  // SpreadMethod → skity TileMode (PAD→kClamp, REPEAT→kRepeat, REFLECT→kMirror).
+  skity::TileMode tile = skity::TileMode::kClamp;
+  switch (g->spread_method()) {
+  case SpreadMethod_REPEAT:
+    tile = skity::TileMode::kRepeat;
+    break;
+  case SpreadMethod_REFLECT:
+    tile = skity::TileMode::kMirror;
+    break;
+  default:
+    break;
+  }
+
+  // skity::Point is an alias for Vec4; gradient geometry uses only x/y (z=w=0).
+  skity::Point pts[2];
+  pts[0] = skity::Vec4(g->x1(), g->y1(), 0.f, 0.f);
+  pts[1] = skity::Vec4(g->x2(), g->y2(), 0.f, 0.f);
+  return Shader::MakeLinear(pts, colors.data(), pos.data(), static_cast<int>(count), tile);
+}
+
+// Apply a gradient shader to `out` (shared by fill + stroke). opacity is folded
+// in via SetAlphaF (approximate — skity premultiplies per-stop, this scales the
+// whole paint alpha). Returns false (inactive paint) if no valid shader builds.
+bool ApplyGradient(const std::vector<uint8_t> &data, float opacity, Paint *out) {
+  auto shader = BuildGradientShader(data);
+  if (shader == nullptr) return false;
+  out->SetShader(shader);
+  out->SetAlphaF(opacity);
+  return true;
+}
+
 bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, Paint *out) {
   if (style == nullptr) return false;
   const RetainedPaint &fill = style->fill;
@@ -196,7 +252,8 @@ bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, Paint *out
     out->SetColor(ColorFromARGB(fill.color, opacity));
     return true;
   }
-  return false; // GRADIENT: TODO
+  // GRADIENT
+  return ApplyGradient(fill.gradient_data, opacity, out);
 }
 
 bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *out) {

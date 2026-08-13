@@ -56,9 +56,11 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var fillRule: Byte = 0
   @JvmField var opacity = 1f
 
-  // ---- transform & path (JS-built nested FlatBuffer bytes; null = none) ----
+  // ---- transform & path & gradient (JS-built nested FlatBuffer bytes; null = none) ----
   @JvmField var transformData: ByteArray? = null
   @JvmField var pathData: ByteArray? = null
+  @JvmField var fillGradientData: ByteArray? = null
+  @JvmField var strokeGradientData: ByteArray? = null
 
   // Phase 2: stable node id assigned by the canvas node for the retained tree.
   // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
@@ -84,6 +86,8 @@ abstract class SkityNodeBase : ShadowNode() {
     const val STROKE_MITER = 32
     const val FILL_RULE = 64
     const val OPACITY = 128
+    const val FILL_GRADIENT = 256
+    const val STROKE_GRADIENT = 512
   }
 
   /** GeometryField bitmask values (mirrors skityrt::GeometryField in command_batch.fbs). */
@@ -239,6 +243,18 @@ abstract class SkityNodeBase : ShadowNode() {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     pathData = if (decoded.isNotEmpty()) decoded else null
     dirtyPath = true
+    markDirty()
+  }
+  @LynxProp(name = "fillGradient") fun setFillGradient(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    fillGradientData = if (decoded.isNotEmpty()) decoded else null
+    dirtyPaint = dirtyPaint or PaintField.FILL_GRADIENT
+    markDirty()
+  }
+  @LynxProp(name = "strokeGradient") fun setStrokeGradient(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    strokeGradientData = if (decoded.isNotEmpty()) decoded else null
+    dirtyPaint = dirtyPaint or PaintField.STROKE_GRADIENT
     markDirty()
   }
 

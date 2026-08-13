@@ -30,6 +30,8 @@ enum SkityPaintField {
   kSkityPaintFieldStrokeMiter = 32,
   kSkityPaintFieldFillRule = 64,
   kSkityPaintFieldOpacity = 128,
+  kSkityPaintFieldFillGradient = 256,
+  kSkityPaintFieldStrokeGradient = 512,
 };
 
 // GeometryField bitmask (mirrors skityrt::GeometryField in command_batch.fbs).
@@ -82,9 +84,11 @@ enum SkityGeometryField {
 @property(nonatomic, assign) uint8_t fillRule;
 @property(nonatomic, assign) float opacity;
 
-// ---- transform & path (JS-built nested FlatBuffer bytes; nil = none) ----
+// ---- transform & path & gradient (JS-built nested FlatBuffer bytes; nil = none) ----
 @property(nonatomic, strong, nullable) NSData *transformData;
 @property(nonatomic, strong, nullable) NSData *pathData;
+@property(nonatomic, strong, nullable) NSData *fillGradientData;
+@property(nonatomic, strong, nullable) NSData *strokeGradientData;
 
 // Phase 2: stable node id assigned by the canvas node for the retained tree.
 // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the

@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "@lynx-js/react";
 
+import { GradientDemo } from "./GradientDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
 import { PathsDemo } from "./PathsDemo";
@@ -25,6 +26,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "Circle · Rect · RRect · opacity",
     accent: "#3b82f6",
     render: () => <ShapesDemo />,
+  },
+  {
+    key: "gradient",
+    title: "Gradient",
+    subtitle: "LinearGradient · 多 stop · mode",
+    accent: "#8b5cf6",
+    render: () => <GradientDemo />,
   },
   {
     key: "paths",
