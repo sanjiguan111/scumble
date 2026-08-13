@@ -1,7 +1,7 @@
 # @lynx-skity/native Render Architecture & Roadmap
 
 > Status: basic rendering + data flow are working (Android OpenGL ES/Vulkan + iOS Metal, green on 2026-08-07).
-> This document captures the **functional-development phase**: target architecture, design principles, and work breakdown for ongoing work.
+> This document captures the **functional-development phase**: target architecture, design principles, and work breakdown. **Phase 2 (retained render tree + command stream) is implemented** — see §11 for status & roadmap.
 
 ---
 
@@ -12,6 +12,8 @@
 One-line guiding principle:
 
 > **The native side never does "string → structure" parsing; all string parsing happens in front-end JS.**
+
+**Phase 2 revision (§11):** native additionally **holds a retained render tree** — it turned from a stateless serializer into a stateful rendering engine. The rule above ("zero string parsing") is unchanged: the native side owns retained _state_, never string parsing. Topology/geometry/paint now reach it as a FlatBuffer command stream (not a full-tree snapshot); `measure`/`markDirty` are kept only as the flush trigger.
 
 Following this line, the ownership of every attribute falls out naturally. The design keeps the composability of the tag model (nested children, measure, readability) while letting the heavy-parse / heavy-data parts reach the render layer as binaries — mirroring the proven layering of `react-native-svg` / `react-native-skia`.
 
@@ -144,13 +146,16 @@ Dependency-ordered; each step is independently reviewable:
 
 ## 11. Phase 2 roadmap — retained render tree + command stream
 
-> Status: **Step 1 + Step 2 implemented (2026-08-11, branch `phase2/step1-retained-tree`).**
-> Step 1 (retained tree + paint command channel) and Step 2 (structural commands —
-> topology by command) are done and verified (dual-platform build; iOS static
-> zero-regression; dynamic Insert/Remove). Step 3 (geometry+viewport commands,
-> retire measure/snapshot) + Step 4 (cleanup markDirty) remain. This section
-> revises the §1 principle ("native never holds structure") — Phase 2 moves from
-> a _stateless serializer_ to a _stateful rendering engine_, motivated by animation.
+> Status: **Step 1 + Step 2 + Step 3a + Step 3b implemented (2026-08-11..13, branch
+> `phase2/step1-retained-tree`).** The retained tree is the single source of truth
+> and the command stream is the single wire format; the `extraBundle` snapshot
+> channel is retired. Verified: dual-platform build; Android dynamic
+> (Insert/Remove/Move + geometry/viewport) and iOS dynamic (2026-08-13) both green.
+> Step 4's "delete `markDirty`/`setNeedsLayout`" is **deferred** — Lynx 4.0.1
+> exposes no ShadowNode frame/vsync callback, so the layout pass is still the only
+> flush point (§11.6/§11.7); only the doc-sync part of Step 4 is done. This section
+> revises the §1 principle — Phase 2 moves from a _stateless serializer_ to a
+> _stateful rendering engine_, motivated by animation.
 
 ### 11.1 Motivation
 
@@ -366,15 +371,22 @@ removing the view). Shape/group nodes stay virtual.
      (iOS has no TASM-thread CADisplayLink equivalent). The "delete markDirty →
      paint-only updates skip layout" win is therefore **deferred until Lynx
      exposes a frame callback**. See §11.6/§11.7/§11.9 for the revised reasoning.
-4. Cleanup: remove the dead `markDirty`/`setNeedsLayout` calls; update this doc
-   and the §1 principle.
+     **Verified:** dual-platform build; Android + iOS dynamic (Insert/Remove/Move,
+     geometry/viewport via the command channel, 2026-08-13).
+4. Cleanup: the doc-sync part — §1 principle + this §11 Status block — is ✓ done
+   (2026-08-13). Removing the now-dead `markDirty`/`setNeedsLayout` calls is
+   **deferred**: Lynx 4.0.1 exposes no ShadowNode frame callback, so the layout
+   pass is still the only cross-platform flush point (§11.6/§11.7); that removal —
+   the real "paint-only updates skip layout" animation win — waits for Lynx to
+   expose a frame callback.
 
 ### 11.11 Trade-offs & risks
 
 - This is a turn from **stateless serializer** to **stateful engine**. The §1
-  principle ("the native side never holds structure") is revised: native now
-  holds a render tree, but still does **zero string parsing** — parsing stays in
-  JS (§3), only the _retained state_ moves native-side.
+  principle is revised accordingly: native now **holds a retained render tree**,
+  but still does **zero string parsing** — parsing stays in JS (§3), only the
+  _retained state_ moves native-side. (The "zero string parsing" rule itself is
+  unchanged; the revision is the added "native holds state".)
 - Cost: a command system, node-id mapping, structural sync, and transaction
   batching to own and test on both platforms.
 - Payoff: animation off the Lynx layout pipeline (the real frame-rate win), and
