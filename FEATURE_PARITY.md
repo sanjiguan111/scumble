@@ -8,17 +8,17 @@
 
 ## A. Shape geometry
 
-| Capability                                     | Status | Notes                                                                                                                                  |
-| ---------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Rect / RRect                                   | ✅     | RRect = rect + `rx`/`ry`                                                                                                               |
-| Circle                                         | ✅     |                                                                                                                                        |
-| Path (`d` string / Path2D)                     | ✅     | Full SVG command set M/L/H/V/C/S/Q/T/A/Z; + `start`/`end` trim                                                                         |
-| **Ellipse**                                    | ⚠️     | **Native already supports it** (DrawShape `ellipse` branch + intrinsic `skity-ellipse`); only the react `<Ellipse>` wrapper is missing |
-| **Line**                                       | ⚠️     | **Native already supports it** (`line` branch + `skity-line`); only the react wrapper is missing                                       |
-| **Polyline / Polygon**                         | ⚠️     | Native supports (points vector + branch); no react wrapper. RN-Skia equivalent is `<Points>`                                           |
-| **Points (`pointMode`: points/lines/polygon)** | ❌     | RN-Skia's Points draw modes unsupported                                                                                                |
+| Capability                                     | Status | Notes                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rect / RRect                                   | ✅     | RRect = rect + `rx`/`ry`                                                                                                                                                                                                                                                                                                                                                                 |
+| Circle                                         | ✅     |                                                                                                                                                                                                                                                                                                                                                                                          |
+| Path (`d` string / Path2D)                     | ✅     | Full SVG command set M/L/H/V/C/S/Q/T/A/Z; + `start`/`end` trim                                                                                                                                                                                                                                                                                                                           |
+| **Ellipse**                                    | ✅     | `<Ellipse cx cy rx ry>` → `skity-ellipse` (native DrawShape `ellipse` branch)                                                                                                                                                                                                                                                                                                            |
+| **Line**                                       | ✅     | `<Line x1 y1 x2 y2>` → `skity-line`; stroke-only (defaults `style="stroke"`, explicit fill ignored natively)                                                                                                                                                                                                                                                                             |
+| **Polyline / Polygon**                         | ✅     | React compiles `points` (SVG string or `vec()` array) to MoveTo+LineTo(+Close) path commands — rides the `skity-path` channel. The native polyline/polygon DrawShape branch + `RetainedNode.points` stay unused (the points vector is not wired through shadow nodes / command stream; the compiled path is semantically identical). Polyline defaults `stroke`, Polygon defaults `fill` |
+| **Points (`pointMode`: points/lines/polygon)** | ❌     | RN-Skia's Points draw modes unsupported                                                                                                                                                                                                                                                                                                                                                  |
 
-> The cheapest geometric gap: `Ellipse` / `Line` / `Polyline`/`Polygon` have working native backends — they only lack react-side wrappers.
+> `parsePoints` (SVG `points` string → `{x,y}` pairs) now lives in `@lynx-skity/graphics` alongside the other string parsers.
 
 ## B. Paint
 
@@ -58,8 +58,9 @@
 
 ## Suggested roadmap (cost/benefit order)
 
-1. **`<Ellipse>` / `<Line>` wrappers** — native ready; react-only, smallest change, immediate visible win.
+1. ~~**`<Ellipse>` / `<Line>` wrappers**~~ — done, plus `Polyline`/`Polygon` (compiled to paths).
 2. **Dashes** — schema field already exists; gap is `SetPaint` transport + `MakeStrokePaint` calling skity's `MakeDashPathEffect`.
 3. **Group clip + paint inheritance** — big composition win, but larger native change (`DrawNode` ClipRect/ClipPath, ComputedStyle inheritance semantics).
 4. **BlendMode** — `SetPaint` field + `Paint::SetBlendMode`; medium.
-5. Bigger blocks (ColorFilter, Path ops, Image, Text) — scope as separate features.
+5. **`<Points pointMode>`** — needs a new points transport (or reuse the path channel with per-point marker drawing, which skity does not expose today).
+6. Bigger blocks (ColorFilter, Path ops, Image, Text) — scope as separate features.

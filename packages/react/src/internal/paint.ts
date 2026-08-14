@@ -132,17 +132,30 @@ function gradientBytes(shader: ShaderChild): string {
 /**
  * Normalize a shape's {@link GraphicProps} into the `{fill?, stroke?, …}`
  * scalars the skity intrinsic tags accept. `color` is run through `parseColor`
- * and routed to `fill` or `stroke` by `style` (default `"fill"`); `strokeCap`/
- * `strokeJoin` are mapped to enum bytes. A child gradient shader is
- * serialized to base64 Gradient bytes and emitted as `fillGradient`; a
- * declarative `<Paint>` child (RN-Skia style) overrides the paint properties
- * of its `style`, with shaders inside it routed to that paint (`strokeGradient`
- * for `"stroke"`). `blendMode`/`zIndex` are intentionally dropped (not honored
- * natively yet). A `color`-less, gradient-less shape resolves to an empty
- * object, so the native side draws nothing.
+ * and routed to `fill` or `stroke` by `style` (default `defaultStyle` —
+ * `"fill"` for most shapes, `"stroke"` for stroke-only ones like `Line`); a
+ * child gradient shader is routed the same way; `strokeCap`/`strokeJoin` are
+ * mapped to enum bytes. A declarative `<Paint>` child (RN-Skia style) overrides
+ * the paint properties of its `style`, with shaders inside it routed to that
+ * paint (`strokeGradient` for `"stroke"`). `blendMode`/`zIndex` are
+ * intentionally dropped (not honored natively yet). A `color`-less,
+ * gradient-less shape resolves to an empty object, so the native side draws
+ * nothing.
  */
-export function resolvePaint(props: GraphicProps, children?: ReactNode): ResolvedPaint {
-  const { color, style = "fill", strokeWidth, strokeCap, strokeJoin, strokeMiter, opacity } = props;
+export function resolvePaint(
+  props: GraphicProps,
+  children?: ReactNode,
+  defaultStyle: "fill" | "stroke" = "fill",
+): ResolvedPaint {
+  const {
+    color,
+    style = defaultStyle,
+    strokeWidth,
+    strokeCap,
+    strokeJoin,
+    strokeMiter,
+    opacity,
+  } = props;
 
   const out: ResolvedPaint = {};
 
@@ -164,10 +177,11 @@ export function resolvePaint(props: GraphicProps, children?: ReactNode): Resolve
   if (opacity !== undefined) out.opacity = opacity;
 
   // Child gradient (<LinearGradient>/<RadialGradient>/<SweepGradient>/…) placed
-  // directly under the shape → base64 Gradient bytes on the fill paint.
+  // directly under the shape → base64 Gradient bytes on the paint the shape
+  // actually draws with (fill, or stroke for stroke-only shapes like Line).
   const shader = findShaderChild(children);
   if (shader !== null) {
-    out.fillGradient = gradientBytes(shader);
+    out[style === "stroke" ? "strokeGradient" : "fillGradient"] = gradientBytes(shader);
   }
 
   // Declarative <Paint> children (RN-Skia style) override the paint of their

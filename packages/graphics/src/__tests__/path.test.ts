@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import * as flatbuffers from "../generated/flatbuffers/flatbuffers.js";
 import { PathCommandList } from "../generated/skityrt/path-command-list.js";
 import { PathCommandType } from "../generated/skityrt/path-command-type.js";
-import { Path2D, parsePath } from "../path.js";
+import { Path2D, parsePath, parsePoints } from "../path.js";
 
 // Read the nested-flatbuffer bytes back as a PathCommandList — this is exactly
 // what the native render side does via path_data_nested_root(). These tests
@@ -201,5 +201,35 @@ describe("Path2D → nested FlatBuffer", () => {
     const star = new Path2D().moveTo(0, 0).lineTo(5, 5);
     const combined = new Path2D().moveTo(1, 1).addPath(star);
     expect(readBack(combined.toBytes()).commandsLength()).toBe(3);
+  });
+});
+
+describe("parsePoints", () => {
+  it("parses comma-and-space separated pairs", () => {
+    expect(parsePoints("0,0 20,30 50,10")).toEqual([
+      { x: 0, y: 0 },
+      { x: 20, y: 30 },
+      { x: 50, y: 10 },
+    ]);
+  });
+
+  it("parses space-only pairs and mixed separators", () => {
+    expect(parsePoints("10 10 20 20")).toEqual([
+      { x: 10, y: 10 },
+      { x: 20, y: 20 },
+    ]);
+    expect(parsePoints("1.5,-2  4e1,5")).toEqual([
+      { x: 1.5, y: -2 },
+      { x: 40, y: 5 },
+    ]);
+  });
+
+  it("drops an odd trailing coordinate and returns [] for junk/empty", () => {
+    expect(parsePoints("0,0 10,10 99")).toEqual([
+      { x: 0, y: 0 },
+      { x: 10, y: 10 },
+    ]);
+    expect(parsePoints("")).toEqual([]);
+    expect(parsePoints("abc")).toEqual([]);
   });
 });

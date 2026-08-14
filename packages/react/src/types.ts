@@ -249,6 +249,54 @@ export interface RRectProps extends RectProps {
   radii?: number | CornerRadius | CornerRadii;
 }
 
+export interface EllipseProps extends GraphicProps {
+  /** Center x (dp). Defaults to 0. */
+  cx?: number;
+  /** Center y (dp). Defaults to 0. */
+  cy?: number;
+  /** Horizontal radius (dp). Required. */
+  rx: number;
+  /** Vertical radius (dp). Required. */
+  ry: number;
+}
+
+export interface LineProps extends GraphicProps {
+  /**
+   * Start point x (dp). Defaults to 0. The line's `color` always strokes —
+   * a line has no interior to fill — so `style` defaults to `"stroke"` here
+   * (unlike other shapes, which default to `"fill"`).
+   */
+  x1?: number;
+  /** Start point y (dp). Defaults to 0. */
+  y1?: number;
+  /** End point x (dp). Defaults to 0. */
+  x2?: number;
+  /** End point y (dp). Defaults to 0. */
+  y2?: number;
+}
+
+/** Coordinate pairs for {@link Polyline}/{@link Polygon}: an SVG `points` string or `{x,y}` pairs. */
+export type PointsProp = string | Vec[];
+
+export interface PolylineProps extends GraphicProps {
+  /**
+   * The vertices, as an SVG `points` string (`"0,0 20,30 50,10"`) or `{x,y}`
+   * pairs (e.g. from {@link vec}). Compiled to MoveTo + LineTo×n path commands;
+   * like {@link Line}, `style` defaults to `"stroke"` (an open polyline has no
+   * interior), pass `style="fill"` to fill it as if closed.
+   */
+  points: PointsProp;
+}
+
+export interface PolygonProps extends GraphicProps {
+  /**
+   * The vertices, as an SVG `points` string or `{x,y}` pairs — the shape is
+   * implicitly closed (a closing segment from the last to the first vertex).
+   * Unlike {@link Polyline}, `style` defaults to `"fill"`.
+   */
+  points: PointsProp;
+}
+
 export interface PathProps extends GraphicProps {
   /** SVG path data string, or a Path2D object built command-style. */
   path: string | import("@lynx-skity/graphics").Path2D;

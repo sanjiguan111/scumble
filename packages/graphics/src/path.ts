@@ -427,6 +427,31 @@ export function parsePath(d: string): ArrayBuffer | null {
   return ops.length ? buildPathCommandList(ops) : null;
 }
 
+/**
+ * Parse an SVG `points` attribute (polyline/polygon) into `{x,y}` pairs.
+ * Coordinates are separated by whitespace and/or commas — `x,y x,y` and
+ * `x, y,x y` are all valid per the SVG grammar. An odd trailing coordinate is
+ * ignored (SVG spec: "the last, odd coordinate is dropped").
+ *
+ * @param points An SVG points string, e.g. `"0,0 20,30 50,10"`.
+ * @returns The coordinate pairs; `[]` for an empty/invalid string.
+ *
+ * @example
+ * parsePoints("0,0 20,30 50,10"); // [{x:0,y:0},{x:20,y:30},{x:50,y:10}]
+ * parsePoints("10 10 20 20");     // [{x:10,y:10},{x:20,y:20}]
+ */
+export function parsePoints(points: string): Array<{ x: number; y: number }> {
+  const s = new PathScanner(points);
+  const out: Array<{ x: number; y: number }> = [];
+  for (;;) {
+    const x = s.readNumber();
+    const y = x === null ? null : s.readNumber();
+    if (x === null || y === null) break;
+    out.push({ x, y });
+  }
+  return out;
+}
+
 // Cubic-Bezier approximation constant for a quarter circle: 4·(√2−1)/3.
 const PATH2D_KAPPA = 0.5522847498307936;
 

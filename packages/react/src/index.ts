@@ -37,8 +37,12 @@ export { Canvas } from "./Canvas";
 export { Group } from "./Group";
 // ---- shapes ----
 export { Circle } from "./shapes/Circle";
+export { Ellipse } from "./shapes/Ellipse";
+export { Line } from "./shapes/Line";
 export { Rect } from "./shapes/Rect";
 export { RRect } from "./shapes/RRect";
+export { Polyline } from "./shapes/Polyline";
+export { Polygon } from "./shapes/Polygon";
 export { Path } from "./shapes/Path";
 // Path2D (command-style path builder) is re-exported from the graphics core so
 // callers can import it from @lynx-skity/react alongside <Path>.
@@ -70,10 +74,15 @@ export type {
   ScaleProps,
   RotateProps,
   CircleProps,
+  EllipseProps,
+  LineProps,
   RectProps,
   RRectProps,
   CornerRadius,
   CornerRadii,
+  PolylineProps,
+  PolygonProps,
+  PointsProp,
   PathProps,
   GroupProps,
   CanvasProps,

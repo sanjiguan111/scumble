@@ -1,4 +1,4 @@
-import { Circle, Rect, RRect } from "@lynx-skity/react";
+import { Circle, Ellipse, Line, Polygon, Polyline, Rect, RRect, vec } from "@lynx-skity/react";
 
 import { DemoSection } from "../components/DemoSection";
 
@@ -11,6 +11,40 @@ export function ShapesDemo() {
         <Circle cx={50} cy={100} radius={45} color="#3b82f6" />
         <Rect x={120} y={55} width={90} height={90} color="#22c55e" />
         <RRect x={240} y={55} width={90} height={90} radii={22} color="#ef4444" />
+      </DemoSection>
+
+      <DemoSection
+        title="Ellipse · Line"
+        caption="Ellipse rx/ry；Line 默认 stroke（线条无内部可填充）"
+      >
+        <Ellipse cx={65} cy={100} rx={55} ry={38} color="#8b5cf6" />
+        <Line x1={150} y1={40} x2={230} y2={150} color="#0ea5e9" strokeWidth={5} />
+        <Line
+          x1={230}
+          y1={40}
+          x2={150}
+          y2={150}
+          color="#f97316"
+          strokeWidth={5}
+          strokeCap="round"
+        />
+      </DemoSection>
+
+      <DemoSection
+        title="Polyline · Polygon"
+        caption="points 接受 SVG 字符串 / vec() 数组；Polygon 自动闭合"
+      >
+        <Polyline points="20,40 60,120 100,50 140,130" color="#14b8a6" strokeWidth={4} />
+        <Polygon
+          points={[vec(220, 30), vec(300, 60), vec(280, 140), vec(200, 120)]}
+          color="#ec4899"
+        />
+        <Polyline
+          points={[vec(220, 30), vec(300, 60), vec(280, 140), vec(200, 120)]}
+          color="#6366f1"
+          style="stroke"
+          strokeWidth={3}
+        />
       </DemoSection>
 
       <DemoSection title="Stroke" caption="style='stroke' + strokeWidth">
