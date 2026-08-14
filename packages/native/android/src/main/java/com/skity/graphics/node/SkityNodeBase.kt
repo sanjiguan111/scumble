@@ -59,6 +59,9 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var strokeDash: FloatArray? = null
   @JvmField var strokeDashOffset = 0f
   @JvmField var fillRule: Byte = 0
+  // Blend mode byte (skityrt::BlendMode == skity::BlendMode order); applies to
+  // both the fill and stroke paints. 3 = SRC_OVER (default).
+  @JvmField var blendMode: Byte = 3
   @JvmField var opacity = 1f
 
   // ---- transform & path & gradient (JS-built nested FlatBuffer bytes; null = none) ----
@@ -97,6 +100,7 @@ abstract class SkityNodeBase : ShadowNode() {
     const val FILL_GRADIENT = 256
     const val STROKE_GRADIENT = 512
     const val STROKE_DASH = 1024
+    const val BLEND_MODE = 2048
   }
 
   /** GeometryField bitmask values (mirrors skityrt::GeometryField in command_batch.fbs). */
@@ -263,6 +267,11 @@ abstract class SkityNodeBase : ShadowNode() {
   @LynxProp(name = "fillRule") fun setFillRule(v: Int) {
     fillRule = v.toByte()
     dirtyPaint = dirtyPaint or PaintField.FILL_RULE
+    markDirty()
+  }
+  @LynxProp(name = "blendMode") fun setBlendMode(v: Int) {
+    blendMode = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.BLEND_MODE
     markDirty()
   }
   @LynxProp(name = "opacity") fun setOpacity(v: Float) {

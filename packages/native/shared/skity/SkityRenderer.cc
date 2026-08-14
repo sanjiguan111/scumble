@@ -304,6 +304,7 @@ bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, Paint *out
   if (fill.type == 0 /*NONE*/) return false;
   out->SetStyle(Paint::kFill_Style);
   out->SetAntiAlias(true);
+  out->SetBlendMode(static_cast<skity::BlendMode>(style->blend_mode));
   if (fill.type == 1 /*COLOR*/) {
     out->SetColor(ColorFromARGB(fill.color, opacity));
     return true;
@@ -335,6 +336,7 @@ bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *o
   if (stroke.type == 0 /*NONE*/) return false;
   out->SetStyle(Paint::kStroke_Style);
   out->SetAntiAlias(true);
+  out->SetBlendMode(static_cast<skity::BlendMode>(style->blend_mode));
   out->SetStrokeWidth(style->stroke_width);
   out->SetStrokeCap(ToCap(style->stroke_cap));
   out->SetStrokeJoin(ToJoin(style->stroke_join));
@@ -543,6 +545,7 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
       scratch.stroke_dashoffset = style.stroke_dashoffset;
     }
     if (explicitPaint & PaintField_FILL_RULE) scratch.fill_rule = style.fill_rule;
+    if (explicitPaint & PaintField_BLEND_MODE) scratch.blend_mode = style.blend_mode;
     // Opacity multiplies down the tree (only when explicitly authored).
     if (explicitPaint & PaintField_OPACITY) scratch.opacity *= style.opacity;
     eff = &scratch;

@@ -45,6 +45,8 @@ struct RetainedComputedStyle {
   std::vector<float> stroke_dash;
   float stroke_dashoffset = 0.f;
   FillRule fill_rule = FillRule_NONZERO;
+  // Blend mode applied to both the fill and stroke paints (inheritable).
+  BlendMode blend_mode = BlendMode_SRC_OVER;
   float opacity = 1.f;
   Display display = Display_INLINE;
   Visibility visibility = Visibility_VISIBLE;

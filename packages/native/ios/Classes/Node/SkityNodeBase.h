@@ -33,6 +33,7 @@ enum SkityPaintField {
   kSkityPaintFieldFillGradient = 256,
   kSkityPaintFieldStrokeGradient = 512,
   kSkityPaintFieldStrokeDash = 1024,
+  kSkityPaintFieldBlendMode = 2048,
 };
 
 // GeometryField bitmask (mirrors skityrt::GeometryField in command_batch.fbs).
@@ -91,6 +92,9 @@ enum SkityGeometryField {
 @property(nonatomic, strong, nullable) NSData *strokeDashData;
 @property(nonatomic, assign) float strokeDashOffset;
 @property(nonatomic, assign) uint8_t fillRule;
+/// Blend mode byte (skityrt::BlendMode == skity::BlendMode order); applies to
+/// both the fill and stroke paints. 3 = SRC_OVER (default).
+@property(nonatomic, assign) uint8_t blendMode;
 @property(nonatomic, assign) float opacity;
 
 // ---- transform & path & gradient (JS-built nested FlatBuffer bytes; nil = none) ----

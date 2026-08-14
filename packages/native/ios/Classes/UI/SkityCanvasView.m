@@ -29,6 +29,12 @@
     // behind show through instead of an opaque black layer.
     ml.opaque = NO;
     ml.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    // Advanced blend modes (multiply/hue/…) read the destination back, which
+    // skity's Metal backend does by blitting the drawable texture — forbidden
+    // on a framebufferOnly texture (a hard crash under Metal API validation,
+    // and invalid on real GPUs). Paying the small compositing cost of a
+    // non-framebuffer-only surface is what every GPU canvas does for blending.
+    ml.framebufferOnly = NO;
     // The Metal layer is redrawn every frame by the GPU pipeline. Disable Core
     // Animation's implicit animations on it (sublayers aren't covered by
     // UIView's suppression), mirroring react-native-skity SkityView.mm.

@@ -3,6 +3,8 @@
 
 import { describe, it, expect } from "vitest";
 
+import { parseBlendMode } from "../enum.js";
+
 import { parseFillRule, parseStrokeCap, parseStrokeJoin } from "../enum.js";
 
 describe("paint enum parsers", () => {
@@ -27,5 +29,21 @@ describe("paint enum parsers", () => {
   it("passes a number through as the raw byte", () => {
     expect(parseStrokeCap(2)).toBe(2);
     expect(parseFillRule(1)).toBe(1);
+  });
+});
+
+describe("parseBlendMode", () => {
+  it("maps the kebab-case literals to skityrt bytes", () => {
+    expect(parseBlendMode("multiply")).toBe(24);
+    expect(parseBlendMode("src-over")).toBe(3);
+    expect(parseBlendMode("src-in")).toBe(5);
+    expect(parseBlendMode("color-dodge")).toBe(18);
+    expect(parseBlendMode("luminosity")).toBe(28);
+    expect(parseBlendMode("XOR")).toBe(11); // case-insensitive
+  });
+
+  it("passes numbers through and falls back to SRC_OVER on unknown strings", () => {
+    expect(parseBlendMode(14)).toBe(14);
+    expect(parseBlendMode("nope")).toBe(3);
   });
 });

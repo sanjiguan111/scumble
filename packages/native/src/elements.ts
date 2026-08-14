@@ -41,6 +41,9 @@ export interface SkityPaintProps {
   strokeDash?: string;
   /** Phase offset into the dash pattern (px). */
   strokeDashOffset?: number;
+  /** BlendMode byte (skityrt::BlendMode == skity::BlendMode order); shared by
+   *  the fill and stroke paints. */
+  blendMode?: number;
 }
 
 export interface SkityCommonProps extends StandardProps, SkityPaintProps {}

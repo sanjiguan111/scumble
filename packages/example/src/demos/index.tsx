@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "@lynx-js/react";
 
+import { BlendDemo } from "./BlendDemo";
 import { ClipDemo } from "./ClipDemo";
 import { GradientDemo } from "./GradientDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
@@ -62,6 +63,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "stroke cap/join/width · fillRule",
     accent: "#ef4444",
     render: () => <PaintDemo />,
+  },
+  {
+    key: "blend",
+    title: "Blend",
+    subtitle: "multiply · screen · difference · Group 继承",
+    accent: "#d946ef",
+    render: () => <BlendDemo />,
   },
   {
     key: "interactive",

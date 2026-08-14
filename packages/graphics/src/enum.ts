@@ -82,3 +82,86 @@ export function parseFillRule(v: string | number): number {
   if (typeof v === "number") return v & 0xff;
   return v.toLowerCase().replace(/[-_]/g, "") === "evenodd" ? 1 : 0;
 }
+
+/**
+ * The friendly blend-mode literals (Skia/Skity's 28 modes, kebab-case) — the
+ * runtime keys of {@link parseBlendMode}. Value order matches
+ * `skityrt.BlendMode` / `skity::BlendMode`.
+ */
+export type BlendModeLiteral =
+  | "clear"
+  | "src"
+  | "dst"
+  | "src-over"
+  | "dst-over"
+  | "src-in"
+  | "dst-in"
+  | "src-out"
+  | "dst-out"
+  | "src-atop"
+  | "dst-atop"
+  | "xor"
+  | "plus"
+  | "modulate"
+  | "screen"
+  | "overlay"
+  | "darken"
+  | "lighten"
+  | "color-dodge"
+  | "color-burn"
+  | "hard-light"
+  | "soft-light"
+  | "difference"
+  | "exclusion"
+  | "multiply"
+  | "hue"
+  | "saturation"
+  | "color"
+  | "luminosity";
+
+const BLEND_MODE_BYTES: Record<string, number> = {
+  clear: 0,
+  src: 1,
+  dst: 2,
+  "src-over": 3,
+  "dst-over": 4,
+  "src-in": 5,
+  "dst-in": 6,
+  "src-out": 7,
+  "dst-out": 8,
+  "src-atop": 9,
+  "dst-atop": 10,
+  xor: 11,
+  plus: 12,
+  modulate: 13,
+  screen: 14,
+  overlay: 15,
+  darken: 16,
+  lighten: 17,
+  "color-dodge": 18,
+  "color-burn": 19,
+  "hard-light": 20,
+  "soft-light": 21,
+  difference: 22,
+  exclusion: 23,
+  multiply: 24,
+  hue: 25,
+  saturation: 26,
+  color: 27,
+  luminosity: 28,
+};
+
+/**
+ * Resolve a {@link BlendModeLiteral} (or its raw byte) to the `BlendMode` enum
+ * byte the native side expects (`skityrt.BlendMode` == `skity::BlendMode`
+ * order). Case-insensitive; numbers pass through masked to a byte; an unknown
+ * string falls back to `SRC_OVER` (3).
+ *
+ * @example
+ * parseBlendMode("multiply");  // 24
+ * parseBlendMode("src-in");    // 5
+ */
+export function parseBlendMode(v: string | number): number {
+  if (typeof v === "number") return v & 0xff;
+  return BLEND_MODE_BYTES[v.toLowerCase()] ?? 3;
+}

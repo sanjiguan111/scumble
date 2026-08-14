@@ -40,6 +40,7 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("strokeDash", setStrokeDash:, NSString *),
     LYNX_PROP_DECLARE("strokeDashOffset", setStrokeDashOffset:, NSNumber *),
     LYNX_PROP_DECLARE("fillRule", setFillRule:, NSNumber *),
+    LYNX_PROP_DECLARE("blendMode", setBlendMode:, NSNumber *),
     LYNX_PROP_DECLARE("opacity", setOpacity:, NSNumber *),
     // transform & path & gradient (base64-encoded nested FlatBuffer bytes)
     LYNX_PROP_DECLARE("transform", setTransform:, NSString *),
@@ -63,6 +64,7 @@ LYNX_PROPS_GROUP_DECLARE(
   if (self) {
     _strokeWidth = 1.f;
     _strokeMiter = 4.f;
+    _blendMode = 3; // SRC_OVER
     _opacity = 1.f;
   }
   return self;
@@ -208,6 +210,11 @@ LYNX_PROP_SETTER("strokeDashOffset", setStrokeDashOffset, NSNumber *) {
 LYNX_PROP_SETTER("fillRule", setFillRule, NSNumber *) {
   _fillRule = (uint8_t)value.intValue;
   _dirtyPaintMask |= kSkityPaintFieldFillRule;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("blendMode", setBlendMode, NSNumber *) {
+  _blendMode = (uint8_t)value.intValue;
+  _dirtyPaintMask |= kSkityPaintFieldBlendMode;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("opacity", setOpacity, NSNumber *) {

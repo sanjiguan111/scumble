@@ -93,8 +93,8 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
         static_cast<uint32_t>(node.strokeColor.unsignedIntValue), fillGradOff, strokeGradOff,
         node.strokeWidth, static_cast<skityrt::LineCap>(node.strokeCap),
         static_cast<skityrt::LineJoin>(node.strokeJoin), node.strokeMiter,
-        static_cast<skityrt::FillRule>(node.fillRule), node.opacity, dashOff,
-        node.strokeDashOffset);
+        static_cast<skityrt::FillRule>(node.fillRule), node.opacity, dashOff, node.strokeDashOffset,
+        static_cast<skityrt::BlendMode>(node.blendMode));
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetPaint);
     node.dirtyPaintMask = 0;

@@ -23,38 +23,9 @@ export type StrokeJoin = "miter" | "round" | "bevel";
 /** react-native-skity uses the hyphenated "even-odd"; native uses "evenodd". */
 export type FillRule = "nonzero" | "even-odd";
 
-// BlendMode is accepted for API parity with react-native-skity but is NOT
-// honored by the native renderer today (TODO: Task 3 native slim-down).
-export type BlendMode =
-  | "clear"
-  | "src"
-  | "dst"
-  | "src-over"
-  | "dst-over"
-  | "src-in"
-  | "dst-in"
-  | "src-out"
-  | "dst-out"
-  | "src-atop"
-  | "dst-atop"
-  | "xor"
-  | "plus"
-  | "modulate"
-  | "screen"
-  | "overlay"
-  | "darken"
-  | "lighten"
-  | "color-dodge"
-  | "color-burn"
-  | "hard-light"
-  | "soft-light"
-  | "difference"
-  | "exclusion"
-  | "multiply"
-  | "hue"
-  | "saturation"
-  | "color"
-  | "luminosity";
+// BlendMode mirrors @lynx-skity/graphics' BlendModeLiteral (Skia/skity's 28
+// modes, kebab-case); parseBlendMode maps it to the skityrt byte.
+export type BlendMode = import("@lynx-skity/graphics").BlendModeLiteral;
 
 /**
  * Paint + compositing attributes every shape (and `Canvas` / `Group`) may carry.
@@ -91,7 +62,11 @@ export interface GraphicProps {
   dash?: number[];
   /** Phase offset into the dash pattern (px). See {@link dash}. */
   dashOffset?: number;
-  /** Blend mode. Accepted for API parity but NOT honored natively yet (caveat). */
+  /**
+   * Blend mode (Skia's 28 modes), applied to the shape's fill **and** stroke
+   * paints — how it composites onto what's below it. Inheritable from a
+   * {@link Group}.
+   */
   blendMode?: BlendMode;
   /** z-index. Accepted for parity; native z-ordering follows tree order today. */
   zIndex?: number;
@@ -173,14 +148,20 @@ export interface TwoPointConicalGradientProps {
  * Props for {@link Paint}, mirroring @shopify/react-native-skia's declarative
  * paint: a data-only child of a shape that overrides the paint properties for
  * its `style`. Shaders placed inside apply to that paint. Differences vs
- * RN-Skia: one fill paint + one stroke paint per shape max, and
- * `opacity`/`blendMode` are not honored (see the {@link Paint} docs).
+ * RN-Skia: one fill paint + one stroke paint per shape max, and `opacity` is
+ * not honored (see the {@link Paint} docs).
  */
 export interface PaintProps {
   /** Which paint this declaration targets. Defaults to `"fill"`. */
   style?: "fill" | "stroke";
   /** Paint color; overrides the shape's `color` for this style. */
   color?: import("@lynx-skity/graphics").Color;
+  /**
+   * Blend mode; overrides the shape's `blendMode`. NOTE: natively one blend
+   * mode is shared by the fill and stroke paints (a per-paint mode is not
+   * transportable today) — the last declaration wins.
+   */
+  blendMode?: BlendMode;
   /** Stroke width. Stroke-only. */
   strokeWidth?: number;
   /** Stroke cap. Stroke-only. */

@@ -235,7 +235,7 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
         fillGradOff, strokeGradOff,
         node.strokeWidth, node.strokeCap, node.strokeJoin,
         node.strokeMiter, node.fillRule, node.opacity,
-        dashOff, node.strokeDashOffset)
+        dashOff, node.strokeDashOffset, node.blendMode)
       types += Command.SetPaint
       node.dirtyPaint = 0
     }

@@ -16,6 +16,7 @@ import {
   buildTwoPointConicalGradient,
   bytesToBase64,
   floatsToBase64,
+  parseBlendMode,
   parseColor,
   parseStrokeCap,
   parseStrokeJoin,
@@ -56,6 +57,8 @@ export interface ResolvedPaint {
   strokeDash?: string;
   /** Phase offset into the dash pattern (px). */
   strokeDashOffset?: number;
+  /** Blend mode byte (skityrt::BlendMode); shared by the fill and stroke paints. */
+  blendMode?: number;
 }
 
 /**
@@ -168,10 +171,10 @@ function gradientBytes(shader: ShaderChild): string {
  * child gradient shader is routed the same way; `strokeCap`/`strokeJoin` are
  * mapped to enum bytes. A declarative `<Paint>` child (RN-Skia style) overrides
  * the paint properties of its `style`, with shaders inside it routed to that
- * paint (`strokeGradient` for `"stroke"`). `blendMode`/`zIndex` are
- * intentionally dropped (not honored natively yet). A `color`-less,
- * gradient-less shape resolves to an empty object, so the native side draws
- * nothing.
+ * paint (`strokeGradient` for `"stroke"`). `blendMode` is mapped to a byte
+ * (one mode shared by both paints). `zIndex` is intentionally dropped (not
+ * honored natively yet). A `color`-less, gradient-less shape resolves to an
+ * empty object, so the native side draws nothing.
  */
 export function resolvePaint(
   props: GraphicProps,
@@ -188,6 +191,7 @@ export function resolvePaint(
     opacity,
     dash,
     dashOffset,
+    blendMode,
   } = props;
 
   const out: ResolvedPaint = {};
@@ -210,6 +214,7 @@ export function resolvePaint(
   if (opacity !== undefined) out.opacity = opacity;
   if (dash !== undefined) out.strokeDash = floatsToBase64(normalizeDash(dash));
   if (dashOffset !== undefined) out.strokeDashOffset = dashOffset;
+  if (blendMode !== undefined) out.blendMode = parseBlendMode(blendMode);
 
   // Child gradient (<LinearGradient>/<RadialGradient>/<SweepGradient>/…) placed
   // directly under the shape → base64 Gradient bytes on the paint the shape
@@ -233,14 +238,17 @@ export function resolvePaint(
     if (p.strokeMiter !== undefined) out.strokeMiter = p.strokeMiter;
     if (p.dash !== undefined) out.strokeDash = floatsToBase64(normalizeDash(p.dash));
     if (p.dashOffset !== undefined) out.strokeDashOffset = p.dashOffset;
+    // One blend mode is shared by both paints natively; the last <Paint>
+    // declaration that sets one wins.
+    if (p.blendMode !== undefined) out.blendMode = parseBlendMode(p.blendMode);
     const pShader = findShaderChild(p.children);
     if (pShader !== null) {
       out[`${target}Gradient`] = gradientBytes(pShader);
     }
   }
 
-  // blendMode / zIndex are accepted on GraphicProps but not honored natively
-  // today (caveat); intentionally dropped here.
+  // zIndex is accepted on GraphicProps but not honored natively today
+  // (z-order follows tree order); intentionally dropped here.
 
   return out;
 }

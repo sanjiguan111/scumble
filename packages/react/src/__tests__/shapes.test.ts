@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { resolvePaint } from "../internal/paint";
+import { Paint } from "../Paint";
 import { LinearGradient } from "../shaders/LinearGradient";
 import { pointsToPathProp } from "../shapes/Polyline";
 import { findClipSpecs } from "../internal/clip";
@@ -131,5 +132,22 @@ describe("findClipSpecs (Group clip children)", () => {
   it("returns [] when there are no clip children", () => {
     expect(findClipSpecs(undefined)).toEqual([]);
     expect(findClipSpecs([{ type: "x", props: {} } as never])).toEqual([]);
+  });
+});
+
+describe("resolvePaint blendMode", () => {
+  it("maps the blendMode literal to a byte (no longer dropped)", () => {
+    expect(resolvePaint({ color: "red", blendMode: "multiply" })).toEqual({
+      fill: 0xffff0000,
+      blendMode: 24,
+    });
+  });
+
+  it("a <Paint> blendMode overrides the shape's (last declaration wins)", () => {
+    const r = resolvePaint({ color: "red", blendMode: "multiply" }, {
+      type: Paint,
+      props: { style: "stroke", blendMode: "screen" },
+    } as never);
+    expect(r.blendMode).toBe(14);
   });
 });

@@ -55,6 +55,7 @@ void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
   if (dirty & PaintField_STROKE_JOIN) node->style.stroke_join = p->stroke_join();
   if (dirty & PaintField_STROKE_MITER) node->style.stroke_miter = p->stroke_miter();
   if (dirty & PaintField_FILL_RULE) node->style.fill_rule = p->fill_rule();
+  if (dirty & PaintField_BLEND_MODE) node->style.blend_mode = p->blend_mode();
   if (dirty & PaintField_OPACITY) node->style.opacity = p->opacity();
 }
 
