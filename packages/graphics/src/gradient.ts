@@ -29,6 +29,7 @@ import type { Color } from "./color.js";
 const GRADIENT_TYPE_LINEAR = 0;
 const GRADIENT_TYPE_RADIAL = 1;
 const GRADIENT_TYPE_SWEEP = 2;
+const GRADIENT_TYPE_TWO_POINT_CONICAL = 3;
 const GRADIENT_UNITS_USER_SPACE = 1; // USER_SPACE_ON_USE
 const SPREAD_PAD = 0; // → skity TileMode::kClamp
 const SPREAD_REFLECT = 1; // → skity TileMode::kMirror
@@ -86,6 +87,28 @@ export interface SweepGradientSpec {
   start?: number;
   /** End angle in degrees. Defaults to 360. */
   end?: number;
+  /** ≥ 2 colors, evenly distributed unless `positions` overrides. */
+  colors: Color[];
+  /** Optional per-color offsets in [0,1]; defaults to even spacing. */
+  positions?: number[];
+  /** Tile mode outside the stop range. Defaults to `"clamp"`. */
+  mode?: GradientMode;
+}
+
+/**
+ * The friendly spec for a two-point conical gradient (two circles).
+ * Mirrors the props of react-native-skia's `<TwoPointConicalGradient>`:
+ * color stop 0 sits on the start circle, stop 1 on the end circle.
+ */
+export interface TwoPointConicalGradientSpec {
+  /** Center of the start (focal) circle (absolute user-space px). */
+  start: Point;
+  /** Start circle radius in px; must be ≥ 0. */
+  startR: number;
+  /** Center of the end circle (absolute user-space px). */
+  end: Point;
+  /** End circle radius in px; must be positive. */
+  endR: number;
   /** ≥ 2 colors, evenly distributed unless `positions` overrides. */
   colors: Color[];
   /** Optional per-color offsets in [0,1]; defaults to even spacing. */
@@ -192,8 +215,8 @@ export function buildLinearGradient(spec: LinearGradientSpec): ArrayBuffer {
 
 /**
  * Serialize a radial gradient spec into a nested `Gradient` FlatBuffer.
- * Center + radius only; the focal fields (fx/fy/fr → skity's
- * `MakeTwoPointConical`) are a future extension and left at defaults.
+ * Center + radius only (a plain `MakeRadial`); two-circle gradients go through
+ * {@link buildTwoPointConicalGradient} instead.
  *
  * @returns Gradient FlatBuffer bytes (base64-encode for the native
  *   `fillGradient` prop).
@@ -224,7 +247,7 @@ export function buildRadialGradient(spec: RadialGradientSpec): ArrayBuffer {
     cx,
     cy,
     r,
-    0.5, // focal fields (fx/fy/fr) — unused (TwoPointConical TODO)
+    0.5, // focal fields (fx/fy/fr) — unused for RADIAL
     0.5,
     0,
     stopsOff,
@@ -274,6 +297,60 @@ export function buildSweepGradient(spec: SweepGradientSpec): ArrayBuffer {
     stopsOff,
     start,
     end,
+  );
+  return finishGradient(builder, root);
+}
+
+/**
+ * Serialize a two-point conical gradient spec into a nested `Gradient`
+ * FlatBuffer. The start (focal) circle rides the schema's fx/fy/fr fields, the
+ * end circle cx/cy/r — the SVG radialGradient wire layout, consumed natively by
+ * skity's `MakeTwoPointConical(start, startR, end, endR, …)`.
+ *
+ * @returns Gradient FlatBuffer bytes (base64-encode for the native
+ *   `fillGradient` prop).
+ * @throws if `colors` has fewer than 2 entries, `endR` is not positive,
+ *   `startR` is negative, or the two circles are identical (degenerate).
+ *
+ * @example
+ * buildTwoPointConicalGradient({
+ *   start: [50, 50], startR: 0, end: [70, 70], endR: 60,
+ *   colors: ["#fff", "#000"],
+ * });
+ */
+export function buildTwoPointConicalGradient(spec: TwoPointConicalGradientSpec): ArrayBuffer {
+  const { start, startR, end, endR, colors, positions, mode = "clamp" } = spec;
+  if (colors.length < 2) throw new Error("buildTwoPointConicalGradient: needs at least 2 colors");
+  if (!(endR > 0)) throw new Error("buildTwoPointConicalGradient: endR must be positive");
+  if (startR < 0) throw new Error("buildTwoPointConicalGradient: startR must be >= 0");
+
+  const [fx, fy] = toXY(start);
+  const [cx, cy] = toXY(end);
+  if (fx === cx && fy === cy && startR === endR) {
+    throw new Error("buildTwoPointConicalGradient: the two circles must differ");
+  }
+
+  const builder = new flatbuffers.Builder(256);
+  const stopsOff = buildStopsVector(builder, colors, positions);
+
+  const root = Gradient.createGradient(
+    builder,
+    GRADIENT_TYPE_TWO_POINT_CONICAL,
+    GRADIENT_UNITS_USER_SPACE,
+    spreadByte(mode),
+    0, // linear fields — unused for TWO_POINT_CONICAL
+    0,
+    1,
+    0,
+    cx, // end circle → cx/cy/r
+    cy,
+    endR,
+    fx, // start (focal) circle → fx/fy/fr
+    fy,
+    startR,
+    stopsOff,
+    0, // sweep angles — unused for TWO_POINT_CONICAL
+    360,
   );
   return finishGradient(builder, root);
 }

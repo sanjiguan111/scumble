@@ -50,6 +50,7 @@ export { Path2D } from "@lynx-skity/graphics";
 export { LinearGradient } from "./shaders/LinearGradient";
 export { RadialGradient } from "./shaders/RadialGradient";
 export { SweepGradient } from "./shaders/SweepGradient";
+export { TwoPointConicalGradient } from "./shaders/TwoPointConicalGradient";
 export { vec } from "./internal/vec";
 
 export type {
@@ -76,10 +77,11 @@ export type {
   LinearGradientProps,
   RadialGradientProps,
   SweepGradientProps,
+  TwoPointConicalGradientProps,
 } from "./types";
 
-// Gradient FILL is supported for linear/radial/sweep (child shader → native
-// Gradient FlatBuffer → skity Shader::MakeLinear/MakeRadial/MakeSweep). Still
-// TODO: gradient stroke, the radial focal point (TwoPointConical), Paint
+// Gradient FILL is supported for linear/radial/sweep/two-point-conical (child
+// shader → native Gradient FlatBuffer → skity Shader::MakeLinear/MakeRadial/
+// MakeSweep/MakeTwoPointConical). Still TODO: gradient stroke, Paint
 // (multi-pass), ColorFilter, and the Ellipse / Line component wrappers —
 // pending native shader coverage or wiring.

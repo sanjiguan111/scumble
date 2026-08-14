@@ -13,6 +13,7 @@ import {
   buildLinearGradient,
   buildRadialGradient,
   buildSweepGradient,
+  buildTwoPointConicalGradient,
   bytesToBase64,
   parseColor,
   parseStrokeCap,
@@ -23,11 +24,13 @@ import type { ReactNode } from "@lynx-js/react";
 import { LinearGradient } from "../shaders/LinearGradient";
 import { RadialGradient } from "../shaders/RadialGradient";
 import { SweepGradient } from "../shaders/SweepGradient";
+import { TwoPointConicalGradient } from "../shaders/TwoPointConicalGradient";
 import type {
   GraphicProps,
   LinearGradientProps,
   RadialGradientProps,
   SweepGradientProps,
+  TwoPointConicalGradientProps,
 } from "../types";
 
 /**
@@ -55,11 +58,13 @@ export interface ResolvedPaint {
 type ShaderChild =
   | { kind: "linear"; props: LinearGradientProps }
   | { kind: "radial"; props: RadialGradientProps }
-  | { kind: "sweep"; props: SweepGradientProps };
+  | { kind: "sweep"; props: SweepGradientProps }
+  | { kind: "conical"; props: TwoPointConicalGradientProps };
 
 /**
  * Find the first gradient child (`<LinearGradient>`/`<RadialGradient>`/
- * `<SweepGradient>`) and return its kind + props. Shader components are
+ * `<SweepGradient>`/`<TwoPointConicalGradient>`) and return its kind + props.
+ * Shader components are
  * data-only (render null); the parent consumes their props here and drops them
  * from the emitted tree, so they are never mounted. Children is walked manually
  * (no React.Children dependency) — handles a single element or array.
@@ -75,6 +80,8 @@ function findShaderChild(children?: ReactNode): ShaderChild | null {
     if (el.type === RadialGradient)
       return { kind: "radial", props: el.props as RadialGradientProps };
     if (el.type === SweepGradient) return { kind: "sweep", props: el.props as SweepGradientProps };
+    if (el.type === TwoPointConicalGradient)
+      return { kind: "conical", props: el.props as TwoPointConicalGradientProps };
   }
   return null;
 }
@@ -91,6 +98,8 @@ function gradientBytes(shader: ShaderChild): string {
       return bytesToBase64(buildRadialGradient(shader.props));
     case "sweep":
       return bytesToBase64(buildSweepGradient(shader.props));
+    case "conical":
+      return bytesToBase64(buildTwoPointConicalGradient(shader.props));
   }
 }
 

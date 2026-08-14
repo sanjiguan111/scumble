@@ -34,7 +34,7 @@ enum SpreadMethod : byte {
 }
 
 table Gradient {
-  type:byte = 0;  // 0=LINEAR, 1=RADIAL, 2=SWEEP
+  type:byte = 0;  // 0=LINEAR, 1=RADIAL, 2=SWEEP, 3=TWO_POINT_CONICAL
   gradient_units:GradientUnits = OBJECT_BOUNDING_BOX;
   spread_method:SpreadMethod = PAD;
 
@@ -44,7 +44,8 @@ table Gradient {
   x2:float = 1;
   y2:float = 0;
 
-  // radialGradient
+  // radial / two-point conical: (cx,cy,r) is the outer/end circle;
+  // (fx,fy,fr) is the focal/start circle (conical only — radial ignores it)
   cx:float = 0.5;
   cy:float = 0.5;
   r:float = 0.5;

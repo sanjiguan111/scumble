@@ -108,8 +108,8 @@ export interface LinearGradientProps {
 
 /**
  * Props for {@link RadialGradient}, mirroring @shopify/react-native-skia's
- * radial gradient (center + radius; focal point not supported yet).
- * `c`/`r` are **absolute user-space pixels**.
+ * radial gradient (center + radius; a focal/two-circle gradient is a separate
+ * {@link TwoPointConicalGradient}). `c`/`r` are **absolute user-space pixels**.
  */
 export interface RadialGradientProps {
   /** Center of the circle (absolute user-space px). */
@@ -134,6 +134,26 @@ export interface SweepGradientProps {
   start?: number;
   /** End angle in degrees. Defaults to 360. */
   end?: number;
+  colors: import("@lynx-skity/graphics").Color[];
+  positions?: number[];
+  mode?: "clamp" | "repeat" | "mirror";
+}
+
+/**
+ * Props for {@link TwoPointConicalGradient}, mirroring
+ * @shopify/react-native-skia's two-point conical gradient (two circles): stop
+ * offset 0 sits on the start circle, offset 1 on the end circle. All geometry
+ * is **absolute user-space pixels**.
+ */
+export interface TwoPointConicalGradientProps {
+  /** Center of the start (focal) circle (absolute user-space px). */
+  start: import("@lynx-skity/graphics").Point;
+  /** Start circle radius in px; must be ≥ 0. */
+  startR: number;
+  /** Center of the end circle (absolute user-space px). */
+  end: import("@lynx-skity/graphics").Point;
+  /** End circle radius in px; must be positive. */
+  endR: number;
   colors: import("@lynx-skity/graphics").Color[];
   positions?: number[];
   mode?: "clamp" | "repeat" | "mirror";

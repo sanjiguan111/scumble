@@ -187,10 +187,10 @@ void ApplyTransform(const RetainedComputedStyle *style, Canvas *canvas) {
 }
 
 // Build a skity Shader from a nested Gradient FlatBuffer (USER_SPACE coords, so
-// no bbox lookup is needed). LINEAR/RADIAL/SWEEP are dispatched on the type
-// byte; the radial focal point (fx/fy/fr → MakeTwoPointConical) is a TODO.
-// Returns nullptr on empty/invalid data so the paint is treated as inactive
-// (draws nothing), matching the COLOR-inactive behavior.
+// no bbox lookup is needed). LINEAR/RADIAL/SWEEP/TWO_POINT_CONICAL are
+// dispatched on the type byte. Returns nullptr on empty/invalid data so the
+// paint is treated as inactive (draws nothing), matching the COLOR-inactive
+// behavior.
 std::shared_ptr<Shader> BuildGradientShader(const std::vector<uint8_t> &data) {
   if (data.empty()) return nullptr;
   const Gradient *g = ::flatbuffers::GetRoot<Gradient>(data.data());
@@ -233,7 +233,7 @@ std::shared_ptr<Shader> BuildGradientShader(const std::vector<uint8_t> &data) {
     pts[1] = skity::Vec4(g->x2(), g->y2(), 0.f, 0.f);
     return Shader::MakeLinear(pts, colors.data(), pos.data(), static_cast<int>(count), tile);
   }
-  case 1: { // RADIAL (center + radius; fx/fy/fr focal fields ignored — TODO)
+  case 1: { // RADIAL (center + radius; fx/fy/fr focal fields unused)
     if (g->r() <= 0.f) return nullptr;
     skity::Vec4 center(g->cx(), g->cy(), 0.f, 0.f);
     return Shader::MakeRadial(center, g->r(), colors.data(), pos.data(), static_cast<int>(count),
@@ -243,6 +243,14 @@ std::shared_ptr<Shader> BuildGradientShader(const std::vector<uint8_t> &data) {
     if (g->end_angle() <= g->start_angle()) return nullptr;
     return Shader::MakeSweep(g->cx(), g->cy(), g->start_angle(), g->end_angle(), colors.data(),
                              pos.data(), static_cast<int>(count), tile);
+  }
+  case 3: { // TWO_POINT_CONICAL (start circle fx/fy/fr → end circle cx/cy/r)
+    if (g->r() <= 0.f || g->fr() < 0.f) return nullptr;
+    if (g->fx() == g->cx() && g->fy() == g->cy() && g->fr() == g->r()) return nullptr;
+    skity::Vec4 start(g->fx(), g->fy(), 0.f, 0.f);
+    skity::Vec4 end(g->cx(), g->cy(), 0.f, 0.f);
+    return Shader::MakeTwoPointConical(start, g->fr(), end, g->r(), colors.data(), pos.data(),
+                                       static_cast<int>(count), tile);
   }
   default:
     return nullptr;

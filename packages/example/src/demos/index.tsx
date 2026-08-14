@@ -30,7 +30,7 @@ export const DEMOS: DemoConfig[] = [
   {
     key: "gradient",
     title: "Gradient",
-    subtitle: "Linear · Radial · Sweep · mode",
+    subtitle: "Linear · Radial · Sweep · Conical",
     accent: "#8b5cf6",
     render: () => <GradientDemo />,
   },

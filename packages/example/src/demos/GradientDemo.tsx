@@ -4,6 +4,7 @@ import {
   RadialGradient,
   Rect,
   SweepGradient,
+  TwoPointConicalGradient,
   vec,
 } from "@lynx-skity/react";
 
@@ -84,6 +85,30 @@ export function GradientDemo() {
       <DemoSection title="sweep · partial arc" caption="90°–270° 局部扇形" height={140}>
         <Rect x={20} y={20} width={320} height={100}>
           <SweepGradient c={vec(180, 70)} start={90} end={270} colors={["#f97316", "#06b6d4"]} />
+        </Rect>
+      </DemoSection>
+
+      <DemoSection title="conical · off-center focal" caption="焦点偏移的两圆渐变">
+        <Circle cx={180} cy={100} radius={70}>
+          <TwoPointConicalGradient
+            start={vec(150, 70)}
+            startR={0}
+            end={vec(180, 100)}
+            endR={70}
+            colors={["#fef9c3", "#7c3aed"]}
+          />
+        </Circle>
+      </DemoSection>
+
+      <DemoSection title="conical · ring" caption="内圆半径 > 0" height={100}>
+        <Rect x={20} y={20} width={320} height={60}>
+          <TwoPointConicalGradient
+            start={vec(180, 50)}
+            startR={10}
+            end={vec(180, 50)}
+            endR={90}
+            colors={["#ef4444", "#3b82f6"]}
+          />
         </Rect>
       </DemoSection>
     </view>

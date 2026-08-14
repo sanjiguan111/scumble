@@ -59,7 +59,7 @@ The schema lives in `packages/native/schema/render_tree*.fbs` (namespace `skityr
 
 **Existing structures:**
 
-- `RGBAColor { r,g,b,a:uint32 }`, `GradientStop`, `Gradient` (linear+radial+sweep+stops, complete; sweep angles in degrees, focal/TwoPointConical TODO), `ResolvedPaint { type: NONE/COLOR/GRADIENT; color; gradient }`
+- `RGBAColor { r,g,b,a:uint32 }`, `GradientStop`, `Gradient` (linear+radial+sweep+two-point-conical+stops, complete; sweep angles in degrees), `ResolvedPaint { type: NONE/COLOR/GRADIENT; color; gradient }`
 - `PathCommand { type; args:[float] }` + `PathCommandType` (MOVE_TO..CLOSE)
 - `TransformOp { type; args:[float] }` + `TransformType` (MATRIX..SKEW_Y)
 - `ComputedStyle` (fill/stroke/strokeWidth/linecap/linejoin/dasharray/dashoffset/miterlimit/fillRule/opacity/display/visibility/transform)

@@ -18,7 +18,8 @@ import type { RadialGradientProps } from "../types";
  * `fillGradient` prop, so it is never mounted.
  *
  * `c`/`r` are absolute user-space pixels (NOT 0–1 normalized). Spike: fill
- * only; stroke gradients and the focal point (TwoPointConical) are TODO.
+ * only; stroke gradients are TODO (a focal/two-circle gradient is a separate
+ * {@link TwoPointConicalGradient}).
  */
 export function RadialGradient(_props: RadialGradientProps): null {
   // Data-only component; consumed by the parent shape's resolvePaint. Returning

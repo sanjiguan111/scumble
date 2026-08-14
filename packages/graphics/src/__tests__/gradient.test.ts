@@ -5,7 +5,12 @@ import { describe, it, expect } from "vitest";
 
 import * as flatbuffers from "../generated/flatbuffers/flatbuffers.js";
 import { Gradient } from "../generated/skityrt/gradient.js";
-import { buildLinearGradient, buildRadialGradient, buildSweepGradient } from "../gradient.js";
+import {
+  buildLinearGradient,
+  buildRadialGradient,
+  buildSweepGradient,
+  buildTwoPointConicalGradient,
+} from "../gradient.js";
 
 // Read the nested-flatbuffer bytes back as a Gradient — exactly what the native
 // render side does via GetRoot<Gradient>(). Proves the JS-built bytes round-trip.
@@ -154,6 +159,65 @@ describe("buildSweepGradient → nested FlatBuffer round-trip", () => {
     expect(() => buildSweepGradient({ c: [0, 0], colors: ["#f00"] })).toThrow();
     expect(() =>
       buildSweepGradient({ c: [0, 0], start: 90, end: 90, colors: ["#f00", "#00f"] }),
+    ).toThrow();
+  });
+});
+
+describe("buildTwoPointConicalGradient → nested FlatBuffer round-trip", () => {
+  it("serializes the start circle to fx/fy/fr and the end circle to cx/cy/r", () => {
+    const g = readBack(
+      buildTwoPointConicalGradient({
+        start: [100, 60],
+        startR: 0,
+        end: [140, 100],
+        endR: 60,
+        colors: ["#ffffff", "#000000"],
+      }),
+    );
+    expect(g.type()).toBe(3); // TWO_POINT_CONICAL
+    expect(g.gradientUnits()).toBe(1); // USER_SPACE_ON_USE
+    expect(g.spreadMethod()).toBe(0); // PAD (clamp)
+    expect(g.fx()).toBe(100); // start circle
+    expect(g.fy()).toBe(60);
+    expect(g.fr()).toBe(0);
+    expect(g.cx()).toBe(140); // end circle
+    expect(g.cy()).toBe(100);
+    expect(g.r()).toBe(60);
+    expect(g.stopsLength()).toBe(2);
+  });
+
+  it("accepts {x,y} points and maps mode → spread method", () => {
+    const g = readBack(
+      buildTwoPointConicalGradient({
+        start: { x: 30, y: 40 },
+        startR: 10,
+        end: { x: 90, y: 100 },
+        endR: 50,
+        colors: ["red", "green", "blue"],
+        mode: "repeat",
+      }),
+    );
+    expect(g.spreadMethod()).toBe(2); // REPEAT
+    expect(g.fx()).toBe(30);
+    expect(g.cx()).toBe(90);
+    expect(g.fr()).toBe(10);
+    expect(g.stops(1)!.offset()).toBeCloseTo(0.5); // default even spacing
+  });
+
+  it("throws on invalid circles", () => {
+    const base = { start: [0, 0], startR: 0, end: [50, 50], endR: 40, colors: ["#f00", "#00f"] };
+    expect(() => buildTwoPointConicalGradient({ ...base, colors: ["#f00"] })).toThrow();
+    expect(() => buildTwoPointConicalGradient({ ...base, endR: 0 })).toThrow();
+    expect(() => buildTwoPointConicalGradient({ ...base, startR: -1 })).toThrow();
+    // identical circles are degenerate (no interpolation direction)
+    expect(() =>
+      buildTwoPointConicalGradient({
+        ...base,
+        start: [50, 50],
+        startR: 40,
+        end: [50, 50],
+        endR: 40,
+      }),
     ).toThrow();
   });
 });

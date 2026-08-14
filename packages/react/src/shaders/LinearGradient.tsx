@@ -19,7 +19,7 @@ import type { LinearGradientProps } from "../types";
  * so returning `null` is safe regardless of host support for null renders.
  *
  * `start`/`end` are absolute user-space pixels (NOT 0–1 normalized). Spike:
- * fill only; stroke gradients and the radial focal point (Conic) are TODO.
+ * fill only; stroke gradients are TODO.
  */
 export function LinearGradient(_props: LinearGradientProps): null {
   // Data-only component; consumed by the parent shape's resolvePaint. Returning
