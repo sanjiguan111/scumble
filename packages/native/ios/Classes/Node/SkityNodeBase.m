@@ -24,6 +24,8 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("ry", setRy:, NSNumber *), LYNX_PROP_DECLARE("x1", setX1:, NSNumber *),
     LYNX_PROP_DECLARE("y1", setY1:, NSNumber *), LYNX_PROP_DECLARE("x2", setX2:, NSNumber *),
     LYNX_PROP_DECLARE("y2", setY2:, NSNumber *),
+    LYNX_PROP_DECLARE("pathStart", setPathStart:, NSNumber *),
+    LYNX_PROP_DECLARE("pathEnd", setPathEnd:, NSNumber *),
     // paint
     LYNX_PROP_DECLARE("color", setColor:, NSNumber *),
     LYNX_PROP_DECLARE("fill", setFill:, NSNumber *),
@@ -131,6 +133,16 @@ LYNX_PROP_SETTER("x2", setX2, NSNumber *) {
 LYNX_PROP_SETTER("y2", setY2, NSNumber *) {
   _y2 = value.floatValue;
   _dirtyGeometryMask |= kSkityGeomY2;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("pathStart", setPathStart, NSNumber *) {
+  _pathStart = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomPathStart;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("pathEnd", setPathEnd, NSNumber *) {
+  _pathEnd = value.floatValue;
+  _dirtyGeometryMask |= kSkityGeomPathEnd;
   [self setNeedsLayout];
 }
 

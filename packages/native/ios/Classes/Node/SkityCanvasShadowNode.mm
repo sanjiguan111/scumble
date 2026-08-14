@@ -112,7 +112,7 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     auto off = skityrt::CreateSetGeometry(
         fbb, node.nativeId, static_cast<skityrt::GeometryField>(node.dirtyGeometryMask), node.x,
         node.y, node.width, node.height, node.cx, node.cy, node.r, node.rx, node.ry, node.x1,
-        node.y1, node.x2, node.y2);
+        node.y1, node.x2, node.y2, node.pathStart, node.pathEnd);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetGeometry);
     node.dirtyGeometryMask = 0;

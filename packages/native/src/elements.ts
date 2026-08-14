@@ -77,6 +77,10 @@ export interface SkityLineProps extends SkityCommonProps {
 export interface SkityPathProps extends SkityCommonProps {
   /** Base64-encoded PathCommandList bytes (@lynx-skity/graphics); native decodes + memcpys. */
   d?: string;
+  /** Path trim start, normalized [0,1] (RN-Skia `start`). */
+  pathStart?: number;
+  /** Path trim end, normalized [0,1] (RN-Skia `end`). */
+  pathEnd?: number;
 }
 export interface SkityGroupProps extends SkityCommonProps {}
 

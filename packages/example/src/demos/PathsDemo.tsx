@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { Path, Path2D } from "@lynx-skity/react";
 
 import { DemoSection } from "../components/DemoSection";
@@ -23,6 +25,17 @@ function makeStar(cx: number, cy: number, outer: number, inner: number): Path2D 
   return p;
 }
 
+// Animated draw-on effect: sweep `end` 0→1 (setInterval drives repaint — rAF
+// doesn't on Lynx).
+function TrimAnimation() {
+  const [end, setEnd] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setEnd((e) => (e >= 1 ? 0 : e + 0.02)), 50);
+    return () => clearInterval(timer);
+  }, []);
+  return <Path path={HEART} color="#22c55e" style="stroke" strokeWidth={6} end={end} />;
+}
+
 export function PathsDemo() {
   return (
     <view>
@@ -36,6 +49,24 @@ export function PathsDemo() {
 
       <DemoSection title="Arc (A command)" caption="椭圆弧端点参数化 large-arc/sweep flags">
         <Path path={ARC} color="#3b82f6" style="stroke" strokeWidth={8} />
+      </DemoSection>
+
+      <DemoSection title="Path trim — start/end" caption="start 0.25 / end 0.75，截取路径中段 50%">
+        {/* Full path faint underneath, trimmed path on top (RN-Skia style). */}
+        <Path path={ARC} color="#3b82f6" style="stroke" strokeWidth={2} opacity={0.25} />
+        <Path
+          path={ARC}
+          color="#3b82f6"
+          style="stroke"
+          strokeWidth={8}
+          strokeCap="round"
+          start={0.25}
+          end={0.75}
+        />
+      </DemoSection>
+
+      <DemoSection title="Path trim — animated" caption="end 0→1 循环（绘制进度效果）" height={240}>
+        <TrimAnimation />
       </DemoSection>
 
       <DemoSection title="Path2D 链式 — star" caption="moveTo/lineTo/close 命令式构建">

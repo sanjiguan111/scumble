@@ -252,7 +252,8 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
         fbb, node.nativeId, node.dirtyGeometry.toLong(),
         node.x, node.y, node.width, node.height,
         node.cx, node.cy, node.r, node.rx, node.ry,
-        node.x1, node.y1, node.x2, node.y2)
+        node.x1, node.y1, node.x2, node.y2,
+        node.pathStart, node.pathEnd)
       types += Command.SetGeometry
       node.dirtyGeometry = 0
     }

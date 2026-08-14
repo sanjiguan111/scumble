@@ -59,6 +59,10 @@ struct RetainedNode {
   float cx = 0, cy = 0, r = 0, rx = 0, ry = 0;
   float x1 = 0, y1 = 0, x2 = 0, y2 = 0;
 
+  // Path trim window (normalized [0,1] length fraction; applied via skity
+  // PathMeasure in DrawShape). Default 0–1 = no trim.
+  float path_start = 0, path_end = 1;
+
   std::vector<uint8_t> path_data; // JS-built PathCommandList bytes (owned)
   std::vector<float> points;      // polyline/polygon [x0,y0,x1,y1,...]
 

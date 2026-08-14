@@ -102,20 +102,22 @@ table MoveNode {
 // rationale as PaintField: 0 is a valid geometry value (e.g. radius 0), so the
 // bitmask is authoritative — the consumer writes only fields whose bits are set.
 enum GeometryField : uint {
-  NONE   = 0,
-  X      = 1,
-  Y      = 2,
-  WIDTH  = 4,
-  HEIGHT = 8,
-  CX     = 16,
-  CY     = 32,
-  R      = 64,
-  RX     = 128,
-  RY     = 256,
-  X1     = 512,
-  Y1     = 1024,
-  X2     = 2048,
-  Y2     = 4096,
+  NONE       = 0,
+  X          = 1,
+  Y          = 2,
+  WIDTH      = 4,
+  HEIGHT     = 8,
+  CX         = 16,
+  CY         = 32,
+  R          = 64,
+  RX         = 128,
+  RY         = 256,
+  X1         = 512,
+  Y1         = 1024,
+  X2         = 2048,
+  Y2         = 4096,
+  PATH_START = 8192,
+  PATH_END   = 16384,
 }
 
 // Per-field geometry mutation. Only fields whose GeometryField bit is set in
@@ -137,6 +139,11 @@ table SetGeometry {
   y1:float = 0;
   x2:float = 0;
   y2:float = 0;
+  // Path trimming (normalized [0,1] length fraction; skity PathMeasure). Only
+  // the first contour is trimmed (multi-contour TODO). Appended so existing
+  // field ids stay stable.
+  path_start:float = 0;
+  path_end:float = 1;
 }
 
 // Canvas logical viewport (SVG viewBox). Targets the tree-level viewport (not a

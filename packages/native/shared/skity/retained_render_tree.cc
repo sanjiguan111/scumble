@@ -62,6 +62,8 @@ void ApplySetGeometry(const SetGeometry *g, RetainedNode *node) {
   if (dirty & GeometryField_Y1) node->y1 = g->y1();
   if (dirty & GeometryField_X2) node->x2 = g->x2();
   if (dirty & GeometryField_Y2) node->y2 = g->y2();
+  if (dirty & GeometryField_PATH_START) node->path_start = g->path_start();
+  if (dirty & GeometryField_PATH_END) node->path_end = g->path_end();
 }
 
 // Apply a SetViewport command to the tree-level viewport (canvas viewBox).

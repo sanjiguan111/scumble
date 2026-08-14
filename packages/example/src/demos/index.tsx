@@ -37,7 +37,7 @@ export const DEMOS: DemoConfig[] = [
   {
     key: "paths",
     title: "Paths",
-    subtitle: "SVG d · Path2D · arc",
+    subtitle: "SVG d · Path2D · arc · trim",
     accent: "#22c55e",
     render: () => <PathsDemo />,
   },

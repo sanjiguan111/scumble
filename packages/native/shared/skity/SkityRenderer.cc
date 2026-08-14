@@ -26,6 +26,7 @@ using skity::Canvas;
 using skity::Matrix;
 using skity::Paint;
 using skity::Path;
+using skity::PathMeasure;
 using skity::Rect;
 using skity::Shader;
 
@@ -120,6 +121,25 @@ Path BuildPath(const RetainedNode *node, bool force_close) {
   }
   if (force_close) path.Close();
   return path;
+}
+
+// Trim a path to the normalized length window [start, end] via skity
+// PathMeasure (start/end in [0,1], start<end, else left untouched). In-place:
+// on success `path` is replaced by the sub-segment. NOTE: only the first
+// contour is trimmed — PathMeasure operates on one contour at a time; a full
+// multi-contour (cumulative-length) trim is a TODO.
+void TrimPath(Path &path, float start, float end) {
+  if (start <= 0.f && end >= 1.f) return;
+  float s = std::clamp(start, 0.f, 1.f);
+  float e = std::clamp(end, 0.f, 1.f);
+  if (s >= e) return;
+  PathMeasure pm(path, /*forceClosed=*/false);
+  float len = pm.GetLength();
+  if (len <= 0.f) return;
+  Path trimmed;
+  if (pm.GetSegment(s * len, e * len, &trimmed, /*startWithMoveTo=*/true)) {
+    path = trimmed;
+  }
 }
 
 void ApplyTransform(const RetainedComputedStyle *style, Canvas *canvas) {
@@ -351,6 +371,7 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     }
   } else if (tag == "path") {
     Path path = BuildPath(node, false);
+    TrimPath(path, node->path_start, node->path_end);
     if (style != nullptr && style->fill_rule == FillRule_EVENODD) {
       path.SetFillType(Path::PathFillType::kEvenOdd);
     }

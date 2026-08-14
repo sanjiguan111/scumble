@@ -45,6 +45,8 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var y1 = 0f
   @JvmField var x2 = 0f
   @JvmField var y2 = 0f
+  @JvmField var pathStart = 0f
+  @JvmField var pathEnd = 1f
 
   // ---- paint (ARGB packed as Long 0xAARRGGBB; null = inactive) ----
   @JvmField var fillColor: Long? = null
@@ -105,6 +107,8 @@ abstract class SkityNodeBase : ShadowNode() {
     const val Y1 = 1024
     const val X2 = 2048
     const val Y2 = 4096
+    const val PATH_START = 8192
+    const val PATH_END = 16384
   }
 
   // Every setter calls markDirty() so a prop change forces a layout pass → the
@@ -178,6 +182,16 @@ abstract class SkityNodeBase : ShadowNode() {
   @LynxProp(name = "y2") fun setY2(v: Float) {
     y2 = v
     dirtyGeometry = dirtyGeometry or GeometryField.Y2
+    markDirty()
+  }
+  @LynxProp(name = "pathStart") fun setPathStart(v: Float) {
+    pathStart = v
+    dirtyGeometry = dirtyGeometry or GeometryField.PATH_START
+    markDirty()
+  }
+  @LynxProp(name = "pathEnd") fun setPathEnd(v: Float) {
+    pathEnd = v
+    dirtyGeometry = dirtyGeometry or GeometryField.PATH_END
     markDirty()
   }
 

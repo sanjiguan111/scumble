@@ -51,6 +51,8 @@ enum SkityGeometryField {
   kSkityGeomY1 = 1024,
   kSkityGeomX2 = 2048,
   kSkityGeomY2 = 4096,
+  kSkityGeomPathStart = 8192,
+  kSkityGeomPathEnd = 16384,
 };
 
 @interface SkityNodeBase : LynxShadowNode
@@ -73,6 +75,8 @@ enum SkityGeometryField {
 @property(nonatomic, assign) float y1;
 @property(nonatomic, assign) float x2;
 @property(nonatomic, assign) float y2;
+@property(nonatomic, assign) float pathStart;
+@property(nonatomic, assign) float pathEnd;
 
 // ---- paint (ARGB 0xAARRGGBB; nil = inactive) ----
 @property(nonatomic, strong, nullable) NSNumber *fillColor;

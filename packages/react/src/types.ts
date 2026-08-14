@@ -253,6 +253,14 @@ export interface PathProps extends GraphicProps {
   /** SVG path data string, or a Path2D object built command-style. */
   path: string | import("@lynx-skity/graphics").Path2D;
   fillRule?: FillRule;
+  /**
+   * Trim the start of the path. Normalized path-length fraction in [0,1]
+   * (default 0); mirrors react-native-skia's Path `start`. Applied to both fill
+   * and stroke via skity PathMeasure (first contour only).
+   */
+  start?: number;
+  /** Trim the end of the path. [0,1] fraction (default 1). See {@link start}. */
+  end?: number;
 }
 
 export interface GroupProps extends GraphicProps {
