@@ -86,7 +86,8 @@ export interface GraphicProps {
   blendMode?: BlendMode;
   /** z-index. Accepted for parity; native z-ordering follows tree order today. */
   zIndex?: number;
-  /** Child shaders (e.g. `<LinearGradient>`) consumed by the shape's paint. */
+  /** Child shaders (e.g. `<LinearGradient>`) and `<Paint>` overrides consumed
+   * by the shape's paint. */
   children?: ReactNode;
 }
 
@@ -157,6 +158,30 @@ export interface TwoPointConicalGradientProps {
   colors: import("@lynx-skity/graphics").Color[];
   positions?: number[];
   mode?: "clamp" | "repeat" | "mirror";
+}
+
+/**
+ * Props for {@link Paint}, mirroring @shopify/react-native-skia's declarative
+ * paint: a data-only child of a shape that overrides the paint properties for
+ * its `style`. Shaders placed inside apply to that paint. Differences vs
+ * RN-Skia: one fill paint + one stroke paint per shape max, and
+ * `opacity`/`blendMode` are not honored (see the {@link Paint} docs).
+ */
+export interface PaintProps {
+  /** Which paint this declaration targets. Defaults to `"fill"`. */
+  style?: "fill" | "stroke";
+  /** Paint color; overrides the shape's `color` for this style. */
+  color?: import("@lynx-skity/graphics").Color;
+  /** Stroke width. Stroke-only. */
+  strokeWidth?: number;
+  /** Stroke cap. Stroke-only. */
+  strokeCap?: StrokeCap;
+  /** Stroke join. Stroke-only. */
+  strokeJoin?: StrokeJoin;
+  /** Miter limit. Stroke-only. */
+  strokeMiter?: number;
+  /** Shader children (e.g. `<LinearGradient>`) applied to this paint. */
+  children?: ReactNode;
 }
 
 // ---- transforms (react-native-skity: single object, degrees; or 4x4 matrix) ----

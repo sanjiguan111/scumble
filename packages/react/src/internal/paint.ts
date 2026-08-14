@@ -25,9 +25,11 @@ import { LinearGradient } from "../shaders/LinearGradient";
 import { RadialGradient } from "../shaders/RadialGradient";
 import { SweepGradient } from "../shaders/SweepGradient";
 import { TwoPointConicalGradient } from "../shaders/TwoPointConicalGradient";
+import { Paint } from "../Paint";
 import type {
   GraphicProps,
   LinearGradientProps,
+  PaintProps,
   RadialGradientProps,
   SweepGradientProps,
   TwoPointConicalGradientProps,
@@ -70,11 +72,7 @@ type ShaderChild =
  * (no React.Children dependency) — handles a single element or array.
  */
 function findShaderChild(children?: ReactNode): ShaderChild | null {
-  if (children == null || typeof children === "boolean") return null;
-  const arr: ReadonlyArray<unknown> = Array.isArray(children) ? children : [children];
-  for (const c of arr) {
-    const el = c as { type?: unknown; props?: never };
-    if (!el || !el.props) continue;
+  for (const el of childElements(children)) {
     if (el.type === LinearGradient)
       return { kind: "linear", props: el.props as LinearGradientProps };
     if (el.type === RadialGradient)
@@ -84,6 +82,34 @@ function findShaderChild(children?: ReactNode): ShaderChild | null {
       return { kind: "conical", props: el.props as TwoPointConicalGradientProps };
   }
   return null;
+}
+
+/** Iterate a ReactNode children value as `{ type, props }` element candidates. */
+function childElements(children?: ReactNode): Array<{ type: unknown; props?: never }> {
+  if (children == null || typeof children === "boolean") return [];
+  const arr: ReadonlyArray<unknown> = Array.isArray(children) ? children : [children];
+  const els: Array<{ type: unknown; props?: never }> = [];
+  for (const c of arr) {
+    const el = c as { type?: unknown; props?: never };
+    if (el && el.props) els.push(el);
+  }
+  return els;
+}
+
+/**
+ * Find the `<Paint>` children (data-only, RN-Skia-style declarative paint
+ * overrides). Returns at most one entry per style — fill and stroke — with a
+ * later declaration of the same style winning.
+ */
+function findPaintChildren(children?: ReactNode): Partial<Record<"fill" | "stroke", PaintProps>> {
+  const found: Partial<Record<"fill" | "stroke", PaintProps>> = {};
+  for (const el of childElements(children)) {
+    if (el.type === Paint) {
+      const props = el.props as PaintProps;
+      found[props.style ?? "fill"] = props;
+    }
+  }
+  return found;
 }
 
 /**
@@ -108,8 +134,10 @@ function gradientBytes(shader: ShaderChild): string {
  * scalars the skity intrinsic tags accept. `color` is run through `parseColor`
  * and routed to `fill` or `stroke` by `style` (default `"fill"`); `strokeCap`/
  * `strokeJoin` are mapped to enum bytes. A child gradient shader is
- * serialized to base64 Gradient bytes and emitted as `fillGradient` (spike:
- * fill only). `blendMode`/`zIndex` are intentionally dropped (not honored
+ * serialized to base64 Gradient bytes and emitted as `fillGradient`; a
+ * declarative `<Paint>` child (RN-Skia style) overrides the paint properties
+ * of its `style`, with shaders inside it routed to that paint (`strokeGradient`
+ * for `"stroke"`). `blendMode`/`zIndex` are intentionally dropped (not honored
  * natively yet). A `color`-less, gradient-less shape resolves to an empty
  * object, so the native side draws nothing.
  */
@@ -135,11 +163,29 @@ export function resolvePaint(props: GraphicProps, children?: ReactNode): Resolve
   if (strokeMiter !== undefined) out.strokeMiter = strokeMiter;
   if (opacity !== undefined) out.opacity = opacity;
 
-  // Child gradient (<LinearGradient>/<RadialGradient>/<SweepGradient>) →
-  // base64 Gradient bytes (spike: fill only).
+  // Child gradient (<LinearGradient>/<RadialGradient>/<SweepGradient>/…) placed
+  // directly under the shape → base64 Gradient bytes on the fill paint.
   const shader = findShaderChild(children);
   if (shader !== null) {
     out.fillGradient = gradientBytes(shader);
+  }
+
+  // Declarative <Paint> children (RN-Skia style) override the paint of their
+  // style; shaders nested inside route to that paint's gradient slot. Only
+  // properties the <Paint> actually declares are overridden.
+  const paints = findPaintChildren(children);
+  for (const target of ["fill", "stroke"] as const) {
+    const p = paints[target];
+    if (p === undefined) continue;
+    if (p.color !== undefined) out[target] = parseColor(p.color);
+    if (p.strokeWidth !== undefined) out.strokeWidth = p.strokeWidth;
+    if (p.strokeCap !== undefined) out.strokeCap = parseStrokeCap(p.strokeCap);
+    if (p.strokeJoin !== undefined) out.strokeJoin = parseStrokeJoin(p.strokeJoin);
+    if (p.strokeMiter !== undefined) out.strokeMiter = p.strokeMiter;
+    const pShader = findShaderChild(p.children);
+    if (pShader !== null) {
+      out[`${target}Gradient`] = gradientBytes(pShader);
+    }
   }
 
   // blendMode / zIndex are accepted on GraphicProps but not honored natively

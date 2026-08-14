@@ -1,6 +1,7 @@
 import {
   Circle,
   LinearGradient,
+  Paint,
   RadialGradient,
   Rect,
   SweepGradient,
@@ -109,6 +110,29 @@ export function GradientDemo() {
             endR={90}
             colors={["#ef4444", "#3b82f6"]}
           />
+        </Rect>
+      </DemoSection>
+
+      <DemoSection title="stroke · gradient" caption="fill 渐变 + 描边渐变（双 pass）">
+        <Circle cx={180} cy={100} radius={70}>
+          <LinearGradient
+            start={vec(110, 30)}
+            end={vec(250, 170)}
+            colors={["#a855f7", "#ec4899"]}
+          />
+          <Paint style="stroke" strokeWidth={8}>
+            <SweepGradient
+              c={vec(180, 100)}
+              colors={["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#ef4444"]}
+            />
+          </Paint>
+        </Circle>
+      </DemoSection>
+
+      <DemoSection title="stroke · solid via <Paint>" caption="Paint 纯色描边覆盖" height={100}>
+        <Rect x={20} y={20} width={320} height={60}>
+          <LinearGradient start={vec(20, 0)} end={vec(340, 0)} colors={["#0ea5e9", "#6366f1"]} />
+          <Paint style="stroke" strokeWidth={6} color="#f59e0b" />
         </Rect>
       </DemoSection>
     </view>

@@ -296,8 +296,8 @@ bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *o
     out->SetColor(ColorFromARGB(stroke.color, opacity));
     return true;
   }
-  // TODO(skity): gradient stroke + dash path effect.
-  return false;
+  // GRADIENT (dash path effect still TODO).
+  return ApplyGradient(stroke.gradient_data, opacity, out);
 }
 
 void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style) {

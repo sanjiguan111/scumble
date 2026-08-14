@@ -43,7 +43,7 @@ export { Path } from "./shapes/Path";
 // Path2D (command-style path builder) is re-exported from the graphics core so
 // callers can import it from @lynx-skity/react alongside <Path>.
 export { Path2D } from "@lynx-skity/graphics";
-// ---- shaders ----
+// ---- shaders & paints ----
 // Gradient shaders are declarative children of a shape (react-native-skia
 // style): `<Rect><LinearGradient .../></Rect>`. vec() builds the {x,y} points
 // they take.
@@ -51,6 +51,10 @@ export { LinearGradient } from "./shaders/LinearGradient";
 export { RadialGradient } from "./shaders/RadialGradient";
 export { SweepGradient } from "./shaders/SweepGradient";
 export { TwoPointConicalGradient } from "./shaders/TwoPointConicalGradient";
+// <Paint> is a declarative paint override child (also RN-Skia style): it
+// overrides the fill or stroke paint of its parent shape, and shaders nested
+// inside it apply to that paint.
+export { Paint } from "./Paint";
 export { vec } from "./internal/vec";
 
 export type {
@@ -78,10 +82,12 @@ export type {
   RadialGradientProps,
   SweepGradientProps,
   TwoPointConicalGradientProps,
+  PaintProps,
 } from "./types";
 
-// Gradient FILL is supported for linear/radial/sweep/two-point-conical (child
-// shader → native Gradient FlatBuffer → skity Shader::MakeLinear/MakeRadial/
-// MakeSweep/MakeTwoPointConical). Still TODO: gradient stroke, Paint
-// (multi-pass), ColorFilter, and the Ellipse / Line component wrappers —
-// pending native shader coverage or wiring.
+// Gradients (linear/radial/sweep/two-point-conical) work on BOTH the fill and
+// stroke paints: a shader placed directly under a shape targets fill, while a
+// shader inside a `<Paint style="stroke">` child targets stroke (the native
+// renderer draws fill + stroke as two passes). Per-paint `opacity`/`blendMode`
+// and more than one paint per style (RN-Skia's multi-pass) are still TODO —
+// the command stream has exactly one fill + one stroke paint slot.
