@@ -313,49 +313,60 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     float rx = node->rx;
     float ry = node->ry;
     bool round = rx > 0.f || ry > 0.f;
-    Paint p;
-    if (MakeFillPaint(style, opacity, &p)) {
-      round ? canvas->DrawRoundRect(rect, rx, ry, p) : canvas->DrawRect(rect, p);
+    // Each pass gets its own Paint: reusing one would leak the fill pass's
+    // gradient shader into the stroke pass (a shader overrides SetColor), so a
+    // gradient fill would repaint the stroke with the fill's shader.
+    Paint fillPaint;
+    if (MakeFillPaint(style, opacity, &fillPaint)) {
+      round ? canvas->DrawRoundRect(rect, rx, ry, fillPaint) : canvas->DrawRect(rect, fillPaint);
     }
-    if (MakeStrokePaint(style, opacity, &p)) {
-      round ? canvas->DrawRoundRect(rect, rx, ry, p) : canvas->DrawRect(rect, p);
+    Paint strokePaint;
+    if (MakeStrokePaint(style, opacity, &strokePaint)) {
+      round ? canvas->DrawRoundRect(rect, rx, ry, strokePaint)
+            : canvas->DrawRect(rect, strokePaint);
     }
   } else if (tag == "circle") {
     float r = node->r;
     if (r <= 0.f) return;
-    Paint p;
-    if (MakeFillPaint(style, opacity, &p)) canvas->DrawCircle(node->cx, node->cy, r, p);
-    if (MakeStrokePaint(style, opacity, &p)) canvas->DrawCircle(node->cx, node->cy, r, p);
+    Paint fillPaint;
+    if (MakeFillPaint(style, opacity, &fillPaint))
+      canvas->DrawCircle(node->cx, node->cy, r, fillPaint);
+    Paint strokePaint;
+    if (MakeStrokePaint(style, opacity, &strokePaint))
+      canvas->DrawCircle(node->cx, node->cy, r, strokePaint);
   } else if (tag == "ellipse") {
     float rx = node->rx;
     float ry = node->ry;
     if (rx <= 0.f || ry <= 0.f) return;
     Path path;
     path.AddOval(Rect::MakeXYWH(node->cx - rx, node->cy - ry, rx * 2.f, ry * 2.f));
-    Paint p;
-    if (MakeFillPaint(style, opacity, &p)) canvas->DrawPath(path, p);
-    if (MakeStrokePaint(style, opacity, &p)) canvas->DrawPath(path, p);
+    Paint fillPaint;
+    if (MakeFillPaint(style, opacity, &fillPaint)) canvas->DrawPath(path, fillPaint);
+    Paint strokePaint;
+    if (MakeStrokePaint(style, opacity, &strokePaint)) canvas->DrawPath(path, strokePaint);
   } else if (tag == "line") {
-    Paint p;
-    if (MakeStrokePaint(style, opacity, &p)) {
-      canvas->DrawLine(node->x1, node->y1, node->x2, node->y2, p);
+    Paint strokePaint;
+    if (MakeStrokePaint(style, opacity, &strokePaint)) {
+      canvas->DrawLine(node->x1, node->y1, node->x2, node->y2, strokePaint);
     }
   } else if (tag == "path") {
     Path path = BuildPath(node, false);
     if (style != nullptr && style->fill_rule == FillRule_EVENODD) {
       path.SetFillType(Path::PathFillType::kEvenOdd);
     }
-    Paint p;
-    if (MakeFillPaint(style, opacity, &p)) canvas->DrawPath(path, p);
-    if (MakeStrokePaint(style, opacity, &p)) canvas->DrawPath(path, p);
+    Paint fillPaint;
+    if (MakeFillPaint(style, opacity, &fillPaint)) canvas->DrawPath(path, fillPaint);
+    Paint strokePaint;
+    if (MakeStrokePaint(style, opacity, &strokePaint)) canvas->DrawPath(path, strokePaint);
   } else if (tag == "polyline" || tag == "polygon") {
     Path path = BuildPath(node, tag == "polygon");
     if (style != nullptr && style->fill_rule == FillRule_EVENODD) {
       path.SetFillType(Path::PathFillType::kEvenOdd);
     }
-    Paint p;
-    if (MakeFillPaint(style, opacity, &p)) canvas->DrawPath(path, p);
-    if (MakeStrokePaint(style, opacity, &p)) canvas->DrawPath(path, p);
+    Paint fillPaint;
+    if (MakeFillPaint(style, opacity, &fillPaint)) canvas->DrawPath(path, fillPaint);
+    Paint strokePaint;
+    if (MakeStrokePaint(style, opacity, &strokePaint)) canvas->DrawPath(path, strokePaint);
   }
 }
 
