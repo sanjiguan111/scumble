@@ -106,15 +106,23 @@ function findShaderChild(children?: ReactNode): ShaderChild | null {
   return null;
 }
 
-/** Iterate a ReactNode children value as `{ type, props }` element candidates.
- * Shared with internal/clip.ts (Group's `<Clip*>` children scan). */
-export function childElements(children?: ReactNode): Array<{ type: unknown; props?: never }> {
+/** A child element candidate: its component type + declared props (untyped —
+ * callers cast `props` to the component's props interface). */
+export interface ChildElement {
+  type: unknown;
+  props: unknown;
+}
+
+/** Iterate a ReactNode children value as {@link ChildElement} candidates
+ * (data-only components like `<Paint>`/`<LinearGradient>`/`<ClipRect>` are
+ * identified by `type` and read via `props`). Shared with internal/clip.ts. */
+export function childElements(children?: ReactNode): ChildElement[] {
   if (children == null || typeof children === "boolean") return [];
   const arr: ReadonlyArray<unknown> = Array.isArray(children) ? children : [children];
-  const els: Array<{ type: unknown; props?: never }> = [];
+  const els: ChildElement[] = [];
   for (const c of arr) {
-    const el = c as { type?: unknown; props?: never };
-    if (el && el.props) els.push(el);
+    const el = c as { type?: unknown; props?: unknown };
+    if (el && el.props) els.push({ type: el.type, props: el.props });
   }
   return els;
 }

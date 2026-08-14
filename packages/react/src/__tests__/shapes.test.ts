@@ -96,7 +96,7 @@ describe("pointsToPathProp", () => {
 
 describe("findClipSpecs (Group clip children)", () => {
   /** A data-only clip child (findClipSpecs only reads {type, props}). */
-  function el(type: unknown, props: never): ReactNode {
+  function el(type: unknown, props: object): ReactNode {
     return { type, props } as never;
   }
 
