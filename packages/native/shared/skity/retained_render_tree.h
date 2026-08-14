@@ -39,6 +39,11 @@ struct RetainedComputedStyle {
   LineCap stroke_cap = LineCap_BUTT;
   LineJoin stroke_join = LineJoin_MITER;
   float stroke_miter = 4.f;
+  // Stroke dash pattern: [on, off, ...] intervals in px + phase offset into the
+  // pattern. Empty = solid stroke. Valid patterns have an even count ≥ 2 and a
+  // positive sum (validated by the producer; MakeStrokePaint re-checks).
+  std::vector<float> stroke_dash;
+  float stroke_dashoffset = 0.f;
   FillRule fill_rule = FillRule_NONZERO;
   float opacity = 1.f;
   Display display = Display_INLINE;

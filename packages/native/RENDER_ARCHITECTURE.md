@@ -214,7 +214,7 @@ namespace skityrt;
 // so the layout/paint split (§11.6) falls out of which command a setter emits.
 union Command {
   SetGeometry,    // cx/cy/r/x/y/w/h/… (virtual nodes, absolute logical px)
-  SetPaint,       // fill/stroke color + gradient (nested), strokeWidth, cap/join/miter/fillRule/opacity
+  SetPaint,       // fill/stroke color + gradient (nested), strokeWidth, cap/join/miter/fillRule/opacity, stroke dash
   SetPathData,    // node_id + nested PathCommandList bytes (memcpy)
   SetTransform,   // node_id + nested TransformOpList bytes (memcpy)
   SetViewport,    // canvas viewBox
@@ -236,6 +236,7 @@ table SetPaint {
   stroke_color:uint;
   stroke_width:float; stroke_cap:LineCap; stroke_join:LineJoin;
   stroke_miter:float; fill_rule:FillRule; opacity:float;
+  stroke_dash:[float]; stroke_dashoffset:float;  // dash intervals (LE float32 over the base64 string prop channel) + phase
 }
 
 table SetPathData  { node_id:uint; data:[ubyte] (nested_flatbuffer: "PathCommandList"); }

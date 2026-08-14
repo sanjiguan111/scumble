@@ -39,3 +39,24 @@ export function bytesToBase64(bytes: ArrayBuffer): string {
   }
   return out;
 }
+
+/**
+ * Base64-encode raw little-endian float32s for a native string prop — the
+ * transport for the stroke dash intervals (`SetPaint.stroke_dash:[float]`).
+ * Not a FlatBuffer: the native side reads the bytes directly as a float array
+ * (`ByteBuffer.asFloatBuffer` / `memcpy`), matching flatbuffers' byte order.
+ *
+ * @param values The float values (e.g. dash intervals `[on, off, ...]`).
+ * @returns The base64 string for the `strokeDash` prop; `""` for empty input
+ *   (an empty payload clears the pattern natively — solid stroke).
+ *
+ * @example
+ * floatsToBase64([8, 4]);  // dash 8px on, 4px off
+ */
+export function floatsToBase64(values: number[]): string {
+  if (values.length === 0) return "";
+  const buf = new ArrayBuffer(values.length * 4);
+  const view = new DataView(buf);
+  for (let i = 0; i < values.length; i++) view.setFloat32(i * 4, values[i], true);
+  return bytesToBase64(buf);
+}

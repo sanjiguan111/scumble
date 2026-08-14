@@ -12,6 +12,8 @@
 #include "command_batch_generated.h"
 #include "flatbuffers/flatbuffers.h"
 
+#include <cstring>
+
 using namespace skityrt;
 using namespace flatbuffers;
 
@@ -76,13 +78,23 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
       strokeGradOff = fbb.CreateVector((const uint8_t *)node.strokeGradientData.bytes,
                                        node.strokeGradientData.length);
     }
+    // Dash intervals ride as a [float] vector (raw little-endian float32 bytes);
+    // nil/empty = no vector = solid stroke.
+    flatbuffers::Offset<flatbuffers::Vector<float>> dashOff = 0;
+    if (node.strokeDashData.length >= 4) {
+      size_t count = node.strokeDashData.length / 4;
+      std::vector<float> dashes(count);
+      std::memcpy(dashes.data(), node.strokeDashData.bytes, count * sizeof(float));
+      dashOff = fbb.CreateVector(dashes);
+    }
     auto off = skityrt::CreateSetPaint(
         fbb, node.nativeId, static_cast<skityrt::PaintField>(node.dirtyPaintMask),
         static_cast<uint32_t>(node.fillColor.unsignedIntValue),
         static_cast<uint32_t>(node.strokeColor.unsignedIntValue), fillGradOff, strokeGradOff,
         node.strokeWidth, static_cast<skityrt::LineCap>(node.strokeCap),
         static_cast<skityrt::LineJoin>(node.strokeJoin), node.strokeMiter,
-        static_cast<skityrt::FillRule>(node.fillRule), node.opacity);
+        static_cast<skityrt::FillRule>(node.fillRule), node.opacity, dashOff,
+        node.strokeDashOffset);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetPaint);
     node.dirtyPaintMask = 0;

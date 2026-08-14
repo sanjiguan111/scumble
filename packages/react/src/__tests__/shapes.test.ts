@@ -13,6 +13,17 @@ function shaderChild(): ReactNode {
   } as never;
 }
 
+/** Decode base64 → raw LE float32s (mirror of graphics floatsToBase64). */
+function floatsFromBase64(s: string | undefined): number[] {
+  if (s === undefined) return [];
+  const b = atob(s);
+  const view = new DataView(new ArrayBuffer(b.length));
+  for (let i = 0; i < b.length; i++) view.setUint8(i, b.charCodeAt(i));
+  const out: number[] = [];
+  for (let i = 0; i + 4 <= b.length; i += 4) out.push(view.getFloat32(i, true));
+  return out;
+}
+
 describe("resolvePaint defaultStyle", () => {
   it("routes color to stroke when the shape defaults to stroke (Line/Polyline)", () => {
     expect(resolvePaint({ color: "red" }, undefined, "stroke")).toEqual({ stroke: 0xffff0000 });
@@ -28,6 +39,25 @@ describe("resolvePaint defaultStyle", () => {
     const r = resolvePaint({ color: "red" }, shaderChild(), "stroke");
     expect(r.strokeGradient).toBeTypeOf("string");
     expect(r.fillGradient).toBeUndefined();
+  });
+});
+
+describe("resolvePaint dash", () => {
+  it("encodes even dash intervals as base64 LE float32", () => {
+    const r = resolvePaint({ color: "red", style: "stroke", dash: [8, 4], dashOffset: 2 });
+    expect(floatsFromBase64(r.strokeDash)).toEqual([8, 4]);
+    expect(r.strokeDashOffset).toBe(2);
+  });
+
+  it("repeats an odd interval array once (SVG dasharray semantics)", () => {
+    const r = resolvePaint({ color: "red", style: "stroke", dash: [10, 4, 6] });
+    expect(floatsFromBase64(r.strokeDash)).toEqual([10, 4, 6, 10, 4, 6]);
+  });
+
+  it("drops an invalid pattern (empty / negative / zero sum) → clear dash", () => {
+    expect(resolvePaint({ dash: [] }).strokeDash).toBe("");
+    expect(resolvePaint({ dash: [-2, 4] }).strokeDash).toBe("");
+    expect(resolvePaint({ dash: [0, 0] }).strokeDash).toBe("");
   });
 });
 

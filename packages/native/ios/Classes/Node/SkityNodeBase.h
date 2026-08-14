@@ -32,6 +32,7 @@ enum SkityPaintField {
   kSkityPaintFieldOpacity = 128,
   kSkityPaintFieldFillGradient = 256,
   kSkityPaintFieldStrokeGradient = 512,
+  kSkityPaintFieldStrokeDash = 1024,
 };
 
 // GeometryField bitmask (mirrors skityrt::GeometryField in command_batch.fbs).
@@ -85,6 +86,10 @@ enum SkityGeometryField {
 @property(nonatomic, assign) uint8_t strokeCap;
 @property(nonatomic, assign) uint8_t strokeJoin;
 @property(nonatomic, assign) float strokeMiter;
+/// Stroke dash pattern ([on, off, ...] px) as raw little-endian float32 bytes
+/// (nil/empty = solid) + the phase offset into the pattern.
+@property(nonatomic, strong, nullable) NSData *strokeDashData;
+@property(nonatomic, assign) float strokeDashOffset;
 @property(nonatomic, assign) uint8_t fillRule;
 @property(nonatomic, assign) float opacity;
 

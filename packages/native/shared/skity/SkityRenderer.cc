@@ -14,6 +14,7 @@
 #include <cmath>
 #include <string>
 
+#include <skity/effect/path_effect.hpp>
 #include <skity/effect/shader.hpp>
 
 #include "render_tree_common_generated.h"
@@ -26,6 +27,7 @@ using skity::Canvas;
 using skity::Matrix;
 using skity::Paint;
 using skity::Path;
+using skity::PathEffect;
 using skity::PathMeasure;
 using skity::Rect;
 using skity::Shader;
@@ -302,6 +304,23 @@ bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, Paint *out
   return ApplyGradient(fill.gradient_data, opacity, out);
 }
 
+// Apply the style's dash pattern as the paint's path effect. Valid patterns:
+// even count ≥ 2, non-negative intervals, positive sum (skity requires the
+// same); anything else is skipped (solid stroke).
+void ApplyDashIfAny(const RetainedComputedStyle *style, Paint *out) {
+  const auto &dash = style->stroke_dash;
+  if (dash.size() < 2 || dash.size() % 2 != 0) return;
+  float sum = 0.f;
+  for (float v : dash) {
+    if (v < 0.f) return;
+    sum += v;
+  }
+  if (sum <= 0.f) return;
+  auto effect = PathEffect::MakeDashPathEffect(dash.data(), static_cast<int>(dash.size()),
+                                               style->stroke_dashoffset);
+  if (effect != nullptr) out->SetPathEffect(effect);
+}
+
 bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *out) {
   if (style == nullptr) return false;
   const RetainedPaint &stroke = style->stroke;
@@ -312,11 +331,12 @@ bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *o
   out->SetStrokeCap(ToCap(style->stroke_cap));
   out->SetStrokeJoin(ToJoin(style->stroke_join));
   out->SetStrokeMiter(style->stroke_miter);
+  ApplyDashIfAny(style, out);
   if (stroke.type == 1 /*COLOR*/) {
     out->SetColor(ColorFromARGB(stroke.color, opacity));
     return true;
   }
-  // GRADIENT (dash path effect still TODO).
+  // GRADIENT.
   return ApplyGradient(stroke.gradient_data, opacity, out);
 }
 

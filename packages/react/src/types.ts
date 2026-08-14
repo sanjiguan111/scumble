@@ -82,6 +82,15 @@ export interface GraphicProps {
   strokeMiter?: number;
   /** Shape opacity, 0–1 (folded into the paint's color alpha). */
   opacity?: number;
+  /**
+   * Stroke dash intervals in px — `[on, off, on, off, ...]` (Skia-style; an odd
+   * array is repeated once to make it even, SVG `stroke-dasharray` semantics).
+   * Stroke-only; ignored unless the shape draws a stroke. An invalid pattern
+   * (empty / negative values / zero sum) is dropped (solid stroke).
+   */
+  dash?: number[];
+  /** Phase offset into the dash pattern (px). See {@link dash}. */
+  dashOffset?: number;
   /** Blend mode. Accepted for API parity but NOT honored natively yet (caveat). */
   blendMode?: BlendMode;
   /** z-index. Accepted for parity; native z-ordering follows tree order today. */
@@ -180,6 +189,10 @@ export interface PaintProps {
   strokeJoin?: StrokeJoin;
   /** Miter limit. Stroke-only. */
   strokeMiter?: number;
+  /** Dash intervals — see {@link GraphicProps.dash}. Stroke-only. */
+  dash?: number[];
+  /** Phase offset into the dash pattern. See {@link GraphicProps.dashOffset}. */
+  dashOffset?: number;
   /** Shader children (e.g. `<LinearGradient>`) applied to this paint. */
   children?: ReactNode;
 }

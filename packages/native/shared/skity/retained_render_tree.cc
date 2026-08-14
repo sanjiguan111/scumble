@@ -36,6 +36,17 @@ void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
     node->style.stroke.type = 2; // GRADIENT
     AssignOwnedBytes(p->stroke_gradient(), &node->style.stroke.gradient_data);
   }
+  if (dirty & PaintField_STROKE_DASH) {
+    // Empty/absent vector clears dashes (solid stroke); offset travels with it.
+    node->style.stroke_dash.clear();
+    const auto *dash = p->stroke_dash();
+    if (dash != nullptr) {
+      node->style.stroke_dash.reserve(dash->size());
+      for (uint32_t i = 0; i < dash->size(); i++)
+        node->style.stroke_dash.push_back(dash->Get(i));
+    }
+    node->style.stroke_dashoffset = p->stroke_dashoffset();
+  }
   if (dirty & PaintField_STROKE_WIDTH) node->style.stroke_width = p->stroke_width();
   if (dirty & PaintField_STROKE_CAP) node->style.stroke_cap = p->stroke_cap();
   if (dirty & PaintField_STROKE_JOIN) node->style.stroke_join = p->stroke_join();

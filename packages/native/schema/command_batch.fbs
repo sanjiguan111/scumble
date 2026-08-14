@@ -28,6 +28,7 @@ enum PaintField : uint {
   OPACITY      = 128,
   FILL_GRADIENT   = 256, // fill_gradient bytes (nested Gradient FlatBuffer)
   STROKE_GRADIENT = 512, // stroke_gradient bytes (nested Gradient FlatBuffer)
+  STROKE_DASH     = 1024, // stroke_dash intervals + stroke_dashoffset (empty vector = no dash)
 }
 
 // One logical mutation. Step 1b: paint/path/transform. Step 2: structural.
@@ -63,6 +64,12 @@ table SetPaint {
   stroke_miter:float = 4.0;
   fill_rule:FillRule = NONZERO;
   opacity:float = 1.0;
+  // Stroke dash pattern (valid only if STROKE_DASH bit set): on/off intervals in
+  // px — [on, off, on, off, ...], even count, sum > 0 — plus the phase offset
+  // into the pattern. An empty/absent vector clears dashes. Appended so
+  // existing field ids stay stable.
+  stroke_dash:[float];
+  stroke_dashoffset:float = 0.0;
 }
 
 table SetPathData {

@@ -34,6 +34,13 @@ export interface SkityPaintProps {
   fillGradient?: string;
   /** Base64-encoded Gradient bytes; the stroke paint's shader. */
   strokeGradient?: string;
+  /**
+   * Base64-encoded little-endian float32 dash intervals `[on, off, ...]` (even
+   * count, positive sum). Empty string clears the pattern (solid stroke).
+   */
+  strokeDash?: string;
+  /** Phase offset into the dash pattern (px). */
+  strokeDashOffset?: number;
 }
 
 export interface SkityCommonProps extends StandardProps, SkityPaintProps {}

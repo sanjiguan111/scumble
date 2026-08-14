@@ -15,6 +15,7 @@ import {
   buildSweepGradient,
   buildTwoPointConicalGradient,
   bytesToBase64,
+  floatsToBase64,
   parseColor,
   parseStrokeCap,
   parseStrokeJoin,
@@ -51,6 +52,27 @@ export interface ResolvedPaint {
   opacity?: number;
   fillGradient?: string;
   strokeGradient?: string;
+  /** Base64 little-endian float32 dash intervals; `""` clears (solid stroke). */
+  strokeDash?: string;
+  /** Phase offset into the dash pattern (px). */
+  strokeDashOffset?: number;
+}
+
+/**
+ * Normalize dash intervals to what skity's MakeDashPathEffect accepts: an even
+ * count (an odd array is repeated once, SVG `stroke-dasharray` semantics) with
+ * non-negative values and a positive sum. Returns `[]` for an invalid pattern
+ * (natively: no vector → solid stroke).
+ */
+function normalizeDash(dash: number[]): number[] {
+  const intervals = dash.length % 2 === 0 ? dash.slice() : dash.concat(dash);
+  if (intervals.length < 2) return [];
+  let sum = 0;
+  for (const v of intervals) {
+    if (!Number.isFinite(v) || v < 0) return [];
+    sum += v;
+  }
+  return sum > 0 ? intervals : [];
 }
 
 /**
@@ -155,6 +177,8 @@ export function resolvePaint(
     strokeJoin,
     strokeMiter,
     opacity,
+    dash,
+    dashOffset,
   } = props;
 
   const out: ResolvedPaint = {};
@@ -175,6 +199,8 @@ export function resolvePaint(
   if (strokeJoin !== undefined) out.strokeJoin = parseStrokeJoin(strokeJoin);
   if (strokeMiter !== undefined) out.strokeMiter = strokeMiter;
   if (opacity !== undefined) out.opacity = opacity;
+  if (dash !== undefined) out.strokeDash = floatsToBase64(normalizeDash(dash));
+  if (dashOffset !== undefined) out.strokeDashOffset = dashOffset;
 
   // Child gradient (<LinearGradient>/<RadialGradient>/<SweepGradient>/…) placed
   // directly under the shape → base64 Gradient bytes on the paint the shape
@@ -196,6 +222,8 @@ export function resolvePaint(
     if (p.strokeCap !== undefined) out.strokeCap = parseStrokeCap(p.strokeCap);
     if (p.strokeJoin !== undefined) out.strokeJoin = parseStrokeJoin(p.strokeJoin);
     if (p.strokeMiter !== undefined) out.strokeMiter = p.strokeMiter;
+    if (p.dash !== undefined) out.strokeDash = floatsToBase64(normalizeDash(p.dash));
+    if (p.dashOffset !== undefined) out.strokeDashOffset = p.dashOffset;
     const pShader = findShaderChild(p.children);
     if (pShader !== null) {
       out[`${target}Gradient`] = gradientBytes(pShader);

@@ -76,6 +76,33 @@ export function PaintDemo() {
         <Path path={nestedRects(60)} color="#f59e0b" />
         <Path path={nestedRects(200)} color="#f59e0b" fillRule="even-odd" />
       </DemoSection>
+
+      <DemoSection title="dash" caption="dash=[on,off] 间隔；dashOffset 平移相位" height={330}>
+        <Path path="M40 50 L320 50" color="#3b82f6" style="stroke" strokeWidth={6} dash={[16, 8]} />
+        <Path
+          path="M40 105 L320 105"
+          color="#22c55e"
+          style="stroke"
+          strokeWidth={6}
+          dash={[2, 10]}
+          strokeCap="round"
+        />
+        <Path
+          path="M40 160 L320 160"
+          color="#ec4899"
+          style="stroke"
+          strokeWidth={6}
+          dash={[16, 8]}
+          dashOffset={12}
+        />
+        <Path
+          path={makeStar(180, 245, 60, 32)}
+          color="#f59e0b"
+          style="stroke"
+          strokeWidth={4}
+          dash={[10, 6]}
+        />
+      </DemoSection>
     </view>
   );
 }

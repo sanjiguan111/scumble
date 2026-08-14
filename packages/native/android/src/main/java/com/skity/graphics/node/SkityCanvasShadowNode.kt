@@ -224,12 +224,17 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       val strokeGrad = node.strokeGradientData
       val strokeGradOff = if (strokeGrad != null && strokeGrad.isNotEmpty())
           SetPaint.createStrokeGradientVector(fbb, strokeGrad) else 0
+      // Dash intervals ride as a [float] vector; null/empty = no vector = solid.
+      val dash = node.strokeDash
+      val dashOff = if (dash != null && dash.isNotEmpty())
+          SetPaint.createStrokeDashVector(fbb, dash) else 0
       offsets += SetPaint.createSetPaint(
         fbb, node.nativeId, node.dirtyPaint.toLong(),
         node.fillColor ?: 0L, node.strokeColor ?: 0L,
         fillGradOff, strokeGradOff,
         node.strokeWidth, node.strokeCap, node.strokeJoin,
-        node.strokeMiter, node.fillRule, node.opacity)
+        node.strokeMiter, node.fillRule, node.opacity,
+        dashOff, node.strokeDashOffset)
       types += Command.SetPaint
       node.dirtyPaint = 0
     }

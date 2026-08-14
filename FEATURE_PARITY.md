@@ -22,15 +22,15 @@
 
 ## B. Paint
 
-| Capability                                                                           | Status                                                                                                                                        |
-| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| fill / stroke / color / strokeWidth / strokeCap / strokeJoin / strokeMiter / opacity | ✅                                                                                                                                            |
-| Gradient (linear / radial / sweep / two-point-conical) on fill **and** stroke        | ✅                                                                                                                                            |
-| `<Paint>` declarative child (independent fill & stroke paint)                        | ✅                                                                                                                                            |
-| **BlendMode**                                                                        | ❌ Declared on `GraphicProps` but dropped in `resolvePaint`; not honored natively                                                             |
-| **dash array / dashOffset (dashes)**                                                 | ❌ `ComputedStyle` schema has `stroke_dasharray`/`stroke_dashoffset`, but `SetPaint` does not carry them; `MakeStrokePaint` dashes are a TODO |
-| **ColorFilter / ImageFilter / MaskFilter**                                           | ❌ No schema fields; unsupported                                                                                                              |
-| per-shape antiAlias toggle                                                           | ❌ Hard-wired `true`                                                                                                                          |
+| Capability                                                                           | Status                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| fill / stroke / color / strokeWidth / strokeCap / strokeJoin / strokeMiter / opacity | ✅                                                                                                                                                                                                                                                            |
+| Gradient (linear / radial / sweep / two-point-conical) on fill **and** stroke        | ✅                                                                                                                                                                                                                                                            |
+| `<Paint>` declarative child (independent fill & stroke paint)                        | ✅                                                                                                                                                                                                                                                            |
+| **BlendMode**                                                                        | ❌ Declared on `GraphicProps` but dropped in `resolvePaint`; not honored natively                                                                                                                                                                             |
+| **dash array / dashOffset (dashes)**                                                 | ✅ `dash`/`dashOffset` on every shape (and `<Paint style="stroke">`); transported as base64 LE float32 on `SetPaint.stroke_dash` + phase, applied via skity `MakeDashPathEffect`. Odd arrays repeat once (SVG semantics); invalid patterns fall back to solid |
+| **ColorFilter / ImageFilter / MaskFilter**                                           | ❌ No schema fields; unsupported                                                                                                                                                                                                                              |
+| per-shape antiAlias toggle                                                           | ❌ Hard-wired `true`                                                                                                                                                                                                                                          |
 
 ## C. Transform / clip / layering
 
@@ -43,12 +43,12 @@
 
 ## D. Path advanced
 
-| Capability                                | Status                                                                        |
-| ----------------------------------------- | ----------------------------------------------------------------------------- |
-| `start`/`end` trim                        | ✅ Single contour; multi-contour (cumulative-length) trim is a TODO           |
-| Path ops (union / intersect / diff / xor) | ❌ RN-Skia uses SkOpBuilder; none here                                        |
-| dash PathEffect                           | ❌ (same as B)                                                                |
-| corner / discrete / trim-as-effect        | ❌ skity `path_effect.hpp` exposes only `MakeDiscrete` + `MakeDash` factories |
+| Capability                                | Status                                                                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start`/`end` trim                        | ✅ Single contour; multi-contour (cumulative-length) trim is a TODO                                                                         |
+| Path ops (union / intersect / diff / xor) | ❌ RN-Skia uses SkOpBuilder; none here                                                                                                      |
+| dash PathEffect                           | ✅ Same mechanism as B (skity `MakeDashPathEffect`); declarative `DashPathEffect` component not offered — `dash`/`dashOffset` props instead |
+| corner / discrete / trim-as-effect        | ❌ skity `path_effect.hpp` exposes only `MakeDiscrete` + `MakeDash` factories                                                               |
 
 ## E. Non-geometry surfaces (listed for completeness)
 
@@ -59,7 +59,7 @@
 ## Suggested roadmap (cost/benefit order)
 
 1. ~~**`<Ellipse>` / `<Line>` wrappers**~~ — done, plus `Polyline`/`Polygon` (compiled to paths).
-2. **Dashes** — schema field already exists; gap is `SetPaint` transport + `MakeStrokePaint` calling skity's `MakeDashPathEffect`.
+2. ~~**Dashes**~~ — done (`SetPaint.stroke_dash` transport + `MakeDashPathEffect`).
 3. **Group clip + paint inheritance** — big composition win, but larger native change (`DrawNode` ClipRect/ClipPath, ComputedStyle inheritance semantics).
 4. **BlendMode** — `SetPaint` field + `Paint::SetBlendMode`; medium.
 5. **`<Points pointMode>`** — needs a new points transport (or reuse the path channel with per-point marker drawing, which skity does not expose today).

@@ -55,6 +55,9 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var strokeCap: Byte = 0
   @JvmField var strokeJoin: Byte = 0
   @JvmField var strokeMiter = 4f
+  // Stroke dash pattern ([on, off, ...] px; null = solid) + phase offset.
+  @JvmField var strokeDash: FloatArray? = null
+  @JvmField var strokeDashOffset = 0f
   @JvmField var fillRule: Byte = 0
   @JvmField var opacity = 1f
 
@@ -90,6 +93,7 @@ abstract class SkityNodeBase : ShadowNode() {
     const val OPACITY = 128
     const val FILL_GRADIENT = 256
     const val STROKE_GRADIENT = 512
+    const val STROKE_DASH = 1024
   }
 
   /** GeometryField bitmask values (mirrors skityrt::GeometryField in command_batch.fbs). */
@@ -231,6 +235,27 @@ abstract class SkityNodeBase : ShadowNode() {
     strokeMiter = v
     dirtyPaint = dirtyPaint or PaintField.STROKE_MITER
     markDirty()
+  }
+  // Dash intervals arrive as base64-encoded little-endian float32 bytes (same
+  // string channel as d/transform/gradients — Lynx props marshal no byte/float
+  // arrays). An empty payload clears dashes (solid stroke).
+  @LynxProp(name = "strokeDash") fun setStrokeDash(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    strokeDash = if (decoded.size >= 4) decodeFloatsLE(decoded) else null
+    dirtyPaint = dirtyPaint or PaintField.STROKE_DASH
+    markDirty()
+  }
+  @LynxProp(name = "strokeDashOffset") fun setStrokeDashOffset(v: Float) {
+    strokeDashOffset = v
+    dirtyPaint = dirtyPaint or PaintField.STROKE_DASH
+    markDirty()
+  }
+
+  /** Raw little-endian float32 bytes → FloatArray (flatbuffers byte order). */
+  private fun decodeFloatsLE(bytes: ByteArray): FloatArray {
+    val out = FloatArray(bytes.size / 4)
+    java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(out)
+    return out
   }
   @LynxProp(name = "fillRule") fun setFillRule(v: Int) {
     fillRule = v.toByte()

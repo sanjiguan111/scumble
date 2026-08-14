@@ -34,6 +34,11 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("strokeCap", setStrokeCap:, NSNumber *),
     LYNX_PROP_DECLARE("strokeJoin", setStrokeJoin:, NSNumber *),
     LYNX_PROP_DECLARE("strokeMiter", setStrokeMiter:, NSNumber *),
+    // Dash intervals arrive base64-encoded little-endian float32 bytes (same
+    // string channel as d/transform/gradients — Lynx props marshal no float
+    // arrays). An empty payload clears dashes (solid stroke).
+    LYNX_PROP_DECLARE("strokeDash", setStrokeDash:, NSString *),
+    LYNX_PROP_DECLARE("strokeDashOffset", setStrokeDashOffset:, NSNumber *),
     LYNX_PROP_DECLARE("fillRule", setFillRule:, NSNumber *),
     LYNX_PROP_DECLARE("opacity", setOpacity:, NSNumber *),
     // transform & path & gradient (base64-encoded nested FlatBuffer bytes)
@@ -182,6 +187,19 @@ LYNX_PROP_SETTER("strokeJoin", setStrokeJoin, NSNumber *) {
 LYNX_PROP_SETTER("strokeMiter", setStrokeMiter, NSNumber *) {
   _strokeMiter = value.floatValue;
   _dirtyPaintMask |= kSkityPaintFieldStrokeMiter;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("strokeDash", setStrokeDash, NSString *) {
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _strokeDashData = decoded.length >= 4 ? decoded : nil;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeDash;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("strokeDashOffset", setStrokeDashOffset, NSNumber *) {
+  _strokeDashOffset = value.floatValue;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeDash;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fillRule", setFillRule, NSNumber *) {
