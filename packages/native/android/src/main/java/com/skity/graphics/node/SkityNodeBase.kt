@@ -66,6 +66,8 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var pathData: ByteArray? = null
   @JvmField var fillGradientData: ByteArray? = null
   @JvmField var strokeGradientData: ByteArray? = null
+  // Group clip sequence (JS-built ClipList bytes; null = no clip).
+  @JvmField var clipData: ByteArray? = null
 
   // Phase 2: stable node id assigned by the canvas node for the retained tree.
   // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
@@ -80,6 +82,7 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var dirtyGeometry: Int = 0
   @JvmField var dirtyPath: Boolean = false
   @JvmField var dirtyTransform: Boolean = false
+  @JvmField var dirtyClip: Boolean = false
 
   /** PaintField bitmask values (mirrors skityrt::PaintField in command_batch.fbs). */
   object PaintField {
@@ -294,6 +297,14 @@ abstract class SkityNodeBase : ShadowNode() {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     strokeGradientData = if (decoded.isNotEmpty()) decoded else null
     dirtyPaint = dirtyPaint or PaintField.STROKE_GRADIENT
+    markDirty()
+  }
+  // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
+  // payload clears the clip.
+  @LynxProp(name = "clip") fun setClip(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    clipData = if (decoded.isNotEmpty()) decoded else null
+    dirtyClip = true
     markDirty()
   }
 

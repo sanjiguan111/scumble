@@ -3,6 +3,10 @@ import { describe, it, expect } from "vitest";
 import { resolvePaint } from "../internal/paint";
 import { LinearGradient } from "../shaders/LinearGradient";
 import { pointsToPathProp } from "../shapes/Polyline";
+import { findClipSpecs } from "../internal/clip";
+import { ClipPath } from "../clips/ClipPath";
+import { ClipRect } from "../clips/ClipRect";
+import { ClipRRect } from "../clips/ClipRRect";
 import type { ReactNode } from "@lynx-js/react";
 
 /** A data-only gradient child (findShaderChild only reads {type, props}). */
@@ -87,5 +91,45 @@ describe("pointsToPathProp", () => {
     expect(pointsToPathProp(TRIANGLE, true)!.length).toBeGreaterThan(
       pointsToPathProp(TRIANGLE, false)!.length,
     );
+  });
+});
+
+describe("findClipSpecs (Group clip children)", () => {
+  /** A data-only clip child (findClipSpecs only reads {type, props}). */
+  function el(type: unknown, props: never): ReactNode {
+    return { type, props } as never;
+  }
+
+  it("collects ClipRect/ClipRRect/ClipPath children in order, ignoring others", () => {
+    const specs = findClipSpecs([
+      el(ClipRect, { x: 1, y: 2, width: 30, height: 40 }),
+      { type: "not-a-clip", props: {} } as never,
+      el(ClipRRect, { width: 10, height: 10, radii: 4, op: "difference" }),
+      el(ClipPath, { path: "M0 0 L10 10 Z" }),
+    ]);
+    expect(specs).toEqual([
+      { kind: "rect", op: undefined, x: 1, y: 2, width: 30, height: 40 },
+      {
+        kind: "rrect",
+        op: "difference",
+        x: undefined,
+        y: undefined,
+        width: 10,
+        height: 10,
+        rx: 4,
+        ry: 4,
+      },
+      { kind: "path", op: undefined, path: "M0 0 L10 10 Z" },
+    ]);
+  });
+
+  it("maps {x,y} radii per-axis on ClipRRect", () => {
+    const specs = findClipSpecs([el(ClipRRect, { width: 10, height: 10, radii: { x: 8, y: 2 } })]);
+    expect(specs[0]).toMatchObject({ kind: "rrect", rx: 8, ry: 2 });
+  });
+
+  it("returns [] when there are no clip children", () => {
+    expect(findClipSpecs(undefined)).toEqual([]);
+    expect(findClipSpecs([{ type: "x", props: {} } as never])).toEqual([]);
   });
 });

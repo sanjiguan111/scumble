@@ -120,6 +120,16 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     types.push_back(skityrt::Command_SetTransform);
     node.dirtyTransform = NO;
   }
+  if (node.dirtyClip) {
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
+    if (node.clipData.length > 0) {
+      dataOff = fbb.CreateVector((const uint8_t *)node.clipData.bytes, node.clipData.length);
+    }
+    auto off = skityrt::CreateSetClip(fbb, node.nativeId, dataOff);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetClip);
+    node.dirtyClip = NO;
+  }
   if (node.dirtyGeometryMask != 0) {
     auto off = skityrt::CreateSetGeometry(
         fbb, node.nativeId, static_cast<skityrt::GeometryField>(node.dirtyGeometryMask), node.x,

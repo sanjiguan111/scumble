@@ -49,6 +49,12 @@ struct RetainedComputedStyle {
   Display display = Display_INLINE;
   Visibility visibility = Visibility_VISIBLE;
   std::vector<uint8_t> transform_data; // JS-built TransformOpList bytes
+
+  // Which PaintField bits were ever set by a SetPaint command — the
+  // "explicitly authored" markers driving group→child paint inheritance.
+  // Fields whose bit is 0 fall back to the nearest ancestor's explicit value
+  // (resolved at render time in DrawNode; nothing is stored per child).
+  uint32_t explicit_paint = 0;
 };
 
 // Mutable, owning counterpart of RenderNode. Lifetime is owned exclusively by
@@ -70,6 +76,9 @@ struct RetainedNode {
 
   std::vector<uint8_t> path_data; // JS-built PathCommandList bytes (owned)
   std::vector<float> points;      // polyline/polygon [x0,y0,x1,y1,...]
+  // JS-built ClipList bytes (owned). Group nodes only: the clip sequence
+  // applied after the node's transform, before its subtree.
+  std::vector<uint8_t> clip_data;
 
   std::vector<RetainedNode *> children; // non-owning; owned by RetainedRenderTree
   RetainedNode *parent = nullptr;

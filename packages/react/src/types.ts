@@ -326,10 +326,39 @@ export interface PathProps extends GraphicProps {
 
 export interface GroupProps extends GraphicProps {
   children?: ReactNode;
-  /** A single translate/scale/rotate object (rotate in degrees) or a 4×4 column-major matrix, applied to the subtree. */
+  /**
+   * A single translate/scale/rotate object (rotate in degrees) or a 4×4
+   * column-major matrix, applied to the subtree. Transforms are **not**
+   * inherited across groups — each group's transform applies to its own
+   * subtree only (as everywhere else).
+   */
   transform?: Transform;
-  // clip / clipIntersect from react-native-skity are intentionally omitted:
-  // native skity-group has no clip today (caveat).
+}
+
+// ---- group clip (RN-Skia-style declarative children of <Group>) ----
+
+/** How a clip shape combines with the clips before it. Defaults to `"intersect"`. */
+export type ClipOpProp = "intersect" | "difference";
+
+export interface ClipRectProps {
+  /** Defaults to 0. */
+  x?: number;
+  /** Defaults to 0. */
+  y?: number;
+  width: number;
+  height: number;
+  op?: ClipOpProp;
+}
+
+export interface ClipRRectProps extends ClipRectProps {
+  /** Corner radii. number → uniform; `{x, y}` → per-axis. */
+  radii: number | CornerRadius;
+}
+
+export interface ClipPathProps {
+  /** SVG path data string, or a Path2D object built command-style. */
+  path: string | import("@lynx-skity/graphics").Path2D;
+  op?: ClipOpProp;
 }
 
 export interface CanvasProps {

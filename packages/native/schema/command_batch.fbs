@@ -44,6 +44,7 @@ union Command {
   MoveNode,     // Step 2: reparent / reorder; subtree follows
   SetGeometry,  // Step 3a: per-field geometry, gated by fields_dirty
   SetViewport,  // Step 3a: canvas logical viewport (viewBox)
+  SetClip,      // group clip: ClipList bytes (memcpy from the JS-built blob)
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; the paint is
@@ -163,6 +164,14 @@ table SetViewport {
   y:float = 0;
   width:float = 0;
   height:float = 0;
+}
+
+// Group clip sequence (group nodes only). An empty/absent data vector clears
+// the clip. Applied by the renderer after the node's transform, before its
+// subtree — the clip geometry is in the group's local coordinate space.
+table SetClip {
+  node_id:int = -1;
+  data:[ubyte] (nested_flatbuffer: "ClipList");
 }
 
 table CommandBatch {

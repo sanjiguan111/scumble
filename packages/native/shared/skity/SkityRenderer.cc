@@ -17,6 +17,7 @@
 #include <skity/effect/path_effect.hpp>
 #include <skity/effect/shader.hpp>
 
+#include "command_batch_generated.h" // PaintField_* (inheritance explicit markers)
 #include "render_tree_common_generated.h"
 #include "render_tree_style_generated.h"
 
@@ -70,14 +71,14 @@ float VecArg(const ::flatbuffers::Vector<float> *v, size_t idx, float def = 0.f)
   return (v != nullptr && idx < v->size()) ? v->Get(idx) : def;
 }
 
-// Build a skity Path from the node's path_data (a nested PathCommandList
-// FlatBuffer built on the JS side, memcpy'd verbatim). Falls back to the points
-// vector (polyline/polygon) when no commands are present.
-Path BuildPath(const RetainedNode *node, bool force_close) {
+// Build a skity Path from nested PathCommandList bytes (a FlatBuffer built on
+// the JS side, memcpy'd verbatim) — shared by path/polyline drawing and the
+// group clip PATH branch.
+Path BuildPathFromBytes(const std::vector<uint8_t> &data, bool force_close) {
   Path path;
   const PathCommandList *list = nullptr;
-  if (!node->path_data.empty()) {
-    list = ::flatbuffers::GetRoot<PathCommandList>(node->path_data.data());
+  if (!data.empty()) {
+    list = ::flatbuffers::GetRoot<PathCommandList>(data.data());
   }
   const auto *cmds = list != nullptr ? list->commands() : nullptr;
   auto clen = cmds != nullptr ? cmds->size() : 0u;
@@ -112,17 +113,24 @@ Path BuildPath(const RetainedNode *node, bool force_close) {
       break;
     }
   }
-
-  const auto &pts = node->points;
-  auto plen = pts.size();
-  if (clen == 0 && plen >= 4) {
-    path.MoveTo(pts[0], pts[1]);
-    for (size_t i = 2; i + 1 < plen; i += 2) {
-      path.LineTo(pts[i], pts[i + 1]);
-    }
-  }
   if (force_close) path.Close();
   return path;
+}
+
+// Build a skity Path from the node's path_data; falls back to the points
+// vector (polyline/polygon) when no commands are present.
+Path BuildPath(const RetainedNode *node, bool force_close) {
+  if (node->path_data.empty() && node->points.size() >= 4) {
+    Path path;
+    const auto &pts = node->points;
+    path.MoveTo(pts[0], pts[1]);
+    for (size_t i = 2; i + 1 < pts.size(); i += 2) {
+      path.LineTo(pts[i], pts[i + 1]);
+    }
+    if (force_close) path.Close();
+    return path;
+  }
+  return BuildPathFromBytes(node->path_data, force_close);
 }
 
 // Trim a path to the normalized length window [start, end] via skity
@@ -464,7 +472,49 @@ void ApplyViewport(const RetainedViewport &vp, Canvas *canvas, float canvasWidth
   canvas->Translate(-vx, -vy);
 }
 
-void DrawNode(const RetainedNode *node, Canvas *canvas) {
+// Apply the node's clip sequence (group nodes), in the group's local
+// coordinate space (after its own transform, before its subtree). The canvas
+// accumulates intersect/difference ops natively, so a ClipList is just applied
+// in order.
+void ApplyClipIfAny(const RetainedNode *node, Canvas *canvas) {
+  if (node->clip_data.empty()) return;
+  const ClipList *list = ::flatbuffers::GetRoot<ClipList>(node->clip_data.data());
+  const auto *clips = list != nullptr ? list->clips() : nullptr;
+  if (clips == nullptr) return;
+  for (uint32_t i = 0; i < clips->size(); i++) {
+    const Clip *c = clips->Get(i);
+    if (c == nullptr) continue;
+    auto op =
+        c->op() == ClipOp_DIFFERENCE ? Canvas::ClipOp::kDifference : Canvas::ClipOp::kIntersect;
+    switch (c->type()) {
+    case ClipType_RECT:
+      canvas->ClipRect(Rect::MakeXYWH(c->x(), c->y(), c->width(), c->height()), op);
+      break;
+    case ClipType_RRECT:
+      canvas->ClipRRect(
+          skity::RRect::MakeRectXY(Rect::MakeXYWH(c->x(), c->y(), c->width(), c->height()), c->rx(),
+                                   c->ry()),
+          op);
+      break;
+    case ClipType_PATH: {
+      // The nested PathCommandList bytes travel as a [ubyte] vector; copy into
+      // an owning buffer so BuildPathFromBytes can GetRoot it.
+      const auto *bytes = c->path();
+      if (bytes == nullptr || bytes->size() == 0) break;
+      std::vector<uint8_t> data(bytes->Data(), bytes->Data() + bytes->size());
+      canvas->ClipPath(BuildPathFromBytes(data, false), op);
+      break;
+    }
+    }
+  }
+}
+
+// Draw a node with group→child paint inheritance. `inherited` carries the
+// merged ancestor style — its fill/stroke paints, stroke attrs and fill_rule
+// are the fallbacks for fields this node never authored (explicit_paint), and
+// its opacity is the accumulated product down the tree. Transform, geometry,
+// display and visibility are per-node (never inherited).
+void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle &inherited) {
   if (node == nullptr) return;
   const RetainedComputedStyle &style = node->style;
   if (style.display == Display_NONE) return;
@@ -476,15 +526,38 @@ void DrawNode(const RetainedNode *node, Canvas *canvas) {
   // into each paint's color alpha (approximate — fine for leaves, lossy for
   // groups with overlapping children).
 
+  RetainedComputedStyle scratch; // eff storage when this node overrides anything
+  const RetainedComputedStyle *eff = &inherited;
+  uint32_t explicitPaint = style.explicit_paint;
+  if (explicitPaint != 0) {
+    scratch = inherited;
+    if (explicitPaint & (PaintField_FILL | PaintField_FILL_GRADIENT)) scratch.fill = style.fill;
+    if (explicitPaint & (PaintField_STROKE | PaintField_STROKE_GRADIENT))
+      scratch.stroke = style.stroke;
+    if (explicitPaint & PaintField_STROKE_WIDTH) scratch.stroke_width = style.stroke_width;
+    if (explicitPaint & PaintField_STROKE_CAP) scratch.stroke_cap = style.stroke_cap;
+    if (explicitPaint & PaintField_STROKE_JOIN) scratch.stroke_join = style.stroke_join;
+    if (explicitPaint & PaintField_STROKE_MITER) scratch.stroke_miter = style.stroke_miter;
+    if (explicitPaint & PaintField_STROKE_DASH) {
+      scratch.stroke_dash = style.stroke_dash;
+      scratch.stroke_dashoffset = style.stroke_dashoffset;
+    }
+    if (explicitPaint & PaintField_FILL_RULE) scratch.fill_rule = style.fill_rule;
+    // Opacity multiplies down the tree (only when explicitly authored).
+    if (explicitPaint & PaintField_OPACITY) scratch.opacity *= style.opacity;
+    eff = &scratch;
+  }
+
   const std::string &tag = node->tag_name;
   if (tag == "svg" || tag == "g" || tag == "symbol" || tag == "canvas") {
+    ApplyClipIfAny(node, canvas);
     for (const RetainedNode *child : node->children) {
-      DrawNode(child, canvas);
+      DrawNode(child, canvas, *eff);
     }
     canvas->Restore();
     return;
   }
-  DrawShape(node, canvas, &style);
+  DrawShape(node, canvas, eff);
   canvas->Restore();
 }
 
@@ -498,7 +571,9 @@ void SkityRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float d
   canvas->Save();
   if (density != 1.f) canvas->Scale(density, density);
   ApplyViewport(tree->viewport(), canvas, canvasWidth, canvasHeight, density);
-  DrawNode(root, canvas);
+  // Root inherited style: all-default (no paint authored), opacity 1 — children
+  // fall back to it for fields their ancestors never set.
+  DrawNode(root, canvas, RetainedComputedStyle{});
   canvas->Restore();
 }
 

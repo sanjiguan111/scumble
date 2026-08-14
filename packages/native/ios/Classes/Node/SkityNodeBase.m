@@ -45,7 +45,10 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("transform", setTransform:, NSString *),
     LYNX_PROP_DECLARE("d", setD:, NSString *),
     LYNX_PROP_DECLARE("fillGradient", setFillGradient:, NSString *),
-    LYNX_PROP_DECLARE("strokeGradient", setStrokeGradient:, NSString *))
+    LYNX_PROP_DECLARE("strokeGradient", setStrokeGradient:, NSString *),
+    // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
+    // payload clears the clip.
+    LYNX_PROP_DECLARE("clip", setClip:, NSString *))
 
 - (NSString *)skityTagName {
   return @"";
@@ -245,6 +248,14 @@ LYNX_PROP_SETTER("strokeGradient", setStrokeGradient, NSString *) {
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _strokeGradientData = decoded.length > 0 ? decoded : nil;
   _dirtyPaintMask |= kSkityPaintFieldStrokeGradient;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("clip", setClip, NSString *) {
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _clipData = decoded.length > 0 ? decoded : nil;
+  _dirtyClip = YES;
   [self setNeedsLayout];
 }
 

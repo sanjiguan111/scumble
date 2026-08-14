@@ -34,12 +34,12 @@
 
 ## C. Transform / clip / layering
 
-| Capability                                               | Status                                                                                                |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| translate / scale / rotate / matrix / skew               | ✅                                                                                                    |
-| **Group clip (clipRect / clipPath / RRect)**             | ❌ Group has no clip; `DrawNode` only Save/Restores the transform, never calls ClipRect/ClipPath      |
-| **Group paint inheritance** (color / opacity to subtree) | ❌ Documented caveat in `Group.tsx` — no inheritance                                                  |
-| **Exact group opacity (saveLayer)**                      | ⚠️ Approximate — folded into each paint's color alpha; exact for leaves, lossy for overlapping groups |
+| Capability                                               | Status                                                                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| translate / scale / rotate / matrix / skew               | ✅                                                                                                                                                                                                                                                                                                      |
+| **Group clip (clipRect / clipPath / RRect)**             | ✅ RN-Skia-style declarative children `<ClipRect>`/`<ClipRRect>`/`<ClipPath>` (`op: intersect\|difference`, combined in order); transported as a base64 ClipList on a new `SetClip` command, applied after the group's transform. ClipRRect radii: uniform / per-axis only (no per-corner)              |
+| **Group paint inheritance** (color / opacity to subtree) | ✅ Render-time resolution via `RetainedComputedStyle.explicit_paint` (the SetPaint dirty bits): unset fields fall back to the nearest ancestor; opacity multiplies. Inherits fill/stroke paint (color + gradient), stroke attrs, dash, fillRule. NOT inherited: transform, geometry, display/visibility |
+| **Exact group opacity (saveLayer)**                      | ⚠️ Approximate — folded into each paint's color alpha; exact for leaves, lossy for overlapping groups                                                                                                                                                                                                   |
 
 ## D. Path advanced
 
@@ -60,7 +60,7 @@
 
 1. ~~**`<Ellipse>` / `<Line>` wrappers**~~ — done, plus `Polyline`/`Polygon` (compiled to paths).
 2. ~~**Dashes**~~ — done (`SetPaint.stroke_dash` transport + `MakeDashPathEffect`).
-3. **Group clip + paint inheritance** — big composition win, but larger native change (`DrawNode` ClipRect/ClipPath, ComputedStyle inheritance semantics).
+3. ~~**Group clip + paint inheritance**~~ — done (`SetClip` command + render-time inheritance via `explicit_paint`).
 4. **BlendMode** — `SetPaint` field + `Paint::SetBlendMode`; medium.
 5. **`<Points pointMode>`** — needs a new points transport (or reuse the path channel with per-point marker drawing, which skity does not expose today).
 6. Bigger blocks (ColorFilter, Path ops, Image, Text) — scope as separate features.

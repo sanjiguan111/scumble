@@ -106,8 +106,9 @@ function findShaderChild(children?: ReactNode): ShaderChild | null {
   return null;
 }
 
-/** Iterate a ReactNode children value as `{ type, props }` element candidates. */
-function childElements(children?: ReactNode): Array<{ type: unknown; props?: never }> {
+/** Iterate a ReactNode children value as `{ type, props }` element candidates.
+ * Shared with internal/clip.ts (Group's `<Clip*>` children scan). */
+export function childElements(children?: ReactNode): Array<{ type: unknown; props?: never }> {
   if (children == null || typeof children === "boolean") return [];
   const arr: ReadonlyArray<unknown> = Array.isArray(children) ? children : [children];
   const els: Array<{ type: unknown; props?: never }> = [];

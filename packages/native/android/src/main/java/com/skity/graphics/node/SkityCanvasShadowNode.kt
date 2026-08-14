@@ -16,6 +16,7 @@ import com.skity.graphics.skityrt.CommandBatch
 import com.skity.graphics.skityrt.InsertNode
 import com.skity.graphics.skityrt.MoveNode
 import com.skity.graphics.skityrt.RemoveNode
+import com.skity.graphics.skityrt.SetClip
 import com.skity.graphics.skityrt.SetGeometry
 import com.skity.graphics.skityrt.SetPaint
 import com.skity.graphics.skityrt.SetPathData
@@ -251,6 +252,13 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       offsets += SetTransform.createSetTransform(fbb, node.nativeId, off)
       types += Command.SetTransform
       node.dirtyTransform = false
+    }
+    if (node.dirtyClip) {
+      val data = node.clipData
+      val off = if (data != null && data.isNotEmpty()) SetClip.createDataVector(fbb, data) else 0
+      offsets += SetClip.createSetClip(fbb, node.nativeId, off)
+      types += Command.SetClip
+      node.dirtyClip = false
     }
     if (node.dirtyGeometry != 0) {
       offsets += SetGeometry.createSetGeometry(

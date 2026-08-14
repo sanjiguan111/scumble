@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "@lynx-js/react";
 
+import { ClipDemo } from "./ClipDemo";
 import { GradientDemo } from "./GradientDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
@@ -47,6 +48,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "translate · scale · rotate · matrix",
     accent: "#a855f7",
     render: () => <TransformDemo />,
+  },
+  {
+    key: "clip",
+    title: "Clip",
+    subtitle: "ClipRect · ClipRRect · ClipPath · difference · paint 继承",
+    accent: "#0ea5e9",
+    render: () => <ClipDemo />,
   },
   {
     key: "paint",

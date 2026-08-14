@@ -218,6 +218,7 @@ union Command {
   SetPathData,    // node_id + nested PathCommandList bytes (memcpy)
   SetTransform,   // node_id + nested TransformOpList bytes (memcpy)
   SetViewport,    // canvas viewBox
+  SetClip,        // group clip sequence (nested ClipList bytes; applied after transform)
   InsertNode,     // create node under a parent at an index
   RemoveNode,     // destroy node (+ subtree)
   MoveNode,       // reparent / reorder
@@ -453,3 +454,21 @@ always `handler.post` / `dispatch_async`.
 
 This is the most concrete engineering step of Phase 2: the dispatch model does
 not change, only the TASM→render-thread wiring and the payload do.
+
+### 11.12 Group clip + paint inheritance (2026-08-14)
+
+**Clip.** A group's clip sequence travels as a JS-built `ClipList` FlatBuffer
+(rect / rrect / path, each intersect-or-difference, combined in document order)
+on the new `SetClip` command — the same base64-string-prop + memcpy pipeline as
+path/transform/gradient/dash. The renderer applies it in `DrawNode` **after**
+the group's own transform (clip geometry is in the group's local space), before
+the subtree; the canvas accumulates intersect/difference ops natively.
+
+**Paint inheritance** is resolved entirely at render time — nothing new is
+transported. `RetainedComputedStyle.explicit_paint` accumulates the
+`SetPaint.fields_dirty` bits a node ever received; `DrawNode` threads a merged
+style down the tree, overlaying only the fields a node explicitly authored and
+falling back to the nearest ancestor's value for the rest. `opacity`
+multiplies. Inherits: fill/stroke paint (color + gradient), stroke attrs, dash,
+fillRule. Not inherited: transform, geometry, display/visibility (each stays a
+per-node property).

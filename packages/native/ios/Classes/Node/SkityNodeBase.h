@@ -98,6 +98,8 @@ enum SkityGeometryField {
 @property(nonatomic, strong, nullable) NSData *pathData;
 @property(nonatomic, strong, nullable) NSData *fillGradientData;
 @property(nonatomic, strong, nullable) NSData *strokeGradientData;
+/// Group clip sequence (JS-built ClipList bytes; nil = no clip).
+@property(nonatomic, strong, nullable) NSData *clipData;
 
 // Phase 2: stable node id assigned by the canvas node for the retained tree.
 // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
@@ -112,6 +114,7 @@ enum SkityGeometryField {
 @property(nonatomic, assign) uint32_t dirtyGeometryMask;
 @property(nonatomic, assign) BOOL dirtyPath;
 @property(nonatomic, assign) BOOL dirtyTransform;
+@property(nonatomic, assign) BOOL dirtyClip;
 
 // Phase 2 Step 2: structural hooks. Lynx has no "move" primitive — a move is a
 // remove + insert, which the canvas merges into a MoveNode (same id, same batch).

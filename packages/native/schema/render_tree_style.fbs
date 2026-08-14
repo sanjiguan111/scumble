@@ -79,3 +79,34 @@ table PathCommandList {
 table TransformOpList {
   ops:[TransformOp];
 }
+
+// ---- Group clip (JS-built ClipList, memcpy'd by native) ----
+// A group may carry a sequence of clip shapes applied in order before its
+// subtree is drawn (the canvas accumulates intersect/difference ops natively).
+
+enum ClipOp : uint {
+  INTERSECT  = 0,
+  DIFFERENCE = 1,
+}
+
+enum ClipType : uint {
+  RECT  = 0, // x, y, width, height
+  RRECT = 1, // + rx, ry
+  PATH  = 2, // nested PathCommandList bytes
+}
+
+table Clip {
+  type:ClipType = RECT;
+  op:ClipOp = INTERSECT;
+  x:float = 0;
+  y:float = 0;
+  width:float = 0;
+  height:float = 0;
+  rx:float = 0;
+  ry:float = 0;
+  path:[ubyte] (nested_flatbuffer: "PathCommandList");
+}
+
+table ClipList {
+  clips:[Clip];
+}

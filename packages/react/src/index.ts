@@ -59,6 +59,11 @@ export { TwoPointConicalGradient } from "./shaders/TwoPointConicalGradient";
 // overrides the fill or stroke paint of its parent shape, and shaders nested
 // inside it apply to that paint.
 export { Paint } from "./Paint";
+// <ClipRect>/<ClipRRect>/<ClipPath> are declarative clip children of <Group>
+// (also RN-Skia style): data-only, consumed by the Group into its `clip` prop.
+export { ClipRect } from "./clips/ClipRect";
+export { ClipRRect } from "./clips/ClipRRect";
+export { ClipPath } from "./clips/ClipPath";
 export { vec } from "./internal/vec";
 
 export type {
@@ -85,6 +90,10 @@ export type {
   PointsProp,
   PathProps,
   GroupProps,
+  ClipOpProp,
+  ClipRectProps,
+  ClipRRectProps,
+  ClipPathProps,
   CanvasProps,
   Vec,
   LinearGradientProps,

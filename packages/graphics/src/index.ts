@@ -78,3 +78,5 @@ export * from "./transform";
 export * from "./path";
 // Gradient: a linear gradient spec → nested Gradient FlatBuffer bytes (USER_SPACE).
 export * from "./gradient";
+// Clip: group clip shapes (rect/rrect/path) → nested ClipList FlatBuffer bytes.
+export * from "./clip";

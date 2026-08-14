@@ -20,6 +20,9 @@ void AssignOwnedBytes(const ::flatbuffers::Vector<uint8_t> *src, std::vector<uin
 // defaults make "field == 0" a valid value, so the bitmask is authoritative).
 void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
   uint32_t dirty = static_cast<uint32_t>(p->fields_dirty());
+  // Remember which fields this node has ever authored — the inheritance
+  // resolver (DrawNode) falls back to ancestor values for the rest.
+  node->style.explicit_paint |= dirty;
   if (dirty & PaintField_FILL) {
     node->style.fill.type = 1; // COLOR
     node->style.fill.color = p->fill_color();
@@ -195,6 +198,12 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       const auto *td = static_cast<const SetTransform *>(obj);
       RetainedNode *node = Find(td->node_id());
       if (node != nullptr) AssignOwnedBytes(td->data(), &node->style.transform_data);
+      break;
+    }
+    case Command_SetClip: {
+      const auto *sc = static_cast<const SetClip *>(obj);
+      RetainedNode *node = Find(sc->node_id());
+      if (node != nullptr) AssignOwnedBytes(sc->data(), &node->clip_data);
       break;
     }
     case Command_InsertNode: {

@@ -89,7 +89,11 @@ export interface SkityPathProps extends SkityCommonProps {
   /** Path trim end, normalized [0,1] (RN-Skia `end`). */
   pathEnd?: number;
 }
-export interface SkityGroupProps extends SkityCommonProps {}
+export interface SkityGroupProps extends SkityCommonProps {
+  /** Base64-encoded ClipList bytes (@lynx-skity/graphics); the group's clip
+   *  sequence, applied after the transform, before the subtree. Omit = no clip. */
+  clip?: string;
+}
 
 // ---- Intrinsic element type declarations ----
 
