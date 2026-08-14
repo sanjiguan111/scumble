@@ -34,7 +34,7 @@ enum SpreadMethod : byte {
 }
 
 table Gradient {
-  type:byte = 0;  // 0=LINEAR, 1=RADIAL
+  type:byte = 0;  // 0=LINEAR, 1=RADIAL, 2=SWEEP
   gradient_units:GradientUnits = OBJECT_BOUNDING_BOX;
   spread_method:SpreadMethod = PAD;
 
@@ -53,6 +53,11 @@ table Gradient {
   fr:float = 0;
 
   stops:[GradientStop];
+
+  // sweepGradient (degrees; the angles correspond to pos == 0 / pos == 1).
+  // Appended after stops so existing field ids stay stable.
+  start_angle:float = 0;
+  end_angle:float = 360;
 }
 
 // ---- Paint ----

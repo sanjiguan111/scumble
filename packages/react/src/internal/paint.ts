@@ -4,12 +4,15 @@
 // Normalizes a shape's GraphicProps (color + style + stroke + child shaders)
 // into the {fill?, stroke?, fillGradient?, ...} scalars the skity intrinsic
 // tags accept. Colors are packed 0xAARRGGBB; strokeCap/strokeJoin are enum
-// bytes; a child <LinearGradient> is serialized to base64 Gradient bytes. All
+// bytes; a child gradient shader (<LinearGradient>/<RadialGradient>/
+// <SweepGradient>) is serialized to base64 Gradient bytes. All
 // string/value resolution is delegated to @lynx-skity/graphics; the native side
 // never parses strings.
 
 import {
   buildLinearGradient,
+  buildRadialGradient,
+  buildSweepGradient,
   bytesToBase64,
   parseColor,
   parseStrokeCap,
@@ -18,7 +21,14 @@ import {
 import type { ReactNode } from "@lynx-js/react";
 
 import { LinearGradient } from "../shaders/LinearGradient";
-import type { GraphicProps, LinearGradientProps } from "../types";
+import { RadialGradient } from "../shaders/RadialGradient";
+import { SweepGradient } from "../shaders/SweepGradient";
+import type {
+  GraphicProps,
+  LinearGradientProps,
+  RadialGradientProps,
+  SweepGradientProps,
+} from "../types";
 
 /**
  * The paint slice of the skity intrinsic props — the output shape of
@@ -39,28 +49,56 @@ export interface ResolvedPaint {
 }
 
 /**
- * Find the first `<LinearGradient>` child and return its props. The gradient is
- * a data-only component (renders null); the parent consumes its props here and
- * drops it from the emitted tree, so it is never mounted. Children is walked
- * manually (no React.Children dependency) — handles a single element or array.
+ * A child shader recognized by {@link findShaderChild}: which gradient
+ * component was found, plus its props (consumed by the matching builder).
  */
-function findLinearGradient(children?: ReactNode): LinearGradientProps | null {
+type ShaderChild =
+  | { kind: "linear"; props: LinearGradientProps }
+  | { kind: "radial"; props: RadialGradientProps }
+  | { kind: "sweep"; props: SweepGradientProps };
+
+/**
+ * Find the first gradient child (`<LinearGradient>`/`<RadialGradient>`/
+ * `<SweepGradient>`) and return its kind + props. Shader components are
+ * data-only (render null); the parent consumes their props here and drops them
+ * from the emitted tree, so they are never mounted. Children is walked manually
+ * (no React.Children dependency) — handles a single element or array.
+ */
+function findShaderChild(children?: ReactNode): ShaderChild | null {
   if (children == null || typeof children === "boolean") return null;
   const arr: ReadonlyArray<unknown> = Array.isArray(children) ? children : [children];
   for (const c of arr) {
-    const el = c as { type?: unknown; props?: LinearGradientProps };
-    if (el && el.type === LinearGradient && el.props) {
-      return el.props;
-    }
+    const el = c as { type?: unknown; props?: never };
+    if (!el || !el.props) continue;
+    if (el.type === LinearGradient)
+      return { kind: "linear", props: el.props as LinearGradientProps };
+    if (el.type === RadialGradient)
+      return { kind: "radial", props: el.props as RadialGradientProps };
+    if (el.type === SweepGradient) return { kind: "sweep", props: el.props as SweepGradientProps };
   }
   return null;
+}
+
+/**
+ * Serialize a recognized gradient child into base64 Gradient bytes (the native
+ * `fillGradient` prop channel).
+ */
+function gradientBytes(shader: ShaderChild): string {
+  switch (shader.kind) {
+    case "linear":
+      return bytesToBase64(buildLinearGradient(shader.props));
+    case "radial":
+      return bytesToBase64(buildRadialGradient(shader.props));
+    case "sweep":
+      return bytesToBase64(buildSweepGradient(shader.props));
+  }
 }
 
 /**
  * Normalize a shape's {@link GraphicProps} into the `{fill?, stroke?, …}`
  * scalars the skity intrinsic tags accept. `color` is run through `parseColor`
  * and routed to `fill` or `stroke` by `style` (default `"fill"`); `strokeCap`/
- * `strokeJoin` are mapped to enum bytes. A child `<LinearGradient>` is
+ * `strokeJoin` are mapped to enum bytes. A child gradient shader is
  * serialized to base64 Gradient bytes and emitted as `fillGradient` (spike:
  * fill only). `blendMode`/`zIndex` are intentionally dropped (not honored
  * natively yet). A `color`-less, gradient-less shape resolves to an empty
@@ -88,10 +126,11 @@ export function resolvePaint(props: GraphicProps, children?: ReactNode): Resolve
   if (strokeMiter !== undefined) out.strokeMiter = strokeMiter;
   if (opacity !== undefined) out.opacity = opacity;
 
-  // Child <LinearGradient> → base64 Gradient bytes (spike: fill only).
-  const grad = findLinearGradient(children);
-  if (grad !== null) {
-    out.fillGradient = bytesToBase64(buildLinearGradient(grad));
+  // Child gradient (<LinearGradient>/<RadialGradient>/<SweepGradient>) →
+  // base64 Gradient bytes (spike: fill only).
+  const shader = findShaderChild(children);
+  if (shader !== null) {
+    out.fillGradient = gradientBytes(shader);
   }
 
   // blendMode / zIndex are accepted on GraphicProps but not honored natively

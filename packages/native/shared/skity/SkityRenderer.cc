@@ -187,13 +187,14 @@ void ApplyTransform(const RetainedComputedStyle *style, Canvas *canvas) {
 }
 
 // Build a skity Shader from a nested Gradient FlatBuffer (USER_SPACE coords, so
-// no bbox lookup is needed). Spike: LINEAR only — RADIAL/Sweep/Conical return
-// nullptr (TODO). Returns nullptr on empty/invalid data so the paint is treated
-// as inactive (draws nothing), matching the COLOR-inactive behavior.
+// no bbox lookup is needed). LINEAR/RADIAL/SWEEP are dispatched on the type
+// byte; the radial focal point (fx/fy/fr → MakeTwoPointConical) is a TODO.
+// Returns nullptr on empty/invalid data so the paint is treated as inactive
+// (draws nothing), matching the COLOR-inactive behavior.
 std::shared_ptr<Shader> BuildGradientShader(const std::vector<uint8_t> &data) {
   if (data.empty()) return nullptr;
   const Gradient *g = ::flatbuffers::GetRoot<Gradient>(data.data());
-  if (g == nullptr || g->type() != 0 /*LINEAR*/) return nullptr; // spike: linear only
+  if (g == nullptr) return nullptr;
   const auto *stops = g->stops();
   auto count = stops != nullptr ? stops->size() : 0u;
   if (count < 2) return nullptr;
@@ -225,10 +226,27 @@ std::shared_ptr<Shader> BuildGradientShader(const std::vector<uint8_t> &data) {
   }
 
   // skity::Point is an alias for Vec4; gradient geometry uses only x/y (z=w=0).
-  skity::Point pts[2];
-  pts[0] = skity::Vec4(g->x1(), g->y1(), 0.f, 0.f);
-  pts[1] = skity::Vec4(g->x2(), g->y2(), 0.f, 0.f);
-  return Shader::MakeLinear(pts, colors.data(), pos.data(), static_cast<int>(count), tile);
+  switch (g->type()) {
+  case 0: { // LINEAR
+    skity::Point pts[2];
+    pts[0] = skity::Vec4(g->x1(), g->y1(), 0.f, 0.f);
+    pts[1] = skity::Vec4(g->x2(), g->y2(), 0.f, 0.f);
+    return Shader::MakeLinear(pts, colors.data(), pos.data(), static_cast<int>(count), tile);
+  }
+  case 1: { // RADIAL (center + radius; fx/fy/fr focal fields ignored — TODO)
+    if (g->r() <= 0.f) return nullptr;
+    skity::Vec4 center(g->cx(), g->cy(), 0.f, 0.f);
+    return Shader::MakeRadial(center, g->r(), colors.data(), pos.data(), static_cast<int>(count),
+                              tile);
+  }
+  case 2: { // SWEEP (angles in degrees; start/end map to pos 0/1)
+    if (g->end_angle() <= g->start_angle()) return nullptr;
+    return Shader::MakeSweep(g->cx(), g->cy(), g->start_angle(), g->end_angle(), colors.data(),
+                             pos.data(), static_cast<int>(count), tile);
+  }
+  default:
+    return nullptr;
+  }
 }
 
 // Apply a gradient shader to `out` (shared by fill + stroke). opacity is folded

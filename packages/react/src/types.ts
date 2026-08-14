@@ -106,6 +106,39 @@ export interface LinearGradientProps {
   mode?: "clamp" | "repeat" | "mirror";
 }
 
+/**
+ * Props for {@link RadialGradient}, mirroring @shopify/react-native-skia's
+ * radial gradient (center + radius; focal point not supported yet).
+ * `c`/`r` are **absolute user-space pixels**.
+ */
+export interface RadialGradientProps {
+  /** Center of the circle (absolute user-space px). */
+  c: import("@lynx-skity/graphics").Point;
+  /** Circle radius in px; must be positive. */
+  r: number;
+  colors: import("@lynx-skity/graphics").Color[];
+  positions?: number[];
+  mode?: "clamp" | "repeat" | "mirror";
+}
+
+/**
+ * Props for {@link SweepGradient}, mirroring @shopify/react-native-skia's
+ * sweep gradient. `c` is in **absolute user-space pixels**; `start`/`end` are
+ * **degrees** (unlike RN-Skia, which uses radians — this repo standardizes on
+ * degrees, matching `rotate`), mapping to stop offsets 0/1. Defaults 0–360.
+ */
+export interface SweepGradientProps {
+  /** Center of the sweep (absolute user-space px). */
+  c: import("@lynx-skity/graphics").Point;
+  /** Start angle in degrees. Defaults to 0. */
+  start?: number;
+  /** End angle in degrees. Defaults to 360. */
+  end?: number;
+  colors: import("@lynx-skity/graphics").Color[];
+  positions?: number[];
+  mode?: "clamp" | "repeat" | "mirror";
+}
+
 // ---- transforms (react-native-skity: single object, degrees; or 4x4 matrix) ----
 
 export interface TranslateProps {

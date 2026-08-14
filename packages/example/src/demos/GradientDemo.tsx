@@ -1,9 +1,17 @@
-import { Circle, LinearGradient, Rect, vec } from "@lynx-skity/react";
+import {
+  Circle,
+  LinearGradient,
+  RadialGradient,
+  Rect,
+  SweepGradient,
+  vec,
+} from "@lynx-skity/react";
 
 import { DemoSection } from "../components/DemoSection";
 
-// Linear gradient demo. start/end are absolute logical-px points in the
-// DemoSection's 360-wide viewport (USER_SPACE_ON_USE, matching RN-Skia).
+// Gradient demo. All shader geometry (start/end, c, r) is absolute logical px
+// in the DemoSection's 360-wide viewport (USER_SPACE_ON_USE, matching RN-Skia);
+// sweep angles are degrees.
 export function GradientDemo() {
   return (
     <view>
@@ -41,6 +49,41 @@ export function GradientDemo() {
             colors={["#ef4444", "#3b82f6"]}
             mode="repeat"
           />
+        </Rect>
+      </DemoSection>
+
+      <DemoSection title="radial · on circle" caption="中心亮 → 边缘暗">
+        <Circle cx={110} cy={100} radius={70}>
+          <RadialGradient c={vec(110, 100)} r={70} colors={["#fefce8", "#f97316"]} />
+        </Circle>
+        <Circle cx={260} cy={100} radius={70}>
+          <RadialGradient
+            c={vec(260, 100)}
+            r={70}
+            colors={["#22d3ee", "#1e3a8a"]}
+            positions={[0, 0.7]}
+          />
+        </Circle>
+      </DemoSection>
+
+      <DemoSection title="radial · mode mirror" caption="渐变段镜像往返" height={100}>
+        <Rect x={20} y={20} width={320} height={60}>
+          <RadialGradient c={vec(180, 50)} r={40} colors={["#ef4444", "#3b82f6"]} mode="mirror" />
+        </Rect>
+      </DemoSection>
+
+      <DemoSection title="sweep · full turn" caption="0–360° 色相环" height={140}>
+        <Rect x={20} y={20} width={320} height={100}>
+          <SweepGradient
+            c={vec(180, 70)}
+            colors={["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ef4444"]}
+          />
+        </Rect>
+      </DemoSection>
+
+      <DemoSection title="sweep · partial arc" caption="90°–270° 局部扇形" height={140}>
+        <Rect x={20} y={20} width={320} height={100}>
+          <SweepGradient c={vec(180, 70)} start={90} end={270} colors={["#f97316", "#06b6d4"]} />
         </Rect>
       </DemoSection>
     </view>
