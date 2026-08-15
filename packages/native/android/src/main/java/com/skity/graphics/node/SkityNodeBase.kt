@@ -48,6 +48,10 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var pathStart = 0f
   @JvmField var pathEnd = 1f
 
+  // Polyline/polygon vertices [x0,y0,x1,y1,...] (null = none); <2 vertices
+  // draws nothing. An empty payload clears.
+  @JvmField var points: FloatArray? = null
+
   // ---- paint (ARGB packed as Long 0xAARRGGBB; null = inactive) ----
   @JvmField var fillColor: Long? = null
   @JvmField var strokeColor: Long? = null
@@ -120,6 +124,7 @@ abstract class SkityNodeBase : ShadowNode() {
     const val Y2 = 4096
     const val PATH_START = 8192
     const val PATH_END = 16384
+    const val POINTS = 32768
   }
 
   // Every setter calls markDirty() so a prop change forces a layout pass → the
@@ -203,6 +208,15 @@ abstract class SkityNodeBase : ShadowNode() {
   @LynxProp(name = "pathEnd") fun setPathEnd(v: Float) {
     pathEnd = v
     dirtyGeometry = dirtyGeometry or GeometryField.PATH_END
+    markDirty()
+  }
+  // Polyline/polygon vertices arrive as base64-encoded little-endian float32
+  // bytes (same string channel as strokeDash — Lynx props marshal no float
+  // arrays). An empty payload clears the vertices.
+  @LynxProp(name = "points") fun setPoints(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    points = if (decoded.size >= 4) decodeFloatsLE(decoded) else null
+    dirtyGeometry = dirtyGeometry or GeometryField.POINTS
     markDirty()
   }
 

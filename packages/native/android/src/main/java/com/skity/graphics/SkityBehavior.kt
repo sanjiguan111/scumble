@@ -13,6 +13,8 @@ import com.skity.graphics.node.SkityEllipseShadowNode
 import com.skity.graphics.node.SkityGroupShadowNode
 import com.skity.graphics.node.SkityLineShadowNode
 import com.skity.graphics.node.SkityPathShadowNode
+import com.skity.graphics.node.SkityPolygonShadowNode
+import com.skity.graphics.node.SkityPolylineShadowNode
 import com.skity.graphics.node.SkityRectShadowNode
 import com.skity.graphics.ui.SkityCanvasUI
 
@@ -41,6 +43,8 @@ class SkityBehavior : BehaviorBundle {
       virtualBehavior("skity-ellipse", ::SkityEllipseShadowNode),
       virtualBehavior("skity-line", ::SkityLineShadowNode),
       virtualBehavior("skity-path", ::SkityPathShadowNode),
+      virtualBehavior("skity-polyline", ::SkityPolylineShadowNode),
+      virtualBehavior("skity-polygon", ::SkityPolygonShadowNode),
       virtualBehavior("skity-group", ::SkityGroupShadowNode),
     )
   }
