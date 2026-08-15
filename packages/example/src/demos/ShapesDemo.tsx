@@ -1,8 +1,25 @@
+import { useEffect, useState } from "@lynx-js/react";
+
 import { Circle, Ellipse, Line, Polygon, Polyline, Rect, RRect, vec } from "@lynx-skity/react";
 
 import { DemoSection } from "../components/DemoSection";
 
 const OPACITIES = [0.25, 0.5, 0.75, 1];
+
+// Animated sine wave: the points array updates every frame, shipped as a bare
+// float vector through the SetGeometry channel (no path recompilation).
+// setInterval drives repaint (rAF doesn't on Lynx).
+function WaveAnimation() {
+  const [t, setT] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setT((v) => (v >= 1 ? 0 : v + 0.02)), 50);
+    return () => clearInterval(timer);
+  }, []);
+  const points = Array.from({ length: 64 }, (_, i) =>
+    vec(20 + i * 6, 80 + Math.sin(t * Math.PI * 2 + i * 0.22) * 50),
+  );
+  return <Polyline points={points} color="#06b6d4" strokeWidth={4} />;
+}
 
 export function ShapesDemo() {
   return (
@@ -45,6 +62,14 @@ export function ShapesDemo() {
           style="stroke"
           strokeWidth={3}
         />
+      </DemoSection>
+
+      <DemoSection
+        title="Points 动画"
+        caption="顶点每帧更新 → SetGeometry 增量通道（不重编 path）"
+        height={180}
+      >
+        <WaveAnimation />
       </DemoSection>
 
       <DemoSection title="Stroke" caption="style='stroke' + strokeWidth">
