@@ -45,9 +45,10 @@ describe("resolvePaint", () => {
     });
   });
 
-  it("drops blendMode / zIndex (native caveat)", () => {
+  it("maps blendMode to a byte, drops zIndex (not a paint concern)", () => {
     expect(resolvePaint({ color: "red", blendMode: "multiply", zIndex: 3 })).toEqual({
       fill: 0xffff0000,
+      blendMode: 24,
     });
   });
 });

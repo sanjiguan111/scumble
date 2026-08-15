@@ -92,6 +92,18 @@ export interface SkityPathProps extends SkityCommonProps {
   /** Path trim end, normalized [0,1] (RN-Skia `end`). */
   pathEnd?: number;
 }
+export interface SkityPolylineProps extends SkityCommonProps {
+  /** Base64-encoded little-endian float32 vertices `[x0,y0,x1,y1,...]`
+   *  (@lynx-skity/graphics `floatsToBase64`); native decodes + memcpys. Empty
+   *  string clears the vertices. */
+  points?: string;
+  /** Path trim start, normalized [0,1] (RN-Skia `start`). */
+  pathStart?: number;
+  /** Path trim end, normalized [0,1] (RN-Skia `end`). */
+  pathEnd?: number;
+}
+/** Same props as polyline — the closed shape is implied by the tag name. */
+export type SkityPolygonProps = SkityPolylineProps;
 export interface SkityGroupProps extends SkityCommonProps {
   /** Base64-encoded ClipList bytes (@lynx-skity/graphics); the group's clip
    *  sequence, applied after the transform, before the subtree. Omit = no clip. */
@@ -108,6 +120,8 @@ declare module "@lynx-js/types" {
     "skity-ellipse": SkityEllipseProps;
     "skity-line": SkityLineProps;
     "skity-path": SkityPathProps;
+    "skity-polyline": SkityPolylineProps;
+    "skity-polygon": SkityPolygonProps;
     "skity-group": SkityGroupProps;
   }
 }

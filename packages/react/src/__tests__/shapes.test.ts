@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { resolvePaint } from "../internal/paint";
 import { Paint } from "../Paint";
 import { LinearGradient } from "../shaders/LinearGradient";
-import { pointsToPathProp } from "../shapes/Polyline";
+import { pointsToVerticesProp } from "../shapes/Polyline";
 import { findClipSpecs } from "../internal/clip";
 import { ClipPath } from "../clips/ClipPath";
 import { ClipRect } from "../clips/ClipRect";
@@ -66,32 +66,23 @@ describe("resolvePaint dash", () => {
   });
 });
 
-describe("pointsToPathProp", () => {
+describe("pointsToVerticesProp", () => {
   const TRIANGLE = "0,0 50,100 100,0";
 
   it("returns undefined for no vertices", () => {
-    expect(pointsToPathProp("", false)).toBeUndefined();
-    expect(pointsToPathProp([], false)).toBeUndefined();
+    expect(pointsToVerticesProp("")).toBeUndefined();
+    expect(pointsToVerticesProp([])).toBeUndefined();
   });
 
-  it("emits base64 PathCommandList bytes for a points string or Vec[]", () => {
-    expect(pointsToPathProp(TRIANGLE, false)).toBeTypeOf("string");
+  it("flattens a points string or Vec[] to base64 LE float32 vertices", () => {
+    expect(floatsFromBase64(pointsToVerticesProp(TRIANGLE))).toEqual([0, 0, 50, 100, 100, 0]);
     expect(
-      pointsToPathProp(
-        [
-          { x: 0, y: 0 },
-          { x: 50, y: 100 },
-          { x: 100, y: 0 },
-        ],
-        false,
-      ),
-    ).toBe(pointsToPathProp(TRIANGLE, false));
-  });
-
-  it("polygon appends a Close command (longer payload than the same polyline)", () => {
-    expect(pointsToPathProp(TRIANGLE, true)!.length).toBeGreaterThan(
-      pointsToPathProp(TRIANGLE, false)!.length,
-    );
+      pointsToVerticesProp([
+        { x: 0, y: 0 },
+        { x: 50, y: 100 },
+        { x: 100, y: 0 },
+      ]),
+    ).toBe(pointsToVerticesProp(TRIANGLE));
   });
 });
 

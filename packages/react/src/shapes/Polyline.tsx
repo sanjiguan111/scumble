@@ -1,26 +1,23 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { Path2D, bytesToBase64, parsePoints } from "@lynx-skity/graphics";
+import { floatsToBase64, parsePoints } from "@lynx-skity/graphics";
 
 import { resolvePaint } from "../internal/paint";
 import type { PointsProp, PolylineProps } from "../types";
 
 /**
- * Compile polyline/polygon vertices (SVG `points` string or `{x,y}` pairs)
- * into base64 PathCommandList bytes — MoveTo + LineTo×n (+ Close for polygon).
- * Reuses the fully-plumbed `<skity-path>` channel: the native renderer has a
- * dedicated polyline/polygon branch keyed off a points vector, but that field
- * is not wired through the shadow nodes / command stream, and the compiled
- * path is semantically identical (the branch itself just builds the same path).
+ * Flatten polyline/polygon vertices (SVG `points` string or `{x,y}` pairs)
+ * into base64 little-endian float32 `[x0,y0,x1,y1,...]` for the native
+ * `points` prop — a plain float vector (no path recompilation), so a points
+ * update ships only the vertices via the SetGeometry channel.
  */
-export function pointsToPathProp(points: PointsProp, closed: boolean): string | undefined {
+export function pointsToVerticesProp(points: PointsProp): string | undefined {
   const pairs = typeof points === "string" ? parsePoints(points) : points;
   if (pairs.length === 0) return undefined;
-  const p = new Path2D().moveTo(pairs[0].x, pairs[0].y);
-  for (let i = 1; i < pairs.length; i++) p.lineTo(pairs[i].x, pairs[i].y);
-  if (closed) p.close();
-  return bytesToBase64(p.toBytes());
+  const flat: number[] = [];
+  for (const p of pairs) flat.push(p.x, p.y);
+  return floatsToBase64(flat);
 }
 
 /**
@@ -33,6 +30,6 @@ export function pointsToPathProp(points: PointsProp, closed: boolean): string | 
  */
 export function Polyline({ points, children, ...rest }: PolylineProps) {
   return (
-    <skity-path d={pointsToPathProp(points, false)} {...resolvePaint(rest, children, "stroke")} />
+    <skity-polyline points={pointsToVerticesProp(points)} {...resolvePaint(rest, children, "stroke")} />
   );
 }
