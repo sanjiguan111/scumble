@@ -55,6 +55,7 @@ enum SkityGeometryField {
   kSkityGeomY2 = 4096,
   kSkityGeomPathStart = 8192,
   kSkityGeomPathEnd = 16384,
+  kSkityGeomPoints = 32768,
 };
 
 @interface SkityNodeBase : LynxShadowNode
@@ -79,6 +80,11 @@ enum SkityGeometryField {
 @property(nonatomic, assign) float y2;
 @property(nonatomic, assign) float pathStart;
 @property(nonatomic, assign) float pathEnd;
+
+/// Polyline/polygon vertices [x0,y0,x1,y1,...] as raw little-endian float32
+/// bytes (nil/empty = none) — decoded at command-build time into a [float]
+/// vector, mirroring strokeDashData.
+@property(nonatomic, strong, nullable) NSData *pointsData;
 
 // ---- paint (ARGB 0xAARRGGBB; nil = inactive) ----
 @property(nonatomic, strong, nullable) NSNumber *fillColor;

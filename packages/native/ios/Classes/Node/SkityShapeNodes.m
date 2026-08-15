@@ -64,6 +64,28 @@ LYNX_REGISTER_SHADOW_NODE("skity-path")
 }
 @end
 
+@implementation SkityPolylineShadowNode
+#if LYNX_LAZY_LOAD
+LYNX_LAZY_REGISTER_SHADOW_NODE("skity-polyline")
+#else
+LYNX_REGISTER_SHADOW_NODE("skity-polyline")
+#endif
+- (NSString *)skityTagName {
+  return @"polyline";
+}
+@end
+
+@implementation SkityPolygonShadowNode
+#if LYNX_LAZY_LOAD
+LYNX_LAZY_REGISTER_SHADOW_NODE("skity-polygon")
+#else
+LYNX_REGISTER_SHADOW_NODE("skity-polygon")
+#endif
+- (NSString *)skityTagName {
+  return @"polygon";
+}
+@end
+
 @implementation SkityGroupShadowNode
 #if LYNX_LAZY_LOAD
 LYNX_LAZY_REGISTER_SHADOW_NODE("skity-group")

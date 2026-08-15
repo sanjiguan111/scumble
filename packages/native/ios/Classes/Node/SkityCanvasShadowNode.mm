@@ -131,10 +131,20 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     node.dirtyClip = NO;
   }
   if (node.dirtyGeometryMask != 0) {
+    // Polyline/polygon vertices ride as a [float] vector (raw little-endian
+    // float32 bytes), mirroring the dash intervals in SetPaint; nil/empty = no
+    // vector = cleared.
+    flatbuffers::Offset<flatbuffers::Vector<float>> pointsOff = 0;
+    if (node.pointsData.length >= 4) {
+      size_t count = node.pointsData.length / 4;
+      std::vector<float> pts(count);
+      std::memcpy(pts.data(), node.pointsData.bytes, count * sizeof(float));
+      pointsOff = fbb.CreateVector(pts);
+    }
     auto off = skityrt::CreateSetGeometry(
         fbb, node.nativeId, static_cast<skityrt::GeometryField>(node.dirtyGeometryMask), node.x,
         node.y, node.width, node.height, node.cx, node.cy, node.r, node.rx, node.ry, node.x1,
-        node.y1, node.x2, node.y2, node.pathStart, node.pathEnd);
+        node.y1, node.x2, node.y2, node.pathStart, node.pathEnd, pointsOff);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetGeometry);
     node.dirtyGeometryMask = 0;

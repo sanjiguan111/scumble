@@ -26,6 +26,10 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("y2", setY2:, NSNumber *),
     LYNX_PROP_DECLARE("pathStart", setPathStart:, NSNumber *),
     LYNX_PROP_DECLARE("pathEnd", setPathEnd:, NSNumber *),
+    // Polyline/polygon vertices arrive base64-encoded little-endian float32
+    // bytes (same string channel as strokeDash — Lynx props marshal no float
+    // arrays). An empty payload clears the vertices.
+    LYNX_PROP_DECLARE("points", setPoints:, NSString *),
     // paint
     LYNX_PROP_DECLARE("color", setColor:, NSNumber *),
     LYNX_PROP_DECLARE("fill", setFill:, NSNumber *),
@@ -153,6 +157,14 @@ LYNX_PROP_SETTER("pathStart", setPathStart, NSNumber *) {
 LYNX_PROP_SETTER("pathEnd", setPathEnd, NSNumber *) {
   _pathEnd = value.floatValue;
   _dirtyGeometryMask |= kSkityGeomPathEnd;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("points", setPoints, NSString *) {
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _pointsData = decoded.length >= 4 ? decoded : nil;
+  _dirtyGeometryMask |= kSkityGeomPoints;
   [self setNeedsLayout];
 }
 

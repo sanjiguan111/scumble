@@ -20,6 +20,10 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 @interface SkityPathShadowNode : SkityNodeBase
 @end
+@interface SkityPolylineShadowNode : SkityNodeBase
+@end
+@interface SkityPolygonShadowNode : SkityNodeBase
+@end
 @interface SkityGroupShadowNode : SkityNodeBase
 @end
 
