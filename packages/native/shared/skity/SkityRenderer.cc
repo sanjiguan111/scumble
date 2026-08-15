@@ -411,6 +411,7 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     if (MakeStrokePaint(style, opacity, &strokePaint)) canvas->DrawPath(path, strokePaint);
   } else if (tag == "polyline" || tag == "polygon") {
     Path path = BuildPath(node, tag == "polygon");
+    TrimPath(path, node->path_start, node->path_end);
     if (style != nullptr && style->fill_rule == FillRule_EVENODD) {
       path.SetFillType(Path::PathFillType::kEvenOdd);
     }

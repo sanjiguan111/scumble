@@ -79,6 +79,15 @@ void ApplySetGeometry(const SetGeometry *g, RetainedNode *node) {
   if (dirty & GeometryField_Y2) node->y2 = g->y2();
   if (dirty & GeometryField_PATH_START) node->path_start = g->path_start();
   if (dirty & GeometryField_PATH_END) node->path_end = g->path_end();
+  if (dirty & GeometryField_POINTS) {
+    // Mirror the dash handling in ApplySetPaint: empty/absent vector clears.
+    node->points.clear();
+    const auto *pts = g->points();
+    if (pts != nullptr) {
+      node->points.reserve(pts->size());
+      for (uint32_t i = 0; i < pts->size(); i++) node->points.push_back(pts->Get(i));
+    }
+  }
 }
 
 // Apply a SetViewport command to the tree-level viewport (canvas viewBox).
