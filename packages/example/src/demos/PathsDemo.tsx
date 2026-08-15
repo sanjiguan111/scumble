@@ -69,6 +69,22 @@ export function PathsDemo() {
         <TrimAnimation />
       </DemoSection>
 
+      <DemoSection
+        title="Path trim — multi-contour"
+        caption="两圆按累积总长截取 0.25–0.75：左圆后半 + 右圆前半"
+      >
+        {/* Two circles = two contours; the trim window crosses the contour
+            boundary (cumulative-length semantics). */}
+        <Path
+          path={new Path2D().addCircle(110, 100, 60).addCircle(290, 100, 60)}
+          color="#8b5cf6"
+          style="stroke"
+          strokeWidth={6}
+          start={0.25}
+          end={0.75}
+        />
+      </DemoSection>
+
       <DemoSection title="Path2D 链式 — star" caption="moveTo/lineTo/close 命令式构建">
         <Path path={makeStar(150, 100, 58, 24)} color="#f59e0b" />
       </DemoSection>
