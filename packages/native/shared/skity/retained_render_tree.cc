@@ -85,7 +85,8 @@ void ApplySetGeometry(const SetGeometry *g, RetainedNode *node) {
     const auto *pts = g->points();
     if (pts != nullptr) {
       node->points.reserve(pts->size());
-      for (uint32_t i = 0; i < pts->size(); i++) node->points.push_back(pts->Get(i));
+      for (uint32_t i = 0; i < pts->size(); i++)
+        node->points.push_back(pts->Get(i));
     }
   }
 }
