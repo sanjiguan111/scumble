@@ -130,6 +130,7 @@ enum GeometryField : uint {
   Y2         = 4096,
   PATH_START = 8192,
   PATH_END   = 16384,
+  POINTS     = 32768,
 }
 
 // Per-field geometry mutation. Only fields whose GeometryField bit is set in
@@ -156,6 +157,11 @@ table SetGeometry {
   // field ids stay stable.
   path_start:float = 0;
   path_end:float = 1;
+  // Polyline/polygon vertices [x0,y0,x1,y1,...] (flat, logical px). Valid only
+  // if the POINTS bit is set; at least 2 vertices (4 floats) draws. An
+  // empty/absent vector clears the vertices. Appended so existing field ids
+  // stay stable.
+  points:[float];
 }
 
 // Canvas logical viewport (SVG viewBox). Targets the tree-level viewport (not a
