@@ -43,6 +43,7 @@ export { Rect } from "./shapes/Rect";
 export { RRect } from "./shapes/RRect";
 export { Polyline } from "./shapes/Polyline";
 export { Polygon } from "./shapes/Polygon";
+export { Points } from "./shapes/Points";
 export { Path } from "./shapes/Path";
 // Path2D (command-style path builder) is re-exported from the graphics core so
 // callers can import it from @lynx-skity/react alongside <Path>.
@@ -88,6 +89,8 @@ export type {
   PolylineProps,
   PolygonProps,
   PointsProp,
+  PointsProps,
+  PointsMode,
   PathProps,
   GroupProps,
   ClipOpProp,

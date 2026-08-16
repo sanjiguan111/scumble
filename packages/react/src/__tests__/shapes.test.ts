@@ -4,6 +4,8 @@ import { resolvePaint } from "../internal/paint";
 import { Paint } from "../Paint";
 import { LinearGradient } from "../shaders/LinearGradient";
 import { pointsToVerticesProp } from "../shapes/Polyline";
+import { pointsToPathBytes } from "../shapes/Points";
+import { parsePath } from "@lynx-skity/graphics";
 import { findClipSpecs } from "../internal/clip";
 import { ClipPath } from "../clips/ClipPath";
 import { ClipRect } from "../clips/ClipRect";
@@ -83,6 +85,34 @@ describe("pointsToVerticesProp", () => {
         { x: 100, y: 0 },
       ]),
     ).toBe(pointsToVerticesProp(TRIANGLE));
+  });
+});
+
+describe("pointsToPathBytes (Points modes)", () => {
+  // The compiled bytes must be byte-identical to the equivalent d string, so
+  // <Points> rides the path channel exactly like <Path>.
+  function asBytes(s: string): ArrayBuffer {
+    return parsePath(s) as ArrayBuffer;
+  }
+
+  it("points mode = one zero-length segment per vertex", () => {
+    expect(pointsToPathBytes("0,0 50,100", "points")).toEqual(asBytes("M0 0 L0 0 M50 100 L50 100"));
+  });
+
+  it("lines mode = one segment per vertex pair; an unpaired tail vertex is dropped", () => {
+    expect(pointsToPathBytes("0,0 50,100 100,0", "lines")).toEqual(asBytes("M0 0 L50 100"));
+    expect(pointsToPathBytes("0,0 50,100 100,0 150,100", "lines")).toEqual(
+      asBytes("M0 0 L50 100 M100 0 L150 100"),
+    );
+  });
+
+  it("polygon mode = an open polyline through all vertices", () => {
+    expect(pointsToPathBytes("0,0 50,100 100,0", "polygon")).toEqual(asBytes("M0 0 L50 100 L100 0"));
+  });
+
+  it("returns null (renders nothing) for an empty vertex set", () => {
+    expect(pointsToPathBytes("", "points")).toBeNull();
+    expect(pointsToPathBytes([], "lines")).toBeNull();
   });
 });
 

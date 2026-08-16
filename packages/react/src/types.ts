@@ -291,6 +291,22 @@ export interface PolygonProps extends GraphicProps {
   points: PointsProp;
 }
 
+/** How {@link Points} interprets its vertices (Skia `drawPoints` PointMode). */
+export type PointsMode = "points" | "lines" | "polygon";
+
+export interface PointsProps extends GraphicProps {
+  /** The vertices, as an SVG `points` string or `{x,y}` pairs. */
+  points: PointsProp;
+  /**
+   * `"points"` (default) draws a dot per vertex — the dot's diameter is
+   * `strokeWidth` and `strokeCap` defaults to `"round"` (a butt cap would
+   * leave a zero-length segment invisible); `"lines"` draws a segment per
+   * vertex pair; `"polygon"` strokes an open polyline through all vertices.
+   * Stroked by default in every mode.
+   */
+  mode?: PointsMode;
+}
+
 export interface PathProps extends GraphicProps {
   /** SVG path data string, or a Path2D object built command-style. */
   path: string | import("@lynx-skity/graphics").Path2D;

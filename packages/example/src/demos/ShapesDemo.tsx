@@ -1,6 +1,6 @@
 import { useEffect, useState } from "@lynx-js/react";
 
-import { Circle, Ellipse, Line, Polygon, Polyline, Rect, RRect, vec } from "@lynx-skity/react";
+import { Circle, Ellipse, Line, Points, Polygon, Polyline, Rect, RRect, vec } from "@lynx-skity/react";
 
 import { DemoSection } from "../components/DemoSection";
 
@@ -61,6 +61,21 @@ export function ShapesDemo() {
           color="#6366f1"
           style="stroke"
           strokeWidth={3}
+        />
+      </DemoSection>
+
+      <DemoSection
+        title="Points (drawPoints)"
+        caption="mode: points(零长线段+round cap，直径=strokeWidth) / lines(点对) / polygon(开放折线)"
+      >
+        <Points points="40,60 80,120 120,50 20,130 100,140" color="#3b82f6" strokeWidth={10} />
+        <Points points="160,40 220,140 160,140 220,40" mode="lines" color="#f97316" strokeWidth={3} />
+        <Points
+          points={[vec(250, 40), vec(320, 70), vec(255, 100), vec(320, 130), vec(250, 145)]}
+          mode="polygon"
+          color="#22c55e"
+          strokeWidth={3}
+          strokeCap="round"
         />
       </DemoSection>
 

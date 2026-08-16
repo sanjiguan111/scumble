@@ -1,6 +1,6 @@
 # Feature parity with React Native Skia
 
-> Snapshot: 2026-08-14. Covers **geometry drawing** (`<Rect>`/`<Circle>`/`<Path>` …, paint, transform, clip) — the focus so far. Non-geometry surfaces (Image / Text / Vertices …) are listed for completeness but are out of scope of the current phase.
+> Snapshot: 2026-08-16. Covers **geometry drawing** (`<Rect>`/`<Circle>`/`<Path>` …, paint, transform, clip) — the focus so far. Non-geometry surfaces (Image / Text / Vertices …) are listed for completeness but are out of scope of the current phase.
 >
 > Cross-reference: native architecture & command-stream details live in [`packages/native/RENDER_ARCHITECTURE.md`](packages/native/RENDER_ARCHITECTURE.md). Status legend: ✅ implemented · ⚠️ partial · ❌ missing.
 
@@ -15,8 +15,8 @@
 | Path (`d` string / Path2D)                     | ✅     | Full SVG command set M/L/H/V/C/S/Q/T/A/Z; + `start`/`end` trim                                                                                                                                                                                                                                                                                                                           |
 | **Ellipse**                                    | ✅     | `<Ellipse cx cy rx ry>` → `skity-ellipse` (native DrawShape `ellipse` branch)                                                                                                                                                                                                                                                                                                            |
 | **Line**                                       | ✅     | `<Line x1 y1 x2 y2>` → `skity-line`; stroke-only (defaults `style="stroke"`, explicit fill ignored natively)                                                                                                                                                                                                                                                                             |
-| **Polyline / Polygon**                         | ✅     | React compiles `points` (SVG string or `vec()` array) to MoveTo+LineTo(+Close) path commands — rides the `skity-path` channel. The native polyline/polygon DrawShape branch + `RetainedNode.points` stay unused (the points vector is not wired through shadow nodes / command stream; the compiled path is semantically identical). Polyline defaults `stroke`, Polygon defaults `fill` |
-| **Points (`pointMode`: points/lines/polygon)** | ❌     | RN-Skia's Points draw modes unsupported                                                                                                                                                                                                                                                                                                                                                  |
+| **Polyline / Polygon**                         | ✅     | `<Polyline>`/`<Polygon>` render via the native points channel (`SetGeometry.points` float vector, incremental updates; commits `7eccd03`/`a80b2a1`). Polyline defaults `stroke`, Polygon defaults `fill`                                                                                                                                                                                    |
+| **Points (`pointMode`: points/lines/polygon)** | ✅     | `<Points mode>` compiled to path commands at the react layer — `points`: zero-length segments + `strokeCap="round"` (diameter = `strokeWidth`, how Skia's `drawPoints` works too); `lines`: point pairs; `polygon`: polyline. Defaults `style="stroke"`                                                                      |
 
 > `parsePoints` (SVG `points` string → `{x,y}` pairs) now lives in `@lynx-skity/graphics` alongside the other string parsers.
 
@@ -45,8 +45,8 @@
 
 | Capability                                | Status                                                                                                                                      |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `start`/`end` trim                        | ✅ Single contour; multi-contour (cumulative-length) trim is a TODO                                                                         |
-| Path ops (union / intersect / diff / xor) | ❌ RN-Skia uses SkOpBuilder; none here                                                                                                      |
+| `start`/`end` trim                        | ✅ Every contour trimmed independently against its own length (Skia `SkTrimPathEffect` semantics): one `PathMeasure` walked with `NextContour` + `GetSegment` appends exact curve segments |
+| Path ops (union / intersect / diff / xor) | ❌ Not wired, but skity has `PathOp` (`path_op.hpp`, all four ops) — needs a transport/API design (render-time composition vs NAPI round-trip) |
 | dash PathEffect                           | ✅ Same mechanism as B (skity `MakeDashPathEffect`); declarative `DashPathEffect` component not offered — `dash`/`dashOffset` props instead |
 | corner / discrete / trim-as-effect        | ❌ skity `path_effect.hpp` exposes only `MakeDiscrete` + `MakeDash` factories                                                               |
 
@@ -62,5 +62,6 @@
 2. ~~**Dashes**~~ — done (`SetPaint.stroke_dash` transport + `MakeDashPathEffect`).
 3. ~~**Group clip + paint inheritance**~~ — done (`SetClip` command + render-time inheritance via `explicit_paint`).
 4. ~~**BlendMode**~~ — done (`SetPaint.blend_mode`, applied to both paints, inheritable).
-5. **`<Points pointMode>`** — needs a new points transport (or reuse the path channel with per-point marker drawing, which skity does not expose today).
-6. Bigger blocks (ColorFilter, Path ops, Image, Text) — scope as separate features.
+5. ~~**`<Points pointMode>`**~~ — done (react-layer compilation to path commands; zero-length segments + round cap for `points` mode).
+6. **Path ops** — skity `PathOp` is available; needs an API/transport decision (declarative render-time composition keeps the one-way command stream; an NAPI round-trip would break it).
+7. Bigger blocks (ColorFilter, Image, Text) — scope as separate features.
