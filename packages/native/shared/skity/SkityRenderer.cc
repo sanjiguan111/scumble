@@ -135,66 +135,25 @@ Path BuildPath(const RetainedNode *node, bool force_close) {
 }
 
 // Trim a path to the normalized length window [start, end] via skity
-// PathMeasure (start/end in [0,1], start<end, else left untouched). In-place:
-// on success `path` is replaced by the sub-segment. Multi-contour paths are
-// measured against the cumulative length across contours (Skia trim
-// semantics): the window maps into each contour's local distance range, and
-// the per-contour segments are appended into one path.
+// PathMeasure (start/end in [0,1], clamped, start<end, else left untouched).
+// In-place: on success `path` is replaced by the sub-segment. Skia trim
+// semantics (SkTrimPathEffect): each contour is trimmed independently
+// against its own length, so one PathMeasure walked with NextContour +
+// GetSegment (append-only) yields the exact curve segments for every
+// contour — no resampling. ContourMeasure::getSegment is const and never
+// touches the contour iterator, so sharing one measure across the loop is
+// safe (verified against skity src/graphic/contour_measure.cc).
 void TrimPath(Path &path, float start, float end) {
   if (start <= 0.f && end >= 1.f) return;
   float s = std::clamp(start, 0.f, 1.f);
   float e = std::clamp(end, 0.f, 1.f);
   if (s >= e) return;
   PathMeasure pm(path, /*forceClosed=*/false);
-  // First pass: total length across contours.
-  float total = 0.f;
-  std::vector<float> lengths;
+  Path trimmed;
   do {
     float len = pm.GetLength();
-    lengths.push_back(len);
-    total += len;
+    pm.GetSegment(s * len, e * len, &trimmed, /*startWithMoveTo=*/true);
   } while (pm.NextContour());
-  if (total <= 0.f) return;
-  // Second pass: intersect [s*total, e*total] with each contour's span and
-  // rebuild the window as polyline samples via GetPosTan. This deliberately
-  // avoids GetSegment/AddPath: on this skity build sharing one PathMeasure
-  // drops every contour after the first (GetSegment appears to invalidate the
-  // contour iterator), and GetSegment replaces dst rather than appending, so
-  // their combinations never yield more than one contour (verified
-  // empirically). GetPosTan + MoveTo/LineTo are the basic APIs and behave.
-  float dist_start = s * total;
-  float dist_end = e * total;
-  Path trimmed;
-  float accumulated = 0.f;
-  for (size_t i = 0; i < lengths.size(); i++) {
-    float len = lengths[i];
-    float seg_start = std::clamp(dist_start - accumulated, 0.f, len);
-    float seg_end = std::clamp(dist_end - accumulated, 0.f, len);
-    if (seg_end > seg_start) {
-      PathMeasure pm(path, /*forceClosed=*/false);
-      for (size_t skip = 0; skip < i; skip++)
-        pm.NextContour();
-      float seg_len = seg_end - seg_start;
-      // ~2px per sample keeps the polyline visually indistinguishable from
-      // the curve; at least 2 samples so even tiny windows draw.
-      int steps = std::max(2, (int)std::ceil(seg_len / 2.f));
-      bool started = false;
-      for (int k = 0; k <= steps; k++) {
-        float d = seg_start + seg_len * (float)k / (float)steps;
-        skity::Point pos;
-        skity::Vector tan;
-        if (pm.GetPosTan(d, &pos, &tan)) {
-          if (!started) {
-            trimmed.MoveTo(pos.x, pos.y);
-            started = true;
-          } else {
-            trimmed.LineTo(pos.x, pos.y);
-          }
-        }
-      }
-    }
-    accumulated += len;
-  }
   if (!trimmed.IsEmpty()) path = trimmed;
 }
 

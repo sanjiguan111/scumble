@@ -71,10 +71,10 @@ export function PathsDemo() {
 
       <DemoSection
         title="Path trim — multi-contour"
-        caption="两圆按累积总长截取 0.25–0.75：左圆后半 + 右圆前半"
+        caption="两圆各自独立截取 0.25–0.75（Skia trim 语义，每 contour 独立）"
       >
-        {/* Two circles = two contours; the trim window crosses the contour
-            boundary (cumulative-length semantics). */}
+        {/* Two circles = two contours; each contour is trimmed independently
+            against its own length (Skia SkTrimPathEffect semantics). */}
         <Path
           path={new Path2D().addCircle(110, 100, 60).addCircle(290, 100, 60)}
           color="#8b5cf6"

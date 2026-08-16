@@ -298,7 +298,8 @@ export interface PathProps extends GraphicProps {
   /**
    * Trim the start of the path. Normalized path-length fraction in [0,1]
    * (default 0); mirrors react-native-skia's Path `start`. Applied to both fill
-   * and stroke via skity PathMeasure (first contour only).
+   * and stroke via skity PathMeasure; each contour of a multi-contour path is
+   * trimmed independently (Skia trim semantics).
    */
   start?: number;
   /** Trim the end of the path. [0,1] fraction (default 1). See {@link start}. */
