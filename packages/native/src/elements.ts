@@ -12,7 +12,7 @@
 // skityrt bytes. See RENDER_ARCHITECTURE.md §3/§5.
 import type { StandardProps } from "@lynx-js/types";
 
-// ---- Props (react-native-skia-style: numeric colors, numeric geometry) ----
+// ---- Props (numeric colors, numeric geometry) ----
 
 export interface SkityPaintProps {
   /** Fill color, 0xAARRGGBB. Omit for no fill. */
@@ -106,9 +106,9 @@ export interface SkityPathProps extends SkityCommonProps {
    * — the node falls back to `d`.
    */
   op?: string;
-  /** Path trim start, normalized [0,1] (RN-Skia `start`). */
+  /** Path trim start, normalized [0,1]. */
   pathStart?: number;
-  /** Path trim end, normalized [0,1] (RN-Skia `end`). */
+  /** Path trim end, normalized [0,1]. */
   pathEnd?: number;
 }
 export interface SkityPolylineProps extends SkityCommonProps {
@@ -116,9 +116,9 @@ export interface SkityPolylineProps extends SkityCommonProps {
    *  (@lynx-skity/graphics `floatsToBase64`); native decodes + memcpys. Empty
    *  string clears the vertices. */
   points?: string;
-  /** Path trim start, normalized [0,1] (RN-Skia `start`). */
+  /** Path trim start, normalized [0,1]. */
   pathStart?: number;
-  /** Path trim end, normalized [0,1] (RN-Skia `end`). */
+  /** Path trim end, normalized [0,1]. */
   pathEnd?: number;
 }
 /** Same props as polyline — the closed shape is implied by the tag name. */
@@ -127,6 +127,20 @@ export interface SkityGroupProps extends SkityCommonProps {
   /** Base64-encoded ClipList bytes (@lynx-skity/graphics); the group's clip
    *  sequence, applied after the transform, before the subtree. Omit = no clip. */
   clip?: string;
+}
+export interface SkityImageProps extends SkityCommonProps {
+  /** Source uri (http(s) URL or data URI) — doubles as the ImageStore key.
+   *  Setting it also fires the platform image load (async; the node stays
+   *  blank until pixels land, then shows up on the next draw). Empty string
+   *  clears the source. */
+  image?: string;
+  /** BoxFit byte (skityrt::BoxFit, command_batch.fbs order); resolved against
+   *  the bitmap's intrinsic size at render time. Default 1 = CONTAIN. */
+  fit?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
 }
 
 // ---- Intrinsic element type declarations ----
@@ -142,5 +156,6 @@ declare module "@lynx-js/types" {
     "skity-polyline": SkityPolylineProps;
     "skity-polygon": SkityPolygonProps;
     "skity-group": SkityGroupProps;
+    "skity-image": SkityImageProps;
   }
 }

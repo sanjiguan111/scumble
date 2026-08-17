@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-// react-native-skity-style API surface for @lynx-skity/react. These are the
+// Friendly API surface types for @lynx-skity/react. These are the
 // "friendly" props users write; the component layer normalizes them into the
 // numeric/string values the skity intrinsic tags (<skity-*>) consume.
 //
@@ -20,7 +20,7 @@ export type StrokeCap = "butt" | "round" | "square";
 
 export type StrokeJoin = "miter" | "round" | "bevel";
 
-/** react-native-skity uses the hyphenated "even-odd"; native uses "evenodd". */
+/** The parser also accepts the hyphenated "even-odd"; native uses "evenodd". */
 export type FillRule = "nonzero" | "even-odd";
 
 // BlendMode mirrors @lynx-skity/graphics' BlendModeLiteral (Skia/skity's 28
@@ -79,9 +79,9 @@ export interface GraphicProps {
 export type Vec = { x: number; y: number };
 
 /**
- * Props for {@link LinearGradient}, mirroring @shopify/react-native-skia.
- * `start`/`end` are **absolute user-space pixels** (not 0–1 normalized) — pass
- * the same values you would to RN-Skia.
+ * Props for {@link LinearGradient}. `start`/`end` are **absolute user-space
+ * pixels** (not 0–1 normalized) — the same coordinate space the painted
+ * shape uses.
  */
 export interface LinearGradientProps {
   start: import("@lynx-skity/graphics").Point;
@@ -92,8 +92,8 @@ export interface LinearGradientProps {
 }
 
 /**
- * Props for {@link RadialGradient}, mirroring @shopify/react-native-skia's
- * radial gradient (center + radius; a focal/two-circle gradient is a separate
+ * Props for {@link RadialGradient} — a center + radius radial gradient (a
+ * focal/two-circle gradient is a separate
  * {@link TwoPointConicalGradient}). `c`/`r` are **absolute user-space pixels**.
  */
 export interface RadialGradientProps {
@@ -107,10 +107,10 @@ export interface RadialGradientProps {
 }
 
 /**
- * Props for {@link SweepGradient}, mirroring @shopify/react-native-skia's
- * sweep gradient. `c` is in **absolute user-space pixels**; `start`/`end` are
- * **degrees** (unlike RN-Skia, which uses radians — this repo standardizes on
- * degrees, matching `rotate`), mapping to stop offsets 0/1. Defaults 0–360.
+ * Props for {@link SweepGradient} — an angular sweep around `c`. `c` is in
+ * **absolute user-space pixels**; `start`/`end` are **degrees** (this repo
+ * standardizes on degrees, matching `rotate`), mapping to stop offsets 0/1.
+ * Defaults 0–360.
  */
 export interface SweepGradientProps {
   /** Center of the sweep (absolute user-space px). */
@@ -125,8 +125,7 @@ export interface SweepGradientProps {
 }
 
 /**
- * Props for {@link TwoPointConicalGradient}, mirroring
- * @shopify/react-native-skia's two-point conical gradient (two circles): stop
+ * Props for {@link TwoPointConicalGradient} — two circles: stop
  * offset 0 sits on the start circle, offset 1 on the end circle. All geometry
  * is **absolute user-space pixels**.
  */
@@ -145,11 +144,11 @@ export interface TwoPointConicalGradientProps {
 }
 
 /**
- * Props for {@link Paint}, mirroring @shopify/react-native-skia's declarative
- * paint: a data-only child of a shape that overrides the paint properties for
- * its `style`. Shaders placed inside apply to that paint. Differences vs
- * RN-Skia: one fill paint + one stroke paint per shape max, and `opacity` is
- * not honored (see the {@link Paint} docs).
+ * Props for {@link Paint} — the declarative paint: a data-only child of a
+ * shape that overrides the paint properties for its `style`. Shaders placed
+ * inside apply to that paint. Native slot limits: one fill paint + one stroke
+ * paint per shape max, and `opacity` is not honored (see the {@link Paint}
+ * docs).
  */
 export interface PaintProps {
   /** Which paint this declaration targets. Defaults to `"fill"`. */
@@ -178,7 +177,7 @@ export interface PaintProps {
   children?: ReactNode;
 }
 
-// ---- transforms (react-native-skity: single object, degrees; or 4x4 matrix) ----
+// ---- transforms (single object, degrees; or 4x4 matrix) ----
 
 export interface TranslateProps {
   /** Defaults to 0. */
@@ -195,7 +194,7 @@ export interface ScaleProps {
 }
 
 export interface RotateProps {
-  /** Degrees (matches react-native-skity; react-native-skia uses radians). */
+  /** Degrees (not radians). */
   rotate: number;
   /** Pivot x. Native rotate-with-center support pending verification. */
   x?: number;
@@ -313,13 +312,51 @@ export interface PathProps extends GraphicProps {
   fillRule?: FillRule;
   /**
    * Trim the start of the path. Normalized path-length fraction in [0,1]
-   * (default 0); mirrors react-native-skia's Path `start`. Applied to both fill
+   * (default 0). Applied to both fill
    * and stroke via skity PathMeasure; each contour of a multi-contour path is
    * trimmed independently (Skia trim semantics).
    */
   start?: number;
   /** Trim the end of the path. [0,1] fraction (default 1). See {@link start}. */
   end?: number;
+}
+
+/**
+ * Opaque handle to an image source. Built by
+ * {@link useImage} / `createImageHandle`; the same uri always yields the same
+ * reference (`===` stable), so it is safe as a dependency/equality key.
+ */
+export interface ImageHandle {
+  readonly __kind: "skity-image";
+  readonly uri: string;
+}
+
+export interface ImageProps extends GraphicProps {
+  /**
+   * The image to draw: a {@link ImageHandle} from `useImage()` or a bare uri
+   * string (http(s) URL / data URI). `null`/`undefined` draws nothing. The
+   * bitmap loads asynchronously — the node stays blank until pixels land.
+   */
+  image: ImageHandle | string | null;
+  /** Left edge x (dp). Defaults to 0. */
+  x?: number;
+  /** Top edge y (dp). Defaults to 0. */
+  y?: number;
+  /** Destination width (dp). Required unless `rect` is given. */
+  width?: number;
+  /** Destination height (dp). Required unless `rect` is given. */
+  height?: number;
+  /**
+   * Destination rect as one object; takes precedence over the
+   * x/y/width/height props. x/y default to 0.
+   */
+  rect?: { x?: number; y?: number; width: number; height: number };
+  /**
+   * How the bitmap is inscribed into the destination rect (the
+   * CSS object-fit family). Defaults to `"contain"`. Resolved against the
+   * bitmap's intrinsic size at render time.
+   */
+  fit?: import("@lynx-skity/graphics").Fit;
 }
 
 export interface GroupProps extends GraphicProps {
@@ -333,7 +370,7 @@ export interface GroupProps extends GraphicProps {
   transform?: Transform;
 }
 
-// ---- paint filters (RN-Skia-style declarative children of a shape / <Paint>) ----
+// ---- paint filters (declarative children of a shape / <Paint>) ----
 
 /** Blur sigma in px — number → uniform, `{x,y}` → per-axis. */
 export type FilterRadius = number | { x: number; y: number };
@@ -353,7 +390,7 @@ export interface DropShadowProps {
   dy: number;
   /** Shadow blur sigma (px, uniform). */
   blur: number;
-  /** Shadow color. (`inner`/`shadowOnly` from RN-Skia are not supported.) */
+  /** Shadow color. (`inner`/`shadowOnly` variants are not supported.) */
   color: import("@lynx-skity/graphics").Color;
 }
 
@@ -382,7 +419,7 @@ export interface MaskBlurProps {
   style?: MaskBlurStyleProp;
 }
 
-// ---- group clip (RN-Skia-style declarative children of <Group>) ----
+// ---- group clip (declarative children of <Group>) ----
 
 /** How a clip shape combines with the clips before it. Defaults to `"intersect"`. */
 export type ClipOpProp = "intersect" | "difference";

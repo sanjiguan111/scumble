@@ -15,4 +15,11 @@ interface SkityRenderSession {
   fun applyCommands(commands: ByteArray)
   fun detachSurface()
   fun destroy()
+
+  /**
+   * Request a redraw of the retained tree (e.g. after an ImageStore bitmap
+   * arrived). Safe from any thread — posts to the render thread like
+   * [applyCommands].
+   */
+  fun postRedraw()
 }

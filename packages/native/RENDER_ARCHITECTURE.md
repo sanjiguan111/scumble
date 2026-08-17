@@ -483,14 +483,14 @@ disables NAPI on Android), so unlike RN-Skia's `Skia.Path.MakeFromOp` (which
 computes the result via JSI and hands the path back), the composition travels
 as a description and the renderer evaluates it.
 
-- **API**: `Path2D.op(one, two, op)` (@lynx-skity/graphics) builds a *lazy*
+- **API**: `Path2D.op(one, two, op)` (@lynx-skity/graphics) builds a _lazy_
   op-composed `Path2D` (a descriptor tree, no geometry math in JS). Operands
   accept `d` strings, plain `Path2D`s, and other op-composed instances —
   compositions nest arbitrarily. `<Path path={…}>` detects it via
   `toOpBytes()` and sends the `op` string prop (base64) instead of `d`.
 - **Wire**: JS-built `PathOpList` FlatBuffer (nested, like ClipList) on the
   `SetPathOpData` command. The operand chain is the tree's **left-fold form**:
-  `op(op(a,b),c)` flattens to `[a, b:op, c:op]`; a *right*-nested composition
+  `op(op(a,b),c)` flattens to `[a, b:op, c:op]`; a _right_-nested composition
   (`op(a, op(b,c))`, e.g. `(A−B)∪(C−D)`) can't flatten, so that operand carries
   a sub-`PathOpList` in its `nested` field. `PathOpKind` value order ==
   `skity::PathOp::Op` (== Skia SkPathOp; skity has no ReverseDifference).
@@ -536,3 +536,60 @@ as shaders).
 - **Shadow nodes**: six base64 string props (`fillColorFilter` …
   `strokeMaskFilter`) decode into six `*FilterData` byte slots with a 6-bit
   `dirtyFilter` mask, drained as up to six `SetPaintFilter` commands.
+
+## 12. Image nodes (2026-08-17)
+
+`<Image image x y width height fit>` + `useImage(source)` — RN-Skia-style
+bitmap drawing. Three cooperating pieces: a `SetImageSource` command (uri +
+fit only — the destination rect rides the regular SetGeometry channel), a
+process-wide `ImageStore` on the render thread, and a platform image loader
+fired from the TASM setter.
+
+- **API alignment**: `fit` is RN-Skia's seven-value `Fit` union (Flutter
+  BoxFit semantics); the enum is `skityrt::BoxFit` with Flutter's value order.
+  **Fit resolves at render time** against the bitmap's intrinsic size — the JS
+  side never knows the dimensions (no native→JS channel, hence no
+  null-while-loading `useImage` phase, no onError). `useImage` returns a
+  reference-stable handle immediately (module-level cache, uri-keyed).
+- **Load path** (TASM setter side, not the render thread — the load runs in
+  parallel with the command batch that carries the uri):
+  setter → platform loader (dedup by pending-set) → pixels → **posted onto the
+  render thread** → `ImageStore::StorePixels` → redraw all live sessions.
+  The shared renderer stays a pure consumer: `DrawShape("image")` asks the
+  store and silently skips the node while pending/failed.
+- **ImageStore** (`shared/skity/image_store.{h,cc}`): uri-keyed, **render
+  thread only** (Android `nativeStoreImage` is posted to the active backend's
+  render handler; iOS `SkityStoreImageBytes` dispatches onto
+  SkityMetalContext.renderQueue — no locks anywhere). Entries hold CPU pixels
+  (`skity::Pixmap`, premultiplied RGBA) plus a **per-GPUContext weak_ptr
+  cache** of `skity::Image` (GL: one process context; Vulkan: one per
+  renderer — each gets its own entry automatically). Failures are permanent
+  (v1: no retry, no LRU eviction — TODO).
+- **GPU context rule**: `Image::MakeImage(pixmap, ctx)` **requires the live
+  backend context** — `MakeImage(pixmap, nullptr)` produces an undrawable
+  image (verified on Metal in the pre-implementation spike). `SkityRenderer::
+Draw` therefore takes a trailing `gpu_context` param, supplied by each
+  backend at its existing call site (iOS `_gpuContext.get()`, GL
+  `shared_->skity_context.get()`, Vulkan `context_.get()`).
+- **Pixel transport**: Android `Bitmap.copyPixelsToBuffer` (ARGB_8888 =
+  premultiplied RGBA, R,G,B,A byte order) → JNI `GetByteArrayElements` →
+  malloc copy → `skity::Data::MakeWithProc(free)`; iOS CGBitmapContext
+  (`kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big` = R,G,B,A) →
+  NSData → malloc copy → same `Data::MakeWithProc`. One copy at the boundary;
+  the store then owns the bytes. **Copy timing discipline**: on iOS the copy
+  must happen SYNCHRONOUSLY in the loader callback (before dispatching to the
+  render queue) — the callback's NSData dies when it returns, and the
+  dispatch block must only carry owned data (uri by value, the malloc'd
+  buffer). Capturing the raw `bytes` pointer or a `const std::string&` across
+  `dispatch_async` was an EXC_BAD_ACCESS in the wild (2026-08-17).
+- **Built-in loaders**: `data:` URIs + `http(s)` on both platforms
+  (HttpURLConnection / NSURLSession, zero third-party deps). Hosts inject
+  their own: `SkityInit.imageLoader` (Android), `[SkityImageLoaderRegistry
+setImageLoader:]` (iOS). Unknown schemes → host loader only.
+- **Paint**: `MakeImagePaint` applies the inherited (or node-authored)
+  opacity + blendMode + the fill slot's filters; fill color/gradient are
+  ignored (the bitmap supplies color — the modulate color is white at the
+  effective opacity).
+- **Fit math**: `ApplyBoxFit` in SkityRenderer.cc is a port of Flutter's
+  `applyBoxFit` + inscribe (cover center-crops the source; none is 1:1 center
+  crop; scaleDown = contain-but-never-upscale).

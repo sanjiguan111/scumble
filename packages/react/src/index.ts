@@ -4,7 +4,7 @@
 /**
  * @lynx-skity/react — the React component layer for lynx-skity.
  *
- * A react-native-skia / react-native-skity-style declarative API on top of the
+ * A declarative canvas API on top of the
  * native skity intrinsic tags (`<skity-canvas>`, `<skity-rect>`, …). Components
  * accept friendly values — CSS color strings, paint enums, transform objects,
  * SVG path `d` strings (or a {@link Path2D}) — and normalize them into the
@@ -45,21 +45,28 @@ export { Polyline } from "./shapes/Polyline";
 export { Polygon } from "./shapes/Polygon";
 export { Points } from "./shapes/Points";
 export { Path } from "./shapes/Path";
+// ---- image ----
+// <Image> draws a bitmap; useImage resolves a source
+// uri into a stable handle. The bitmap loads asynchronously on the platform
+// side — the node stays blank until pixels land (no null-phase/onError here).
+export { Image } from "./shapes/Image";
+export { useImage, createImageHandle } from "./hooks/useImage";
 // Path2D (command-style path builder) is re-exported from the graphics core so
 // callers can import it from @lynx-skity/react alongside <Path>. Path2D.op
 // builds lazy boolean compositions (Skia path ops) consumed by <Path>; the
 // PathOpName type names the four operations it accepts.
 export { Path2D } from "@lynx-skity/graphics";
 export type { PathOpName } from "@lynx-skity/graphics";
+// <Image> fit mode union.
+export type { Fit } from "@lynx-skity/graphics";
 // ---- shaders & paints ----
-// Gradient shaders are declarative children of a shape (react-native-skia
-// style): `<Rect><LinearGradient .../></Rect>`. vec() builds the {x,y} points
+// Gradient shaders are declarative children of a shape: `<Rect><LinearGradient .../></Rect>`. vec() builds the {x,y} points
 // they take.
 export { LinearGradient } from "./shaders/LinearGradient";
 export { RadialGradient } from "./shaders/RadialGradient";
 export { SweepGradient } from "./shaders/SweepGradient";
 export { TwoPointConicalGradient } from "./shaders/TwoPointConicalGradient";
-// <Paint> is a declarative paint override child (also RN-Skia style): it
+// <Paint> is a declarative paint override child : it
 // overrides the fill or stroke paint of its parent shape, and shaders nested
 // inside it apply to that paint.
 export { Paint } from "./Paint";
@@ -69,7 +76,7 @@ export { Paint } from "./Paint";
 // kind compose in declaration order.
 export { Blur, DropShadow, ColorMatrix, ColorBlend, MaskBlur } from "./filters/filters";
 // <ClipRect>/<ClipRRect>/<ClipPath> are declarative clip children of <Group>
-// (also RN-Skia style): data-only, consumed by the Group into its `clip` prop.
+// : data-only, consumed by the Group into its `clip` prop.
 export { ClipRect } from "./clips/ClipRect";
 export { ClipRRect } from "./clips/ClipRRect";
 export { ClipPath } from "./clips/ClipPath";
@@ -101,6 +108,8 @@ export type {
   PointsMode,
   PathProps,
   GroupProps,
+  ImageHandle,
+  ImageProps,
   ClipOpProp,
   ClipRectProps,
   ClipRRectProps,
@@ -125,5 +134,5 @@ export type {
 // stroke paints: a shader placed directly under a shape targets fill, while a
 // shader inside a `<Paint style="stroke">` child targets stroke (the native
 // renderer draws fill + stroke as two passes). Per-paint `opacity`/`blendMode`
-// and more than one paint per style (RN-Skia's multi-pass) are still TODO —
+// and more than one paint per style (multi-pass) are still TODO —
 // the command stream has exactly one fill + one stroke paint slot.

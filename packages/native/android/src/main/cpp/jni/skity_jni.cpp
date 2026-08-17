@@ -12,8 +12,14 @@
 #include "skity/app_renderer.hpp"
 #include "skity/shared_gl_context.hpp"
 
+#include "image_store.h" // shared/skity (on the shared include path)
+
 #include <skity/gpu/gpu_context_vk.hpp>
+#include <skity/io/data.hpp>
 #include <vulkan/vulkan.h>
+
+#include <cstdlib>
+#include <cstring>
 
 namespace {
 
@@ -121,6 +127,54 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyCommands(
   renderer->ApplyCommands(reinterpret_cast<const uint8_t *>(bytes),
                           static_cast<std::size_t>(length));
   env->ReleaseByteArrayElements(commands, bytes, JNI_ABORT);
+}
+
+// ImageStore entry points. Called on the active backend's render thread only
+// (SkityImageController posts them there); the store itself is render-thread
+// only. Pixels are premultiplied RGBA (ARGB_8888 Bitmap.copyPixelsToBuffer on
+// the Kotlin side).
+JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeStoreImage(
+    JNIEnv *env, jclass /*clazz*/, jstring uri, jbyteArray rgba, jint width, jint height) {
+  const char *uri_chars = env->GetStringUTFChars(uri, nullptr);
+  if (uri_chars == nullptr || width <= 0 || height <= 0) {
+    if (uri_chars != nullptr) {
+      env->ReleaseStringUTFChars(uri, uri_chars);
+    }
+    return;
+  }
+  const std::string key(uri_chars);
+  env->ReleaseStringUTFChars(uri, uri_chars);
+
+  jsize length = env->GetArrayLength(rgba);
+  jbyte *bytes = env->GetByteArrayElements(rgba, nullptr);
+  if (bytes == nullptr || static_cast<jsize>(width) * height * 4 != length) {
+    if (bytes != nullptr) {
+      env->ReleaseByteArrayElements(rgba, bytes, JNI_ABORT);
+    }
+    skityrt::ImageStore::Instance().MarkFailed(key);
+    return;
+  }
+  // Copy out of the JNI-managed array, then hand ownership to skity::Data.
+  auto *px = std::malloc(static_cast<std::size_t>(length));
+  std::memcpy(px, bytes, static_cast<std::size_t>(length));
+  env->ReleaseByteArrayElements(rgba, bytes, JNI_ABORT);
+  auto data = skity::Data::MakeWithProc(
+      px, static_cast<std::size_t>(length),
+      [](const void *ptr, void *) { std::free(const_cast<void *>(ptr)); }, nullptr);
+  skityrt::ImageStore::Instance().StorePixels(key, std::move(data), static_cast<uint32_t>(width),
+                                              static_cast<uint32_t>(height),
+                                              /*premultiplied=*/true);
+}
+
+JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeMarkImageFailed(JNIEnv *env,
+                                                                                 jclass /*clazz*/,
+                                                                                 jstring uri) {
+  const char *uri_chars = env->GetStringUTFChars(uri, nullptr);
+  if (uri_chars == nullptr) {
+    return;
+  }
+  skityrt::ImageStore::Instance().MarkFailed(std::string(uri_chars));
+  env->ReleaseStringUTFChars(uri, uri_chars);
 }
 
 } // extern "C"

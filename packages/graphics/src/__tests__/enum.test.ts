@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 
-import { parseBlendMode } from "../enum.js";
+import { parseBlendMode, parseFit } from "../enum.js";
 
 import { parseFillRule, parseStrokeCap, parseStrokeJoin } from "../enum.js";
 
@@ -45,5 +45,29 @@ describe("parseBlendMode", () => {
   it("passes numbers through and falls back to SRC_OVER on unknown strings", () => {
     expect(parseBlendMode(14)).toBe(14);
     expect(parseBlendMode("nope")).toBe(3);
+  });
+});
+
+describe("parseFit", () => {
+  it("maps all seven Fit literals to their BoxFit bytes", () => {
+    expect(parseFit("fill")).toBe(0);
+    expect(parseFit("contain")).toBe(1);
+    expect(parseFit("cover")).toBe(2);
+    expect(parseFit("fitWidth")).toBe(3);
+    expect(parseFit("fitHeight")).toBe(4);
+    expect(parseFit("none")).toBe(5);
+    expect(parseFit("scaleDown")).toBe(6);
+  });
+
+  it("is case-insensitive", () => {
+    expect(parseFit("Cover")).toBe(2);
+    expect(parseFit("FITWIDTH")).toBe(3);
+    expect(parseFit("ScaleDown")).toBe(6);
+  });
+
+  it("passes bytes through and defaults unknown strings to CONTAIN", () => {
+    expect(parseFit(2)).toBe(2);
+    expect(parseFit(9999)).toBe(9999 & 0xff); // masked to a byte
+    expect(parseFit("banana")).toBe(1);
   });
 });

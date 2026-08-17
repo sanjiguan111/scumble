@@ -9,6 +9,7 @@ import android.view.TextureView
 import android.widget.FrameLayout
 import com.skity.graphics.SkityInit
 import com.skity.graphics.SkityNative
+import com.skity.graphics.image.SkityImageController
 import com.skity.graphics.render.SkityGLRenderSession
 import com.skity.graphics.render.SkityRenderSession
 import com.skity.graphics.render.SkityVulkanRenderSession
@@ -37,6 +38,9 @@ class SkityCanvasView(context: Context) : FrameLayout(context) {
   private val textureView = TextureView(context)
 
   init {
+    // Register for late-bitmap redraws (an ImageStore write pings every live
+    // session; weak reference, cleaned up automatically on destroy).
+    SkityImageController.registerSession(session)
     addView(
       textureView,
       LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)

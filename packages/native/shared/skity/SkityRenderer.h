@@ -21,9 +21,12 @@ public:
   // Draw `tree` onto `canvas`. `density` scales logical dp units to pixels.
   // `canvasWidth`/`canvasHeight` are the surface size in physical pixels, used
   // to apply the viewport (logical → physical) transform; both are required so
-  // every backend call site supplies them.
+  // every backend call site supplies them. `gpu_context` is the calling
+  // backend's live GPU context — required to materialize ImageStore bitmaps
+  // (image nodes); callers that never draw images may pass nullptr.
   static void Draw(const RetainedRenderTree *tree, ::skity::Canvas *canvas, float density,
-                   float canvasWidth, float canvasHeight);
+                   float canvasWidth, float canvasHeight,
+                   ::skity::GPUContext *gpu_context = nullptr);
 };
 
 } // namespace skityrt

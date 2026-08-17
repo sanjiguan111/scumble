@@ -48,6 +48,7 @@ union Command {
   SetClip,      // group clip: ClipList bytes (memcpy from the JS-built blob)
   SetPathOpData,// path boolean ops: PathOpList bytes, evaluated at render time
   SetPaintFilter,// one paint-filter slot: nested Filter bytes (fill/stroke × color/image/mask)
+  SetImageSource,// image node: source uri + fit (pixels arrive via the platform image loader)
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; the paint is
@@ -218,6 +219,32 @@ table SetPaintFilter {
   slot:PaintSlot = FILL;
   kind:FilterSlot = COLOR;
   data:[ubyte] (nested_flatbuffer: "Filter");
+}
+
+// How a bitmap is inscribed into the destination rect (the CSS object-fit
+// family, extended). Value order follows the canonical BoxFit so the
+// renderer's applyBoxFit port stays 1:1 comparable.
+enum BoxFit : byte {
+  FILL      = 0,
+  CONTAIN   = 1,
+  COVER     = 2,
+  FIT_WIDTH = 3,
+  FIT_HEIGHT= 4,
+  NONE      = 5,
+  SCALE_DOWN= 6,
+}
+
+// Image node source (image nodes only). The uri is the ImageStore key AND the
+// platform loader request (http(s) URL or data URI); the platform TASM setter
+// fires the load when it first sees the uri, pixels land in the store from the
+// render thread, and the renderer skips the node until they arrive. fit is
+// resolved at render time against the bitmap's intrinsic size (the JS side
+// never knows it). An empty/absent uri clears the source (node draws nothing).
+// Destination rect (x/y/width/height) rides the regular SetGeometry channel.
+table SetImageSource {
+  node_id:int = -1;
+  uri:string;
+  fit:BoxFit = CONTAIN;
 }
 
 table CommandBatch {

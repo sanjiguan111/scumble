@@ -66,6 +66,10 @@ class SkityVulkanRenderSession(private val density: Float) : SkityRenderSession 
     SkityNative.nativeDrawFrame(rendererHandle)
   }
 
+  override fun postRedraw() {
+    renderHandler.post { drawIfReady() }
+  }
+
   override fun detachSurface() {
     surfaceReady = false
     renderHandler.post {

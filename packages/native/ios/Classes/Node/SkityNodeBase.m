@@ -3,6 +3,7 @@
 
 #import "SkityNodeBase.h"
 #import "SkityCanvasShadowNode.h"
+#import "SkityImageLoader.h"
 
 #import <Lynx/LynxPropsProcessor.h>
 
@@ -64,7 +65,12 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("strokeMaskFilter", setStrokeMaskFilter:, NSString *),
     // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
     // payload clears the clip.
-    LYNX_PROP_DECLARE("clip", setClip:, NSString *))
+    LYNX_PROP_DECLARE("clip", setClip:, NSString *),
+    // Image node source uri (http(s) URL / data URI); an empty string clears
+    // the source. Setting it also fires the platform image load.
+    LYNX_PROP_DECLARE("image", setImage:, NSString *),
+    // BoxFit value (command_batch.fbs order).
+    LYNX_PROP_DECLARE("fit", setFit:, NSNumber *))
 
 - (NSString *)skityTagName {
   return @"";
@@ -310,6 +316,23 @@ LYNX_PROP_SETTER("clip", setClip, NSString *) {
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _clipData = decoded.length > 0 ? decoded : nil;
   _dirtyClip = YES;
+  [self setNeedsLayout];
+}
+
+LYNX_PROP_SETTER("image", setImage, NSString *) {
+  _imageUri = value.length > 0 ? [value copy] : nil;
+  _dirtyImage = YES;
+  [self setNeedsLayout];
+  // Fire (or join) the platform load here on the TASM thread — the load then
+  // runs in parallel with the command batch that carries this uri.
+  if (_imageUri != nil) {
+    [SkityImageLoaderRegistry requestImage:_imageUri];
+  }
+}
+
+LYNX_PROP_SETTER("fit", setFit, NSNumber *) {
+  _imageFit = (uint8_t)value.unsignedCharValue;
+  _dirtyImage = YES;
   [self setNeedsLayout];
 }
 

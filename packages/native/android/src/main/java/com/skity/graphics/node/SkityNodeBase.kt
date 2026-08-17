@@ -4,6 +4,7 @@ package com.skity.graphics.node
 
 import com.lynx.tasm.behavior.LynxProp
 import com.lynx.tasm.behavior.shadow.ShadowNode
+import com.skity.graphics.image.SkityImageController
 import kotlin.jvm.JvmField
 
 /**
@@ -86,6 +87,11 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var strokeMaskFilterData: ByteArray? = null
   // Group clip sequence (JS-built ClipList bytes; null = no clip).
   @JvmField var clipData: ByteArray? = null
+  // Image node source: the uri doubles as the ImageStore key and the platform
+  // loader request. Empty/null = no source (node draws nothing).
+  @JvmField var imageUri: String? = null
+  // BoxFit (command_batch.fbs value order); default CONTAIN = 1.
+  @JvmField var imageFit: Byte = 1
 
   // Phase 2: stable node id assigned by the canvas node for the retained tree.
   // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
@@ -103,6 +109,7 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var dirtyFilter: Int = 0
   @JvmField var dirtyTransform: Boolean = false
   @JvmField var dirtyClip: Boolean = false
+  @JvmField var dirtyImage: Boolean = false
 
   /** Paint filter slot bitmask (which of the six *FilterData slots is dirty). */
   object PaintFilterField {
@@ -398,6 +405,25 @@ abstract class SkityNodeBase : ShadowNode() {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     clipData = if (decoded.isNotEmpty()) decoded else null
     dirtyClip = true
+    markDirty()
+  }
+
+  // Image node source uri (http(s) URL / data URI); an empty payload clears
+  // the source. Setting it also fires the platform image load — the load then
+  // runs in parallel with the command batch that carries this uri.
+  @LynxProp(name = "image") fun setImage(v: String) {
+    imageUri = if (v.isNotEmpty()) v else null
+    dirtyImage = true
+    markDirty()
+    if (imageUri != null) {
+      SkityImageController.request(imageUri!!)
+    }
+  }
+
+  // BoxFit value (command_batch.fbs order).
+  @LynxProp(name = "fit") fun setFit(v: Int) {
+    imageFit = v.toByte()
+    dirtyImage = true
     markDirty()
   }
 

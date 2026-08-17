@@ -131,6 +131,11 @@ enum SkityPaintFilterField {
 @property(nonatomic, strong, nullable) NSData *strokeMaskFilterData;
 /// Group clip sequence (JS-built ClipList bytes; nil = no clip).
 @property(nonatomic, strong, nullable) NSData *clipData;
+/// Image node source: the uri doubles as the ImageStore key and the platform
+/// loader request. Empty/nil = no source (node draws nothing).
+@property(nonatomic, copy, nullable) NSString *imageUri;
+/// BoxFit (command_batch.fbs value order); default CONTAIN = 1.
+@property(nonatomic, assign) uint8_t imageFit;
 
 // Phase 2: stable node id assigned by the canvas node for the retained tree.
 // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
@@ -148,6 +153,7 @@ enum SkityPaintFilterField {
 @property(nonatomic, assign) uint32_t dirtyFilterMask;
 @property(nonatomic, assign) BOOL dirtyTransform;
 @property(nonatomic, assign) BOOL dirtyClip;
+@property(nonatomic, assign) BOOL dirtyImage;
 
 // Phase 2 Step 2: structural hooks. Lynx has no "move" primitive — a move is a
 // remove + insert, which the canvas merges into a MoveNode (same id, same batch).

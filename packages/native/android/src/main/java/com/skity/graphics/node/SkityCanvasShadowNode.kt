@@ -22,6 +22,7 @@ import com.skity.graphics.skityrt.SetPaint
 import com.skity.graphics.skityrt.SetPathData
 import com.skity.graphics.skityrt.SetPathOpData
 import com.skity.graphics.skityrt.SetPaintFilter
+import com.skity.graphics.skityrt.SetImageSource
 import com.skity.graphics.skityrt.SetTransform
 import com.skity.graphics.skityrt.SetViewport
 
@@ -292,6 +293,14 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       offsets += SetClip.createSetClip(fbb, node.nativeId, off)
       types += Command.SetClip
       node.dirtyClip = false
+    }
+    if (node.dirtyImage) {
+      val uri = node.imageUri
+      val uriOff = if (!uri.isNullOrEmpty()) fbb.createString(uri) else 0
+      offsets += SetImageSource.createSetImageSource(
+        fbb, node.nativeId, uriOff, node.imageFit)
+      types += Command.SetImageSource
+      node.dirtyImage = false
     }
     if (node.dirtyGeometry != 0) {
       // Polyline/polygon vertices ride as a [float] vector; null/empty = no

@@ -115,8 +115,10 @@ void GLESRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, float
   glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT);
 
+  // The shared GL context is passed so image nodes can materialize ImageStore
+  // bitmaps on this backend (Image::MakeImage needs a live context).
   skityrt::SkityRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
-                               static_cast<float>(height_));
+                               static_cast<float>(height_), shared_->skity_context.get());
 
   canvas->Flush();
   surface->Flush();

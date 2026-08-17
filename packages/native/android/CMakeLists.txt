@@ -69,7 +69,8 @@ add_library(skityrender SHARED
   src/main/cpp/skity/gl_proc_resolver.cpp
   src/main/cpp/jni/skity_jni.cpp
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/SkityRenderer.cc"
-  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/retained_render_tree.cc")
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/retained_render_tree.cc"
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/image_store.cc")
 
 target_include_directories(skityrender PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/skity"

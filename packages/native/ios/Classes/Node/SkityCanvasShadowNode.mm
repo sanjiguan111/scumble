@@ -177,6 +177,17 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     types.push_back(skityrt::Command_SetClip);
     node.dirtyClip = NO;
   }
+  if (node.dirtyImage) {
+    flatbuffers::Offset<flatbuffers::String> uriOff = 0;
+    if (node.imageUri.length > 0) {
+      uriOff = fbb.CreateString(node.imageUri.UTF8String);
+    }
+    auto off = skityrt::CreateSetImageSource(fbb, node.nativeId, uriOff,
+                                             static_cast<skityrt::BoxFit>(node.imageFit));
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetImageSource);
+    node.dirtyImage = NO;
+  }
   if (node.dirtyGeometryMask != 0) {
     // Polyline/polygon vertices ride as a [float] vector (raw little-endian
     // float32 bytes), mirroring the dash intervals in SetPaint; nil/empty = no

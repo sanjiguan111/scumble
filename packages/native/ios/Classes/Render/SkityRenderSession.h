@@ -23,6 +23,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// drawableSize at draw time.
 - (void)applyCommands:(NSData *)commands;
 
+/// Draw now if the surface is ready. Render-queue only — callers already on
+/// SkityMetalContext.renderQueue (e.g. the ImageStore write path in
+/// SkityImageLoader.mm) invoke this directly; others go through postDraw.
+- (void)drawIfReady;
+
 /// Release this session. The shared render queue is not torn down.
 - (void)destroy;
 

@@ -3,6 +3,7 @@
 
 #import "SkityRenderSession.h"
 
+#import "SkityImageLoader.h"
 #import "SkityMetalContext.h"
 #import <UIKit/UIScreen.h>
 
@@ -23,6 +24,10 @@
   if (self) {
     _context = [SkityMetalContext sharedInstance];
     _treeKey = [SkityMetalContext nextTreeKey];
+    // Register with the image registry so a late-arriving ImageStore bitmap can
+    // redraw this session without a Lynx layout pass (weak table: removal is
+    // automatic once the session deallocs).
+    [SkityImageLoaderRegistry addSession:self];
   }
   return self;
 }

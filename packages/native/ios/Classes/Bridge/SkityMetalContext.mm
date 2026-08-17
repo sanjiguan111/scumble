@@ -41,7 +41,7 @@
     _device = MTLCreateSystemDefaultDevice();
     _queue = [_device newCommandQueue];
     _queue.label = @"Skity GPU Queue";
-    // react-native-skity PlatformContext.mm: MTLContextCreate(device, queue).
+    // One process-wide context: MTLContextCreate(device, queue).
     _gpuContext = skity::MTLContextCreate(_device, _queue);
     _renderQueue = dispatch_queue_create("com.skity.lynx.queue", DISPATCH_QUEUE_SERIAL);
   }
@@ -97,8 +97,10 @@
     // Draw from the retained tree (not the FlatBuffer snapshot). This is the
     // shared C++ entry point that Android also reaches (via JNI → AppRenderer).
     // w/h are the Metal drawable size in physical pixels (viewportW/viewportH).
+    // The Metal context is passed so image nodes can materialize ImageStore
+    // bitmaps on this backend (Image::MakeImage needs a live context).
     skityrt::SkityRenderer::Draw(slot.get(), canvas, density, static_cast<float>(w),
-                                 static_cast<float>(h));
+                                 static_cast<float>(h), _gpuContext.get());
 
     canvas->Flush();
     surface->Flush();

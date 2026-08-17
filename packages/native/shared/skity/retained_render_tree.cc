@@ -243,6 +243,17 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       if (node != nullptr) AssignOwnedBytes(sc->data(), &node->clip_data);
       break;
     }
+    case Command_SetImageSource: {
+      const auto *si = static_cast<const SetImageSource *>(obj);
+      RetainedNode *node = Find(si->node_id());
+      if (node != nullptr) {
+        // Empty/absent uri clears the source (node draws nothing).
+        const ::flatbuffers::String *uri = si->uri();
+        node->image_uri = uri != nullptr ? uri->str() : std::string();
+        node->image_fit = static_cast<uint8_t>(si->fit());
+      }
+      break;
+    }
     case Command_InsertNode: {
       const auto *ins = static_cast<const InsertNode *>(obj);
       RetainedNode *node = CreateNode(ins->node_id());

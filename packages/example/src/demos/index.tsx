@@ -7,6 +7,7 @@ import { BlendDemo } from "./BlendDemo";
 import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
+import { ImageDemo } from "./ImageDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
 import { PathOpsDemo } from "./PathOpsDemo";
@@ -100,6 +101,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "viewBox 缩放对比",
     accent: "#06b6d4",
     render: () => <ViewportDemo />,
+  },
+  {
+    key: "image",
+    title: "Image",
+    subtitle: "data URI · http(s) · fit 七值 · 异步上屏",
+    accent: "#14b8a6",
+    render: () => <ImageDemo />,
   },
 ];
 

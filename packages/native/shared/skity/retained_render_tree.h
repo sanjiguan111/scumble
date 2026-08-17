@@ -91,6 +91,14 @@ struct RetainedNode {
   // applied after the node's transform, before its subtree.
   std::vector<uint8_t> clip_data;
 
+  // Image node source. image_uri doubles as the ImageStore key and the
+  // platform loader request (http(s) URL / data URI); the TASM setter fires
+  // the load on first sight. Empty = no source (node draws nothing). The
+  // destination rect rides the regular x/y/width/height fields; fit is
+  // resolved at render time against the bitmap's intrinsic size.
+  std::string image_uri;
+  uint8_t image_fit = 1; // BoxFit::CONTAIN (command_batch.fbs value order)
+
   std::vector<RetainedNode *> children; // non-owning; owned by RetainedRenderTree
   RetainedNode *parent = nullptr;
 };

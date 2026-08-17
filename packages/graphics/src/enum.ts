@@ -4,8 +4,7 @@
 /**
  * Paint-enum types + byte mapping for lynx-skity.
  *
- * The friendly string-literal types (mirroring react-native-skity's
- * renderer/types.ts) are what the React/Vue component props accept — they give
+ * The friendly string-literal types are what the React/Vue component props accept — they give
  * compile-time autocomplete on `strokeCap="round"` etc. The parse* functions do
  * the runtime mapping to skityrt FlatBuffer enum bytes (LineCap / LineJoin /
  * FillRule); they take a loose `string | number` so they tolerate any case and
@@ -35,7 +34,7 @@ export type StrokeJoin = "miter" | "round" | "bevel";
  *
  * - `"nonzero"` — a point is inside when the path's winding number is non-zero.
  * - `"evenodd"` — a point is inside when a ray crosses an odd number of edges.
- *   (Also accepts the hyphenated `"even-odp"` spelling for react-native-skity parity.)
+ *   (Also accepts the hyphenated `"even-odd"` and underscored `"even_odd"` spellings.)
  */
 export type FillRule = "nonzero" | "evenodd";
 
@@ -70,13 +69,12 @@ export function parseStrokeJoin(v: string | number): number {
 /**
  * Resolve a {@link FillRule} (or its raw byte) to the `FillRule` enum byte:
  * `NONZERO=0`, `EVENODD=1`. Recognizes `"evenodd"` plus the hyphenated /
- * underscored spellings (`"even-odp"`, `"even_odd"`) react-native-skity uses,
- * so either maps to `EVENODD` instead of silently falling back to `NONZERO`.
+ * hyphenated / underscored spellings (`"even-odd"`, `"even_odd"`), so either maps to `EVENODD` instead of silently falling back to `NONZERO`.
  * Case-insensitive; numbers pass through.
  *
  * @example
  * parseFillRule("evenodd");   // 1
- * parseFillRule("even-odp");  // 1 (react-native-skity spelling)
+ * parseFillRule("even-odd");  // 1 (hyphenated spelling)
  */
 export function parseFillRule(v: string | number): number {
   if (typeof v === "number") return v & 0xff;
@@ -164,4 +162,36 @@ const BLEND_MODE_BYTES: Record<string, number> = {
 export function parseBlendMode(v: string | number): number {
   if (typeof v === "number") return v & 0xff;
   return BLEND_MODE_BYTES[v.toLowerCase()] ?? 3;
+}
+
+/**
+ * How a bitmap is inscribed into its destination rect (the CSS object-fit family). The renderer resolves it against the bitmap's
+ * intrinsic size at draw time.
+ */
+export type Fit = "cover" | "contain" | "fill" | "fitHeight" | "fitWidth" | "none" | "scaleDown";
+
+/** `Fit` literal → `skityrt.BoxFit` byte (command_batch.fbs value order). */
+const FIT_BYTES: Record<string, number> = {
+  fill: 0,
+  contain: 1,
+  cover: 2,
+  fitwidth: 3,
+  fitheight: 4,
+  none: 5,
+  scaledown: 6,
+};
+
+/**
+ * Resolve a {@link Fit} literal (or its raw byte) to the `BoxFit` byte the
+ * native side expects. Case-insensitive (the camelCase keys are matched
+ * lowercased); numbers pass through masked to a byte; an unknown string falls
+ * back to `CONTAIN` (1) — the `<Image>` default.
+ *
+ * @example
+ * parseFit("cover");      // 2
+ * parseFit("scaleDown");  // 6
+ */
+export function parseFit(v: string | number): number {
+  if (typeof v === "number") return v & 0xff;
+  return FIT_BYTES[v.toLowerCase()] ?? 1;
 }

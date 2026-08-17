@@ -3,6 +3,8 @@
 package com.skity.graphics
 
 import com.lynx.tasm.LynxEnv
+import com.skity.graphics.image.BuiltInSkityImageLoader
+import com.skity.graphics.image.SkityImageLoader
 
 /**
  * Single entry point for initializing lynx-skity in a host app. Registers the
@@ -27,6 +29,15 @@ object SkityInit {
    */
   @Volatile
   var backend: Int = SkityNative.BACKEND_GLES
+
+  /**
+   * Image loader for `<skity-image>` sources (http(s) URL / data URI). Hosts
+   * with their own pipeline reassign it (`SkityInit.imageLoader = mine`); the
+   * built-in one covers data URIs + http(s). Runs off-thread and reports
+   * through SkityImageController.
+   */
+  @Volatile
+  var imageLoader: SkityImageLoader = BuiltInSkityImageLoader()
 
   @JvmStatic
   @JvmOverloads

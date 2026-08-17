@@ -54,4 +54,17 @@ object SkityNative {
 
   @JvmStatic
   external fun nativeApplyCommands(handle: Long, commands: ByteArray)
+
+  /**
+   * Store decoded pixels for a uri in the process-wide ImageStore. MUST be
+   * called on the active backend's render thread (the store is render-thread
+   * only); [com.skity.graphics.image.SkityImageController] dispatches there.
+   * No renderer handle — the store is shared by every canvas.
+   */
+  @JvmStatic
+  external fun nativeStoreImage(uri: String, rgba: ByteArray, width: Int, height: Int)
+
+  /** Mark a uri permanently failed (FindImage keeps returning null). */
+  @JvmStatic
+  external fun nativeMarkImageFailed(uri: String)
 }

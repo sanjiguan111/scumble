@@ -86,6 +86,17 @@ LYNX_REGISTER_SHADOW_NODE("skity-polygon")
 }
 @end
 
+@implementation SkityImageShadowNode
+#if LYNX_LAZY_LOAD
+LYNX_LAZY_REGISTER_SHADOW_NODE("skity-image")
+#else
+LYNX_REGISTER_SHADOW_NODE("skity-image")
+#endif
+- (NSString *)skityTagName {
+  return @"image";
+}
+@end
+
 @implementation SkityGroupShadowNode
 #if LYNX_LAZY_LOAD
 LYNX_LAZY_REGISTER_SHADOW_NODE("skity-group")

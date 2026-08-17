@@ -23,6 +23,7 @@
 #include <skity/graphic/path_op.hpp>
 
 #include "command_batch_generated.h" // PaintField_* (inheritance explicit markers)
+#include "image_store.h"             // ImageStore (image nodes)
 #include "render_tree_common_generated.h"
 #include "render_tree_style_generated.h"
 
@@ -147,8 +148,8 @@ PathOp::Op ToPathOp(PathOpKind kind) {
 // accumulated result with its own op. A leaf operand carries nested
 // PathCommandList bytes; a right-nested composition carries a sub-PathOpList
 // (recursed here). PathOp::Execute may fail on degenerate input — the operand
-// is then skipped and the accumulated result stands (RN-Skia's MakeFromOp
-// returns null; without a channel back we degrade gracefully instead).
+// is then skipped and the accumulated result stands (a failed op simply
+// yields no path; without a channel back we degrade gracefully instead).
 //
 // TODO(perf): like the plain path channel, this re-evaluates every frame; a
 // RetainedNode-level cache keyed on payload identity would avoid it.
@@ -520,7 +521,86 @@ bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *o
   return ok;
 }
 
-void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style) {
+// Box-fit port (CSS object-fit family; command_batch.fbs BoxFit order).
+// Computes the source sub-rect (of the bitmap, in pixel space) and the
+// destination sub-rect (of the user rect) for each fit mode; both are then
+// centered within their full rects ("inscribe"). Empty output rects mean
+// "nothing to draw".
+void ApplyBoxFit(uint8_t fit, float iw, float ih, const Rect &dstFull, Rect *src, Rect *dst) {
+  if (iw <= 0.f || ih <= 0.f) {
+    *src = Rect::MakeEmpty();
+    *dst = Rect::MakeEmpty();
+    return;
+  }
+  const float dw = dstFull.Width();
+  const float dh = dstFull.Height();
+  float sw = iw, sh = ih; // fitted source size
+  float tw = dw, th = dh; // fitted destination size
+  const bool outWider = dw / dh > iw / ih;
+  switch (fit) {
+  case 0: // FILL: stretch, source untouched
+    break;
+  case 1: // CONTAIN: whole bitmap, letterbox
+    if (outWider) {
+      tw = iw * dh / ih;
+      th = dh;
+    } else {
+      tw = dw;
+      th = ih * dw / iw;
+    }
+    break;
+  case 2: // COVER: fill dst, center-crop the source
+    if (outWider) {
+      sh = iw * dh / dw;
+    } else {
+      sw = ih * dw / dh;
+    }
+    break;
+  case 3: // FIT_WIDTH: width == dst, height overflows/underflows
+    th = ih * dw / iw;
+    break;
+  case 4: // FIT_HEIGHT: height == dst, width overflows/underflows
+    tw = iw * dh / ih;
+    break;
+  case 5: // NONE: 1:1, center crop to the smaller of src/dst per axis
+    if (dw < iw || dh < ih) {
+      sw = std::min(iw, dw);
+      sh = std::min(ih, dh);
+    }
+    tw = sw;
+    th = sh;
+    break;
+  case 6: // SCALE_DOWN: like CONTAIN, but never upscale
+    if (dw < iw || dh < ih) {
+      ApplyBoxFit(1 /*CONTAIN*/, iw, ih, dstFull, src, dst);
+    } else {
+      ApplyBoxFit(5 /*NONE*/, iw, ih, dstFull, src, dst);
+    }
+    return;
+  default: // unknown: CONTAIN
+    ApplyBoxFit(1, iw, ih, dstFull, src, dst);
+    return;
+  }
+  src->SetLTRB((iw - sw) * 0.5f, (ih - sh) * 0.5f, (iw + sw) * 0.5f, (ih + sh) * 0.5f);
+  dst->SetLTRB(dstFull.X() + (dw - tw) * 0.5f, dstFull.Y() + (dh - th) * 0.5f,
+               dstFull.X() + (dw + tw) * 0.5f, dstFull.Y() + (dh + th) * 0.5f);
+}
+
+// Image nodes carry no fill/stroke slots of their own. The inherited (or
+// node-authored) opacity and blend mode apply, plus the fill slot's filters;
+// fill color/gradient are ignored — the bitmap supplies the color, so the
+// modulate color is white at the effective opacity (a non-white color would
+// tint the bitmap).
+void MakeImagePaint(const RetainedComputedStyle *style, float opacity, Paint *out) {
+  if (style == nullptr) return;
+  out->SetAntiAlias(true);
+  out->SetBlendMode(static_cast<skity::BlendMode>(style->blend_mode));
+  out->SetColor(ColorFromARGB(0xFFFFFFFFu, opacity));
+  ApplyPaintFilters(style->fill, out);
+}
+
+void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style,
+               skity::GPUContext *gpu_context) {
   const std::string &tag = node->tag_name;
   if (tag.empty()) return;
   float opacity = style != nullptr ? style->opacity : 1.f;
@@ -589,6 +669,25 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     if (MakeFillPaint(style, opacity, &fillPaint)) canvas->DrawPath(path, fillPaint);
     Paint strokePaint;
     if (MakeStrokePaint(style, opacity, &strokePaint)) canvas->DrawPath(path, strokePaint);
+  } else if (tag == "image") {
+    // Bitmap node. Pixels arrive asynchronously in the ImageStore (keyed by
+    // uri); pending/failed/missing all mean "draw nothing this frame" — the
+    // store write triggers another draw, so the image just appears late.
+    if (gpu_context == nullptr || node->image_uri.empty()) return;
+    if (node->width <= 0.f || node->height <= 0.f) return;
+    std::shared_ptr<skity::Image> image =
+        ImageStore::Instance().FindImage(node->image_uri, gpu_context);
+    if (image == nullptr) return;
+    Rect src, dst;
+    ApplyBoxFit(node->image_fit, static_cast<float>(image->Width()),
+                static_cast<float>(image->Height()),
+                Rect::MakeXYWH(node->x, node->y, node->width, node->height), &src, &dst);
+    if (src.IsEmpty() || dst.IsEmpty()) return;
+    Paint paint;
+    MakeImagePaint(style, opacity, &paint);
+    canvas->DrawImageRect(
+        image, src, dst,
+        skity::SamplingOptions{skity::FilterMode::kLinear, skity::MipmapMode::kNone}, &paint);
   }
 }
 
@@ -687,7 +786,8 @@ void ApplyClipIfAny(const RetainedNode *node, Canvas *canvas) {
 // are the fallbacks for fields this node never authored (explicit_paint), and
 // its opacity is the accumulated product down the tree. Transform, geometry,
 // display and visibility are per-node (never inherited).
-void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle &inherited) {
+void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle &inherited,
+              skity::GPUContext *gpu_context) {
   if (node == nullptr) return;
   const RetainedComputedStyle &style = node->style;
   if (style.display == Display_NONE) return;
@@ -726,19 +826,19 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
   if (tag == "svg" || tag == "g" || tag == "symbol" || tag == "canvas") {
     ApplyClipIfAny(node, canvas);
     for (const RetainedNode *child : node->children) {
-      DrawNode(child, canvas, *eff);
+      DrawNode(child, canvas, *eff, gpu_context);
     }
     canvas->Restore();
     return;
   }
-  DrawShape(node, canvas, eff);
+  DrawShape(node, canvas, eff, gpu_context);
   canvas->Restore();
 }
 
 } // namespace
 
 void SkityRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float density,
-                         float canvasWidth, float canvasHeight) {
+                         float canvasWidth, float canvasHeight, ::skity::GPUContext *gpu_context) {
   if (tree == nullptr || canvas == nullptr) return;
   const RetainedNode *root = tree->root();
   if (root == nullptr) return;
@@ -747,7 +847,7 @@ void SkityRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float d
   ApplyViewport(tree->viewport(), canvas, canvasWidth, canvasHeight, density);
   // Root inherited style: all-default (no paint authored), opacity 1 — children
   // fall back to it for fields their ancestors never set.
-  DrawNode(root, canvas, RetainedComputedStyle{});
+  DrawNode(root, canvas, RetainedComputedStyle{}, gpu_context);
   canvas->Restore();
 }
 

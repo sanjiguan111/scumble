@@ -39,6 +39,10 @@ class SkityPolygonShadowNode : SkityNodeBase() {
   override val skityTagName = "polygon"
 }
 
+class SkityImageShadowNode : SkityNodeBase() {
+  override val skityTagName = "image"
+}
+
 class SkityGroupShadowNode : SkityNodeBase() {
   override val skityTagName = "g"
 }
