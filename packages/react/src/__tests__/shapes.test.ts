@@ -113,7 +113,9 @@ describe("pointsToPathBytes (Points modes)", () => {
   });
 
   it("polygon mode = an open polyline through all vertices", () => {
-    expect(pointsToPathBytes("0,0 50,100 100,0", "polygon")).toEqual(asBytes("M0 0 L50 100 L100 0"));
+    expect(pointsToPathBytes("0,0 50,100 100,0", "polygon")).toEqual(
+      asBytes("M0 0 L50 100 L100 0"),
+    );
   });
 
   it("returns null (renders nothing) for an empty vertex set", () => {
@@ -208,10 +210,10 @@ describe("resolvePaint filters", () => {
   });
 
   it("drops an invalid colorMatrix (nothing serialized)", () => {
-    const r = resolvePaint(
-      { color: "red" },
-      { type: ColorMatrix, props: { matrix: [1, 2, 3] } } as never,
-    );
+    const r = resolvePaint({ color: "red" }, {
+      type: ColorMatrix,
+      props: { matrix: [1, 2, 3] },
+    } as never);
     expect(r.fillColorFilter).toBeUndefined();
   });
 });

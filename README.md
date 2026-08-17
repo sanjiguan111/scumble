@@ -1,8 +1,8 @@
 # lynx-skity
 
 A 2D graphics library for [Lynx](https://lynxjs.org/), powered by the **skity** GPU
-backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a react-native-skia /
-react-native-skity-style declarative drawing API — `<Canvas><Circle color="red"/></Canvas>`
+backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a declarative drawing
+API — `<Canvas><Circle color="red"/></Canvas>`
 — to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer render tree.
 
 ## Features

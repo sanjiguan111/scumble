@@ -605,7 +605,8 @@ export class Path2D {
 
   /**
    * Lazily combine two paths with a boolean operation (Skia path ops:
-   * difference / intersect / union / xor). Unlike react-native-skia's
+   * difference / intersect / union / xor). This is a lazy,
+   * transport-side composition: nothing is evaluated in JS — the renderer
    * `Skia.Path.MakeFromOp` — which computes the result synchronously via JSI —
    * there is no channel back to JS here (the Lynx public SDK disables NAPI on
    * Android), so this only records the composition: `<Path path={…}>` detects

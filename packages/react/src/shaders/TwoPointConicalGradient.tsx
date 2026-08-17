@@ -4,8 +4,7 @@
 import type { TwoPointConicalGradientProps } from "../types";
 
 /**
- * Two-point conical gradient shader — a declarative **child** of a shape, in
- * the react-native-skia style:
+ * Two-point conical gradient shader — a declarative **child** of a shape:
  *
  * ```tsx
  * <Rect x={0} y={0} width={100} height={100}>

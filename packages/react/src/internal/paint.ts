@@ -148,7 +148,7 @@ export function childElements(children?: ReactNode): ChildElement[] {
 }
 
 /**
- * Find the `<Paint>` children (data-only, RN-Skia-style declarative paint
+ * Find the `<Paint>` children (data-only, declarative paint
  * overrides). Returns at most one entry per style — fill and stroke — with a
  * later declaration of the same style winning.
  */
@@ -232,7 +232,7 @@ function applyFilterProps(out: ResolvedPaint, specs: FilterSpec[], slot: "fill" 
  * and routed to `fill` or `stroke` by `style` (default `defaultStyle` —
  * `"fill"` for most shapes, `"stroke"` for stroke-only ones like `Line`); a
  * child gradient shader is routed the same way; `strokeCap`/`strokeJoin` are
- * mapped to enum bytes. A declarative `<Paint>` child (RN-Skia style) overrides
+ * mapped to enum bytes. A declarative `<Paint>` child overrides
  * the paint properties of its `style`, with shaders inside it routed to that
  * paint (`strokeGradient` for `"stroke"`). `blendMode` is mapped to a byte
  * (one mode shared by both paints). `zIndex` is intentionally dropped (not
@@ -292,7 +292,7 @@ export function resolvePaint(
   const filterSpecs = findFilterSpecs(children);
   if (filterSpecs.length > 0) applyFilterProps(out, filterSpecs, style);
 
-  // Declarative <Paint> children (RN-Skia style) override the paint of their
+  // Declarative <Paint> children override the paint of their
   // style; shaders nested inside route to that paint's gradient slot. Only
   // properties the <Paint> actually declares are overridden.
   const paints = findPaintChildren(children);

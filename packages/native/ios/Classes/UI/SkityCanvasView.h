@@ -2,8 +2,8 @@
 // LICENSE file in the root directory of this source tree.
 //
 /// UIView backing <skity-canvas>. Its backing layer is a CAMetalLayer (rendered
-/// to by skity Metal on the shared SkityMetalContext render queue). Mirrors
-/// react-native-skity/ios/SkityView.mm's layer setup.
+/// to by skity Metal on the shared SkityMetalContext render queue). The layer
+/// setup follows the same approach as the skity iOS example.
 #import <UIKit/UIKit.h>
 
 NS_ASSUME_NONNULL_BEGIN

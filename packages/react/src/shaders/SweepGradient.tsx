@@ -4,8 +4,7 @@
 import type { SweepGradientProps } from "../types";
 
 /**
- * Sweep (angular) gradient shader — a declarative **child** of a shape, in the
- * react-native-skia style:
+ * Sweep (angular) gradient shader — a declarative **child** of a shape:
  *
  * ```tsx
  * <Rect x={0} y={0} width={100} height={100}>

@@ -4,7 +4,7 @@
 import type { Vec } from "../types";
 
 /**
- * Construct a 2D point `{x, y}` — the react-native-skia `vec` helper. Accepted
+ * Construct a 2D point `{x, y}` . Accepted
  * anywhere a gradient `start`/`end` is expected (alongside a `[x, y]` tuple).
  *
  * @example

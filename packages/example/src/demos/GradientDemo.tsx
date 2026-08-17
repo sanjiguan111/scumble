@@ -12,7 +12,7 @@ import {
 import { DemoSection } from "../components/DemoSection";
 
 // Gradient demo. All shader geometry (start/end, c, r) is absolute logical px
-// in the DemoSection's 360-wide viewport (USER_SPACE_ON_USE, matching RN-Skia);
+// in the DemoSection's 360-wide viewport (USER_SPACE_ON_USE);
 // sweep angles are degrees.
 export function GradientDemo() {
   return (

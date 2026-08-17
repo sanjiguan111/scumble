@@ -10,7 +10,7 @@ import { bytesToBase64, parseTransform } from "@lynx-skity/graphics";
 import type { RotateProps, Transform } from "../types";
 
 /**
- * Convert a react-native-skity transform — a single `{translateX,translateY}` /
+ * Convert a transform prop — a single `{translateX,translateY}` /
  * `{scaleX,scaleY}` / `{rotate,…}` object (rotate in degrees) or a 4×4
  * column-major `number[16]` matrix — into a base64-encoded `TransformOpList`
  * for the native `<skity-group>` `transform` prop.

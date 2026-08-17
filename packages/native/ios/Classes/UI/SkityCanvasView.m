@@ -37,7 +37,7 @@
     ml.framebufferOnly = NO;
     // The Metal layer is redrawn every frame by the GPU pipeline. Disable Core
     // Animation's implicit animations on it (sublayers aren't covered by
-    // UIView's suppression), mirroring react-native-skity SkityView.mm.
+    // UIView's suppression), mirroring the skity iOS example.
     ml.actions = @{
       @"contents" : [NSNull null],
       @"onOrderIn" : [NSNull null],

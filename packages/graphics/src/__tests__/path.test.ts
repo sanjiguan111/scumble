@@ -277,11 +277,15 @@ describe("Path2D.op → nested PathOpList", () => {
 
   it("flattens a left-deep chain: op(op(a, b, u), c, d) → [a, b:u, c:d]", () => {
     const hole = new Path2D().addCircle(50, 50, 10);
-    const list = readBackOp(Path2D.op(Path2D.op(CIRCLE, SQUARE, "union"), hole, "xor").toOpBytes()!);
+    const list = readBackOp(
+      Path2D.op(Path2D.op(CIRCLE, SQUARE, "union"), hole, "xor").toOpBytes()!,
+    );
     expect(list.operandsLength()).toBe(3);
     expect(list.operands(1)!.op()).toBe(PathOpKind.UNION);
     expect(list.operands(2)!.op()).toBe(PathOpKind.XOR);
-    expect(bytesEqual(list.operands(2)!.commandsArray(), new Uint8Array(hole.toBytes()))).toBe(true);
+    expect(bytesEqual(list.operands(2)!.commandsArray(), new Uint8Array(hole.toBytes()))).toBe(
+      true,
+    );
     // A flattened chain carries no nested sub-trees.
     for (let i = 0; i < 3; i++) expect(list.operands(i)!.nestedLength()).toBe(0);
   });
@@ -289,7 +293,9 @@ describe("Path2D.op → nested PathOpList", () => {
   it("rides the nested field for a right-nested composition ((A) op (B op C))", () => {
     const b = new Path2D().addRect(0, 0, 40, 40);
     const c = new Path2D().addRect(20, 20, 40, 40);
-    const list = readBackOp(Path2D.op(CIRCLE, Path2D.op(b, c, "intersect"), "difference").toOpBytes()!);
+    const list = readBackOp(
+      Path2D.op(CIRCLE, Path2D.op(b, c, "intersect"), "difference").toOpBytes()!,
+    );
     expect(list.operandsLength()).toBe(2);
     const right = list.operands(1)!;
     expect(right.op()).toBe(PathOpKind.DIFFERENCE);
@@ -297,10 +303,12 @@ describe("Path2D.op → nested PathOpList", () => {
     // The nested sub-tree round-trips as its own PathOpList (b leaf + c:INTERSECT).
     const nestedBytes = right.nestedArray();
     expect(nestedBytes).not.toBeNull();
-    const nested = readBackOp(nestedBytes!.buffer.slice(
-      nestedBytes!.byteOffset,
-      nestedBytes!.byteOffset + nestedBytes!.byteLength,
-    ) as ArrayBuffer);
+    const nested = readBackOp(
+      nestedBytes!.buffer.slice(
+        nestedBytes!.byteOffset,
+        nestedBytes!.byteOffset + nestedBytes!.byteLength,
+      ) as ArrayBuffer,
+    );
     expect(nested.operandsLength()).toBe(2);
     expect(nested.operands(0)!.commandsArray()).not.toBeNull();
     expect(nested.operands(1)!.op()).toBe(PathOpKind.INTERSECT);

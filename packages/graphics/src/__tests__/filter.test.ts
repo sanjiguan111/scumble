@@ -25,8 +25,8 @@ function readBack(bytes: ArrayBuffer): Filter {
 }
 
 const GRAYSCALE = [
-  0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0, 0,
-  0, 1, 0,
+  0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0, 0, 0,
+  1, 0,
 ];
 
 describe("buildImageFilter → nested Filter", () => {
@@ -43,7 +43,9 @@ describe("buildImageFilter → nested Filter", () => {
   });
 
   it("serializes a dropShadow with color parsed to 0xAARRGGBB", () => {
-    const f = readBack(buildImageFilter([{ kind: "dropShadow", dx: 0, dy: 8, blur: 6, color: "#00000055" }])!);
+    const f = readBack(
+      buildImageFilter([{ kind: "dropShadow", dx: 0, dy: 8, blur: 6, color: "#00000055" }])!,
+    );
     expect(f.kind()).toBe(FilterKind.IMAGE_DROP_SHADOW);
     expect(f.fx()).toBe(0); // dx
     expect(f.fy()).toBe(8); // dy
@@ -79,7 +81,9 @@ describe("buildColorFilter → nested Filter", () => {
   });
 
   it("serializes a colorBlend with mode byte + color", () => {
-    const f = readBack(buildColorFilter([{ kind: "colorBlend", color: "#ff000080", mode: "src-in" }])!);
+    const f = readBack(
+      buildColorFilter([{ kind: "colorBlend", color: "#ff000080", mode: "src-in" }])!,
+    );
     expect(f.kind()).toBe(FilterKind.COLOR_BLEND);
     expect(f.color()).toBe(0x80ff0000);
     expect(f.mode()).toBe(5); // skityrt BlendMode SRC_IN == 5 (== skity order)
@@ -87,7 +91,9 @@ describe("buildColorFilter → nested Filter", () => {
 
   it("drops invalid matrices (wrong length / non-finite) and nulls out when nothing survives", () => {
     expect(buildColorFilter([{ kind: "colorMatrix", matrix: [1, 2, 3] }])).toBeNull();
-    expect(buildColorFilter([{ kind: "colorMatrix", matrix: [...GRAYSCALE.slice(0, 19), NaN] }])).toBeNull();
+    expect(
+      buildColorFilter([{ kind: "colorMatrix", matrix: [...GRAYSCALE.slice(0, 19), NaN] }]),
+    ).toBeNull();
     // A valid sibling keeps the list alive; the invalid one is skipped.
     const f = readBack(
       buildColorFilter([
@@ -105,9 +111,9 @@ describe("buildMaskFilter → nested Filter", () => {
     expect(normal.kind()).toBe(FilterKind.MASK_BLUR);
     expect(normal.fx()).toBe(8);
     expect(normal.style()).toBe(BlurStyle.NORMAL); // 1, not 0
-    expect(readBack(buildMaskFilter([{ kind: "maskBlur", blur: 8, style: "inner" }])!).style()).toBe(
-      BlurStyle.INNER,
-    );
+    expect(
+      readBack(buildMaskFilter([{ kind: "maskBlur", blur: 8, style: "inner" }])!).style(),
+    ).toBe(BlurStyle.INNER);
   });
 
   it("takes only the first maskBlur (no compose) and nulls for none", () => {

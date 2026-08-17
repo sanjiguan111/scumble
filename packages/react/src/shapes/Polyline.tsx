@@ -30,6 +30,9 @@ export function pointsToVerticesProp(points: PointsProp): string | undefined {
  */
 export function Polyline({ points, children, ...rest }: PolylineProps) {
   return (
-    <skity-polyline points={pointsToVerticesProp(points)} {...resolvePaint(rest, children, "stroke")} />
+    <skity-polyline
+      points={pointsToVerticesProp(points)}
+      {...resolvePaint(rest, children, "stroke")}
+    />
   );
 }

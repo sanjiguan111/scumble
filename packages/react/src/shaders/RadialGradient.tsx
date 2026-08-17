@@ -4,8 +4,7 @@
 import type { RadialGradientProps } from "../types";
 
 /**
- * Radial gradient shader — a declarative **child** of a shape, in the
- * react-native-skia style:
+ * Radial gradient shader — a declarative **child** of a shape:
  *
  * ```tsx
  * <Circle cx={50} cy={50} r={50}>

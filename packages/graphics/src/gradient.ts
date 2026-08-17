@@ -12,8 +12,8 @@
  * base64-encoded in the react layer for Lynx's string prop channel.
  *
  * Coordinates are **absolute user-space pixels** (`gradient_units =
- * USER_SPACE_ON_USE`), matching react-native-skia's shader children: the
- * caller passes the same geometry they would to RN-Skia, with no 0–1
+ * USER_SPACE_ON_USE`), matching the declarative shader-children pattern: the
+ * caller passes the same geometry as the painted shape, with no 0–1
  * normalization and no dependency on the shape's bounding box (so the C++ draw
  * side needs no bbox lookup).
  */
@@ -42,8 +42,7 @@ export type Point = { x: number; y: number } | [number, number];
 export type GradientMode = "clamp" | "repeat" | "mirror";
 
 /**
- * The friendly spec users write for a linear gradient. Mirrors the props of
- * react-native-skia's `<LinearGradient>`.
+ * The friendly spec users write for a linear gradient.
  */
 export interface LinearGradientSpec {
   /** Start point (absolute user-space px). */
@@ -59,8 +58,7 @@ export interface LinearGradientSpec {
 }
 
 /**
- * The friendly spec for a radial gradient. Mirrors the props of
- * react-native-skia's `<RadialGradient>` (center + radius, no focal point).
+ * The friendly spec for a radial gradient (center + radius, no focal point).
  */
 export interface RadialGradientSpec {
   /** Center of the circle (absolute user-space px). */
@@ -96,9 +94,8 @@ export interface SweepGradientSpec {
 }
 
 /**
- * The friendly spec for a two-point conical gradient (two circles).
- * Mirrors the props of react-native-skia's `<TwoPointConicalGradient>`:
- * color stop 0 sits on the start circle, stop 1 on the end circle.
+ * The friendly spec for a two-point conical gradient (two circles): color
+ * stop 0 sits on the start circle, stop 1 on the end circle.
  */
 export interface TwoPointConicalGradientSpec {
   /** Center of the start (focal) circle (absolute user-space px). */

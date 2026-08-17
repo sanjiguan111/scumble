@@ -13,9 +13,9 @@ import type { GroupProps } from "./types";
  * inheritance to its subtree via the native `<skity-group>`.
  *
  * `transform` accepts a single translate/scale/rotate object (rotate in
- * degrees) or a 4×4 column-major matrix, the react-native-skity shape.
+ * degrees) or a 4×4 column-major matrix.
  *
- * **Clipping** (react-native-skia style): `react-native-skia`'s declarative
+ * **Clipping**: declarative
  * clip children — {@link ClipRect}/{@link ClipRRect}/{@link ClipPath} — clip
  * the subtree; several clip children combine in document order
  * (`op="difference"` subtracts from the clips before it). Clip geometry is in

@@ -4,7 +4,7 @@
 import type { ClipRectProps } from "../types";
 
 /**
- * Rectangular clip — a **child** of a {@link Group} (react-native-skia style).
+ * Rectangular clip — a **child** of a {@link Group}.
  * Clips the group's subtree to the rect; several clip children combine in
  * document order (`op="difference"` subtracts from what came before).
  *

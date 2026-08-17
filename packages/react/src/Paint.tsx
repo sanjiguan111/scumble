@@ -4,7 +4,7 @@
 import type { PaintProps } from "./types";
 
 /**
- * Declarative paint override — a **child** of a shape, in the react-native-skia
+ * Declarative paint override — a **child** of a shape, in the declarative
  * style:
  *
  * ```tsx
@@ -29,7 +29,7 @@ import type { PaintProps } from "./types";
  * placed *inside* the `<Paint>` apply to that paint (`style="stroke"` → stroke
  * gradient), while shaders placed directly under the shape apply to fill.
  *
- * Differences vs react-native-skia (native paint-slot limits): at most one
+ * Native paint-slot limits: at most one
  * fill paint + one stroke paint per shape (a later `<Paint>` of the same style
  * wins), and `opacity`/`blendMode` are not supported here (opacity is a single
  * node-level channel).

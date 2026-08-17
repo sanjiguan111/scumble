@@ -9,8 +9,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Paint filter components — declarative children of a shape (or <Paint>), in
-// the react-native-skia style. Data-only: each renders null; the parent
+// Paint filter components — declarative children of a shape (or <Paint>).
+// Data-only: each renders null; the parent
 // shape's resolvePaint collects their props and serializes them into the
 // paint's *Filter base64 props (image filters: blur/dropShadow; color
 // filters: colorMatrix/colorBlend; mask filter: maskBlur). Several filters of

@@ -47,7 +47,10 @@ export function Points({ points, mode = "points", children, ...rest }: PointsPro
   const bytes = pointsToPathBytes(points, mode);
   // Zero-length segments need a cap to be visible; default to round dots
   // unless the caller chose a cap explicitly.
-  const withCap = rest.strokeCap === undefined && mode === "points" ? { ...rest, strokeCap: "round" as const } : rest;
+  const withCap =
+    rest.strokeCap === undefined && mode === "points"
+      ? { ...rest, strokeCap: "round" as const }
+      : rest;
   return (
     <skity-path
       d={bytes ? bytesToBase64(bytes) : undefined}

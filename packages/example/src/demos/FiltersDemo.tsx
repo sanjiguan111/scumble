@@ -1,6 +1,6 @@
 // Paint filters: image filters (<Blur>/<DropShadow>), color filters
 // (<ColorMatrix>/<ColorBlend>) and the mask filter (<MaskBlur>) as
-// declarative children of a shape — the react-native-skia style. Several
+// declarative children of a shape. Several
 // filters of the same kind compose in declaration order.
 
 import {
@@ -22,18 +22,50 @@ import { DemoSection } from "../components/DemoSection";
 
 // 4×5 row-major (Skia layout): luminance weights → grayscale.
 const GRAYSCALE = [
-  0.2126, 0.7152, 0.0722, 0, 0, //
-  0.2126, 0.7152, 0.0722, 0, 0, //
-  0.2126, 0.7152, 0.0722, 0, 0, //
-  0, 0, 0, 1, 0,
+  0.2126,
+  0.7152,
+  0.0722,
+  0,
+  0, //
+  0.2126,
+  0.7152,
+  0.0722,
+  0,
+  0, //
+  0.2126,
+  0.7152,
+  0.0722,
+  0,
+  0, //
+  0,
+  0,
+  0,
+  1,
+  0,
 ];
 
 // Sepia approximation (the classic W3C filter matrix).
 const SEPIA = [
-  0.393, 0.769, 0.189, 0, 0, //
-  0.349, 0.686, 0.168, 0, 0, //
-  0.272, 0.534, 0.131, 0, 0, //
-  0, 0, 0, 1, 0,
+  0.393,
+  0.769,
+  0.189,
+  0,
+  0, //
+  0.349,
+  0.686,
+  0.168,
+  0,
+  0, //
+  0.272,
+  0.534,
+  0.131,
+  0,
+  0, //
+  0,
+  0,
+  0,
+  1,
+  0,
 ];
 
 const FLOWER =
@@ -51,7 +83,11 @@ export function FiltersDemo() {
         </Rect>
       </DemoSection>
 
-      <DemoSection title="DropShadow — image filter" caption="投影:dx/dy 偏移 + blur + color" height={200}>
+      <DemoSection
+        title="DropShadow — image filter"
+        caption="投影:dx/dy 偏移 + blur + color"
+        height={200}
+      >
         <Circle cx={100} cy={95} radius={55} color="#f59e0b">
           <DropShadow dx={0} dy={10} blur={10} color="#00000055" />
         </Circle>
@@ -71,7 +107,11 @@ export function FiltersDemo() {
         </Path>
       </DemoSection>
 
-      <DemoSection title="ColorMatrix — color filter" caption="左:原图 中:灰度 右:复古棕调" height={200}>
+      <DemoSection
+        title="ColorMatrix — color filter"
+        caption="左:原图 中:灰度 右:复古棕调"
+        height={200}
+      >
         <Group>
           <Path path={FLOWER} color="#ec4899" />
           <Group transform={{ translateX: [130, 0] }}>
@@ -87,13 +127,21 @@ export function FiltersDemo() {
         </Group>
       </DemoSection>
 
-      <DemoSection title="ColorBlend — color filter" caption="src-in:用颜色替换彩色保留 alpha" height={200}>
+      <DemoSection
+        title="ColorBlend — color filter"
+        caption="src-in:用颜色替换彩色保留 alpha"
+        height={200}
+      >
         <Path path={FLOWER} color="#ec4899">
           <ColorBlend mode="src-in" color="#0ea5e9" />
         </Path>
       </DemoSection>
 
-      <DemoSection title="MaskBlur — mask filter" caption="羽化 alpha 蒙版(inner style:内羽化)" height={200}>
+      <DemoSection
+        title="MaskBlur — mask filter"
+        caption="羽化 alpha 蒙版(inner style:内羽化)"
+        height={200}
+      >
         <Circle cx={110} cy={100} radius={70} color="#14b8a6">
           <MaskBlur blur={30} />
         </Circle>
@@ -102,7 +150,11 @@ export function FiltersDemo() {
         </Circle>
       </DemoSection>
 
-      <DemoSection title="Paint stroke + filter" caption="<Paint style=stroke> 内的滤镜只作用于描边" height={200}>
+      <DemoSection
+        title="Paint stroke + filter"
+        caption="<Paint style=stroke> 内的滤镜只作用于描边"
+        height={200}
+      >
         <Path path={new Path2D().addCircle(170, 100, 60)} color="#94a3b8">
           <Paint style="stroke" color="#6366f1" strokeWidth={10}>
             <Blur blur={4} />

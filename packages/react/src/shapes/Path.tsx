@@ -31,7 +31,8 @@ export function Path({ path, fillRule, start, end, children, ...rest }: PathProp
   // An op-composed Path2D serializes to a PathOpList (separate `op` prop);
   // everything else goes down the plain PathCommandList channel.
   const opBytes = typeof path === "string" ? null : path.toOpBytes();
-  const pathBytes = opBytes === null ? (typeof path === "string" ? parsePath(path) : path.toBytes()) : null;
+  const pathBytes =
+    opBytes === null ? (typeof path === "string" ? parsePath(path) : path.toBytes()) : null;
   return (
     <skity-path
       d={pathBytes ? bytesToBase64(pathBytes) : undefined}

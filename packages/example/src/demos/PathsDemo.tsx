@@ -52,7 +52,7 @@ export function PathsDemo() {
       </DemoSection>
 
       <DemoSection title="Path trim — start/end" caption="start 0.25 / end 0.75，截取路径中段 50%">
-        {/* Full path faint underneath, trimmed path on top (RN-Skia style). */}
+        {/* Full path faint underneath, trimmed path on top . */}
         <Path path={ARC} color="#3b82f6" style="stroke" strokeWidth={2} opacity={0.25} />
         <Path
           path={ARC}
