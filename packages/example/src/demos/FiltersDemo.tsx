@@ -43,7 +43,7 @@ export function FiltersDemo() {
   return (
     <view>
       <DemoSection title="Blur — image filter" caption="高斯模糊整个绘制层,sigma=8" height={200}>
-        <Circle cx={110} cy={100} r={60} color="#3b82f6">
+        <Circle cx={110} cy={100} radius={60} color="#3b82f6">
           <Blur blur={8} />
         </Circle>
         <Rect x={190} y={40} width={120} height={120} color="#22c55e">
@@ -52,7 +52,7 @@ export function FiltersDemo() {
       </DemoSection>
 
       <DemoSection title="DropShadow — image filter" caption="投影:dx/dy 偏移 + blur + color" height={200}>
-        <Circle cx={100} cy={95} r={55} color="#f59e0b">
+        <Circle cx={100} cy={95} radius={55} color="#f59e0b">
           <DropShadow dx={0} dy={10} blur={10} color="#00000055" />
         </Circle>
         <RRect x={180} y={35} width={140} height={110} radii={16} color="#8b5cf6">
@@ -94,10 +94,10 @@ export function FiltersDemo() {
       </DemoSection>
 
       <DemoSection title="MaskBlur — mask filter" caption="羽化 alpha 蒙版(inner style:内羽化)" height={200}>
-        <Circle cx={110} cy={100} r={70} color="#14b8a6">
+        <Circle cx={110} cy={100} radius={70} color="#14b8a6">
           <MaskBlur blur={30} />
         </Circle>
-        <Circle cx={260} cy={100} r={70} color="#f43f5e">
+        <Circle cx={260} cy={100} radius={70} color="#f43f5e">
           <MaskBlur blur={30} style="inner" />
         </Circle>
       </DemoSection>
