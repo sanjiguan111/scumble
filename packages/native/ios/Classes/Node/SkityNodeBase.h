@@ -58,6 +58,16 @@ enum SkityGeometryField {
   kSkityGeomPoints = 32768,
 };
 
+// Paint filter slot bitmask (which of the six *FilterData slots is dirty).
+enum SkityPaintFilterField {
+  kSkityFilterFillColor = 1,
+  kSkityFilterStrokeColor = 2,
+  kSkityFilterFillImage = 4,
+  kSkityFilterStrokeImage = 8,
+  kSkityFilterFillMask = 16,
+  kSkityFilterStrokeMask = 32,
+};
+
 @interface SkityNodeBase : LynxShadowNode
 
 /// The skity tag name (e.g. "rect", "circle", "canvas", "g"). Subclasses must
@@ -111,6 +121,14 @@ enum SkityGeometryField {
 @property(nonatomic, strong, nullable) NSData *opData;
 @property(nonatomic, strong, nullable) NSData *fillGradientData;
 @property(nonatomic, strong, nullable) NSData *strokeGradientData;
+/// Paint filter slots (JS-built Filter bytes; nil = none): fill/stroke ×
+/// color/image/mask. Drained into SetPaintFilter commands.
+@property(nonatomic, strong, nullable) NSData *fillColorFilterData;
+@property(nonatomic, strong, nullable) NSData *strokeColorFilterData;
+@property(nonatomic, strong, nullable) NSData *fillImageFilterData;
+@property(nonatomic, strong, nullable) NSData *strokeImageFilterData;
+@property(nonatomic, strong, nullable) NSData *fillMaskFilterData;
+@property(nonatomic, strong, nullable) NSData *strokeMaskFilterData;
 /// Group clip sequence (JS-built ClipList bytes; nil = no clip).
 @property(nonatomic, strong, nullable) NSData *clipData;
 
@@ -127,6 +145,7 @@ enum SkityGeometryField {
 @property(nonatomic, assign) uint32_t dirtyGeometryMask;
 @property(nonatomic, assign) BOOL dirtyPath;
 @property(nonatomic, assign) BOOL dirtyPathOp;
+@property(nonatomic, assign) uint32_t dirtyFilterMask;
 @property(nonatomic, assign) BOOL dirtyTransform;
 @property(nonatomic, assign) BOOL dirtyClip;
 

@@ -23,11 +23,16 @@ namespace skityrt {
 // Mutable, owning counterpart of ResolvedPaint. type: 0=NONE, 1=COLOR, 2=GRADIENT.
 // color is packed 0xAARRGGBB (valid for COLOR; opacity is applied by the renderer,
 // not stored here). gradient_data holds a nested Gradient FlatBuffer (valid for
-// GRADIENT; JS-built, memcpy'd verbatim like RetainedNode::path_data).
+// GRADIENT; JS-built, memcpy'd verbatim like RetainedNode::path_data). The three
+// filter slots hold JS-built Filter FlatBuffer bytes; empty = no filter (the
+// renderer builds skity filter objects from them at paint construction).
 struct RetainedPaint {
   uint8_t type = 0;
   uint32_t color = 0;
   std::vector<uint8_t> gradient_data;
+  std::vector<uint8_t> color_filter_data;
+  std::vector<uint8_t> image_filter_data;
+  std::vector<uint8_t> mask_filter_data;
 };
 
 // Mutable, owning counterpart of ComputedStyle. Variable-length fields are owned

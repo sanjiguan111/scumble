@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { resolvePaint } from "../internal/paint";
 import { Paint } from "../Paint";
 import { LinearGradient } from "../shaders/LinearGradient";
+import { Blur, ColorMatrix, DropShadow } from "../filters/filters";
 import { pointsToVerticesProp } from "../shapes/Polyline";
 import { pointsToPathBytes } from "../shapes/Points";
 import { parsePath } from "@lynx-skity/graphics";
@@ -18,6 +19,11 @@ function shaderChild(): ReactNode {
     type: LinearGradient,
     props: { start: { x: 0, y: 0 }, end: { x: 1, y: 1 }, colors: ["#fff", "#000"] },
   } as never;
+}
+
+/** A data-only filter child (findFilterSpecs only reads {type, props}). */
+function blurChild(blur: number | { x: number; y: number }): ReactNode {
+  return { type: Blur, props: { blur } } as never;
 }
 
 /** Decode base64 → raw LE float32s (mirror of graphics floatsToBase64). */
@@ -170,5 +176,42 @@ describe("resolvePaint blendMode", () => {
       props: { style: "stroke", blendMode: "screen" },
     } as never);
     expect(r.blendMode).toBe(14);
+  });
+});
+
+describe("resolvePaint filters", () => {
+  it("routes a direct filter child to the effective style's paint slot", () => {
+    const r = resolvePaint({ color: "red" }, blurChild(4));
+    expect(r.fillImageFilter).toBeTypeOf("string");
+    expect(r.strokeImageFilter).toBeUndefined();
+    // stroke-default shape → the same child lands on the stroke slot
+    const s = resolvePaint({ color: "red" }, blurChild(4), "stroke");
+    expect(s.strokeImageFilter).toBeTypeOf("string");
+    expect(s.fillImageFilter).toBeUndefined();
+  });
+
+  it("composes several image filters in declaration order", () => {
+    const r = resolvePaint({ color: "red" }, [
+      blurChild(2),
+      { type: DropShadow, props: { dx: 0, dy: 8, blur: 6, color: "#0003" } } as never,
+    ]);
+    expect(r.fillImageFilter).toBeTypeOf("string");
+  });
+
+  it("routes filters inside a <Paint> to that paint's slot", () => {
+    const r = resolvePaint({ color: "red" }, {
+      type: Paint,
+      props: { style: "stroke", color: "blue", children: blurChild(3) },
+    } as never);
+    expect(r.strokeImageFilter).toBeTypeOf("string");
+    expect(r.fillImageFilter).toBeUndefined();
+  });
+
+  it("drops an invalid colorMatrix (nothing serialized)", () => {
+    const r = resolvePaint(
+      { color: "red" },
+      { type: ColorMatrix, props: { matrix: [1, 2, 3] } } as never,
+    );
+    expect(r.fillColorFilter).toBeUndefined();
   });
 });

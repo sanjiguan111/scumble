@@ -63,6 +63,11 @@ export { TwoPointConicalGradient } from "./shaders/TwoPointConicalGradient";
 // overrides the fill or stroke paint of its parent shape, and shaders nested
 // inside it apply to that paint.
 export { Paint } from "./Paint";
+// Paint filter components are declarative children of a shape (or <Paint>),
+// like shaders: <Blur>/<DropShadow> (image filters), <ColorMatrix>/
+// <ColorBlend> (color filters), <MaskBlur> (mask filter). Several of the same
+// kind compose in declaration order.
+export { Blur, DropShadow, ColorMatrix, ColorBlend, MaskBlur } from "./filters/filters";
 // <ClipRect>/<ClipRRect>/<ClipPath> are declarative clip children of <Group>
 // (also RN-Skia style): data-only, consumed by the Group into its `clip` prop.
 export { ClipRect } from "./clips/ClipRect";
@@ -107,6 +112,13 @@ export type {
   SweepGradientProps,
   TwoPointConicalGradientProps,
   PaintProps,
+  BlurProps,
+  DropShadowProps,
+  ColorMatrixProps,
+  ColorBlendProps,
+  MaskBlurProps,
+  MaskBlurStyleProp,
+  FilterRadius,
 } from "./types";
 
 // Gradients (linear/radial/sweep/two-point-conical) work on BOTH the fill and

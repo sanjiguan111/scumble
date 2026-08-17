@@ -5,6 +5,7 @@ import type { ReactNode } from "@lynx-js/react";
 
 import { BlendDemo } from "./BlendDemo";
 import { ClipDemo } from "./ClipDemo";
+import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
@@ -50,6 +51,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "union · intersect · difference · xor",
     accent: "#14b8a6",
     render: () => <PathOpsDemo />,
+  },
+  {
+    key: "filters",
+    title: "Filters",
+    subtitle: "Blur · DropShadow · ColorMatrix · ColorBlend · MaskBlur",
+    accent: "#6366f1",
+    render: () => <FiltersDemo />,
   },
   {
     key: "transform",

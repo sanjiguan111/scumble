@@ -15,6 +15,9 @@
 #include <string>
 #include <vector>
 
+#include <skity/effect/color_filter.hpp>
+#include <skity/effect/image_filter.hpp>
+#include <skity/effect/mask_filter.hpp>
 #include <skity/effect/path_effect.hpp>
 #include <skity/effect/shader.hpp>
 #include <skity/graphic/path_op.hpp>
@@ -27,6 +30,11 @@ namespace skityrt {
 namespace {
 
 using skity::Canvas;
+using skity::ColorFilter;
+using skity::ColorFilters;
+using skity::ImageFilter;
+using skity::ImageFilters;
+using skity::MaskFilter;
 using skity::Matrix;
 using skity::Paint;
 using skity::Path;
@@ -366,6 +374,94 @@ bool ApplyGradient(const std::vector<uint8_t> &data, float opacity, Paint *out) 
   return true;
 }
 
+// ---- Paint filters (JS-built Filter bytes → skity filter objects) ----
+// The HW canvas chains a paint's filters mask → image → color
+// (hw_filters.cc ConvertPaintToHWFilter); each slot holds one Filter tree,
+// with IMAGE_COMPOSE folding children in declaration order ([0] innermost —
+// each later declaration wraps the accumulated one, Compose(outer, inner)).
+
+std::shared_ptr<ImageFilter> BuildImageFilterNode(const skityrt::Filter *f) {
+  if (f == nullptr) return nullptr;
+  switch (f->kind()) {
+  case skityrt::FilterKind_IMAGE_BLUR:
+    return ImageFilters::Blur(f->fx(), f->fy());
+  case skityrt::FilterKind_IMAGE_DROP_SHADOW:
+    // fx/fy = offset, fz = sigma (uniform), color = 0xAARRGGBB.
+    return ImageFilters::DropShadow(f->fx(), f->fy(), f->fz(), f->fz(),
+                                    ColorFromARGB(f->color(), 1.f), nullptr);
+  case skityrt::FilterKind_IMAGE_COMPOSE: {
+    std::shared_ptr<ImageFilter> acc;
+    const auto *kids = f->children();
+    for (uint32_t i = 0; kids != nullptr && i < kids->size(); i++) {
+      auto cur = BuildImageFilterNode(kids->Get(i));
+      if (cur == nullptr) continue;
+      acc = acc == nullptr ? cur : ImageFilters::Compose(cur /*outer=later*/, acc /*inner*/);
+    }
+    return acc;
+  }
+  default:
+    return nullptr;
+  }
+}
+
+std::shared_ptr<ColorFilter> BuildColorFilterNode(const skityrt::Filter *f) {
+  if (f == nullptr) return nullptr;
+  switch (f->kind()) {
+  case skityrt::FilterKind_COLOR_MATRIX: {
+    const auto *m = f->matrix();
+    if (m == nullptr || m->size() != 20) return nullptr;
+    float row_major[20];
+    for (uint32_t i = 0; i < 20; i++)
+      row_major[i] = m->Get(i);
+    return ColorFilters::Matrix(row_major);
+  }
+  case skityrt::FilterKind_COLOR_BLEND:
+    return ColorFilters::Blend(ColorFromARGB(f->color(), 1.f),
+                               static_cast<skity::BlendMode>(f->mode()));
+  case skityrt::FilterKind_IMAGE_COMPOSE: {
+    std::shared_ptr<ColorFilter> acc;
+    const auto *kids = f->children();
+    for (uint32_t i = 0; kids != nullptr && i < kids->size(); i++) {
+      auto cur = BuildColorFilterNode(kids->Get(i));
+      if (cur == nullptr) continue;
+      acc = acc == nullptr ? cur : ColorFilters::Compose(cur /*outer=later*/, acc /*inner*/);
+    }
+    return acc;
+  }
+  default:
+    return nullptr;
+  }
+}
+
+std::shared_ptr<ImageFilter> BuildImageFilter(const std::vector<uint8_t> &data) {
+  if (data.empty()) return nullptr;
+  return BuildImageFilterNode(::flatbuffers::GetRoot<skityrt::Filter>(data.data()));
+}
+
+std::shared_ptr<ColorFilter> BuildColorFilter(const std::vector<uint8_t> &data) {
+  if (data.empty()) return nullptr;
+  return BuildColorFilterNode(::flatbuffers::GetRoot<skityrt::Filter>(data.data()));
+}
+
+std::shared_ptr<MaskFilter> BuildMaskFilter(const std::vector<uint8_t> &data) {
+  if (data.empty()) return nullptr;
+  const skityrt::Filter *f = ::flatbuffers::GetRoot<skityrt::Filter>(data.data());
+  if (f == nullptr || f->kind() != skityrt::FilterKind_MASK_BLUR) return nullptr;
+  // skityrt::BlurStyle value order == skity::BlurStyle (1-based, kNormal..kInner).
+  return MaskFilter::MakeBlur(static_cast<skity::BlurStyle>(f->style()), f->fx());
+}
+
+// Attach the paint's three filter slots. Called on every successful paint
+// construction; empty slots leave the paint untouched.
+void ApplyPaintFilters(const RetainedPaint &paint, Paint *out) {
+  auto cf = BuildColorFilter(paint.color_filter_data);
+  if (cf != nullptr) out->SetColorFilter(cf);
+  auto imf = BuildImageFilter(paint.image_filter_data);
+  if (imf != nullptr) out->SetImageFilter(imf);
+  auto mf = BuildMaskFilter(paint.mask_filter_data);
+  if (mf != nullptr) out->SetMaskFilter(mf);
+}
+
 bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, Paint *out) {
   if (style == nullptr) return false;
   const RetainedPaint &fill = style->fill;
@@ -375,10 +471,13 @@ bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, Paint *out
   out->SetBlendMode(static_cast<skity::BlendMode>(style->blend_mode));
   if (fill.type == 1 /*COLOR*/) {
     out->SetColor(ColorFromARGB(fill.color, opacity));
+    ApplyPaintFilters(fill, out);
     return true;
   }
   // GRADIENT
-  return ApplyGradient(fill.gradient_data, opacity, out);
+  bool ok = ApplyGradient(fill.gradient_data, opacity, out);
+  if (ok) ApplyPaintFilters(fill, out);
+  return ok;
 }
 
 // Apply the style's dash pattern as the paint's path effect. Valid patterns:
@@ -412,10 +511,13 @@ bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *o
   ApplyDashIfAny(style, out);
   if (stroke.type == 1 /*COLOR*/) {
     out->SetColor(ColorFromARGB(stroke.color, opacity));
+    ApplyPaintFilters(stroke, out);
     return true;
   }
   // GRADIENT.
-  return ApplyGradient(stroke.gradient_data, opacity, out);
+  bool ok = ApplyGradient(stroke.gradient_data, opacity, out);
+  if (ok) ApplyPaintFilters(stroke, out);
+  return ok;
 }
 
 void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style) {

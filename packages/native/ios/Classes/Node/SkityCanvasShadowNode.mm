@@ -132,6 +132,41 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     types.push_back(skityrt::Command_SetTransform);
     node.dirtyTransform = NO;
   }
+  if (node.dirtyFilterMask != 0) {
+    // One SetPaintFilter per dirty slot (fill/stroke × color/image/mask) —
+    // the JS-built Filter bytes ride as opaque [ubyte] vectors.
+    struct FilterSlotDesc {
+      uint32_t bit;
+      NSData *data;
+      skityrt::PaintSlot slot;
+      skityrt::FilterSlot kind;
+    };
+    const FilterSlotDesc descs[] = {
+        {kSkityFilterFillColor, node.fillColorFilterData, skityrt::PaintSlot_FILL,
+         skityrt::FilterSlot_COLOR},
+        {kSkityFilterStrokeColor, node.strokeColorFilterData, skityrt::PaintSlot_STROKE,
+         skityrt::FilterSlot_COLOR},
+        {kSkityFilterFillImage, node.fillImageFilterData, skityrt::PaintSlot_FILL,
+         skityrt::FilterSlot_IMAGE},
+        {kSkityFilterStrokeImage, node.strokeImageFilterData, skityrt::PaintSlot_STROKE,
+         skityrt::FilterSlot_IMAGE},
+        {kSkityFilterFillMask, node.fillMaskFilterData, skityrt::PaintSlot_FILL,
+         skityrt::FilterSlot_MASK},
+        {kSkityFilterStrokeMask, node.strokeMaskFilterData, skityrt::PaintSlot_STROKE,
+         skityrt::FilterSlot_MASK},
+    };
+    for (const auto &d : descs) {
+      if ((node.dirtyFilterMask & d.bit) == 0) continue;
+      flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
+      if (d.data.length > 0) {
+        dataOff = fbb.CreateVector((const uint8_t *)d.data.bytes, d.data.length);
+      }
+      auto off = skityrt::CreateSetPaintFilter(fbb, node.nativeId, d.slot, d.kind, dataOff);
+      offsets.push_back(off.Union());
+      types.push_back(skityrt::Command_SetPaintFilter);
+    }
+    node.dirtyFilterMask = 0;
+  }
   if (node.dirtyClip) {
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
     if (node.clipData.length > 0) {

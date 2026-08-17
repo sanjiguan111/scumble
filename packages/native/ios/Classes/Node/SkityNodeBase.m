@@ -54,6 +54,14 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("op", setOp:, NSString *),
     LYNX_PROP_DECLARE("fillGradient", setFillGradient:, NSString *),
     LYNX_PROP_DECLARE("strokeGradient", setStrokeGradient:, NSString *),
+    // Paint filter slots (base64-encoded JS-built Filter bytes). An empty
+    // payload clears the slot.
+    LYNX_PROP_DECLARE("fillColorFilter", setFillColorFilter:, NSString *),
+    LYNX_PROP_DECLARE("strokeColorFilter", setStrokeColorFilter:, NSString *),
+    LYNX_PROP_DECLARE("fillImageFilter", setFillImageFilter:, NSString *),
+    LYNX_PROP_DECLARE("strokeImageFilter", setStrokeImageFilter:, NSString *),
+    LYNX_PROP_DECLARE("fillMaskFilter", setFillMaskFilter:, NSString *),
+    LYNX_PROP_DECLARE("strokeMaskFilter", setStrokeMaskFilter:, NSString *),
     // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
     // payload clears the clip.
     LYNX_PROP_DECLARE("clip", setClip:, NSString *))
@@ -280,6 +288,22 @@ LYNX_PROP_SETTER("strokeGradient", setStrokeGradient, NSString *) {
   _dirtyPaintMask |= kSkityPaintFieldStrokeGradient;
   [self setNeedsLayout];
 }
+// Paint filter slots — one dirty bit per (paint × filter kind) slot.
+#define SKITY_FILTER_SETTER(prop, fn, field, ivar)                                                 \
+  LYNX_PROP_SETTER(prop, fn, NSString *) {                                                         \
+    NSData *decoded =                                                                              \
+        [[NSData alloc] initWithBase64EncodedString:value                                          \
+                                            options:NSDataBase64DecodingIgnoreUnknownCharacters];  \
+    ivar = decoded.length > 0 ? decoded : nil;                                                     \
+    _dirtyFilterMask |= kSkityFilter##field;                                                       \
+    [self setNeedsLayout];                                                                         \
+  }
+SKITY_FILTER_SETTER("fillColorFilter", setFillColorFilter, FillColor, _fillColorFilterData)
+SKITY_FILTER_SETTER("strokeColorFilter", setStrokeColorFilter, StrokeColor, _strokeColorFilterData)
+SKITY_FILTER_SETTER("fillImageFilter", setFillImageFilter, FillImage, _fillImageFilterData)
+SKITY_FILTER_SETTER("strokeImageFilter", setStrokeImageFilter, StrokeImage, _strokeImageFilterData)
+SKITY_FILTER_SETTER("fillMaskFilter", setFillMaskFilter, FillMask, _fillMaskFilterData)
+SKITY_FILTER_SETTER("strokeMaskFilter", setStrokeMaskFilter, StrokeMask, _strokeMaskFilterData)
 LYNX_PROP_SETTER("clip", setClip, NSString *) {
   NSData *decoded =
       [[NSData alloc] initWithBase64EncodedString:value

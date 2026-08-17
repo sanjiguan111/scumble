@@ -10,7 +10,10 @@
 // never parses strings.
 
 import {
+  buildColorFilter,
+  buildImageFilter,
   buildLinearGradient,
+  buildMaskFilter,
   buildRadialGradient,
   buildSweepGradient,
   buildTwoPointConicalGradient,
@@ -21,16 +24,23 @@ import {
   parseStrokeCap,
   parseStrokeJoin,
 } from "@lynx-skity/graphics";
+import type { FilterSpec } from "@lynx-skity/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
+import { Blur, ColorBlend, ColorMatrix, DropShadow, MaskBlur } from "../filters/filters";
 import { LinearGradient } from "../shaders/LinearGradient";
 import { RadialGradient } from "../shaders/RadialGradient";
 import { SweepGradient } from "../shaders/SweepGradient";
 import { TwoPointConicalGradient } from "../shaders/TwoPointConicalGradient";
 import { Paint } from "../Paint";
 import type {
+  BlurProps,
+  ColorBlendProps,
+  ColorMatrixProps,
+  DropShadowProps,
   GraphicProps,
   LinearGradientProps,
+  MaskBlurProps,
   PaintProps,
   RadialGradientProps,
   SweepGradientProps,
@@ -59,6 +69,13 @@ export interface ResolvedPaint {
   strokeDashOffset?: number;
   /** Blend mode byte (skityrt::BlendMode); shared by the fill and stroke paints. */
   blendMode?: number;
+  /** Base64 Filter bytes — the paint's color/image/mask filter slots. */
+  fillColorFilter?: string;
+  strokeColorFilter?: string;
+  fillImageFilter?: string;
+  strokeImageFilter?: string;
+  fillMaskFilter?: string;
+  strokeMaskFilter?: string;
 }
 
 /**
@@ -163,6 +180,52 @@ function gradientBytes(shader: ShaderChild): string {
   }
 }
 
+/** Map one filter child element to its FilterSpec (null for non-filters). */
+function filterSpec(el: ChildElement): FilterSpec | null {
+  if (el.type === Blur) return { kind: "blur", blur: (el.props as BlurProps).blur };
+  if (el.type === DropShadow) {
+    const p = el.props as DropShadowProps;
+    return { kind: "dropShadow", dx: p.dx, dy: p.dy, blur: p.blur, color: p.color };
+  }
+  if (el.type === ColorMatrix) {
+    return { kind: "colorMatrix", matrix: (el.props as ColorMatrixProps).matrix };
+  }
+  if (el.type === ColorBlend) {
+    const p = el.props as ColorBlendProps;
+    return { kind: "colorBlend", color: p.color, mode: p.mode };
+  }
+  if (el.type === MaskBlur) {
+    const p = el.props as MaskBlurProps;
+    return { kind: "maskBlur", blur: p.blur, style: p.style };
+  }
+  return null;
+}
+
+/** Collect the filter children's specs, in declaration order. */
+function findFilterSpecs(children?: ReactNode): FilterSpec[] {
+  const out: FilterSpec[] = [];
+  for (const el of childElements(children)) {
+    const spec = filterSpec(el);
+    if (spec !== null) out.push(spec);
+  }
+  return out;
+}
+
+/**
+ * Serialize the filter specs onto one paint slot (`fill`/`stroke`): image
+ * filters (blur/dropShadow) compose in declaration order, color filters
+ * (colorMatrix/colorBlend) likewise, and the mask filter takes the first
+ * maskBlur. Empty kinds leave the slot unset.
+ */
+function applyFilterProps(out: ResolvedPaint, specs: FilterSpec[], slot: "fill" | "stroke"): void {
+  const image = buildImageFilter(specs);
+  if (image !== null) out[`${slot}ImageFilter`] = bytesToBase64(image);
+  const color = buildColorFilter(specs);
+  if (color !== null) out[`${slot}ColorFilter`] = bytesToBase64(color);
+  const mask = buildMaskFilter(specs);
+  if (mask !== null) out[`${slot}MaskFilter`] = bytesToBase64(mask);
+}
+
 /**
  * Normalize a shape's {@link GraphicProps} into the `{fill?, stroke?, …}`
  * scalars the skity intrinsic tags accept. `color` is run through `parseColor`
@@ -224,6 +287,11 @@ export function resolvePaint(
     out[style === "stroke" ? "strokeGradient" : "fillGradient"] = gradientBytes(shader);
   }
 
+  // Child filters (<Blur>/<DropShadow>/<ColorMatrix>/<ColorBlend>/<MaskBlur>)
+  // route to the same paint the shape draws with — same rule as shaders.
+  const filterSpecs = findFilterSpecs(children);
+  if (filterSpecs.length > 0) applyFilterProps(out, filterSpecs, style);
+
   // Declarative <Paint> children (RN-Skia style) override the paint of their
   // style; shaders nested inside route to that paint's gradient slot. Only
   // properties the <Paint> actually declares are overridden.
@@ -245,6 +313,8 @@ export function resolvePaint(
     if (pShader !== null) {
       out[`${target}Gradient`] = gradientBytes(pShader);
     }
+    const pFilters = findFilterSpecs(p.children);
+    if (pFilters.length > 0) applyFilterProps(out, pFilters, target);
   }
 
   // zIndex is accepted on GraphicProps but not honored natively today

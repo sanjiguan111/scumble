@@ -76,6 +76,14 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var opData: ByteArray? = null
   @JvmField var fillGradientData: ByteArray? = null
   @JvmField var strokeGradientData: ByteArray? = null
+  // Paint filter slots (JS-built Filter bytes; null = none): fill/stroke ×
+  // color/image/mask. Drained into SetPaintFilter commands.
+  @JvmField var fillColorFilterData: ByteArray? = null
+  @JvmField var strokeColorFilterData: ByteArray? = null
+  @JvmField var fillImageFilterData: ByteArray? = null
+  @JvmField var strokeImageFilterData: ByteArray? = null
+  @JvmField var fillMaskFilterData: ByteArray? = null
+  @JvmField var strokeMaskFilterData: ByteArray? = null
   // Group clip sequence (JS-built ClipList bytes; null = no clip).
   @JvmField var clipData: ByteArray? = null
 
@@ -92,8 +100,19 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var dirtyGeometry: Int = 0
   @JvmField var dirtyPath: Boolean = false
   @JvmField var dirtyPathOp: Boolean = false
+  @JvmField var dirtyFilter: Int = 0
   @JvmField var dirtyTransform: Boolean = false
   @JvmField var dirtyClip: Boolean = false
+
+  /** Paint filter slot bitmask (which of the six *FilterData slots is dirty). */
+  object PaintFilterField {
+    const val FILL_COLOR = 1
+    const val STROKE_COLOR = 2
+    const val FILL_IMAGE = 4
+    const val STROKE_IMAGE = 8
+    const val FILL_MASK = 16
+    const val STROKE_MASK = 32
+  }
 
   /** PaintField bitmask values (mirrors skityrt::PaintField in command_batch.fbs). */
   object PaintField {
@@ -334,6 +353,44 @@ abstract class SkityNodeBase : ShadowNode() {
     strokeGradientData = if (decoded.isNotEmpty()) decoded else null
     dirtyPaint = dirtyPaint or PaintField.STROKE_GRADIENT
     markDirty()
+  }
+  // Paint filter slots (base64-encoded JS-built Filter bytes — same string
+  // channel as the gradients). An empty payload clears the slot.
+  @LynxProp(name = "fillColorFilter") fun setFillColorFilter(v: String) {
+    fillColorFilterData = decodeOrNull(v)
+    dirtyFilter = dirtyFilter or PaintFilterField.FILL_COLOR
+    markDirty()
+  }
+  @LynxProp(name = "strokeColorFilter") fun setStrokeColorFilter(v: String) {
+    strokeColorFilterData = decodeOrNull(v)
+    dirtyFilter = dirtyFilter or PaintFilterField.STROKE_COLOR
+    markDirty()
+  }
+  @LynxProp(name = "fillImageFilter") fun setFillImageFilter(v: String) {
+    fillImageFilterData = decodeOrNull(v)
+    dirtyFilter = dirtyFilter or PaintFilterField.FILL_IMAGE
+    markDirty()
+  }
+  @LynxProp(name = "strokeImageFilter") fun setStrokeImageFilter(v: String) {
+    strokeImageFilterData = decodeOrNull(v)
+    dirtyFilter = dirtyFilter or PaintFilterField.STROKE_IMAGE
+    markDirty()
+  }
+  @LynxProp(name = "fillMaskFilter") fun setFillMaskFilter(v: String) {
+    fillMaskFilterData = decodeOrNull(v)
+    dirtyFilter = dirtyFilter or PaintFilterField.FILL_MASK
+    markDirty()
+  }
+  @LynxProp(name = "strokeMaskFilter") fun setStrokeMaskFilter(v: String) {
+    strokeMaskFilterData = decodeOrNull(v)
+    dirtyFilter = dirtyFilter or PaintFilterField.STROKE_MASK
+    markDirty()
+  }
+
+  /** Base64 string → bytes (null when empty — clears the slot). */
+  private fun decodeOrNull(v: String): ByteArray? {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    return if (decoded.isNotEmpty()) decoded else null
   }
   // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
   // payload clears the clip.

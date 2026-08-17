@@ -80,3 +80,6 @@ export * from "./path";
 export * from "./gradient";
 // Clip: group clip shapes (rect/rrect/path) → nested ClipList FlatBuffer bytes.
 export * from "./clip";
+// Filters: paint filter specs (blur/dropShadow/colorMatrix/colorBlend/maskBlur)
+// → nested Filter FlatBuffer bytes.
+export * from "./filter";

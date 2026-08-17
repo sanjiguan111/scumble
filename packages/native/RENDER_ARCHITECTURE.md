@@ -80,7 +80,7 @@ The schema lives in `packages/native/schema/render_tree*.fbs` (namespace `skityr
 
 `@lynx-skity/graphics` parses strings/objects and produces FlatBuffer bytes. Lynx component props marshal `NSNumber` / `NSString` / `NSArray` but **not** binary (`NSData` / `byte[]`), so the bytes are **base64-encoded** (`bytesToBase64`, hand-written — Lynx JSC has no `btoa`) and carried as a string prop. The native setter base64-decodes (`-[NSData initWithBase64EncodedString:]` / `android.util.Base64.decode`) then does a **mechanical copy** into the FlatBuffer vector — the decode is an encoding conversion, not structure parsing, so "native never parses" still holds.
 
-**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList` / `PathOpList`) by `@lynx-skity/graphics` using `flatbuffers.js`, and passed in as `[ubyte]` blobs (base64 over the wire).
+**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList` / `PathOpList` / `Filter`) by `@lynx-skity/graphics` using `flatbuffers.js`, and passed in as `[ubyte]` blobs (base64 over the wire).
 
 - **schema**: wrapper tables + `RenderNode.path_data` / `ComputedStyle.transform_data`, annotated `(nested_flatbuffer: "...")`
 - **front end**: parsers build finished FlatBuffer bytes using `flatc --ts` stubs + the `flatbuffers` runtime, then `bytesToBase64`
@@ -220,6 +220,7 @@ union Command {
   SetViewport,    // canvas viewBox
   SetClip,        // group clip sequence (nested ClipList bytes; applied after transform)
   SetPathOpData,  // path boolean ops (nested PathOpList bytes; evaluated at render time)
+  SetPaintFilter, // one paint-filter slot: nested Filter bytes (fill/stroke × color/image/mask)
   InsertNode,     // create node under a parent at an index
   RemoveNode,     // destroy node (+ subtree)
   MoveNode,       // reparent / reorder
@@ -504,3 +505,34 @@ as a description and the renderer evaluates it.
 - **Perf note**: like the plain path channel, the fold re-evaluates every
   frame; a `RetainedNode`-level cache keyed on payload identity is a TODO if
   animated op compositions ever show up in profiles.
+
+### 11.14 Paint filters (2026-08-17)
+
+Image filters (blur / dropShadow), color filters (colorMatrix / colorBlend)
+and the mask filter (maskBlur) — declarative children of a shape (or `<Paint>`),
+react-native-skia style, routed to the paint the shape draws with (same rule
+as shaders).
+
+- **Engine**: skity `Paint::SetColorFilter/SetImageFilter/SetMaskFilter`; the
+  HW canvas chains a paint's three slots mask → image → color
+  (`hw_filters.cc ConvertPaintToHWFilter`). **Only kinds the HW backend
+  implements are modeled** — Dilate/Erode (morphology) are absent from the hw
+  switch and are deliberately not wired.
+- **Wire**: one JS-built `Filter` FlatBuffer per (paint × kind) slot on the
+  `SetPaintFilter` command (`slot: FILL|STROKE` × `kind: COLOR|IMAGE|MASK`;
+  empty data clears the slot). A single filter serializes directly; several
+  of the same kind ride an `IMAGE_COMPOSE` node whose `children` are **in
+  declaration order, `[0]` innermost** (`Compose(outer, inner)` with the later
+  declaration outer — the first declared applies first). The mask slot takes
+  the first maskBlur only (skity MaskFilter has no compose).
+- **Enum orders**: `skityrt::BlurStyle` is **1-based** to match
+  `skity::BlurStyle` (kNormal=1..kInner=4) — NOT Skia's 0-based order;
+  `ColorBlend`'s mode reuses the skityrt BlendMode bytes.
+- **Renderer**: `BuildImageFilter/BuildColorFilter/BuildMaskFilter`
+  (`SkityRenderer.cc`) turn the bytes into skity filter objects at paint
+  construction (`ApplyPaintFilters`, called from MakeFillPaint /
+  MakeStrokePaint on every successful path). Filters never flip the
+  "does this paint draw" decision — a paint still needs color or gradient.
+- **Shadow nodes**: six base64 string props (`fillColorFilter` …
+  `strokeMaskFilter`) decode into six `*FilterData` byte slots with a 6-bit
+  `dirtyFilter` mask, drained as up to six `SetPaintFilter` commands.

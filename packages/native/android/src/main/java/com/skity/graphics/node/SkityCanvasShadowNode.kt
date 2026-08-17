@@ -21,6 +21,7 @@ import com.skity.graphics.skityrt.SetGeometry
 import com.skity.graphics.skityrt.SetPaint
 import com.skity.graphics.skityrt.SetPathData
 import com.skity.graphics.skityrt.SetPathOpData
+import com.skity.graphics.skityrt.SetPaintFilter
 import com.skity.graphics.skityrt.SetTransform
 import com.skity.graphics.skityrt.SetViewport
 
@@ -262,6 +263,28 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       offsets += SetTransform.createSetTransform(fbb, node.nativeId, off)
       types += Command.SetTransform
       node.dirtyTransform = false
+    }
+    if (node.dirtyFilter != 0) {
+      // One SetPaintFilter per dirty slot (fill/stroke × color/image/mask) —
+      // the JS-built Filter bytes ride as opaque [ubyte] vectors.
+      val f = SkityNodeBase.PaintFilterField
+      val slots = listOf(
+        f.FILL_COLOR to (node.fillColorFilterData to intArrayOf(0, 0)),
+        f.STROKE_COLOR to (node.strokeColorFilterData to intArrayOf(1, 0)),
+        f.FILL_IMAGE to (node.fillImageFilterData to intArrayOf(0, 1)),
+        f.STROKE_IMAGE to (node.strokeImageFilterData to intArrayOf(1, 1)),
+        f.FILL_MASK to (node.fillMaskFilterData to intArrayOf(0, 2)),
+        f.STROKE_MASK to (node.strokeMaskFilterData to intArrayOf(1, 2)),
+      )
+      for ((bit, payload) in slots) {
+        if (node.dirtyFilter and bit == 0) continue
+        val (data, slotKind) = payload
+        val off = if (data != null && data.isNotEmpty()) SetPaintFilter.createDataVector(fbb, data) else 0
+        offsets += SetPaintFilter.createSetPaintFilter(
+          fbb, node.nativeId, slotKind[0].toByte(), slotKind[1].toByte(), off)
+        types += Command.SetPaintFilter
+      }
+      node.dirtyFilter = 0
     }
     if (node.dirtyClip) {
       val data = node.clipData

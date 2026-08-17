@@ -333,6 +333,55 @@ export interface GroupProps extends GraphicProps {
   transform?: Transform;
 }
 
+// ---- paint filters (RN-Skia-style declarative children of a shape / <Paint>) ----
+
+/** Blur sigma in px — number → uniform, `{x,y}` → per-axis. */
+export type FilterRadius = number | { x: number; y: number };
+
+export interface BlurProps {
+  /**
+   * Blur sigma (px). Strokes/fills render into a layer first, then the layer
+   * blurs — a number blurs uniformly, `{x,y}` per axis.
+   */
+  blur: FilterRadius;
+}
+
+export interface DropShadowProps {
+  /** Shadow offset x (px). */
+  dx: number;
+  /** Shadow offset y (px). */
+  dy: number;
+  /** Shadow blur sigma (px, uniform). */
+  blur: number;
+  /** Shadow color. (`inner`/`shadowOnly` from RN-Skia are not supported.) */
+  color: import("@lynx-skity/graphics").Color;
+}
+
+export interface ColorMatrixProps {
+  /**
+   * 20 numbers, row-major 4×5 (Skia layout: R/G/B/A rows + translation
+   * column). An invalid matrix (wrong length / non-finite) is dropped.
+   */
+  matrix: number[];
+}
+
+export interface ColorBlendProps {
+  /** How the blend color combines with the source color. */
+  mode: BlendMode;
+  /** The blend color. */
+  color: import("@lynx-skity/graphics").Color;
+}
+
+/** How a {@link MaskBlur} treats the inside of the mask (Skia BlurStyle). */
+export type MaskBlurStyleProp = "normal" | "solid" | "outer" | "inner";
+
+export interface MaskBlurProps {
+  /** Feather radius (px). */
+  blur: number;
+  /** Defaults to `"normal"` (fuzzy inside and outside). */
+  style?: MaskBlurStyleProp;
+}
+
 // ---- group clip (RN-Skia-style declarative children of <Group>) ----
 
 /** How a clip shape combines with the clips before it. Defaults to `"intersect"`. */

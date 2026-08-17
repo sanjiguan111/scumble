@@ -41,6 +41,18 @@ export interface SkityPaintProps {
   strokeDash?: string;
   /** Phase offset into the dash pattern (px). */
   strokeDashOffset?: number;
+  /**
+   * Base64-encoded Filter bytes (@lynx-skity/graphics) — the paint's filter
+   * slots (fill/stroke × color/image/mask). Native decodes + memcpys, then
+   * builds skity filter objects at paint construction. Empty string clears
+   * the slot.
+   */
+  fillColorFilter?: string;
+  strokeColorFilter?: string;
+  fillImageFilter?: string;
+  strokeImageFilter?: string;
+  fillMaskFilter?: string;
+  strokeMaskFilter?: string;
   /** BlendMode byte (skityrt::BlendMode == skity::BlendMode order); shared by
    *  the fill and stroke paints. */
   blendMode?: number;

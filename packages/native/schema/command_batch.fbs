@@ -47,6 +47,7 @@ union Command {
   SetViewport,  // Step 3a: canvas logical viewport (viewBox)
   SetClip,      // group clip: ClipList bytes (memcpy from the JS-built blob)
   SetPathOpData,// path boolean ops: PathOpList bytes, evaluated at render time
+  SetPaintFilter,// one paint-filter slot: nested Filter bytes (fill/stroke × color/image/mask)
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; the paint is
@@ -193,6 +194,30 @@ table SetClip {
 table SetPathOpData {
   node_id:int = -1;
   data:[ubyte] (nested_flatbuffer: "PathOpList");
+}
+
+// Which paint of a node a filter attaches to.
+enum PaintSlot : byte {
+  FILL   = 0,
+  STROKE = 1,
+}
+
+// Which filter slot on that paint (skity Paint has one of each).
+enum FilterSlot : byte {
+  COLOR = 0,
+  IMAGE = 1,
+  MASK  = 2,
+}
+
+// Set one paint-filter slot (fill/stroke × color/image/mask) on a node. The
+// JS-built Filter bytes are memcpy'd and turned into skity filter objects at
+// paint construction (MakeFillPaint/MakeStrokePaint). An empty/absent data
+// vector clears the slot.
+table SetPaintFilter {
+  node_id:int = -1;
+  slot:PaintSlot = FILL;
+  kind:FilterSlot = COLOR;
+  data:[ubyte] (nested_flatbuffer: "Filter");
 }
 
 table CommandBatch {

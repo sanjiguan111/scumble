@@ -140,3 +140,39 @@ table PathOperand {
 table PathOpList {
   operands:[PathOperand];
 }
+
+// ---- Paint filters (JS-built Filter, applied at render time) ----
+// One filter description per paint slot (color/image/mask — see
+// SetPaintFilter). skity builds the filter and the HW canvas applies it as a
+// filter pass (hw_filters.cc ConvertPaintToHWFilter chains mask → image →
+// color). Only the kinds the HW backend implements are modeled — no
+// morphology (Dilate/Erode are absent from the hw switch).
+
+enum FilterKind : byte {
+  IMAGE_BLUR = 0,        // fx = sigma_x, fy = sigma_y
+  IMAGE_DROP_SHADOW = 1, // fx = dx, fy = dy, fz = sigma, color
+  IMAGE_COMPOSE = 2,     // children applied in declaration order ([0] innermost)
+  COLOR_MATRIX = 3,      // matrix (20 row-major, Skia layout)
+  COLOR_BLEND = 4,       // color + mode
+  MASK_BLUR = 5,         // fx = radius, style
+}
+
+// skity::BlurStyle starts at 1 (kNormal..kInner) — NOT Skia's 0-based order.
+enum BlurStyle : byte {
+  NORMAL = 1,
+  SOLID  = 2,
+  OUTER  = 3,
+  INNER  = 4,
+}
+
+table Filter {
+  kind:FilterKind = IMAGE_BLUR;
+  fx:float = 0;
+  fy:float = 0;
+  fz:float = 0;
+  color:uint = 0; // IMAGE_DROP_SHADOW / COLOR_BLEND (0xAARRGGBB)
+  mode:uint = 0;  // COLOR_BLEND: skityrt::BlendMode byte (== skity order)
+  style:BlurStyle = NORMAL; // MASK_BLUR
+  matrix:[float]; // COLOR_MATRIX: 20 row-major
+  children:[Filter]; // IMAGE_COMPOSE (may nest further composes)
+}

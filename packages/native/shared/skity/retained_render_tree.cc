@@ -213,6 +213,24 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       if (node != nullptr) AssignOwnedBytes(po->data(), &node->path_op_data);
       break;
     }
+    case Command_SetPaintFilter: {
+      const auto *pf = static_cast<const SetPaintFilter *>(obj);
+      RetainedNode *node = Find(pf->node_id());
+      if (node == nullptr) break;
+      RetainedPaint &paint = pf->slot() == PaintSlot_STROKE ? node->style.stroke : node->style.fill;
+      switch (pf->kind()) {
+      case FilterSlot_IMAGE:
+        AssignOwnedBytes(pf->data(), &paint.image_filter_data);
+        break;
+      case FilterSlot_MASK:
+        AssignOwnedBytes(pf->data(), &paint.mask_filter_data);
+        break;
+      default: // COLOR
+        AssignOwnedBytes(pf->data(), &paint.color_filter_data);
+        break;
+      }
+      break;
+    }
     case Command_SetTransform: {
       const auto *td = static_cast<const SetTransform *>(obj);
       RetainedNode *node = Find(td->node_id());
