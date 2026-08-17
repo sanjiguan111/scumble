@@ -43,6 +43,9 @@ export default defineConfig({
     {
       name: "plugin-hot-reload-sse",
       setup(api: any) {
+        // Dev-only: `rspeedy build` runs plugin setup too, and an
+        // unconditional listen on :3001 collides with any running dev server.
+        if (api.context.command !== "dev") return;
         startSSEServer();
         api.onDevCompileDone(() => {
           notifyReload();

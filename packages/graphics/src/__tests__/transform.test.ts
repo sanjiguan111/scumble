@@ -28,8 +28,18 @@ describe("parseTransform → nested FlatBuffer round-trip", () => {
     expect(list.ops(1)!.args(0)).toBe(2);
     expect(list.ops(1)!.args(1)).toBe(2); // sy defaults to sx
 
-    expect(list.ops(2)!.type()).toBe(TransformType.ROTATE);
-    expect(list.ops(2)!.args(0)).toBe(45);
+    // rotate() is deliberately expanded to an explicit 2D affine MATRIX (the
+    // native ROTATE path rendered off-screen for non-zero angles — see the
+    // rotate case in transform.ts), so assert the matrix, not a ROTATE op.
+    // rotate(45) about the origin: [cos, sin, -sin, cos, 0, 0].
+    expect(list.ops(2)!.type()).toBe(TransformType.MATRIX);
+    const k = Math.SQRT1_2;
+    expect(list.ops(2)!.args(0)).toBeCloseTo(k); // cos 45°
+    expect(list.ops(2)!.args(1)).toBeCloseTo(k); // sin 45°
+    expect(list.ops(2)!.args(2)).toBeCloseTo(-k);
+    expect(list.ops(2)!.args(3)).toBeCloseTo(k);
+    expect(list.ops(2)!.args(4)).toBe(0); // no pivot → e/f stay 0
+    expect(list.ops(2)!.args(5)).toBe(0);
   });
 
   it("parses matrix", () => {
