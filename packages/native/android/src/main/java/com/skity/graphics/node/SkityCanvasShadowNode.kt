@@ -20,6 +20,7 @@ import com.skity.graphics.skityrt.SetClip
 import com.skity.graphics.skityrt.SetGeometry
 import com.skity.graphics.skityrt.SetPaint
 import com.skity.graphics.skityrt.SetPathData
+import com.skity.graphics.skityrt.SetPathOpData
 import com.skity.graphics.skityrt.SetTransform
 import com.skity.graphics.skityrt.SetViewport
 
@@ -245,6 +246,15 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       offsets += SetPathData.createSetPathData(fbb, node.nativeId, off)
       types += Command.SetPathData
       node.dirtyPath = false
+    }
+    if (node.dirtyPathOp) {
+      // Boolean-op payload (nested PathOpList bytes) — opaque [ubyte] vector,
+      // same memcpy pattern as SetPathData; evaluated at render time.
+      val data = node.opData
+      val off = if (data != null && data.isNotEmpty()) SetPathOpData.createDataVector(fbb, data) else 0
+      offsets += SetPathOpData.createSetPathOpData(fbb, node.nativeId, off)
+      types += Command.SetPathOpData
+      node.dirtyPathOp = false
     }
     if (node.dirtyTransform) {
       val data = node.transformData

@@ -106,6 +106,9 @@ enum SkityGeometryField {
 // ---- transform & path & gradient (JS-built nested FlatBuffer bytes; nil = none) ----
 @property(nonatomic, strong, nullable) NSData *transformData;
 @property(nonatomic, strong, nullable) NSData *pathData;
+/// Path boolean-op description (JS-built PathOpList bytes; nil = none).
+/// Mutually exclusive with pathData in practice; non-empty wins at draw time.
+@property(nonatomic, strong, nullable) NSData *opData;
 @property(nonatomic, strong, nullable) NSData *fillGradientData;
 @property(nonatomic, strong, nullable) NSData *strokeGradientData;
 /// Group clip sequence (JS-built ClipList bytes; nil = no clip).
@@ -123,6 +126,7 @@ enum SkityGeometryField {
 @property(nonatomic, assign) uint32_t dirtyPaintMask;
 @property(nonatomic, assign) uint32_t dirtyGeometryMask;
 @property(nonatomic, assign) BOOL dirtyPath;
+@property(nonatomic, assign) BOOL dirtyPathOp;
 @property(nonatomic, assign) BOOL dirtyTransform;
 @property(nonatomic, assign) BOOL dirtyClip;
 

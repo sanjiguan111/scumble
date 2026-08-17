@@ -46,7 +46,7 @@
 | Capability                                | Status                                                                                                                                      |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `start`/`end` trim                        | ✅ Every contour trimmed independently against its own length (Skia `SkTrimPathEffect` semantics): one `PathMeasure` walked with `NextContour` + `GetSegment` appends exact curve segments |
-| Path ops (union / intersect / diff / xor) | ❌ Not wired, but skity has `PathOp` (`path_op.hpp`, all four ops) — needs a transport/API design (render-time composition vs NAPI round-trip) |
+| Path ops (union / intersect / diff / xor) | ✅ `Path2D.op(one, two, op)` — a **lazy** composition (no JS geometry math; no channel back to JS — Android public SDK has NAPI disabled). Serialized as a nested `PathOpList` (left-fold operand chain; right-nested compositions ride a `nested` sub-tree) on the `SetPathOpData` command; the renderer evaluates per frame with skity `PathOp::Execute` (a failed operand is skipped). No ReverseDifference (skity doesn't expose it); trim/fillRule apply to the boolean result |
 | dash PathEffect                           | ✅ Same mechanism as B (skity `MakeDashPathEffect`); declarative `DashPathEffect` component not offered — `dash`/`dashOffset` props instead |
 | corner / discrete / trim-as-effect        | ❌ skity `path_effect.hpp` exposes only `MakeDiscrete` + `MakeDash` factories                                                               |
 
@@ -63,5 +63,5 @@
 3. ~~**Group clip + paint inheritance**~~ — done (`SetClip` command + render-time inheritance via `explicit_paint`).
 4. ~~**BlendMode**~~ — done (`SetPaint.blend_mode`, applied to both paints, inheritable).
 5. ~~**`<Points pointMode>`**~~ — done (react-layer compilation to path commands; zero-length segments + round cap for `points` mode).
-6. **Path ops** — skity `PathOp` is available; needs an API/transport decision (declarative render-time composition keeps the one-way command stream; an NAPI round-trip would break it).
+6. ~~**Path ops**~~ — done (`Path2D.op` lazy composition → `SetPathOpData` → render-time `PathOp::Execute`; see RENDER_ARCHITECTURE.md §11.13).
 7. Bigger blocks (ColorFilter, Image, Text) — scope as separate features.

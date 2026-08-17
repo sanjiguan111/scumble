@@ -110,3 +110,33 @@ table Clip {
 table ClipList {
   clips:[Clip];
 }
+
+// ---- Path boolean ops (JS-built PathOpList, evaluated at render time) ----
+// skity has no synchronous call back to JS (the Lynx public SDK disables NAPI
+// on Android), so a boolean composition travels as a description and the
+// renderer evaluates it per frame via skity PathOp::Execute.
+
+enum PathOpKind : byte {
+  DIFFERENCE = 0, // value order == skity::PathOp::Op (== Skia SkPathOp)
+  INTERSECT  = 1,
+  UNION      = 2,
+  XOR        = 3,
+}
+
+// One operand of the left-fold chain. A leaf carries the operand's geometry as
+// nested PathCommandList bytes; a right-nested composition (e.g. (A-B)∪(C-D))
+// carries the sub-tree as nested PathOpList bytes instead — mutually exclusive.
+table PathOperand {
+  // How this operand folds into the running result (skity PathOp::Execute).
+  // Ignored for the first operand (it is the base).
+  op:PathOpKind = UNION;
+  commands:[ubyte] (nested_flatbuffer: "PathCommandList");
+  nested:[ubyte] (nested_flatbuffer: "PathOpList");
+}
+
+// Left-fold: operands[0] is the base, each following operand combines into the
+// accumulated result with its own op. Evaluated at render time in DrawShape
+// (before trim/fillRule, which apply to the boolean result).
+table PathOpList {
+  operands:[PathOperand];
+}

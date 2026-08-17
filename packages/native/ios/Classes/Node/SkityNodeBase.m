@@ -49,6 +49,9 @@ LYNX_PROPS_GROUP_DECLARE(
     // transform & path & gradient (base64-encoded nested FlatBuffer bytes)
     LYNX_PROP_DECLARE("transform", setTransform:, NSString *),
     LYNX_PROP_DECLARE("d", setD:, NSString *),
+    // Path boolean-op description (base64-encoded JS-built PathOpList bytes;
+    // an empty payload clears the op — the node falls back to its plain d).
+    LYNX_PROP_DECLARE("op", setOp:, NSString *),
     LYNX_PROP_DECLARE("fillGradient", setFillGradient:, NSString *),
     LYNX_PROP_DECLARE("strokeGradient", setStrokeGradient:, NSString *),
     // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
@@ -251,6 +254,14 @@ LYNX_PROP_SETTER("d", setD, NSString *) {
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _pathData = decoded.length > 0 ? decoded : nil;
   _dirtyPath = YES;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("op", setOp, NSString *) {
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _opData = decoded.length > 0 ? decoded : nil;
+  _dirtyPathOp = YES;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fillGradient", setFillGradient, NSString *) {

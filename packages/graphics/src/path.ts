@@ -5,6 +5,9 @@ import * as flatbuffers from "./generated/flatbuffers/flatbuffers.js";
 import { PathCommand } from "./generated/skityrt/path-command.js";
 import { PathCommandList } from "./generated/skityrt/path-command-list.js";
 import { PathCommandType } from "./generated/skityrt/path-command-type.js";
+import { PathOperand } from "./generated/skityrt/path-operand.js";
+import { PathOpKind } from "./generated/skityrt/path-op-kind.js";
+import { PathOpList } from "./generated/skityrt/path-op-list.js";
 import { PATH_COMMAND_TYPE, type CmdOp } from "./binary";
 
 /**
@@ -158,6 +161,14 @@ function buildPathCommandList(ops: CmdOp[]): ArrayBuffer {
   builder.finish(root);
   return builder.asUint8Array().slice().buffer;
 }
+
+/** PathOpKind bytes for the PathOpName literals (skity PathOp::Op value order). */
+const PATH_OP_KIND = {
+  difference: PathOpKind.DIFFERENCE,
+  intersect: PathOpKind.INTERSECT,
+  union: PathOpKind.UNION,
+  xor: PathOpKind.XOR,
+} as const;
 
 /**
  * Parse an SVG path `d` string into a nested PathCommandList FlatBuffer. See
@@ -456,6 +467,19 @@ export function parsePoints(points: string): Array<{ x: number; y: number }> {
 const PATH2D_KAPPA = 0.5522847498307936;
 
 /**
+ * Boolean operation names (Skia path ops). skity implements the four — its
+ * `PathOp::Op` value order matches Skia's SkPathOp (no ReverseDifference).
+ */
+export type PathOpName = "difference" | "intersect" | "union" | "xor";
+
+/** One node of the lazy boolean-composition tree held by an op-composed Path2D. */
+interface OpSpec {
+  left: string | Path2D;
+  right: string | Path2D;
+  op: PathOpName;
+}
+
+/**
  * Command-style path builder (a la the Web Canvas Path2D / skity Path2D).
  * Accumulates the six normalized commands the native renderer understands and
  * serializes to the same nested PathCommandList FlatBuffer that parsePath()
@@ -469,6 +493,13 @@ const PATH2D_KAPPA = 0.5522847498307936;
  */
 export class Path2D {
   private readonly ops: CmdOp[] = [];
+  /**
+   * Lazy boolean-composition descriptor (`Path2D.op`). Non-null only on
+   * op-composed instances, which carry no commands — `toOpBytes()` serializes
+   * the tree, `toBytes()` yields an empty PathCommandList (never used; the
+   * component layer checks `toOpBytes()` first).
+   */
+  private opSpec: OpSpec | null = null;
 
   moveTo(x: number, y: number): this {
     this.ops.push({ type: M, args: [x, y] });
@@ -570,6 +601,94 @@ export class Path2D {
   reset(): this {
     this.ops.length = 0;
     return this;
+  }
+
+  /**
+   * Lazily combine two paths with a boolean operation (Skia path ops:
+   * difference / intersect / union / xor). Unlike react-native-skia's
+   * `Skia.Path.MakeFromOp` — which computes the result synchronously via JSI —
+   * there is no channel back to JS here (the Lynx public SDK disables NAPI on
+   * Android), so this only records the composition: `<Path path={…}>` detects
+   * it via {@link toOpBytes} and the native renderer evaluates the tree per
+   * frame with skity `PathOp::Execute` (left fold; an operand whose Execute
+   * fails is skipped).
+   *
+   * Operands accept an SVG `d` string or a Path2D — including other
+   * op-composed instances, so compositions nest arbitrarily:
+   * `Path2D.op(Path2D.op(a, b, "union"), c, "difference")` is `((a ∪ b) − c)`.
+   * Returns a fresh op-composed Path2D; the operands are not modified.
+   *
+   * @example
+   * const mask = Path2D.op(circle, square, "difference");
+   * <Path path={mask} color="#22c55e" />
+   */
+  static op(one: string | Path2D, two: string | Path2D, op: PathOpName): Path2D {
+    const p = new Path2D();
+    p.opSpec = { left: one, right: two, op };
+    return p;
+  }
+
+  /**
+   * Serialize a boolean composition to a nested PathOpList FlatBuffer; `null`
+   * on a plain (command-style) instance. The operand chain is the tree's
+   * left-fold form: an op node flattens into its left chain plus one operand
+   * for its right side — nested as a sub-PathOpList when that side is itself
+   * a composition (e.g. `(A−B) ∪ (C−D)` cannot flatten, the right union rides
+   * the `nested` field).
+   */
+  toOpBytes(): ArrayBuffer | null {
+    return this.opSpec !== null ? this.serializeOp(this.opSpec) : null;
+  }
+
+  /** True when `p` is itself an op-composed instance. */
+  private isComposed(p: string | Path2D): p is Path2D {
+    return typeof p !== "string" && p.opSpec !== null;
+  }
+
+  /** Serialize one sub-tree into a standalone PathOpList buffer. */
+  private serializeOp(spec: OpSpec): ArrayBuffer {
+    const builder = new flatbuffers.Builder(256);
+    const offsets = this.appendOpChain(builder, spec);
+    const operandsOff = PathOpList.createOperandsVector(builder, offsets);
+    const root = PathOpList.createPathOpList(builder, operandsOff);
+    builder.finish(root);
+    return builder.asUint8Array().slice().buffer;
+  }
+
+  /**
+   * Append the operand chain of an op node to `out` (builder offsets, in
+   * order): the left side recurses (a composition flattens into its own
+   * chain, a leaf becomes one commands operand), the right side becomes a
+   * single operand with the node's op — commands for a leaf, nested bytes for
+   * a composition.
+   */
+  private appendOpChain(builder: flatbuffers.Builder, spec: OpSpec): flatbuffers.Offset[] {
+    const out: flatbuffers.Offset[] = [];
+    if (this.isComposed(spec.left)) {
+      out.push(...this.appendOpChain(builder, spec.left.opSpec!));
+    } else {
+      out.push(this.createOperand(builder, spec.left, PathOpKind.UNION));
+    }
+    if (this.isComposed(spec.right)) {
+      const nested = new Uint8Array(this.serializeOp(spec.right.opSpec!));
+      const nestedOff = PathOperand.createNestedVector(builder, nested);
+      out.push(PathOperand.createPathOperand(builder, PATH_OP_KIND[spec.op], 0, nestedOff));
+    } else {
+      out.push(this.createOperand(builder, spec.right, PATH_OP_KIND[spec.op]));
+    }
+    return out;
+  }
+
+  /** One leaf operand: an optional commands payload (absent when empty). */
+  private createOperand(
+    builder: flatbuffers.Builder,
+    leaf: string | Path2D,
+    op: PathOpKind,
+  ): flatbuffers.Offset {
+    const bytes = typeof leaf === "string" ? parsePath(leaf) : leaf.toBytes();
+    const commandsOff =
+      bytes !== null ? PathOperand.createCommandsVector(builder, new Uint8Array(bytes)) : 0;
+    return PathOperand.createPathOperand(builder, op, commandsOff, 0);
   }
 
   /** Serialize to a PathCommandList FlatBuffer (base64 it for the native prop). */

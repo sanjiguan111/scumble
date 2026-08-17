@@ -8,6 +8,7 @@ import { ClipDemo } from "./ClipDemo";
 import { GradientDemo } from "./GradientDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
+import { PathOpsDemo } from "./PathOpsDemo";
 import { PathsDemo } from "./PathsDemo";
 import { ShapesDemo } from "./ShapesDemo";
 import { TransformDemo } from "./TransformDemo";
@@ -42,6 +43,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "SVG d · Path2D · arc · trim",
     accent: "#22c55e",
     render: () => <PathsDemo />,
+  },
+  {
+    key: "pathops",
+    title: "Path Ops",
+    subtitle: "union · intersect · difference · xor",
+    accent: "#14b8a6",
+    render: () => <PathOpsDemo />,
   },
   {
     key: "transform",

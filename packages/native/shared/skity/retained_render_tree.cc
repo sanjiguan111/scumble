@@ -205,6 +205,14 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       if (node != nullptr) AssignOwnedBytes(pd->data(), &node->path_data);
       break;
     }
+    case Command_SetPathOpData: {
+      const auto *po = static_cast<const SetPathOpData *>(obj);
+      RetainedNode *node = Find(po->node_id());
+      // Empty/absent vector clears the op payload — the node falls back to its
+      // plain path_data.
+      if (node != nullptr) AssignOwnedBytes(po->data(), &node->path_op_data);
+      break;
+    }
     case Command_SetTransform: {
       const auto *td = static_cast<const SetTransform *>(obj);
       RetainedNode *node = Find(td->node_id());

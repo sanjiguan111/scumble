@@ -233,3 +233,82 @@ describe("parsePoints", () => {
     expect(parsePoints("abc")).toEqual([]);
   });
 });
+
+// ---- Path2D.op (lazy boolean composition → nested PathOpList) ----
+
+import { PathOpKind } from "../generated/skityrt/path-op-kind.js";
+import { PathOpList } from "../generated/skityrt/path-op-list.js";
+
+function readBackOp(bytes: ArrayBuffer): PathOpList {
+  const bb = new flatbuffers.ByteBuffer(new Uint8Array(bytes));
+  return PathOpList.getRootAsPathOpList(bb);
+}
+
+function bytesEqual(a: Uint8Array | null, b: Uint8Array | null): boolean {
+  if (a === null || b === null || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+const CIRCLE = new Path2D().addCircle(50, 50, 40);
+const SQUARE = "M10 10 H90 V90 H10 Z";
+
+describe("Path2D.op → nested PathOpList", () => {
+  it("toOpBytes is null on a plain instance, and toBytes is empty when composed", () => {
+    expect(new Path2D().moveTo(0, 0).toOpBytes()).toBeNull();
+    const composed = Path2D.op(CIRCLE, SQUARE, "union");
+    expect(composed.toOpBytes()).not.toBeNull();
+    expect(readBack(composed.toBytes()!).commandsLength()).toBe(0);
+  });
+
+  it("serializes a two-operand op as a base leaf + one fold operand", () => {
+    const list = readBackOp(Path2D.op(CIRCLE, SQUARE, "difference").toOpBytes()!);
+    expect(list.operandsLength()).toBe(2);
+    // Base operand: op ignored (defaults UNION), commands = the circle's bytes.
+    const base = list.operands(0)!;
+    expect(base.op()).toBe(PathOpKind.UNION);
+    expect(bytesEqual(base.commandsArray(), new Uint8Array(CIRCLE.toBytes()))).toBe(true);
+    expect(base.nestedLength()).toBe(0);
+    // Fold operand: the d string parsed, combined with DIFFERENCE.
+    const second = list.operands(1)!;
+    expect(second.op()).toBe(PathOpKind.DIFFERENCE);
+    expect(bytesEqual(second.commandsArray(), new Uint8Array(parsePath(SQUARE)!))).toBe(true);
+  });
+
+  it("flattens a left-deep chain: op(op(a, b, u), c, d) → [a, b:u, c:d]", () => {
+    const hole = new Path2D().addCircle(50, 50, 10);
+    const list = readBackOp(Path2D.op(Path2D.op(CIRCLE, SQUARE, "union"), hole, "xor").toOpBytes()!);
+    expect(list.operandsLength()).toBe(3);
+    expect(list.operands(1)!.op()).toBe(PathOpKind.UNION);
+    expect(list.operands(2)!.op()).toBe(PathOpKind.XOR);
+    expect(bytesEqual(list.operands(2)!.commandsArray(), new Uint8Array(hole.toBytes()))).toBe(true);
+    // A flattened chain carries no nested sub-trees.
+    for (let i = 0; i < 3; i++) expect(list.operands(i)!.nestedLength()).toBe(0);
+  });
+
+  it("rides the nested field for a right-nested composition ((A) op (B op C))", () => {
+    const b = new Path2D().addRect(0, 0, 40, 40);
+    const c = new Path2D().addRect(20, 20, 40, 40);
+    const list = readBackOp(Path2D.op(CIRCLE, Path2D.op(b, c, "intersect"), "difference").toOpBytes()!);
+    expect(list.operandsLength()).toBe(2);
+    const right = list.operands(1)!;
+    expect(right.op()).toBe(PathOpKind.DIFFERENCE);
+    expect(right.commandsLength()).toBe(0);
+    // The nested sub-tree round-trips as its own PathOpList (b leaf + c:INTERSECT).
+    const nestedBytes = right.nestedArray();
+    expect(nestedBytes).not.toBeNull();
+    const nested = readBackOp(nestedBytes!.buffer.slice(
+      nestedBytes!.byteOffset,
+      nestedBytes!.byteOffset + nestedBytes!.byteLength,
+    ) as ArrayBuffer);
+    expect(nested.operandsLength()).toBe(2);
+    expect(nested.operands(0)!.commandsArray()).not.toBeNull();
+    expect(nested.operands(1)!.op()).toBe(PathOpKind.INTERSECT);
+  });
+
+  it("omits the commands payload for an operand with no commands", () => {
+    const list = readBackOp(Path2D.op(CIRCLE, "", "union").toOpBytes()!);
+    expect(list.operands(1)!.commandsLength()).toBe(0);
+    expect(list.operands(1)!.nestedLength()).toBe(0);
+  });
+});

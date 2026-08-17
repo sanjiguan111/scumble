@@ -71,6 +71,9 @@ abstract class SkityNodeBase : ShadowNode() {
   // ---- transform & path & gradient (JS-built nested FlatBuffer bytes; null = none) ----
   @JvmField var transformData: ByteArray? = null
   @JvmField var pathData: ByteArray? = null
+  // Path boolean-op description (JS-built PathOpList bytes; null = none).
+  // Mutually exclusive with pathData in practice; non-empty wins at draw time.
+  @JvmField var opData: ByteArray? = null
   @JvmField var fillGradientData: ByteArray? = null
   @JvmField var strokeGradientData: ByteArray? = null
   // Group clip sequence (JS-built ClipList bytes; null = no clip).
@@ -88,6 +91,7 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var dirtyPaint: Int = 0
   @JvmField var dirtyGeometry: Int = 0
   @JvmField var dirtyPath: Boolean = false
+  @JvmField var dirtyPathOp: Boolean = false
   @JvmField var dirtyTransform: Boolean = false
   @JvmField var dirtyClip: Boolean = false
 
@@ -308,6 +312,15 @@ abstract class SkityNodeBase : ShadowNode() {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     pathData = if (decoded.isNotEmpty()) decoded else null
     dirtyPath = true
+    markDirty()
+  }
+  // Path boolean-op description (JS-built PathOpList bytes, base64-encoded —
+  // same string channel as d). An empty payload clears the op; the node falls
+  // back to its plain d.
+  @LynxProp(name = "op") fun setOp(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    opData = if (decoded.isNotEmpty()) decoded else null
+    dirtyPathOp = true
     markDirty()
   }
   @LynxProp(name = "fillGradient") fun setFillGradient(v: String) {

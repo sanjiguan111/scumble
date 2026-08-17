@@ -77,7 +77,11 @@ struct RetainedNode {
   float path_start = 0, path_end = 1;
 
   std::vector<uint8_t> path_data; // JS-built PathCommandList bytes (owned)
-  std::vector<float> points;      // polyline/polygon [x0,y0,x1,y1,...]
+  // JS-built PathOpList bytes (owned) — a boolean composition evaluated at
+  // render time by BuildOpPath. Mutually exclusive with path_data in practice
+  // (the component layer sends one or the other); non-empty path_op_data wins.
+  std::vector<uint8_t> path_op_data;
+  std::vector<float> points; // polyline/polygon [x0,y0,x1,y1,...]
   // JS-built ClipList bytes (owned). Group nodes only: the clip sequence
   // applied after the node's transform, before its subtree.
   std::vector<uint8_t> clip_data;

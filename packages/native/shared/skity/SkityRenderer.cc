@@ -17,6 +17,7 @@
 
 #include <skity/effect/path_effect.hpp>
 #include <skity/effect/shader.hpp>
+#include <skity/graphic/path_op.hpp>
 
 #include "command_batch_generated.h" // PaintField_* (inheritance explicit markers)
 #include "render_tree_common_generated.h"
@@ -31,6 +32,7 @@ using skity::Paint;
 using skity::Path;
 using skity::PathEffect;
 using skity::PathMeasure;
+using skity::PathOp;
 using skity::Rect;
 using skity::Shader;
 
@@ -118,9 +120,70 @@ Path BuildPathFromBytes(const std::vector<uint8_t> &data, bool force_close) {
   return path;
 }
 
+// skityrt PathOpKind → skity PathOp::Op (same value order, spelled out).
+PathOp::Op ToPathOp(PathOpKind kind) {
+  switch (kind) {
+  case PathOpKind_DIFFERENCE:
+    return PathOp::Op::kDifference;
+  case PathOpKind_INTERSECT:
+    return PathOp::Op::kIntersect;
+  case PathOpKind_XOR:
+    return PathOp::Op::kXor;
+  default:
+    return PathOp::Op::kUnion;
+  }
+}
+
+// Evaluate a JS-built PathOpList (boolean composition) into a skity Path.
+// Left fold: operands[0] is the base; each following operand combines into the
+// accumulated result with its own op. A leaf operand carries nested
+// PathCommandList bytes; a right-nested composition carries a sub-PathOpList
+// (recursed here). PathOp::Execute may fail on degenerate input — the operand
+// is then skipped and the accumulated result stands (RN-Skia's MakeFromOp
+// returns null; without a channel back we degrade gracefully instead).
+//
+// TODO(perf): like the plain path channel, this re-evaluates every frame; a
+// RetainedNode-level cache keyed on payload identity would avoid it.
+Path BuildOpPath(const std::vector<uint8_t> &data) {
+  const PathOpList *list = nullptr;
+  if (!data.empty()) {
+    list = ::flatbuffers::GetRoot<PathOpList>(data.data());
+  }
+  const auto *operands = list != nullptr ? list->operands() : nullptr;
+  auto count = operands != nullptr ? operands->size() : 0u;
+  if (count == 0u) return Path{};
+
+  // Resolve one operand's geometry: nested sub-tree when present, else the
+  // leaf's PathCommandList bytes (an absent payload is an empty path).
+  auto operandPath = [](const PathOperand *operand) {
+    const auto *nested = operand->nested();
+    if (nested != nullptr && nested->size() > 0) {
+      return BuildOpPath(std::vector<uint8_t>(nested->Data(), nested->Data() + nested->size()));
+    }
+    const auto *cmds = operand->commands();
+    if (cmds == nullptr || cmds->size() == 0) return Path{};
+    return BuildPathFromBytes(std::vector<uint8_t>(cmds->Data(), cmds->Data() + cmds->size()),
+                              false);
+  };
+
+  Path acc = operandPath(operands->Get(0));
+  for (uint32_t i = 1; i < count; i++) {
+    const PathOperand *operand = operands->Get(i);
+    if (operand == nullptr) continue;
+    Path next;
+    if (PathOp::Execute(acc, operandPath(operand), ToPathOp(operand->op()), &next)) {
+      acc = next;
+    }
+  }
+  return acc;
+}
+
 // Build a skity Path from the node's path_data; falls back to the points
 // vector (polyline/polygon) when no commands are present.
 Path BuildPath(const RetainedNode *node, bool force_close) {
+  // A boolean-op payload (PathOpList) wins over the plain path data — the
+  // component layer sends one or the other, never both.
+  if (!node->path_op_data.empty()) return BuildOpPath(node->path_op_data);
   if (node->path_data.empty() && node->points.size() >= 4) {
     Path path;
     const auto &pts = node->points;

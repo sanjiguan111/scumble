@@ -87,6 +87,13 @@ export interface SkityLineProps extends SkityCommonProps {
 export interface SkityPathProps extends SkityCommonProps {
   /** Base64-encoded PathCommandList bytes (@lynx-skity/graphics); native decodes + memcpys. */
   d?: string;
+  /**
+   * Base64-encoded PathOpList bytes (@lynx-skity/graphics `Path2D.op` — a lazy
+   * boolean composition); native decodes + memcpys, then evaluates the ops at
+   * render time (skity PathOp::Execute left fold). An empty payload clears it
+   * — the node falls back to `d`.
+   */
+  op?: string;
   /** Path trim start, normalized [0,1] (RN-Skia `start`). */
   pathStart?: number;
   /** Path trim end, normalized [0,1] (RN-Skia `end`). */

@@ -13,18 +13,29 @@ import type { PathProps } from "../types";
  * as PathCommandList bytes, base64-encoded for Lynx's string prop channel; the
  * native side decodes + memcpys the bytes (no string→structure parsing).
  *
+ * A Path2D returned by `Path2D.op(one, two, op)` (lazy boolean composition)
+ * rides a separate `op` prop instead — the native renderer evaluates the ops
+ * at draw time (see `Path2D.op`).
+ *
  * @example
  * // from an SVG d string
  * <Path path="M10 10 L90 90 Z" color="#22c55e" />
  * // from a Path2D (command-style)
  * const p = new Path2D().moveTo(10, 10).lineTo(90, 90).close();
  * <Path path={p} color="#22c55e" />
+ * // boolean composition, evaluated natively at render time
+ * const mask = Path2D.op(circle, square, "difference");
+ * <Path path={mask} color="#3b82f6" />
  */
 export function Path({ path, fillRule, start, end, children, ...rest }: PathProps) {
-  const pathBytes = typeof path === "string" ? parsePath(path) : path.toBytes();
+  // An op-composed Path2D serializes to a PathOpList (separate `op` prop);
+  // everything else goes down the plain PathCommandList channel.
+  const opBytes = typeof path === "string" ? null : path.toOpBytes();
+  const pathBytes = opBytes === null ? (typeof path === "string" ? parsePath(path) : path.toBytes()) : null;
   return (
     <skity-path
       d={pathBytes ? bytesToBase64(pathBytes) : undefined}
+      op={opBytes !== null ? bytesToBase64(opBytes) : undefined}
       fillRule={fillRule !== undefined ? parseFillRule(fillRule) : undefined}
       pathStart={start}
       pathEnd={end}

@@ -109,6 +109,18 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     types.push_back(skityrt::Command_SetPathData);
     node.dirtyPath = NO;
   }
+  if (node.dirtyPathOp) {
+    // Boolean-op payload (nested PathOpList bytes) — opaque [ubyte] vector,
+    // same memcpy pattern as SetPathData; evaluated at render time.
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
+    if (node.opData.length > 0) {
+      dataOff = fbb.CreateVector((const uint8_t *)node.opData.bytes, node.opData.length);
+    }
+    auto off = skityrt::CreateSetPathOpData(fbb, node.nativeId, dataOff);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetPathOpData);
+    node.dirtyPathOp = NO;
+  }
   if (node.dirtyTransform) {
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
     if (node.transformData.length > 0) {

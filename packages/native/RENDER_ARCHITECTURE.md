@@ -80,7 +80,7 @@ The schema lives in `packages/native/schema/render_tree*.fbs` (namespace `skityr
 
 `@lynx-skity/graphics` parses strings/objects and produces FlatBuffer bytes. Lynx component props marshal `NSNumber` / `NSString` / `NSArray` but **not** binary (`NSData` / `byte[]`), so the bytes are **base64-encoded** (`bytesToBase64`, hand-written — Lynx JSC has no `btoa`) and carried as a string prop. The native setter base64-decodes (`-[NSData initWithBase64EncodedString:]` / `android.util.Base64.decode`) then does a **mechanical copy** into the FlatBuffer vector — the decode is an encoding conversion, not structure parsing, so "native never parses" still holds.
 
-**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList`) by `@lynx-skity/graphics` using `flatbuffers.js`, and passed in as `[ubyte]` blobs (base64 over the wire).
+**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList` / `PathOpList`) by `@lynx-skity/graphics` using `flatbuffers.js`, and passed in as `[ubyte]` blobs (base64 over the wire).
 
 - **schema**: wrapper tables + `RenderNode.path_data` / `ComputedStyle.transform_data`, annotated `(nested_flatbuffer: "...")`
 - **front end**: parsers build finished FlatBuffer bytes using `flatc --ts` stubs + the `flatbuffers` runtime, then `bytesToBase64`
@@ -219,6 +219,7 @@ union Command {
   SetTransform,   // node_id + nested TransformOpList bytes (memcpy)
   SetViewport,    // canvas viewBox
   SetClip,        // group clip sequence (nested ClipList bytes; applied after transform)
+  SetPathOpData,  // path boolean ops (nested PathOpList bytes; evaluated at render time)
   InsertNode,     // create node under a parent at an index
   RemoveNode,     // destroy node (+ subtree)
   MoveNode,       // reparent / reorder
@@ -472,3 +473,34 @@ falling back to the nearest ancestor's value for the rest. `opacity`
 multiplies. Inherits: fill/stroke paint (color + gradient), stroke attrs, dash,
 fillRule. Not inherited: transform, geometry, display/visibility (each stays a
 per-node property).
+
+### 11.13 Path boolean ops (2026-08-17)
+
+Skia path ops (difference / intersect / union / xor) via **render-time
+evaluation** — there is no synchronous channel back to JS (the Lynx public SDK
+disables NAPI on Android), so unlike RN-Skia's `Skia.Path.MakeFromOp` (which
+computes the result via JSI and hands the path back), the composition travels
+as a description and the renderer evaluates it.
+
+- **API**: `Path2D.op(one, two, op)` (@lynx-skity/graphics) builds a *lazy*
+  op-composed `Path2D` (a descriptor tree, no geometry math in JS). Operands
+  accept `d` strings, plain `Path2D`s, and other op-composed instances —
+  compositions nest arbitrarily. `<Path path={…}>` detects it via
+  `toOpBytes()` and sends the `op` string prop (base64) instead of `d`.
+- **Wire**: JS-built `PathOpList` FlatBuffer (nested, like ClipList) on the
+  `SetPathOpData` command. The operand chain is the tree's **left-fold form**:
+  `op(op(a,b),c)` flattens to `[a, b:op, c:op]`; a *right*-nested composition
+  (`op(a, op(b,c))`, e.g. `(A−B)∪(C−D)`) can't flatten, so that operand carries
+  a sub-`PathOpList` in its `nested` field. `PathOpKind` value order ==
+  `skity::PathOp::Op` (== Skia SkPathOp; skity has no ReverseDifference).
+- **Renderer**: `BuildOpPath` (`SkityRenderer.cc`) resolves each operand
+  (nested sub-tree recursively, else `BuildPathFromBytes`) and left-folds with
+  `skity::PathOp::Execute`; an operand whose `Execute` **fails is skipped**
+  (degenerate input degrades gracefully — the counterpart of RN-Skia returning
+  null). A non-empty `path_op_data` wins over `path_data` in `BuildPath`; trim
+  (`pathStart/End`) and `fillRule` apply to the boolean result as usual.
+- Clearing: an empty/absent `SetPathOpData` vector clears the payload — the
+  node falls back to its plain `d`.
+- **Perf note**: like the plain path channel, the fold re-evaluates every
+  frame; a `RetainedNode`-level cache keyed on payload identity is a TODO if
+  animated op compositions ever show up in profiles.

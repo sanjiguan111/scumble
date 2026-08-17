@@ -46,8 +46,11 @@ export { Polygon } from "./shapes/Polygon";
 export { Points } from "./shapes/Points";
 export { Path } from "./shapes/Path";
 // Path2D (command-style path builder) is re-exported from the graphics core so
-// callers can import it from @lynx-skity/react alongside <Path>.
+// callers can import it from @lynx-skity/react alongside <Path>. Path2D.op
+// builds lazy boolean compositions (Skia path ops) consumed by <Path>; the
+// PathOpName type names the four operations it accepts.
 export { Path2D } from "@lynx-skity/graphics";
+export type { PathOpName } from "@lynx-skity/graphics";
 // ---- shaders & paints ----
 // Gradient shaders are declarative children of a shape (react-native-skia
 // style): `<Rect><LinearGradient .../></Rect>`. vec() builds the {x,y} points

@@ -46,6 +46,7 @@ union Command {
   SetGeometry,  // Step 3a: per-field geometry, gated by fields_dirty
   SetViewport,  // Step 3a: canvas logical viewport (viewBox)
   SetClip,      // group clip: ClipList bytes (memcpy from the JS-built blob)
+  SetPathOpData,// path boolean ops: PathOpList bytes, evaluated at render time
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; the paint is
@@ -182,6 +183,16 @@ table SetViewport {
 table SetClip {
   node_id:int = -1;
   data:[ubyte] (nested_flatbuffer: "ClipList");
+}
+
+// Path boolean-op description (path nodes). The JS side never computes the
+// boolean result (no synchronous channel back); the renderer evaluates the
+// PathOpList per frame in BuildPath, before trim/fillRule. An empty/absent
+// data vector clears the op payload — the node falls back to its plain
+// path_data ("d").
+table SetPathOpData {
+  node_id:int = -1;
+  data:[ubyte] (nested_flatbuffer: "PathOpList");
 }
 
 table CommandBatch {
