@@ -15,6 +15,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// CAMetalLayer is ready (layoutSubviews) is held pending by the session.
 - (void)consumeCommands:(NSData *)commands;
 
+/// Forward one flush's payload: the CommandBatch plus (optionally) the
+/// ParagraphRunList laid out during measure. Applied on the render queue in
+/// one block — batch first (runs reference inserted nodes) — then draw.
+- (void)consumePayloadWithBatch:(nullable NSData *)batch paragraphRuns:(nullable NSData *)runs;
+
 /// Release the render session. Called from SkityCanvasUI.detachView.
 - (void)destroySession;
 

@@ -160,6 +160,14 @@ enum SkityPaintFilterField {
 @property(nonatomic, assign) uint8_t imageMipmapMode;
 @property(nonatomic, assign) float imageCubicB;
 @property(nonatomic, assign) float imageCubicC;
+/// Paragraph node input (paragraph_runs.fbs SpanList bytes; nil = none) and
+/// paragraph-level style. Layout happens on the TASM thread inside the canvas
+/// measure pass; the glyph runs ride the extra bundle's runs key.
+@property(nonatomic, strong, nullable) NSData *paragraphSpansData;
+@property(nonatomic, assign) uint8_t paragraphAlign;    // 0=left 1=center 2=right
+@property(nonatomic, assign) float paragraphLineHeight; // multiplier; 0 = 1
+@property(nonatomic, assign) int32_t paragraphMaxLines; // 0 = unlimited
+@property(nonatomic, assign) BOOL dirtyParagraph;
 
 // Phase 2: stable node id assigned by the canvas node for the retained tree.
 // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the

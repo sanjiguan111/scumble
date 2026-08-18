@@ -117,6 +117,25 @@ struct RetainedNode {
   float image_cubic_b = 0.f;
   float image_cubic_c = 0.f;
 
+  // Paragraph layout product (paragraph_runs.fbs side channel; laid out on
+  // the TASM thread, stored here for drawing). Positions are relative to the
+  // paragraph box origin — the node's x/y translate at draw time. Fonts are
+  // referenced through the shared FontRegistry (post-fallback typefaces).
+  struct GlyphRun {
+    std::vector<uint16_t> glyphs;
+    std::vector<float> pos_x;
+    std::vector<float> pos_y;
+    uint32_t font_id = 0;
+    uint32_t color = 0xFF000000u; // 0xAARRGGBB (span color)
+  };
+  struct Paragraph {
+    float height = 0.f;
+    int line_count = 0;
+    std::vector<GlyphRun> runs;
+  };
+  bool has_paragraph = false;
+  Paragraph paragraph;
+
   std::vector<RetainedNode *> children; // non-owning; owned by RetainedRenderTree
   RetainedNode *parent = nullptr;
 };
@@ -142,6 +161,12 @@ public:
   // Apply an incremental CommandBatch: Step 1b paint/path/transform + Step 2
   // structural Insert/Remove/Move. Topology commands are authoritative.
   void ApplyCommandBatch(const uint8_t *data, std::size_t size);
+
+  // Apply a ParagraphRunList (paragraph_runs.fbs side channel, delivered in
+  // the same extra-bundle flush as the command batch): stores each entry's
+  // glyph runs on the retained node by id. Nodes without an entry keep their
+  // previous layout (a missing entry is not a clear).
+  void ApplyParagraphRuns(const uint8_t *data, std::size_t size);
 
   const RetainedNode *root() const { return root_; }
   const RetainedViewport &viewport() const { return viewport_; }

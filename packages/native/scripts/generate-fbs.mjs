@@ -42,6 +42,7 @@ const fbsFiles = [
   "render_tree_style.fbs",
   "render_tree.fbs",
   "command_batch.fbs",
+  "paragraph_runs.fbs",
 ].map((f) => resolve(schemaDir, f));
 
 const cppOut = resolve(pkgRoot, "shared/skity/generated");

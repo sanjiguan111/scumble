@@ -76,6 +76,10 @@ export { TwoPointConicalGradient } from "./shaders/TwoPointConicalGradient";
 // ImageShader fills (or strokes) a shape with a bitmap texture — same
 // declarative-child pattern, flattening to uri/fit/tx/ty/rect paint props.
 export { ImageShader } from "./shaders/ImageShader";
+// <Paragraph> lays out rich text natively (CoreText / HarfBuzz); <TextSpan>
+// is its data-only styled-text child (same pattern as the shaders).
+export { Paragraph } from "./shapes/Paragraph";
+export { TextSpan } from "./shapes/TextSpan";
 // <Paint> is a declarative paint override child : it
 // overrides the fill or stroke paint of its parent shape, and shaders nested
 // inside it apply to that paint.
@@ -131,6 +135,9 @@ export type {
   SweepGradientProps,
   TwoPointConicalGradientProps,
   ImageShaderProps,
+  ParagraphProps,
+  TextSpanProps,
+  ParagraphLayoutDetail,
   PaintProps,
   BlurProps,
   DropShadowProps,

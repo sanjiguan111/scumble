@@ -21,6 +21,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// retired). Drained in measure, consumed by getExtraBundle.
 @property(nonatomic, strong, nullable) NSData *pendingCommandBatch;
 
+/// Pending ParagraphRunList bytes (paragraph_runs.fbs) — the glyph runs laid
+/// out by <skity-paragraph> children during measure. Delivered in the same
+/// extra-bundle flush as the batch, applied after it on the render queue.
+@property(nonatomic, strong, nullable) NSData *pendingParagraphRuns;
+
 // Phase 2 Step 2: structural command queue (called by SkityNodeBase hooks).
 - (int32_t)takeNextNodeId;
 - (void)enqueueStructuralInsert:(int32_t)nodeId

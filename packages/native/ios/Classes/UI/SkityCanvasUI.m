@@ -23,6 +23,15 @@ LYNX_REGISTER_UI("skity-canvas")
   [super onReceiveUIOperation:extraData];
   if ([extraData isKindOfClass:[NSData class]]) {
     [(SkityCanvasView *)self.view consumeCommands:(NSData *)extraData];
+  } else if ([extraData isKindOfClass:[NSDictionary class]]) {
+    // Multi-key payload: the command batch + the paragraph glyph runs laid
+    // out during measure (same flush; the render queue applies batch first).
+    NSDictionary *payload = (NSDictionary *)extraData;
+    NSData *batch = payload[@"batch"];
+    NSData *runs = payload[@"runs"];
+    if (batch != nil || runs != nil) {
+      [(SkityCanvasView *)self.view consumePayloadWithBatch:batch paragraphRuns:runs];
+    }
   }
 }
 

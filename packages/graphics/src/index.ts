@@ -83,3 +83,6 @@ export * from "./clip";
 // Filters: paint filter specs (blur/dropShadow/colorMatrix/colorBlend/maskBlur)
 // → nested Filter FlatBuffer bytes.
 export * from "./filter";
+// Paragraph: styled span specs → nested SpanList FlatBuffer bytes (the
+// <Paragraph> layout input).
+export * from "./paragraph";

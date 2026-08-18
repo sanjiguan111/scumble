@@ -69,6 +69,10 @@
   [_session applyCommands:commands];
 }
 
+- (void)consumePayloadWithBatch:(NSData *)batch paragraphRuns:(NSData *)runs {
+  [_session applyPayloadWithBatch:batch paragraphRuns:runs];
+}
+
 - (void)destroySession {
   [_session destroy];
 }

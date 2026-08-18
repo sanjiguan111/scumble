@@ -4,8 +4,10 @@
 #include "retained_render_tree.h"
 
 #include <algorithm>
+#include <cstdio>
 
 #include "command_batch_generated.h"
+#include "paragraph_runs_generated.h"
 #include "render_tree_common_generated.h"
 
 namespace skityrt {
@@ -211,6 +213,41 @@ void RetainedRenderTree::EraseSubtree(int32_t id) {
 }
 
 // ---- ApplyCommandBatch (Step 1b + Step 2) ----
+
+void RetainedRenderTree::ApplyParagraphRuns(const uint8_t *data, std::size_t size) {
+  if (data == nullptr || size == 0) return;
+  const ParagraphRunList *list = ::flatbuffers::GetRoot<ParagraphRunList>(data);
+  const auto *entries = list != nullptr ? list->entries() : nullptr;
+  if (entries == nullptr) return;
+  for (::flatbuffers::uoffset_t i = 0; i < entries->size(); i++) {
+    const ParagraphLayout *entry = entries->Get(i);
+    RetainedNode *node = Find(entry->node_id());
+    if (node == nullptr) continue;
+    node->has_paragraph = true;
+    node->paragraph.height = entry->height();
+    node->paragraph.line_count = entry->line_count();
+    node->paragraph.runs.clear();
+    const auto *runs = entry->runs();
+    if (runs == nullptr) continue; // laid-out but empty (e.g. empty text)
+    node->paragraph.runs.reserve(runs->size());
+    for (::flatbuffers::uoffset_t r = 0; r < runs->size(); r++) {
+      const ParagraphGlyphRun *src = runs->Get(r);
+      const auto *glyphs = src->glyphs();
+      const auto *px = src->pos_x();
+      const auto *py = src->pos_y();
+      if (glyphs == nullptr || px == nullptr || py == nullptr) continue;
+      if (glyphs->size() == 0 || glyphs->size() != px->size() || glyphs->size() != py->size())
+        continue;
+      RetainedNode::GlyphRun run;
+      run.font_id = src->font_id();
+      run.color = src->color();
+      run.glyphs.assign(glyphs->data(), glyphs->data() + glyphs->size());
+      run.pos_x.assign(px->data(), px->data() + px->size());
+      run.pos_y.assign(py->data(), py->data() + py->size());
+      node->paragraph.runs.push_back(std::move(run));
+    }
+  }
+}
 
 void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size) {
   if (data == nullptr || size == 0) return;

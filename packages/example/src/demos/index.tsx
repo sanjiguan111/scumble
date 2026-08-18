@@ -9,6 +9,7 @@ import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
 import { ImageDemo } from "./ImageDemo";
 import { ImageShaderDemo } from "./ImageShaderDemo";
+import { ParagraphDemo } from "./ParagraphDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
 import { PathOpsDemo } from "./PathOpsDemo";
@@ -116,6 +117,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "纹理填充 · repeat/mirror/decal · stroke 纹理",
     accent: "#f43f5e",
     render: () => <ImageShaderDemo />,
+  },
+  {
+    key: "paragraph",
+    title: "Paragraph",
+    subtitle: "富文本 · 换行对齐 · maxLines · onLayout",
+    accent: "#10b981",
+    render: () => <ParagraphDemo />,
   },
 ];
 

@@ -114,6 +114,66 @@ export interface ImageShaderProps {
 }
 
 /**
+ * Props for {@link TextSpan} — one styled run of source text inside a
+ * {@link Paragraph}. A data-only declarative child (like the shaders); the
+ * parent collects these props and serializes them into its `spans` payload.
+ * Fields left unset fall back to the parent `<Paragraph>`'s defaults.
+ */
+export interface TextSpanProps {
+  /** The span's text (may be empty). */
+  text: string;
+  /** Font family; unset = the paragraph's default, then the platform default. */
+  fontFamily?: string;
+  /** Font size in px. Unset = the paragraph's default (then 14). */
+  fontSize?: number;
+  /** CSS-style weight 100–900. Unset = the paragraph's default (then 400). */
+  fontWeight?: number;
+  italic?: boolean;
+  /** Span color. Unset = the paragraph's default (then black). */
+  color?: string;
+  /** Extra letter spacing in px. */
+  letterSpacing?: number;
+}
+
+/** Line/box details delivered by the async `onLayout` event of {@link Paragraph}. */
+export interface ParagraphLayoutDetail {
+  /** Laid-out content height in px. */
+  height: number;
+  /** Number of laid-out lines. */
+  lineCount: number;
+}
+
+/**
+ * Props for {@link Paragraph} — width-constrained rich text, laid out
+ * natively (CoreText on iOS, HarfBuzz + a CJK-aware line breaker on Android;
+ * see TEXT_PARAGRAPH_DESIGN.md). Layout runs in the TASM measure pass; the
+ * measured height is available asynchronously via `onLayout`.
+ */
+export interface ParagraphProps extends GraphicProps {
+  /** Left edge x (dp). Defaults to 0. */
+  x?: number;
+  /** Top edge y (dp). Defaults to 0. */
+  y?: number;
+  /** Layout width constraint (dp). Required — line breaking needs it. */
+  width: number;
+  /** Line alignment. Defaults to `"left"`. */
+  textAlign?: "left" | "center" | "right";
+  /** Line-height multiplier (1 = font default). Defaults to 1. */
+  lineHeight?: number;
+  /** Maximum lines; 0 = unlimited. Overflow is ellipsized when set. */
+  maxLines?: number;
+  /** Default span style — spans override per field. */
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  italic?: boolean;
+  color?: string;
+  letterSpacing?: number;
+  /** Async layout details (height/lineCount) — fires after each re-layout. */
+  onLayout?: (detail: ParagraphLayoutDetail) => void;
+}
+
+/**
  * Props for {@link RadialGradient} — a center + radius radial gradient (a
  * focal/two-circle gradient is a separate
  * {@link TwoPointConicalGradient}). `c`/`r` are **absolute user-space pixels**.

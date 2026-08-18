@@ -99,7 +99,12 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("filterMode", setFilterMode:, NSNumber *),
     LYNX_PROP_DECLARE("mipmapMode", setMipmapMode:, NSNumber *),
     LYNX_PROP_DECLARE("cubicB", setCubicB:, NSNumber *),
-    LYNX_PROP_DECLARE("cubicC", setCubicC:, NSNumber *))
+    LYNX_PROP_DECLARE("cubicC", setCubicC:, NSNumber *),
+    // Paragraph node: SpanList bytes (base64) + paragraph-level style.
+    LYNX_PROP_DECLARE("spans", setSpans:, NSString *),
+    LYNX_PROP_DECLARE("textAlign", setTextAlign:, NSNumber *),
+    LYNX_PROP_DECLARE("lineHeight", setLineHeight:, NSNumber *),
+    LYNX_PROP_DECLARE("maxLines", setMaxLines:, NSNumber *))
 
 - (NSString *)skityTagName {
   return @"";
@@ -145,6 +150,7 @@ LYNX_PROP_SETTER("y", setY, NSNumber *) {
 LYNX_PROP_SETTER("width", setWidth, NSNumber *) {
   _width = value.floatValue;
   _dirtyGeometryMask |= kSkityGeomWidth;
+  _dirtyParagraph = YES; // the paragraph layout width constraint changed
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("height", setHeight, NSNumber *) {
@@ -448,6 +454,31 @@ LYNX_PROP_SETTER("cubicB", setCubicB, NSNumber *) {
 LYNX_PROP_SETTER("cubicC", setCubicC, NSNumber *) {
   _imageCubicC = value.floatValue;
   _dirtyImage = YES;
+  [self setNeedsLayout];
+}
+// Paragraph props — decoded SpanList bytes + paragraph style; any change
+// re-triggers the measure-time layout (the canvas drains it).
+LYNX_PROP_SETTER("spans", setSpans, NSString *) {
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _paragraphSpansData = decoded.length > 0 ? decoded : nil;
+  _dirtyParagraph = YES;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("textAlign", setTextAlign, NSNumber *) {
+  _paragraphAlign = (uint8_t)value.unsignedCharValue;
+  _dirtyParagraph = YES;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("lineHeight", setLineHeight, NSNumber *) {
+  _paragraphLineHeight = value.floatValue;
+  _dirtyParagraph = YES;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("maxLines", setMaxLines, NSNumber *) {
+  _paragraphMaxLines = value.intValue;
+  _dirtyParagraph = YES;
   [self setNeedsLayout];
 }
 

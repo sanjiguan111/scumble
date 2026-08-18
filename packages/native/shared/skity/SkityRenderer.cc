@@ -23,6 +23,7 @@
 #include <skity/graphic/path_op.hpp>
 
 #include "command_batch_generated.h" // PaintField_* (inheritance explicit markers)
+#include "font_registry.h"           // FontRegistry (paragraph glyph runs)
 #include "image_store.h"             // ImageStore (image nodes)
 #include "render_tree_common_generated.h"
 #include "render_tree_style_generated.h"
@@ -759,6 +760,27 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     sampling.filter = static_cast<skity::FilterMode>(node->image_filter_mode);
     sampling.mipmap = static_cast<skity::MipmapMode>(node->image_mipmap_mode);
     canvas->DrawImageRect(image, src, dst, sampling, &paint);
+  } else if (tag == "paragraph") {
+    if (!node->has_paragraph) return;
+    if (node->paragraph.runs.empty()) return;
+    canvas->Save();
+    canvas->Translate(node->x, node->y);
+    for (const auto &run : node->paragraph.runs) {
+      skity::Font font = FontRegistry::Instance().Find(run.font_id);
+      if (font.GetTypefaceOrDefault() == nullptr) continue;
+      Paint paint;
+      paint.SetAntiAlias(true);
+      paint.SetBlendMode(
+          static_cast<skity::BlendMode>(style != nullptr ? style->blend_mode : BlendMode_SRC_OVER));
+      paint.SetColor(ColorFromARGB(run.color, opacity));
+      // Inherited opacity/blend ride the paint above; span color modulates
+      // (the platform layout resolved the final color per run). Filters and
+      // image-shader fills on text are a v2 concern (they need run-level
+      // paint plumbing, not the node's shape-style paint).
+      canvas->DrawGlyphs(static_cast<int>(run.glyphs.size()), run.glyphs.data(), run.pos_x.data(),
+                         run.pos_y.data(), font, paint);
+    }
+    canvas->Restore();
   }
 }
 

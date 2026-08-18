@@ -16,9 +16,11 @@ Pod::Spec.new do |s|
   # outside the podspec dir are silently skipped, which is why this can't live
   # under ios/ while referencing ../shared).
   s.source_files = 'ios/Classes/**/*.{h,m,mm}', 'shared/skity/SkityRenderer.{h,cc}',
-                   'shared/skity/retained_render_tree.{h,cc}', 'shared/skity/image_store.{h,cc}'
+                   'shared/skity/retained_render_tree.{h,cc}', 'shared/skity/image_store.{h,cc}',
+                   'shared/skity/font_registry.{h,cc}'
   s.public_header_files = 'ios/Classes/**/*.h', 'shared/skity/SkityRenderer.h',
-                          'shared/skity/retained_render_tree.h', 'shared/skity/image_store.h'
+                          'shared/skity/retained_render_tree.h', 'shared/skity/image_store.h',
+                          'shared/skity/font_registry.h'
 
   s.dependency 'Lynx'
   s.dependency 'skity', '1.1.0-alpha.3'

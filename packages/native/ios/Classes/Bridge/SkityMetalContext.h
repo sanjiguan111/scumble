@@ -42,6 +42,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// structural Insert before it was applied.
 - (void)applyCommandBatch:(NSData *)commands treeKey:(NSInteger)treeKey;
 
+/// Apply a ParagraphRunList (paragraph_runs.fbs — glyph runs laid out on the
+/// TASM thread) to the retained tree for `treeKey`. Call AFTER the same
+/// flush's applyCommandBatch (runs reference nodes the batch inserts).
+- (void)applyParagraphRuns:(NSData *)runs treeKey:(NSInteger)treeKey;
+
 - (void)drawLayer:(CAMetalLayer *)layer
           treeKey:(NSInteger)treeKey
         viewportW:(uint32_t)w

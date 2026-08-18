@@ -23,6 +23,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// drawableSize at draw time.
 - (void)applyCommands:(NSData *)commands;
 
+/// Push one flush's payload: CommandBatch + (optional) ParagraphRunList. Both
+/// are applied in a single render-queue block — batch first, then the glyph
+/// runs (they reference nodes the batch inserts) — then drawn.
+- (void)applyPayloadWithBatch:(nullable NSData *)batch paragraphRuns:(nullable NSData *)runs;
+
 /// Draw now if the surface is ready. Render-queue only — callers already on
 /// SkityMetalContext.renderQueue (e.g. the ImageStore write path in
 /// SkityImageLoader.mm) invoke this directly; others go through postDraw.

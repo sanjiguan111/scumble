@@ -173,6 +173,25 @@ export interface SkityImageProps extends SkityCommonProps {
   height?: number;
 }
 
+export interface SkityParagraphProps extends SkityCommonProps {
+  /** Base64-encoded SpanList bytes (@lynx-skity/graphics buildSpanList) —
+   *  the layout input: text + span styles only, never glyph data. */
+  spans?: string;
+  /** Text alignment byte: 0=left, 1=center, 2=right. Default 0. */
+  textAlign?: number;
+  /** Line-height multiplier. Default 1. */
+  lineHeight?: number;
+  /** Maximum lines; 0 = unlimited (overflow ellipsized when set). */
+  maxLines?: number;
+  x?: number;
+  y?: number;
+  /** Layout width constraint (dp); required for line breaking. */
+  width?: number;
+  /** Async layout event (Lynx "layout" component event): detail carries
+   *  {height, lineCount}. */
+  bindlayout?: (e: { type: string; detail: { height: number; lineCount: number } }) => void;
+}
+
 // ---- Intrinsic element type declarations ----
 
 declare module "@lynx-js/types" {
@@ -187,5 +206,6 @@ declare module "@lynx-js/types" {
     "skity-polygon": SkityPolygonProps;
     "skity-group": SkityGroupProps;
     "skity-image": SkityImageProps;
+    "skity-paragraph": SkityParagraphProps;
   }
 }

@@ -45,6 +45,24 @@
   self.layer = nil;
 }
 
+- (void)applyPayloadWithBatch:(NSData *)batch paragraphRuns:(NSData *)runs {
+  // One render-queue block for the whole flush: batch first (structural
+  // Insert creates the paragraph nodes), then the glyph runs, then draw.
+  __weak __typeof__(self) weakSelf = self;
+  NSData *cmds = batch;
+  NSData *runData = runs;
+  dispatch_async(self.context.renderQueue, ^{
+    __strong __typeof__(weakSelf) strongSelf = weakSelf;
+    if (cmds != nil && cmds.length > 0) {
+      [strongSelf.context applyCommandBatch:cmds treeKey:strongSelf.treeKey];
+    }
+    if (runData != nil && runData.length > 0) {
+      [strongSelf.context applyParagraphRuns:runData treeKey:strongSelf.treeKey];
+    }
+    [strongSelf drawIfReady];
+  });
+}
+
 - (void)applyCommands:(NSData *)commands {
   // Apply each batch in full on the render queue, then draw. Previously the
   // batch sat in a single `pendingCommands` slot that the next batch would

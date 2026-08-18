@@ -61,6 +61,15 @@
   slot->ApplyCommandBatch(static_cast<const uint8_t *>(commands.bytes), commands.length);
 }
 
+- (void)applyParagraphRuns:(NSData *)runs treeKey:(NSInteger)treeKey {
+  if (runs == nil || runs.length == 0) return;
+  auto &slot = _retainedTrees[static_cast<intptr_t>(treeKey)];
+  if (slot == nullptr) {
+    slot = std::make_unique<skityrt::RetainedRenderTree>();
+  }
+  slot->ApplyParagraphRuns(static_cast<const uint8_t *>(runs.bytes), runs.length);
+}
+
 - (void)drawLayer:(CAMetalLayer *)layer
           treeKey:(NSInteger)treeKey
         viewportW:(uint32_t)w

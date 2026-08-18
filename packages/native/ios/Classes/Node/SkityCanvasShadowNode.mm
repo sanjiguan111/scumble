@@ -11,6 +11,9 @@
 
 #include "command_batch_generated.h"
 #include "flatbuffers/flatbuffers.h"
+#include "paragraph_runs_generated.h"
+
+#import "SkityParagraphShadowNode.h"
 
 #include <cstring>
 
@@ -335,7 +338,55 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
   _pendingStructural.push_back(op);
 }
 
+// TASM-thread paragraph layout walk: lay out every dirty <skity-paragraph>
+// under `node` (CoreText) and append EVERY live paragraph's current layout
+// (dirty ones re-laid, clean ones from cache) to `offs` — the runs channel is
+// a full snapshot, not a delta.
+static void
+SkityLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fbb,
+                      std::vector<flatbuffers::Offset<skityrt::ParagraphLayout>> &offs) {
+  for (LynxShadowNode *child in node.children) {
+    if ([child isKindOfClass:[SkityParagraphShadowNode class]]) {
+      SkityParagraphShadowNode *p = (SkityParagraphShadowNode *)child;
+      auto result = [p layoutIfNeeded];
+      if (result == nullptr) continue;
+      std::vector<flatbuffers::Offset<skityrt::ParagraphGlyphRun>> runOffsets;
+      for (const auto &run : result->runs) {
+        auto glyphsOff = fbb.CreateVector(run.glyphs);
+        auto pxOff = fbb.CreateVector(run.posX);
+        auto pyOff = fbb.CreateVector(run.posY);
+        runOffsets.push_back(
+            skityrt::CreateParagraphGlyphRun(fbb, glyphsOff, pxOff, pyOff, run.fontId, run.color));
+      }
+      auto runsOff = fbb.CreateVector(runOffsets);
+      offs.push_back(skityrt::CreateParagraphLayout(fbb, p.nativeId, result->height,
+                                                    result->lineCount, runsOff));
+    }
+    SkityLayoutParagraphs(child, fbb, offs);
+  }
+}
+
+// TASM-thread paragraph layout pass. Serializes the FULL runs snapshot of all
+// <skity-paragraph> descendants on EVERY measure flush — individual extra-
+// bundle deliveries are best-effort (a flush may be dropped before the UI is
+// attached), so the runs ride as an idempotent, overwrite-applied snapshot:
+// whichever flush lands last carries every paragraph's current layout.
+- (void)layoutParagraphChildren {
+  flatbuffers::FlatBufferBuilder fbb(256);
+  std::vector<flatbuffers::Offset<skityrt::ParagraphLayout>> layoutOffsets;
+  SkityLayoutParagraphs(self, fbb, layoutOffsets);
+  if (layoutOffsets.empty()) {
+    self.pendingParagraphRuns = nil;
+    return;
+  }
+  auto entriesOff = fbb.CreateVector(layoutOffsets);
+  auto root = skityrt::CreateParagraphRunList(fbb, entriesOff);
+  fbb.Finish(root);
+  self.pendingParagraphRuns = [NSData dataWithBytes:fbb.GetBufferPointer() length:fbb.GetSize()];
+}
+
 - (NSData *)buildCommandBatch:(uint32_t)version {
+  [self layoutParagraphChildren];
   flatbuffers::FlatBufferBuilder fbb(256);
   std::vector<flatbuffers::Offset<void>> offsets;
   std::vector<uint8_t> types;
@@ -441,7 +492,13 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
 - (id)getExtraBundle {
   NSData *c = self.pendingCommandBatch;
   self.pendingCommandBatch = nil;
-  return c;
+  NSData *runs = self.pendingParagraphRuns;
+  self.pendingParagraphRuns = nil;
+  if (runs == nil) return c;
+  // Multi-key payload: the command batch + the paragraph glyph runs produced
+  // by <skity-paragraph> measure-side layout. Same flush, applied on the
+  // render queue in one block (batch first — runs reference inserted nodes).
+  return @{@"batch" : c ?: [NSData data], @"runs" : runs};
 }
 
 @end

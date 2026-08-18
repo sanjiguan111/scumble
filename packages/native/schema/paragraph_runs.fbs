@@ -1,0 +1,58 @@
+// Paragraph transport — the side channel next to CommandBatch.
+//
+// Design (TEXT_PARAGRAPH_DESIGN.md): text layout runs on the TASM thread
+// inside measure, so this file carries data in BOTH directions:
+//   - SpanList: the layout INPUT, JS-built (nested FlatBuffer bytes, base64
+//     through the string prop channel like the gradients) — text + span
+//     styles only, NEVER glyph data.
+//   - ParagraphRunList: the layout OUTPUT, platform-built on the TASM thread
+//     and delivered to the render thread through the extra bundle alongside
+//     the command batch (same flush, atomically aligned). Glyph runs keyed by
+//     node id; the renderer stores them on the retained node and draws each
+//     run with one DrawGlyphs call.
+//
+// Fonts cross the thread boundary through the shared FontRegistry (TASM
+// creates the skity::Font — the REAL typeface after platform fallback — and
+// registers it; runs reference it by id; the render thread looks it up).
+
+namespace skityrt;
+
+// ---- Layout input (JS → TASM) ----
+
+// One styled run of source text. Font resolution happens natively: fontFamily
+// goes through FontManager::MatchFamilyStyle (system fonts) or the custom-font
+// registry (data URI key); missing glyphs fall back via
+// MatchFamilyStyleCharacter on the platform side.
+table Span {
+  text:string;
+  fontFamily:string;        // empty = default
+  fontSize:float = 14;      // px
+  fontWeight:int = 400;     // 100–900
+  italic:bool = false;
+  color:uint = 0xFF000000;  // 0xAARRGGBB
+  letterSpacing:float = 0;  // px, applied by the layout layer (skity has none)
+}
+table SpanList {
+  spans:[Span];
+}
+
+// ---- Layout output (TASM → render thread) ----
+
+// One DrawGlyphs call: same typeface + size + color. Positions are relative to
+// the paragraph box origin (the node's x/y geometry applies on top).
+table ParagraphGlyphRun {
+  glyphs:[ushort];          // skity GlyphID (== CGGlyph on iOS)
+  pos_x:[float];
+  pos_y:[float];
+  font_id:uint;             // FontRegistry key (the post-fallback font)
+  color:uint;               // 0xAARRGGBB (span color)
+}
+table ParagraphLayout {
+  node_id:int = -1;
+  height:float;             // laid-out content height (px)
+  line_count:int;
+  runs:[ParagraphGlyphRun];
+}
+table ParagraphRunList {
+  entries:[ParagraphLayout];
+}
