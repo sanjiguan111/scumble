@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 
-import { parseBlendMode, parseFit } from "../enum.js";
+import { parseBlendMode, parseFit, parseImageFilterMode, parseImageMipmapMode } from "../enum.js";
 
 import { parseFillRule, parseStrokeCap, parseStrokeJoin } from "../enum.js";
 
@@ -69,5 +69,43 @@ describe("parseFit", () => {
     expect(parseFit(2)).toBe(2);
     expect(parseFit(9999)).toBe(9999 & 0xff); // masked to a byte
     expect(parseFit("banana")).toBe(1);
+  });
+});
+
+describe("parseImageFilterMode", () => {
+  it("maps literals to their ImageFilterMode bytes (skity value order)", () => {
+    expect(parseImageFilterMode("nearest")).toBe(0);
+    expect(parseImageFilterMode("linear")).toBe(1);
+  });
+
+  it("is case-insensitive", () => {
+    expect(parseImageFilterMode("Nearest")).toBe(0);
+    expect(parseImageFilterMode("LINEAR")).toBe(1);
+  });
+
+  it("passes bytes through and defaults unknown strings to LINEAR", () => {
+    expect(parseImageFilterMode(0)).toBe(0);
+    expect(parseImageFilterMode(9999)).toBe(9999 & 0xff); // masked to a byte
+    expect(parseImageFilterMode("banana")).toBe(1);
+  });
+});
+
+describe("parseImageMipmapMode", () => {
+  it("maps literals to their ImageMipmapMode bytes (skity value order)", () => {
+    expect(parseImageMipmapMode("none")).toBe(0);
+    expect(parseImageMipmapMode("nearest")).toBe(1);
+    expect(parseImageMipmapMode("linear")).toBe(2);
+  });
+
+  it("is case-insensitive", () => {
+    expect(parseImageMipmapMode("None")).toBe(0);
+    expect(parseImageMipmapMode("NEAREST")).toBe(1);
+    expect(parseImageMipmapMode("Linear")).toBe(2);
+  });
+
+  it("passes bytes through and defaults unknown strings to NONE", () => {
+    expect(parseImageMipmapMode(2)).toBe(2);
+    expect(parseImageMipmapMode(9999)).toBe(9999 & 0xff); // masked to a byte
+    expect(parseImageMipmapMode("banana")).toBe(0);
   });
 });

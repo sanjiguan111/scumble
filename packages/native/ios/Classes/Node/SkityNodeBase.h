@@ -136,6 +136,12 @@ enum SkityPaintFilterField {
 @property(nonatomic, copy, nullable) NSString *imageUri;
 /// BoxFit (command_batch.fbs value order); default CONTAIN = 1.
 @property(nonatomic, assign) uint8_t imageFit;
+/// Sampling (command_batch.fbs value order == skity); defaults reproduce the
+/// pre-sampling hardcoded behavior (LINEAR / NONE / cubic off).
+@property(nonatomic, assign) uint8_t imageFilterMode;
+@property(nonatomic, assign) uint8_t imageMipmapMode;
+@property(nonatomic, assign) float imageCubicB;
+@property(nonatomic, assign) float imageCubicC;
 
 // Phase 2: stable node id assigned by the canvas node for the retained tree.
 // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the

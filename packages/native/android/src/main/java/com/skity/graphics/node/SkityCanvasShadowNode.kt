@@ -298,7 +298,8 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       val uri = node.imageUri
       val uriOff = if (!uri.isNullOrEmpty()) fbb.createString(uri) else 0
       offsets += SetImageSource.createSetImageSource(
-        fbb, node.nativeId, uriOff, node.imageFit)
+        fbb, node.nativeId, uriOff, node.imageFit,
+        node.imageFilterMode, node.imageMipmapMode, node.imageCubicB, node.imageCubicC)
       types += Command.SetImageSource
       node.dirtyImage = false
     }

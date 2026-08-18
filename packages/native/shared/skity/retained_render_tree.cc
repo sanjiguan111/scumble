@@ -251,6 +251,10 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
         const ::flatbuffers::String *uri = si->uri();
         node->image_uri = uri != nullptr ? uri->str() : std::string();
         node->image_fit = static_cast<uint8_t>(si->fit());
+        node->image_filter_mode = static_cast<uint8_t>(si->filter_mode());
+        node->image_mipmap_mode = static_cast<uint8_t>(si->mipmap_mode());
+        node->image_cubic_b = si->cubic_b();
+        node->image_cubic_c = si->cubic_c();
       }
       break;
     }

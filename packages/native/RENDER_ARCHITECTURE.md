@@ -539,9 +539,9 @@ as shaders).
 
 ## 12. Image nodes (2026-08-17)
 
-`<Image image x y width height fit>` + `useImage(source)` — RN-Skia-style
+`<Image image x y width height fit sampling>` + `useImage(source)` — RN-Skia-style
 bitmap drawing. Three cooperating pieces: a `SetImageSource` command (uri +
-fit only — the destination rect rides the regular SetGeometry channel), a
+fit + sampling — the destination rect rides the regular SetGeometry channel), a
 process-wide `ImageStore` on the render thread, and a platform image loader
 fired from the TASM setter.
 
@@ -593,3 +593,17 @@ setImageLoader:]` (iOS). Unknown schemes → host loader only.
 - **Fit math**: `ApplyBoxFit` in SkityRenderer.cc is a port of Flutter's
   `applyBoxFit` + inscribe (cover center-crops the source; none is 1:1 center
   crop; scaleDown = contain-but-never-upscale).
+- **Sampling** (2026-08-18): `sampling: { filter, mipmap, cubic: {B, C} }` rides
+  `SetImageSource` as two enum bytes + two floats (`skityrt::ImageFilterMode`/
+  `ImageMipmapMode`, value order == skity — the renderer casts straight
+  through, BlendMode convention). Defaults LINEAR/NONE/0/0 reproduce the
+  pre-sampling hardcoded behavior, so old batches render identically. The JS
+  side resolves literals via `parseImageFilterMode`/`parseImageMipmapMode`
+  (linear/none fallbacks); sampling setters share `dirtyImage` with `fit` (a
+  sampling change re-issues the whole SetImageSource command — idempotent).
+  **cubic is piped but dormant**: the released skity-native (1.1.0-alpha.3)
+  `SamplingOptions` has no cubic member (the local skity repo's
+  CubicResampler commit is unreleased), so `DrawShape("image")` assigns
+  filter/mipmap only — once a skity build with `CubicResampler` ships, wire
+  `sampling.cubic.B/C` to `node->image_cubic_b/c` there (non-zero B/C then
+  ignores filter, Skia semantics).

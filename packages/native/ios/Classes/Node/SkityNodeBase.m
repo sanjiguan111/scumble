@@ -70,7 +70,13 @@ LYNX_PROPS_GROUP_DECLARE(
     // the source. Setting it also fires the platform image load.
     LYNX_PROP_DECLARE("image", setImage:, NSString *),
     // BoxFit value (command_batch.fbs order).
-    LYNX_PROP_DECLARE("fit", setFit:, NSNumber *))
+    LYNX_PROP_DECLARE("fit", setFit:, NSNumber *),
+    // Sampling: filter/mipmap values (command_batch.fbs order) + cubic
+    // resampler weights (both zero = cubic off).
+    LYNX_PROP_DECLARE("filterMode", setFilterMode:, NSNumber *),
+    LYNX_PROP_DECLARE("mipmapMode", setMipmapMode:, NSNumber *),
+    LYNX_PROP_DECLARE("cubicB", setCubicB:, NSNumber *),
+    LYNX_PROP_DECLARE("cubicC", setCubicC:, NSNumber *))
 
 - (NSString *)skityTagName {
   return @"";
@@ -332,6 +338,30 @@ LYNX_PROP_SETTER("image", setImage, NSString *) {
 
 LYNX_PROP_SETTER("fit", setFit, NSNumber *) {
   _imageFit = (uint8_t)value.unsignedCharValue;
+  _dirtyImage = YES;
+  [self setNeedsLayout];
+}
+
+LYNX_PROP_SETTER("filterMode", setFilterMode, NSNumber *) {
+  _imageFilterMode = (uint8_t)value.unsignedCharValue;
+  _dirtyImage = YES;
+  [self setNeedsLayout];
+}
+
+LYNX_PROP_SETTER("mipmapMode", setMipmapMode, NSNumber *) {
+  _imageMipmapMode = (uint8_t)value.unsignedCharValue;
+  _dirtyImage = YES;
+  [self setNeedsLayout];
+}
+
+LYNX_PROP_SETTER("cubicB", setCubicB, NSNumber *) {
+  _imageCubicB = value.floatValue;
+  _dirtyImage = YES;
+  [self setNeedsLayout];
+}
+
+LYNX_PROP_SETTER("cubicC", setCubicC, NSNumber *) {
+  _imageCubicC = value.floatValue;
   _dirtyImage = YES;
   [self setNeedsLayout];
 }

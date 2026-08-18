@@ -4,7 +4,14 @@
 
 import { useEffect, useState } from "@lynx-js/react";
 
-import { Group, Image, Rect, useImage, type Fit } from "@lynx-skity/react";
+import {
+  Group,
+  Image,
+  Rect,
+  useImage,
+  type Fit,
+  type ImageSamplingOptions,
+} from "@lynx-skity/react";
 
 import { DemoSection } from "../components/DemoSection";
 
@@ -23,6 +30,15 @@ const FITS: { fit: Fit; caption: string }[] = [
   { fit: "fitHeight", caption: "高撑满" },
   { fit: "none", caption: "原尺寸居中" },
   { fit: "scaleDown", caption: "只缩不放大" },
+];
+
+// 64×64 → 4.4× 放大:nearest 呈像素块,linear 平滑;mipmap 生效依赖 GPU 纹理带 mip 链。
+// cubic B/C 已透传但当前发布版 skity 未消费,待其发版后生效,故不入对比。
+const SAMPLINGS: { sampling: ImageSamplingOptions; caption: string }[] = [
+  { sampling: {}, caption: "默认 linear" },
+  { sampling: { filter: "nearest" }, caption: "nearest 像素块" },
+  { sampling: { mipmap: "linear" }, caption: "mipmap linear" },
+  { sampling: { filter: "nearest", mipmap: "nearest" }, caption: "nearest+mipmap" },
 ];
 
 export function ImageDemo() {
@@ -97,6 +113,33 @@ export function ImageDemo() {
           height={grow ? 160 : 80}
           fit="cover"
         />
+      </DemoSection>
+
+      <DemoSection
+        title="sampling 采样对比"
+        caption="同一 64×64 图放大 4.4×:nearest 块状 / linear 平滑;mipmap 需纹理带 mip 链"
+        height={230}
+      >
+        {SAMPLINGS.map((s, i) => (
+          <Group key={i}>
+            <Rect
+              x={8 + (i % 2) * 158}
+              y={8 + Math.floor(i / 2) * 100}
+              width={150}
+              height={92}
+              color="#111827"
+            />
+            <Image
+              image={local}
+              x={8 + (i % 2) * 158}
+              y={8 + Math.floor(i / 2) * 100}
+              width={150}
+              height={92}
+              fit="fill"
+              sampling={s.sampling}
+            />
+          </Group>
+        ))}
       </DemoSection>
     </view>
   );

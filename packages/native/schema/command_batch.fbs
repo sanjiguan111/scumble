@@ -234,6 +234,21 @@ enum BoxFit : byte {
   SCALE_DOWN= 6,
 }
 
+// Image sampling (image nodes only). Value order matches skity's
+// FilterMode/MipmapMode exactly so the renderer casts the byte straight
+// through (same convention as BlendMode). cubic B/C both zero means cubic
+// resampling is off (skity's convention); when cubic is on, filter is ignored.
+enum ImageFilterMode : byte {
+  NEAREST = 0,
+  LINEAR  = 1,
+}
+
+enum ImageMipmapMode : byte {
+  NONE    = 0,
+  NEAREST = 1,
+  LINEAR  = 2,
+}
+
 // Image node source (image nodes only). The uri is the ImageStore key AND the
 // platform loader request (http(s) URL or data URI); the platform TASM setter
 // fires the load when it first sees the uri, pixels land in the store from the
@@ -245,6 +260,13 @@ table SetImageSource {
   node_id:int = -1;
   uri:string;
   fit:BoxFit = CONTAIN;
+  // Sampling appended after fit so existing field ids stay stable. Defaults
+  // reproduce the pre-sampling hardcoded behavior (linear filter, no mipmap,
+  // no cubic resampler).
+  filter_mode:ImageFilterMode = LINEAR;
+  mipmap_mode:ImageMipmapMode = NONE;
+  cubic_b:float = 0;
+  cubic_c:float = 0;
 }
 
 table CommandBatch {

@@ -21,6 +21,10 @@ describe("normalizeImageProps", () => {
     expect(normalizeImageProps({ image: "https://x/y.png", width: 100, height: 50 })).toEqual({
       uri: "https://x/y.png",
       fit: 1,
+      filterMode: 1,
+      mipmapMode: 0,
+      cubicB: 0,
+      cubicC: 0,
       x: 0,
       y: 0,
       width: 100,
@@ -48,13 +52,28 @@ describe("normalizeImageProps", () => {
         height: 9,
         rect: { x: 4, y: 5, width: 60, height: 30 },
       }),
-    ).toEqual({ uri: "u", fit: 1, x: 4, y: 5, width: 60, height: 30 });
+    ).toEqual({
+      uri: "u",
+      fit: 1,
+      filterMode: 1,
+      mipmapMode: 0,
+      cubicB: 0,
+      cubicC: 0,
+      x: 4,
+      y: 5,
+      width: 60,
+      height: 30,
+    });
   });
 
   it("rect may omit x/y (default 0)", () => {
     expect(normalizeImageProps({ image: "u", rect: { width: 8, height: 8 } })).toEqual({
       uri: "u",
       fit: 1,
+      filterMode: 1,
+      mipmapMode: 0,
+      cubicB: 0,
+      cubicC: 0,
       x: 0,
       y: 0,
       width: 8,
@@ -74,6 +93,38 @@ describe("normalizeImageProps", () => {
     ] as const) {
       expect(normalizeImageProps({ image: "u", width: 1, height: 1, fit: lit })?.fit).toBe(byte);
     }
+  });
+
+  it("defaults sampling to linear/none with cubic off", () => {
+    const n = normalizeImageProps({ image: "u", width: 1, height: 1 });
+    expect(n?.filterMode).toBe(1);
+    expect(n?.mipmapMode).toBe(0);
+    expect(n?.cubicB).toBe(0);
+    expect(n?.cubicC).toBe(0);
+  });
+
+  it("resolves sampling literals and passes cubic weights through", () => {
+    const n = normalizeImageProps({
+      image: "u",
+      width: 1,
+      height: 1,
+      sampling: { filter: "nearest", mipmap: "linear", cubic: { B: 1 / 3, C: 1 / 3 } },
+    });
+    expect(n?.filterMode).toBe(0);
+    expect(n?.mipmapMode).toBe(2);
+    expect(n?.cubicB).toBeCloseTo(1 / 3);
+    expect(n?.cubicC).toBeCloseTo(1 / 3);
+  });
+
+  it("allows overriding one sampling axis independently", () => {
+    const n = normalizeImageProps({
+      image: "u",
+      width: 1,
+      height: 1,
+      sampling: { filter: "nearest" },
+    });
+    expect(n?.filterMode).toBe(0);
+    expect(n?.mipmapMode).toBe(0); // untouched axis keeps its default
   });
 
   it("null image, empty string, or missing size render nothing", () => {

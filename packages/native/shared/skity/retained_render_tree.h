@@ -98,6 +98,13 @@ struct RetainedNode {
   // resolved at render time against the bitmap's intrinsic size.
   std::string image_uri;
   uint8_t image_fit = 1; // BoxFit::CONTAIN (command_batch.fbs value order)
+  // Sampling (command_batch.fbs value order == skity::FilterMode/MipmapMode);
+  // defaults reproduce the pre-sampling hardcoded behavior. cubic B/C both
+  // zero = cubic resampling off.
+  uint8_t image_filter_mode = 1; // ImageFilterMode::LINEAR
+  uint8_t image_mipmap_mode = 0; // ImageMipmapMode::NONE
+  float image_cubic_b = 0.f;
+  float image_cubic_c = 0.f;
 
   std::vector<RetainedNode *> children; // non-owning; owned by RetainedRenderTree
   RetainedNode *parent = nullptr;

@@ -685,9 +685,16 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     if (src.IsEmpty() || dst.IsEmpty()) return;
     Paint paint;
     MakeImagePaint(style, opacity, &paint);
-    canvas->DrawImageRect(
-        image, src, dst,
-        skity::SamplingOptions{skity::FilterMode::kLinear, skity::MipmapMode::kNone}, &paint);
+    // Sampling rides the SetImageSource command (value order == skity).
+    // Cubic B/C are transported but not consumed yet: the released
+    // skity-native (1.1.0-alpha.3) SamplingOptions has no cubic member —
+    // wire up `sampling.cubic.B/C = node->image_cubic_b/c` once a skity
+    // build with CubicResampler ships (non-zero B/C then ignores filter,
+    // Skia semantics).
+    skity::SamplingOptions sampling;
+    sampling.filter = static_cast<skity::FilterMode>(node->image_filter_mode);
+    sampling.mipmap = static_cast<skity::MipmapMode>(node->image_mipmap_mode);
+    canvas->DrawImageRect(image, src, dst, sampling, &paint);
   }
 }
 

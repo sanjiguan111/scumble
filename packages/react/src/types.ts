@@ -357,6 +357,14 @@ export interface ImageProps extends GraphicProps {
    * bitmap's intrinsic size at render time.
    */
   fit?: import("@lynx-skity/graphics").Fit;
+  /**
+   * How texels are sampled when the bitmap is scaled. Defaults to
+   * `{ filter: "linear", mipmap: "none" }`. `cubic` is transported but not
+   * yet consumed by the released skity build — it takes effect once a
+   * skity-native with CubicResampler ships (non-zero B/C then replaces
+   * `filter`, Skia semantics).
+   */
+  sampling?: import("@lynx-skity/graphics").ImageSamplingOptions;
 }
 
 export interface GroupProps extends GraphicProps {

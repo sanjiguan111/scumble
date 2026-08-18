@@ -137,6 +137,16 @@ export interface SkityImageProps extends SkityCommonProps {
   /** BoxFit byte (skityrt::BoxFit, command_batch.fbs order); resolved against
    *  the bitmap's intrinsic size at render time. Default 1 = CONTAIN. */
   fit?: number;
+  /** ImageFilterMode byte (skityrt::ImageFilterMode == skity::FilterMode
+   *  order). Default 1 = LINEAR. */
+  filterMode?: number;
+  /** ImageMipmapMode byte (skityrt::ImageMipmapMode == skity::MipmapMode
+   *  order). Default 0 = NONE. */
+  mipmapMode?: number;
+  /** Cubic resampler weights (reserved): transported through the command
+   *  batch but not consumed until a skity build with CubicResampler ships. */
+  cubicB?: number;
+  cubicC?: number;
   x?: number;
   y?: number;
   width?: number;

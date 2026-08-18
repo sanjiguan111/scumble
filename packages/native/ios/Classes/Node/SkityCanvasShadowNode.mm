@@ -182,8 +182,11 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     if (node.imageUri.length > 0) {
       uriOff = fbb.CreateString(node.imageUri.UTF8String);
     }
-    auto off = skityrt::CreateSetImageSource(fbb, node.nativeId, uriOff,
-                                             static_cast<skityrt::BoxFit>(node.imageFit));
+    auto off = skityrt::CreateSetImageSource(
+        fbb, node.nativeId, uriOff, static_cast<skityrt::BoxFit>(node.imageFit),
+        static_cast<skityrt::ImageFilterMode>(node.imageFilterMode),
+        static_cast<skityrt::ImageMipmapMode>(node.imageMipmapMode), node.imageCubicB,
+        node.imageCubicC);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetImageSource);
     node.dirtyImage = NO;

@@ -57,8 +57,14 @@ export { useImage, createImageHandle } from "./hooks/useImage";
 // PathOpName type names the four operations it accepts.
 export { Path2D } from "@lynx-skity/graphics";
 export type { PathOpName } from "@lynx-skity/graphics";
-// <Image> fit mode union.
-export type { Fit } from "@lynx-skity/graphics";
+// <Image> fit mode union + sampling option types.
+export type {
+  Fit,
+  ImageCubicResampler,
+  ImageFilterMode,
+  ImageMipmapMode,
+  ImageSamplingOptions,
+} from "@lynx-skity/graphics";
 // ---- shaders & paints ----
 // Gradient shaders are declarative children of a shape: `<Rect><LinearGradient .../></Rect>`. vec() builds the {x,y} points
 // they take.

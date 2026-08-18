@@ -92,6 +92,12 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var imageUri: String? = null
   // BoxFit (command_batch.fbs value order); default CONTAIN = 1.
   @JvmField var imageFit: Byte = 1
+  // Sampling (command_batch.fbs value order == skity); defaults reproduce the
+  // pre-sampling hardcoded behavior (LINEAR / NONE / cubic off).
+  @JvmField var imageFilterMode: Byte = 1
+  @JvmField var imageMipmapMode: Byte = 0
+  @JvmField var imageCubicB: Float = 0f
+  @JvmField var imageCubicC: Float = 0f
 
   // Phase 2: stable node id assigned by the canvas node for the retained tree.
   // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
@@ -423,6 +429,32 @@ abstract class SkityNodeBase : ShadowNode() {
   // BoxFit value (command_batch.fbs order).
   @LynxProp(name = "fit") fun setFit(v: Int) {
     imageFit = v.toByte()
+    dirtyImage = true
+    markDirty()
+  }
+
+  // Sampling: filter/mipmap values (command_batch.fbs order) + cubic resampler
+  // weights (both zero = cubic off).
+  @LynxProp(name = "filterMode") fun setFilterMode(v: Int) {
+    imageFilterMode = v.toByte()
+    dirtyImage = true
+    markDirty()
+  }
+
+  @LynxProp(name = "mipmapMode") fun setMipmapMode(v: Int) {
+    imageMipmapMode = v.toByte()
+    dirtyImage = true
+    markDirty()
+  }
+
+  @LynxProp(name = "cubicB") fun setCubicB(v: Float) {
+    imageCubicB = v
+    dirtyImage = true
+    markDirty()
+  }
+
+  @LynxProp(name = "cubicC") fun setCubicC(v: Float) {
+    imageCubicC = v
     dirtyImage = true
     markDirty()
   }

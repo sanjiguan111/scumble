@@ -195,3 +195,64 @@ export function parseFit(v: string | number): number {
   if (typeof v === "number") return v & 0xff;
   return FIT_BYTES[v.toLowerCase()] ?? 1;
 }
+
+/**
+ * How image texels are sampled when scaled (the `sampling.filter` /
+ * `sampling.mipmap` axes of Skia's `SkSamplingOptions`).
+ */
+export type ImageFilterMode = "nearest" | "linear";
+export type ImageMipmapMode = "none" | "nearest" | "linear";
+
+/** Mitchell/Robinson cubic resampler weights. `B == 0 && C == 0` disables cubic sampling. */
+export interface ImageCubicResampler {
+  B: number;
+  C: number;
+}
+
+/** Sampling knobs for `<Image>`; every axis is optional and defaults to the pre-sampling hardcoded behavior. */
+export interface ImageSamplingOptions {
+  filter?: ImageFilterMode;
+  mipmap?: ImageMipmapMode;
+  cubic?: ImageCubicResampler;
+}
+
+/** `ImageFilterMode` literal → `skityrt.ImageFilterMode` byte (command_batch.fbs value order == skity). */
+const IMAGE_FILTER_MODE_BYTES: Record<string, number> = {
+  nearest: 0,
+  linear: 1,
+};
+
+/** `ImageMipmapMode` literal → `skityrt.ImageMipmapMode` byte (command_batch.fbs value order == skity). */
+const IMAGE_MIPMAP_MODE_BYTES: Record<string, number> = {
+  none: 0,
+  nearest: 1,
+  linear: 2,
+};
+
+/**
+ * Resolve an {@link ImageFilterMode} literal (or its raw byte) to the
+ * `ImageFilterMode` byte the native side expects. Case-insensitive; numbers
+ * pass through masked to a byte; an unknown string falls back to `LINEAR` (1)
+ * — the `<Image>` default.
+ *
+ * @example
+ * parseImageFilterMode("nearest");  // 0
+ */
+export function parseImageFilterMode(v: string | number): number {
+  if (typeof v === "number") return v & 0xff;
+  return IMAGE_FILTER_MODE_BYTES[v.toLowerCase()] ?? 1;
+}
+
+/**
+ * Resolve an {@link ImageMipmapMode} literal (or its raw byte) to the
+ * `ImageMipmapMode` byte the native side expects. Case-insensitive; numbers
+ * pass through masked to a byte; an unknown string falls back to `NONE` (0)
+ * — the `<Image>` default.
+ *
+ * @example
+ * parseImageMipmapMode("linear");  // 2
+ */
+export function parseImageMipmapMode(v: string | number): number {
+  if (typeof v === "number") return v & 0xff;
+  return IMAGE_MIPMAP_MODE_BYTES[v.toLowerCase()] ?? 0;
+}
