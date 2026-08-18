@@ -114,12 +114,12 @@ export function FiltersDemo() {
       >
         <Group>
           <Path path={FLOWER} color="#ec4899" />
-          <Group transform={{ translateX: [130, 0] }}>
+          <Group transform={{ translateX: 130 }}>
             <Path path={FLOWER} color="#ec4899">
               <ColorMatrix matrix={GRAYSCALE} />
             </Path>
           </Group>
-          <Group transform={{ translateX: [260, 0] }}>
+          <Group transform={{ translateX: 260 }}>
             <Path path={FLOWER} color="#ec4899">
               <ColorMatrix matrix={SEPIA} />
             </Path>
