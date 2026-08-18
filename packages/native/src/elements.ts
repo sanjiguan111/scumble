@@ -53,6 +53,26 @@ export interface SkityPaintProps {
   strokeImageFilter?: string;
   fillMaskFilter?: string;
   strokeMaskFilter?: string;
+  /** Image shader slots — an image as the paint's texture (the
+   *  `<ImageShader>` channel). The uri doubles as the ImageStore key AND the
+   *  platform loader request (fired by the setter, like skity-image's image
+   *  prop); empty string clears the slot. */
+  fillImageUri?: string;
+  strokeImageUri?: string;
+  /** BoxFit byte (skityrt::BoxFit); resolved at render time against the
+   *  bitmap's intrinsic size. Default 1 = CONTAIN. */
+  fillImageFit?: number;
+  strokeImageFit?: number;
+  /** TileMode bytes (skityrt::TileMode == skity::TileMode order). Default 0 =
+   *  CLAMP. */
+  fillImageTx?: number;
+  fillImageTy?: number;
+  strokeImageTx?: number;
+  strokeImageTy?: number;
+  /** Destination rect as "x,y,w,h" (4 comma-separated floats); omit for
+   *  identity — 1:1 tiling at the bitmap's intrinsic size. */
+  fillImageRect?: string;
+  strokeImageRect?: string;
   /** BlendMode byte (skityrt::BlendMode == skity::BlendMode order); shared by
    *  the fill and stroke paints. */
   blendMode?: number;

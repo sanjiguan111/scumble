@@ -607,3 +607,33 @@ setImageLoader:]` (iOS). Unknown schemes → host loader only.
   filter/mipmap only — once a skity build with `CubicResampler` ships, wire
   `sampling.cubic.B/C` to `node->image_cubic_b/c` there (non-zero B/C then
   ignores filter, Skia semantics).
+- **ImageShader** (2026-08-18): `<ImageShader image fit rect tx ty>` — a
+  bitmap as a shape's fill/stroke texture. A declarative data-only child like
+  the gradients (`resolvePaint` routes it to the slot the shape draws with),
+  but **flattened to scalar `SetPaint` fields** instead of nested Gradient
+  bytes: `fill_image_uri/fit/tx/ty` + `fill_image_rect:[float]` (and the
+  stroke mirror), gated by new `FILL_IMAGE_SHADER`/`STROKE_IMAGE_SHADER`
+  PaintField bits. Rationale: `@LynxProp` scalars are the natural channel, the
+  uri setter fires the platform load directly (see below), and the renderer
+  needs no GetRoot/base64 decode. `RetainedPaint.type` gains `3=IMAGE_SHADER`
+  (uri empty on a set bit → back to `0=NONE`, i.e. cleared); the inheritance
+  resolver treats the new bits like the gradient bits.
+  - **Load trigger**: the `fillImageUri`/`strokeImageUri` setters call the
+    same `SkityImageLoaderRegistry requestImage:` / `SkityImageController
+.request` as the image node's `image` prop — the uri is the ImageStore
+    key, so loads dedupe globally and a shader shares pixels with an `<Image>`
+    of the same uri. `ApplyImageShader` returns false (inactive paint → shape
+    draws nothing) while pending; the store write's live-session redraw picks
+    it up.
+  - **Fit math reuse**: with a rect, `ApplyImageShader` runs the same
+    `ApplyBoxFit` as the image node and builds the shader's local matrix
+    `Scale(dst/src) · PreTranslate(-src.xy) · PostTranslate(dst.xy)` mapping
+    the fitted source sub-rect into the fitted destination; without a rect the
+    bitmap tiles 1:1 (`Matrix::Scale(1,1)`). Tiling outside the fitted area
+    follows `tx`/`ty` (`skityrt::TileMode`, value order == skity, cast
+    straight through). Sampling is fixed `{kLinear, kNone}` (RN-Skia's
+    ImageShader has no sampling prop; `sampling.cubic` remains off-limits in
+    the released skity anyway).
+  - `MakeFillPaint`/`MakeStrokePaint` take a trailing `gpu_context` (all call
+    sites are inside `DrawShape`, which already holds it) — image-shader
+    paints need `ImageStore::FindImage(uri, ctx)`.

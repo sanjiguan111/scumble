@@ -77,6 +77,22 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var opData: ByteArray? = null
   @JvmField var fillGradientData: ByteArray? = null
   @JvmField var strokeGradientData: ByteArray? = null
+  // Image shader slots (an image as the paint's texture). The uri doubles as
+  // the ImageStore key AND the platform loader request (the setter fires it,
+  // like skity-image's image prop); null/empty = no image shader. fit is a
+  // BoxFit byte, tx/ty are TileMode bytes (command_batch.fbs value order);
+  // rect is 4 floats (x, y, w, h; null = identity — 1:1 tiling at the
+  // bitmap's intrinsic size).
+  @JvmField var fillImageUri: String? = null
+  @JvmField var fillImageFit: Byte = 1 // BoxFit CONTAIN (schema default)
+  @JvmField var fillImageTx: Byte = 0
+  @JvmField var fillImageTy: Byte = 0
+  @JvmField var fillImageRect: FloatArray? = null
+  @JvmField var strokeImageUri: String? = null
+  @JvmField var strokeImageFit: Byte = 1
+  @JvmField var strokeImageTx: Byte = 0
+  @JvmField var strokeImageTy: Byte = 0
+  @JvmField var strokeImageRect: FloatArray? = null
   // Paint filter slots (JS-built Filter bytes; null = none): fill/stroke ×
   // color/image/mask. Drained into SetPaintFilter commands.
   @JvmField var fillColorFilterData: ByteArray? = null
@@ -141,6 +157,8 @@ abstract class SkityNodeBase : ShadowNode() {
     const val STROKE_GRADIENT = 512
     const val STROKE_DASH = 1024
     const val BLEND_MODE = 2048
+    const val FILL_IMAGE_SHADER = 4096
+    const val STROKE_IMAGE_SHADER = 8192
   }
 
   /** GeometryField bitmask values (mirrors skityrt::GeometryField in command_batch.fbs). */
@@ -367,6 +385,63 @@ abstract class SkityNodeBase : ShadowNode() {
     dirtyPaint = dirtyPaint or PaintField.STROKE_GRADIENT
     markDirty()
   }
+  // Image shader slots. The uri doubles as the ImageStore key AND the platform
+  // loader request — fire it here on the TASM thread so the load runs in
+  // parallel with the command batch that carries it (same trick as the image
+  // node's image prop). An empty string clears the slot. The rect prop is
+  // "x,y,w,h" (4 comma-separated floats); empty/malformed = identity.
+  @LynxProp(name = "fillImageUri") fun setFillImageUri(v: String) {
+    fillImageUri = if (v.isNotEmpty()) v else null
+    dirtyPaint = dirtyPaint or PaintField.FILL_IMAGE_SHADER
+    markDirty()
+    if (fillImageUri != null) SkityImageController.request(fillImageUri!!)
+  }
+  @LynxProp(name = "fillImageFit") fun setFillImageFit(v: Int) {
+    fillImageFit = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.FILL_IMAGE_SHADER
+    markDirty()
+  }
+  @LynxProp(name = "fillImageTx") fun setFillImageTx(v: Int) {
+    fillImageTx = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.FILL_IMAGE_SHADER
+    markDirty()
+  }
+  @LynxProp(name = "fillImageTy") fun setFillImageTy(v: Int) {
+    fillImageTy = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.FILL_IMAGE_SHADER
+    markDirty()
+  }
+  @LynxProp(name = "fillImageRect") fun setFillImageRect(v: String) {
+    fillImageRect = parseImageRect(v)
+    dirtyPaint = dirtyPaint or PaintField.FILL_IMAGE_SHADER
+    markDirty()
+  }
+  @LynxProp(name = "strokeImageUri") fun setStrokeImageUri(v: String) {
+    strokeImageUri = if (v.isNotEmpty()) v else null
+    dirtyPaint = dirtyPaint or PaintField.STROKE_IMAGE_SHADER
+    markDirty()
+    if (strokeImageUri != null) SkityImageController.request(strokeImageUri!!)
+  }
+  @LynxProp(name = "strokeImageFit") fun setStrokeImageFit(v: Int) {
+    strokeImageFit = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.STROKE_IMAGE_SHADER
+    markDirty()
+  }
+  @LynxProp(name = "strokeImageTx") fun setStrokeImageTx(v: Int) {
+    strokeImageTx = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.STROKE_IMAGE_SHADER
+    markDirty()
+  }
+  @LynxProp(name = "strokeImageTy") fun setStrokeImageTy(v: Int) {
+    strokeImageTy = v.toByte()
+    dirtyPaint = dirtyPaint or PaintField.STROKE_IMAGE_SHADER
+    markDirty()
+  }
+  @LynxProp(name = "strokeImageRect") fun setStrokeImageRect(v: String) {
+    strokeImageRect = parseImageRect(v)
+    dirtyPaint = dirtyPaint or PaintField.STROKE_IMAGE_SHADER
+    markDirty()
+  }
   // Paint filter slots (base64-encoded JS-built Filter bytes — same string
   // channel as the gradients). An empty payload clears the slot.
   @LynxProp(name = "fillColorFilter") fun setFillColorFilter(v: String) {
@@ -404,6 +479,19 @@ abstract class SkityNodeBase : ShadowNode() {
   private fun decodeOrNull(v: String): ByteArray? {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     return if (decoded.isNotEmpty()) decoded else null
+  }
+
+  /** Image-shader rect prop "x,y,w,h" → [x, y, w, h] (null = identity — 1:1
+   *  tiling at the bitmap's intrinsic size). */
+  private fun parseImageRect(v: String): FloatArray? {
+    if (v.isEmpty()) return null
+    val parts = v.split(',')
+    if (parts.size != 4) return null
+    return try {
+      FloatArray(4) { i -> parts[i].trim().toFloat() }
+    } catch (_: NumberFormatException) {
+      null
+    }
   }
   // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
   // payload clears the clip.

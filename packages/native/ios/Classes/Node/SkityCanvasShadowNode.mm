@@ -87,6 +87,29 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
       std::memcpy(dashes.data(), node.strokeDashData.bytes, count * sizeof(float));
       dashOff = fbb.CreateVector(dashes);
     }
+    // Image shader slots: uri strings + fit/tx/ty bytes + the rect [float]
+    // vector (nil = identity). The uri is the ImageStore key AND the loader
+    // request (already fired by the setter).
+    flatbuffers::Offset<flatbuffers::String> fillImageUriOff = 0;
+    if (node.fillImageUri.length > 0) {
+      fillImageUriOff = fbb.CreateString(node.fillImageUri.UTF8String);
+    }
+    flatbuffers::Offset<flatbuffers::Vector<float>> fillImageRectOff = 0;
+    if (node.fillImageRect.count == 4) {
+      float r[4] = {node.fillImageRect[0].floatValue, node.fillImageRect[1].floatValue,
+                    node.fillImageRect[2].floatValue, node.fillImageRect[3].floatValue};
+      fillImageRectOff = fbb.CreateVector(r, 4);
+    }
+    flatbuffers::Offset<flatbuffers::String> strokeImageUriOff = 0;
+    if (node.strokeImageUri.length > 0) {
+      strokeImageUriOff = fbb.CreateString(node.strokeImageUri.UTF8String);
+    }
+    flatbuffers::Offset<flatbuffers::Vector<float>> strokeImageRectOff = 0;
+    if (node.strokeImageRect.count == 4) {
+      float r[4] = {node.strokeImageRect[0].floatValue, node.strokeImageRect[1].floatValue,
+                    node.strokeImageRect[2].floatValue, node.strokeImageRect[3].floatValue};
+      strokeImageRectOff = fbb.CreateVector(r, 4);
+    }
     auto off = skityrt::CreateSetPaint(
         fbb, node.nativeId, static_cast<skityrt::PaintField>(node.dirtyPaintMask),
         static_cast<uint32_t>(node.fillColor.unsignedIntValue),
@@ -94,7 +117,13 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
         node.strokeWidth, static_cast<skityrt::LineCap>(node.strokeCap),
         static_cast<skityrt::LineJoin>(node.strokeJoin), node.strokeMiter,
         static_cast<skityrt::FillRule>(node.fillRule), node.opacity, dashOff, node.strokeDashOffset,
-        static_cast<skityrt::BlendMode>(node.blendMode));
+        static_cast<skityrt::BlendMode>(node.blendMode), fillImageUriOff,
+        static_cast<skityrt::BoxFit>(node.fillImageFit),
+        static_cast<skityrt::TileMode>(node.fillImageTx),
+        static_cast<skityrt::TileMode>(node.fillImageTy), fillImageRectOff, strokeImageUriOff,
+        static_cast<skityrt::BoxFit>(node.strokeImageFit),
+        static_cast<skityrt::TileMode>(node.strokeImageTx),
+        static_cast<skityrt::TileMode>(node.strokeImageTy), strokeImageRectOff);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetPaint);
     node.dirtyPaintMask = 0;

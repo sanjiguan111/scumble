@@ -5,7 +5,8 @@
 // into the {fill?, stroke?, fillGradient?, ...} scalars the skity intrinsic
 // tags accept. Colors are packed 0xAARRGGBB; strokeCap/strokeJoin are enum
 // bytes; a child gradient shader (<LinearGradient>/<RadialGradient>/
-// <SweepGradient>) is serialized to base64 Gradient bytes. All
+// <SweepGradient>) is serialized to base64 Gradient bytes, and a child
+// <ImageShader> flattens to uri/fit/tx/ty/rect props. All
 // string/value resolution is delegated to @lynx-skity/graphics; the native side
 // never parses strings.
 
@@ -19,15 +20,19 @@ import {
   buildTwoPointConicalGradient,
   bytesToBase64,
   floatsToBase64,
+  formatImageRect,
   parseBlendMode,
   parseColor,
+  parseFit,
   parseStrokeCap,
   parseStrokeJoin,
+  parseTileMode,
 } from "@lynx-skity/graphics";
 import type { FilterSpec } from "@lynx-skity/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
 import { Blur, ColorBlend, ColorMatrix, DropShadow, MaskBlur } from "../filters/filters";
+import { ImageShader } from "../shaders/ImageShader";
 import { LinearGradient } from "../shaders/LinearGradient";
 import { RadialGradient } from "../shaders/RadialGradient";
 import { SweepGradient } from "../shaders/SweepGradient";
@@ -39,6 +44,7 @@ import type {
   ColorMatrixProps,
   DropShadowProps,
   GraphicProps,
+  ImageShaderProps,
   LinearGradientProps,
   MaskBlurProps,
   PaintProps,
@@ -76,6 +82,20 @@ export interface ResolvedPaint {
   strokeImageFilter?: string;
   fillMaskFilter?: string;
   strokeMaskFilter?: string;
+  /** Image shader slots (an image as the paint's texture). The uri doubles as
+   *  the ImageStore key and the platform loader request ("" clears the slot);
+   *  fit/tx/ty are enum bytes; rect is the "x,y,w,h" string (undefined =
+   *  identity, 1:1 tiling at the bitmap's intrinsic size). */
+  fillImageUri?: string;
+  fillImageFit?: number;
+  fillImageTx?: number;
+  fillImageTy?: number;
+  fillImageRect?: string;
+  strokeImageUri?: string;
+  strokeImageFit?: number;
+  strokeImageTx?: number;
+  strokeImageTy?: number;
+  strokeImageRect?: string;
 }
 
 /**
@@ -103,12 +123,13 @@ type ShaderChild =
   | { kind: "linear"; props: LinearGradientProps }
   | { kind: "radial"; props: RadialGradientProps }
   | { kind: "sweep"; props: SweepGradientProps }
-  | { kind: "conical"; props: TwoPointConicalGradientProps };
+  | { kind: "conical"; props: TwoPointConicalGradientProps }
+  | { kind: "image"; props: ImageShaderProps };
 
 /**
- * Find the first gradient child (`<LinearGradient>`/`<RadialGradient>`/
- * `<SweepGradient>`/`<TwoPointConicalGradient>`) and return its kind + props.
- * Shader components are
+ * Find the first shader child (`<LinearGradient>`/`<RadialGradient>`/
+ * `<SweepGradient>`/`<TwoPointConicalGradient>`/`<ImageShader>`) and return its
+ * kind + props. Shader components are
  * data-only (render null); the parent consumes their props here and drops them
  * from the emitted tree, so they are never mounted. Children is walked manually
  * (no React.Children dependency) — handles a single element or array.
@@ -122,6 +143,7 @@ function findShaderChild(children?: ReactNode): ShaderChild | null {
     if (el.type === SweepGradient) return { kind: "sweep", props: el.props as SweepGradientProps };
     if (el.type === TwoPointConicalGradient)
       return { kind: "conical", props: el.props as TwoPointConicalGradientProps };
+    if (el.type === ImageShader) return { kind: "image", props: el.props as ImageShaderProps };
   }
   return null;
 }
@@ -167,7 +189,7 @@ function findPaintChildren(children?: ReactNode): Partial<Record<"fill" | "strok
  * Serialize a recognized gradient child into base64 Gradient bytes (the native
  * `fillGradient` prop channel).
  */
-function gradientBytes(shader: ShaderChild): string {
+function gradientBytes(shader: Exclude<ShaderChild, { kind: "image" }>): string {
   switch (shader.kind) {
     case "linear":
       return bytesToBase64(buildLinearGradient(shader.props));
@@ -178,6 +200,32 @@ function gradientBytes(shader: ShaderChild): string {
     case "conical":
       return bytesToBase64(buildTwoPointConicalGradient(shader.props));
   }
+}
+
+/**
+ * Route a recognized shader child onto one paint slot (`fill`/`stroke`):
+ * gradients serialize to base64 Gradient bytes; the image shader flattens to
+ * the intrinsic uri/fit/tx/ty/rect props (an empty image clears the slot).
+ */
+function applyShader(out: ResolvedPaint, shader: ShaderChild, slot: "fill" | "stroke"): void {
+  if (shader.kind !== "image") {
+    out[`${slot}Gradient`] = gradientBytes(shader);
+    return;
+  }
+  const { image, fit = "contain", tx = "clamp", ty = "clamp", rect } = shader.props;
+  // null/empty image → "" → the native setter clears the slot.
+  const uri =
+    image == null || (typeof image === "string" && image.length === 0)
+      ? ""
+      : typeof image === "string"
+        ? image
+        : image.uri;
+  out[`${slot}ImageUri`] = uri;
+  out[`${slot}ImageFit`] = parseFit(fit);
+  out[`${slot}ImageTx`] = parseTileMode(tx);
+  out[`${slot}ImageTy`] = parseTileMode(ty);
+  const rectStr = formatImageRect(rect);
+  if (rectStr !== undefined) out[`${slot}ImageRect`] = rectStr;
 }
 
 /** Map one filter child element to its FilterSpec (null for non-filters). */
@@ -279,13 +327,12 @@ export function resolvePaint(
   if (dashOffset !== undefined) out.strokeDashOffset = dashOffset;
   if (blendMode !== undefined) out.blendMode = parseBlendMode(blendMode);
 
-  // Child gradient (<LinearGradient>/<RadialGradient>/<SweepGradient>/…) placed
-  // directly under the shape → base64 Gradient bytes on the paint the shape
-  // actually draws with (fill, or stroke for stroke-only shapes like Line).
+  // Child shader (<LinearGradient>/<RadialGradient>/<SweepGradient>/
+  // <ImageShader>/…) placed directly under the shape → routed onto the paint
+  // the shape actually draws with (fill, or stroke for stroke-only shapes
+  // like Line).
   const shader = findShaderChild(children);
-  if (shader !== null) {
-    out[style === "stroke" ? "strokeGradient" : "fillGradient"] = gradientBytes(shader);
-  }
+  if (shader !== null) applyShader(out, shader, style);
 
   // Child filters (<Blur>/<DropShadow>/<ColorMatrix>/<ColorBlend>/<MaskBlur>)
   // route to the same paint the shape draws with — same rule as shaders.
@@ -311,7 +358,7 @@ export function resolvePaint(
     if (p.blendMode !== undefined) out.blendMode = parseBlendMode(p.blendMode);
     const pShader = findShaderChild(p.children);
     if (pShader !== null) {
-      out[`${target}Gradient`] = gradientBytes(pShader);
+      applyShader(out, pShader, target);
     }
     const pFilters = findFilterSpecs(p.children);
     if (pFilters.length > 0) applyFilterProps(out, pFilters, target);

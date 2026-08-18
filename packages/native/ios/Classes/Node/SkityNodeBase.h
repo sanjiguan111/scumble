@@ -34,6 +34,8 @@ enum SkityPaintField {
   kSkityPaintFieldStrokeGradient = 512,
   kSkityPaintFieldStrokeDash = 1024,
   kSkityPaintFieldBlendMode = 2048,
+  kSkityPaintFieldFillImageShader = 4096,
+  kSkityPaintFieldStrokeImageShader = 8192,
 };
 
 // GeometryField bitmask (mirrors skityrt::GeometryField in command_batch.fbs).
@@ -121,6 +123,22 @@ enum SkityPaintFilterField {
 @property(nonatomic, strong, nullable) NSData *opData;
 @property(nonatomic, strong, nullable) NSData *fillGradientData;
 @property(nonatomic, strong, nullable) NSData *strokeGradientData;
+/// Image shader slots (an image as the paint's texture). The uri doubles as
+/// the ImageStore key AND the platform loader request (the setter fires it,
+/// like skity-image's image prop); nil/empty = no image shader. fit is a
+/// BoxFit byte, tx/ty are TileMode bytes (command_batch.fbs value order);
+/// rect is 4 floats (x, y, w, h; nil = identity — 1:1 tiling at the bitmap's
+/// intrinsic size).
+@property(nonatomic, copy, nullable) NSString *fillImageUri;
+@property(nonatomic, assign) uint8_t fillImageFit;
+@property(nonatomic, assign) uint8_t fillImageTx;
+@property(nonatomic, assign) uint8_t fillImageTy;
+@property(nonatomic, strong, nullable) NSArray<NSNumber *> *fillImageRect;
+@property(nonatomic, copy, nullable) NSString *strokeImageUri;
+@property(nonatomic, assign) uint8_t strokeImageFit;
+@property(nonatomic, assign) uint8_t strokeImageTx;
+@property(nonatomic, assign) uint8_t strokeImageTy;
+@property(nonatomic, strong, nullable) NSArray<NSNumber *> *strokeImageRect;
 /// Paint filter slots (JS-built Filter bytes; nil = none): fill/stroke ×
 /// color/image/mask. Drained into SetPaintFilter commands.
 @property(nonatomic, strong, nullable) NSData *fillColorFilterData;

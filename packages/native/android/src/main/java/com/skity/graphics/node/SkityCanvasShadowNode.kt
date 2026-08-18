@@ -232,13 +232,32 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       val dash = node.strokeDash
       val dashOff = if (dash != null && dash.isNotEmpty())
           SetPaint.createStrokeDashVector(fbb, dash) else 0
+      // Image shader slots: uri strings + fit/tx/ty bytes + the rect [float]
+      // vector (null = identity). The uri is the ImageStore key AND the loader
+      // request (already fired by the setter).
+      val fillImageUri = node.fillImageUri
+      val fillImageUriOff = if (!fillImageUri.isNullOrEmpty())
+          fbb.createString(fillImageUri) else 0
+      val fillImageRect = node.fillImageRect
+      val fillImageRectOff = if (fillImageRect != null && fillImageRect.size == 4)
+          SetPaint.createFillImageRectVector(fbb, fillImageRect) else 0
+      val strokeImageUri = node.strokeImageUri
+      val strokeImageUriOff = if (!strokeImageUri.isNullOrEmpty())
+          fbb.createString(strokeImageUri) else 0
+      val strokeImageRect = node.strokeImageRect
+      val strokeImageRectOff = if (strokeImageRect != null && strokeImageRect.size == 4)
+          SetPaint.createStrokeImageRectVector(fbb, strokeImageRect) else 0
       offsets += SetPaint.createSetPaint(
         fbb, node.nativeId, node.dirtyPaint.toLong(),
         node.fillColor ?: 0L, node.strokeColor ?: 0L,
         fillGradOff, strokeGradOff,
         node.strokeWidth, node.strokeCap, node.strokeJoin,
         node.strokeMiter, node.fillRule, node.opacity,
-        dashOff, node.strokeDashOffset, node.blendMode)
+        dashOff, node.strokeDashOffset, node.blendMode,
+        fillImageUriOff, node.fillImageFit, node.fillImageTx, node.fillImageTy,
+        fillImageRectOff,
+        strokeImageUriOff, node.strokeImageFit, node.strokeImageTx, node.strokeImageTy,
+        strokeImageRectOff)
       types += Command.SetPaint
       node.dirtyPaint = 0
     }

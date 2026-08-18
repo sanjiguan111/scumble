@@ -12,6 +12,30 @@ include "render_tree_style.fbs";  // PathCommandList, TransformOpList
 
 namespace skityrt;
 
+// How a bitmap is inscribed into the destination rect (the CSS object-fit
+// family, extended). Value order follows the canonical BoxFit so the
+// renderer's applyBoxFit port stays 1:1 comparable. (Declared up front:
+// SetPaint references it for the image-shader slots.)
+enum BoxFit : byte {
+  FILL      = 0,
+  CONTAIN   = 1,
+  COVER     = 2,
+  FIT_WIDTH = 3,
+  FIT_HEIGHT= 4,
+  NONE      = 5,
+  SCALE_DOWN= 6,
+}
+
+// Shader tiling (image shaders). Value order matches skity's TileMode exactly
+// so the renderer casts the byte straight through (same convention as
+// BlendMode). (Declared up front: SetPaint references it.)
+enum TileMode : byte {
+  CLAMP  = 0,
+  REPEAT = 1,
+  MIRROR = 2,
+  DECAL  = 3,
+}
+
 // Bit flags identifying which SetPaint fields are intentionally set in this
 // command. FlatBuffer defaults make "field == 0" ambiguous (0 is a valid
 // color / cap / ...), so the producer sets the bit for every field it wants the
@@ -30,6 +54,8 @@ enum PaintField : uint {
   STROKE_GRADIENT = 512, // stroke_gradient bytes (nested Gradient FlatBuffer)
   STROKE_DASH     = 1024, // stroke_dash intervals + stroke_dashoffset (empty vector = no dash)
   BLEND_MODE      = 2048, // blend_mode (applies to both the fill and stroke paints)
+  FILL_IMAGE_SHADER   = 4096, // fill_image_* fields (image shader; empty uri clears)
+  STROKE_IMAGE_SHADER = 8192, // stroke_image_* fields
 }
 
 // One logical mutation. Step 1b: paint/path/transform. Step 2: structural.
@@ -78,6 +104,26 @@ table SetPaint {
   // Blend mode for the node's paints (inheritable; applied to both fill and
   // stroke). Appended so existing field ids stay stable.
   blend_mode:BlendMode = SRC_OVER;
+  // Image shader (image as fill/stroke texture), the declarative-shader
+  // sibling of the gradients. Valid only if the FILL_IMAGE_SHADER /
+  // STROKE_IMAGE_SHADER bit is set; an empty/absent uri clears the slot. The
+  // pixels themselves never ride this command — the uri is the ImageStore key
+  // AND the platform loader request (fired by the TASM setter, same as
+  // SetImageSource), and the renderer skips the paint until they land.
+  // rect is [x, y, w, h]; null/len<4 = identity (1:1 tiling at the bitmap's
+  // intrinsic size). fit is resolved at render time against the intrinsic
+  // size, same as SetImageSource.fit. Appended so existing field ids stay
+  // stable.
+  fill_image_uri:string;
+  fill_image_fit:BoxFit = CONTAIN;
+  fill_image_tx:TileMode = CLAMP;
+  fill_image_ty:TileMode = CLAMP;
+  fill_image_rect:[float];
+  stroke_image_uri:string;
+  stroke_image_fit:BoxFit = CONTAIN;
+  stroke_image_tx:TileMode = CLAMP;
+  stroke_image_ty:TileMode = CLAMP;
+  stroke_image_rect:[float];
 }
 
 table SetPathData {
@@ -219,19 +265,6 @@ table SetPaintFilter {
   slot:PaintSlot = FILL;
   kind:FilterSlot = COLOR;
   data:[ubyte] (nested_flatbuffer: "Filter");
-}
-
-// How a bitmap is inscribed into the destination rect (the CSS object-fit
-// family, extended). Value order follows the canonical BoxFit so the
-// renderer's applyBoxFit port stays 1:1 comparable.
-enum BoxFit : byte {
-  FILL      = 0,
-  CONTAIN   = 1,
-  COVER     = 2,
-  FIT_WIDTH = 3,
-  FIT_HEIGHT= 4,
-  NONE      = 5,
-  SCALE_DOWN= 6,
 }
 
 // Image sampling (image nodes only). Value order matches skity's

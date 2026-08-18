@@ -92,6 +92,28 @@ export interface LinearGradientProps {
 }
 
 /**
+ * Props for {@link ImageShader} — an image used as a shape's fill (or stroke)
+ * texture. `rect` places the bitmap in user space: with it, `fit` crops the
+ * bitmap into the rect (same semantics as `<Image fit>`, resolved at render
+ * time against the intrinsic size) and tiling outside the fitted area follows
+ * `tx`/`ty`; without it the bitmap tiles 1:1 at its intrinsic size. An empty
+ * `image` clears the slot (the shape draws nothing for that paint).
+ */
+export interface ImageShaderProps {
+  /** The bitmap: a `useImage()` handle or a bare uri string. `null`/empty
+   *  clears the slot (that paint draws nothing), matching `<Image image>`. */
+  image: ImageHandle | string | null;
+  /** How the bitmap is inscribed into `rect` (CSS object-fit family). Defaults to `"contain"`; ignored when `rect` is omitted. */
+  fit?: import("@lynx-skity/graphics").Fit;
+  /** Destination rect in user space. Omit for 1:1 tiling at the bitmap's intrinsic size. */
+  rect?: { x?: number; y?: number; width: number; height: number };
+  /** Horizontal tiling outside the fitted area. Defaults to `"clamp"`. */
+  tx?: import("@lynx-skity/graphics").TileMode;
+  /** Vertical tiling outside the fitted area. Defaults to `"clamp"`. */
+  ty?: import("@lynx-skity/graphics").TileMode;
+}
+
+/**
  * Props for {@link RadialGradient} — a center + radius radial gradient (a
  * focal/two-circle gradient is a separate
  * {@link TwoPointConicalGradient}). `c`/`r` are **absolute user-space pixels**.

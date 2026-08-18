@@ -375,6 +375,13 @@ bool ApplyGradient(const std::vector<uint8_t> &data, float opacity, Paint *out) 
   return true;
 }
 
+// Apply an image shader to `out` (shared by fill + stroke). Defined after
+// ApplyBoxFit (which it reuses for the fit semantics); returns false (inactive
+// paint) while the bitmap is pending/failed in the ImageStore — the store
+// write triggers another draw, so the shape just appears late.
+bool ApplyImageShader(const RetainedPaint &paint, float opacity, skity::GPUContext *gpu_context,
+                      Paint *out);
+
 // ---- Paint filters (JS-built Filter bytes → skity filter objects) ----
 // The HW canvas chains a paint's filters mask → image → color
 // (hw_filters.cc ConvertPaintToHWFilter); each slot holds one Filter tree,
@@ -463,7 +470,8 @@ void ApplyPaintFilters(const RetainedPaint &paint, Paint *out) {
   if (mf != nullptr) out->SetMaskFilter(mf);
 }
 
-bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, Paint *out) {
+bool MakeFillPaint(const RetainedComputedStyle *style, float opacity,
+                   skity::GPUContext *gpu_context, Paint *out) {
   if (style == nullptr) return false;
   const RetainedPaint &fill = style->fill;
   if (fill.type == 0 /*NONE*/) return false;
@@ -474,6 +482,11 @@ bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, Paint *out
     out->SetColor(ColorFromARGB(fill.color, opacity));
     ApplyPaintFilters(fill, out);
     return true;
+  }
+  if (fill.type == 3 /*IMAGE_SHADER*/) {
+    bool ok = ApplyImageShader(fill, opacity, gpu_context, out);
+    if (ok) ApplyPaintFilters(fill, out);
+    return ok;
   }
   // GRADIENT
   bool ok = ApplyGradient(fill.gradient_data, opacity, out);
@@ -498,7 +511,8 @@ void ApplyDashIfAny(const RetainedComputedStyle *style, Paint *out) {
   if (effect != nullptr) out->SetPathEffect(effect);
 }
 
-bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *out) {
+bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity,
+                     skity::GPUContext *gpu_context, Paint *out) {
   if (style == nullptr) return false;
   const RetainedPaint &stroke = style->stroke;
   if (stroke.type == 0 /*NONE*/) return false;
@@ -514,6 +528,11 @@ bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, Paint *o
     out->SetColor(ColorFromARGB(stroke.color, opacity));
     ApplyPaintFilters(stroke, out);
     return true;
+  }
+  if (stroke.type == 3 /*IMAGE_SHADER*/) {
+    bool ok = ApplyImageShader(stroke, opacity, gpu_context, out);
+    if (ok) ApplyPaintFilters(stroke, out);
+    return ok;
   }
   // GRADIENT.
   bool ok = ApplyGradient(stroke.gradient_data, opacity, out);
@@ -586,6 +605,48 @@ void ApplyBoxFit(uint8_t fit, float iw, float ih, const Rect &dstFull, Rect *src
                dstFull.X() + (dw + tw) * 0.5f, dstFull.Y() + (dh + th) * 0.5f);
 }
 
+// Image shader (an image as a paint's texture). uri is the ImageStore key
+// (pixels arrive via the platform loader; the TASM setter fired the request);
+// a null/before-pixels image means "draw nothing this frame" — the store
+// write triggers another draw, so the shape appears late. With a rect, fit
+// resolves at render time against the bitmap's intrinsic size (same math as
+// the image node) and the local matrix maps the fitted source sub-rect into
+// the fitted destination; without one the bitmap tiles 1:1. Tiling outside
+// the fitted area follows tx/ty (skity TileMode value order).
+bool ApplyImageShader(const RetainedPaint &paint, float opacity, skity::GPUContext *gpu_context,
+                      Paint *out) {
+  if (gpu_context == nullptr || paint.image_shader_uri.empty()) return false;
+  std::shared_ptr<skity::Image> image =
+      ImageStore::Instance().FindImage(paint.image_shader_uri, gpu_context);
+  if (image == nullptr) return false;
+  const float iw = static_cast<float>(image->Width());
+  const float ih = static_cast<float>(image->Height());
+  Rect src, dst;
+  if (paint.image_shader_rect[2] > 0.f && paint.image_shader_rect[3] > 0.f) {
+    ApplyBoxFit(paint.image_shader_fit, iw, ih,
+                Rect::MakeXYWH(paint.image_shader_rect[0], paint.image_shader_rect[1],
+                               paint.image_shader_rect[2], paint.image_shader_rect[3]),
+                &src, &dst);
+  } else {
+    // identity: the whole bitmap, 1:1 from the origin
+    src = Rect::MakeXYWH(0.f, 0.f, iw, ih);
+    dst = Rect::MakeXYWH(0.f, 0.f, iw, ih);
+  }
+  if (src.IsEmpty() || dst.IsEmpty() || src.Width() <= 0.f || src.Height() <= 0.f) return false;
+  // local matrix: map src (pixel space) → dst (user space)
+  skity::Matrix m = skity::Matrix::Scale(dst.Width() / src.Width(), dst.Height() / src.Height());
+  m.PreTranslate(-src.X(), -src.Y());
+  m.PostTranslate(dst.X(), dst.Y());
+  auto shader = skity::Shader::MakeShader(
+      image, skity::SamplingOptions{skity::FilterMode::kLinear, skity::MipmapMode::kNone},
+      static_cast<skity::TileMode>(paint.image_shader_tx),
+      static_cast<skity::TileMode>(paint.image_shader_ty), m);
+  if (shader == nullptr) return false;
+  out->SetShader(shader);
+  out->SetAlphaF(opacity);
+  return true;
+}
+
 // Image nodes carry no fill/stroke slots of their own. The inherited (or
 // node-authored) opacity and blend mode apply, plus the fill slot's filters;
 // fill color/gradient are ignored — the bitmap supplies the color, so the
@@ -617,11 +678,11 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     // gradient shader into the stroke pass (a shader overrides SetColor), so a
     // gradient fill would repaint the stroke with the fill's shader.
     Paint fillPaint;
-    if (MakeFillPaint(style, opacity, &fillPaint)) {
+    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint)) {
       round ? canvas->DrawRoundRect(rect, rx, ry, fillPaint) : canvas->DrawRect(rect, fillPaint);
     }
     Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, &strokePaint)) {
+    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint)) {
       round ? canvas->DrawRoundRect(rect, rx, ry, strokePaint)
             : canvas->DrawRect(rect, strokePaint);
     }
@@ -629,10 +690,10 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     float r = node->r;
     if (r <= 0.f) return;
     Paint fillPaint;
-    if (MakeFillPaint(style, opacity, &fillPaint))
+    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint))
       canvas->DrawCircle(node->cx, node->cy, r, fillPaint);
     Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, &strokePaint))
+    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
       canvas->DrawCircle(node->cx, node->cy, r, strokePaint);
   } else if (tag == "ellipse") {
     float rx = node->rx;
@@ -641,12 +702,13 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     Path path;
     path.AddOval(Rect::MakeXYWH(node->cx - rx, node->cy - ry, rx * 2.f, ry * 2.f));
     Paint fillPaint;
-    if (MakeFillPaint(style, opacity, &fillPaint)) canvas->DrawPath(path, fillPaint);
+    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint)) canvas->DrawPath(path, fillPaint);
     Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, &strokePaint)) canvas->DrawPath(path, strokePaint);
+    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
+      canvas->DrawPath(path, strokePaint);
   } else if (tag == "line") {
     Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, &strokePaint)) {
+    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint)) {
       canvas->DrawLine(node->x1, node->y1, node->x2, node->y2, strokePaint);
     }
   } else if (tag == "path") {
@@ -656,9 +718,10 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
       path.SetFillType(Path::PathFillType::kEvenOdd);
     }
     Paint fillPaint;
-    if (MakeFillPaint(style, opacity, &fillPaint)) canvas->DrawPath(path, fillPaint);
+    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint)) canvas->DrawPath(path, fillPaint);
     Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, &strokePaint)) canvas->DrawPath(path, strokePaint);
+    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
+      canvas->DrawPath(path, strokePaint);
   } else if (tag == "polyline" || tag == "polygon") {
     Path path = BuildPath(node, tag == "polygon");
     TrimPath(path, node->path_start, node->path_end);
@@ -666,9 +729,10 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
       path.SetFillType(Path::PathFillType::kEvenOdd);
     }
     Paint fillPaint;
-    if (MakeFillPaint(style, opacity, &fillPaint)) canvas->DrawPath(path, fillPaint);
+    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint)) canvas->DrawPath(path, fillPaint);
     Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, &strokePaint)) canvas->DrawPath(path, strokePaint);
+    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
+      canvas->DrawPath(path, strokePaint);
   } else if (tag == "image") {
     // Bitmap node. Pixels arrive asynchronously in the ImageStore (keyed by
     // uri); pending/failed/missing all mean "draw nothing this frame" — the
@@ -811,8 +875,10 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
   uint32_t explicitPaint = style.explicit_paint;
   if (explicitPaint != 0) {
     scratch = inherited;
-    if (explicitPaint & (PaintField_FILL | PaintField_FILL_GRADIENT)) scratch.fill = style.fill;
-    if (explicitPaint & (PaintField_STROKE | PaintField_STROKE_GRADIENT))
+    if (explicitPaint & (PaintField_FILL | PaintField_FILL_GRADIENT | PaintField_FILL_IMAGE_SHADER))
+      scratch.fill = style.fill;
+    if (explicitPaint &
+        (PaintField_STROKE | PaintField_STROKE_GRADIENT | PaintField_STROKE_IMAGE_SHADER))
       scratch.stroke = style.stroke;
     if (explicitPaint & PaintField_STROKE_WIDTH) scratch.stroke_width = style.stroke_width;
     if (explicitPaint & PaintField_STROKE_CAP) scratch.stroke_cap = style.stroke_cap;

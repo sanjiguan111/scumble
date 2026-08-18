@@ -7,6 +7,17 @@
 
 #import <Lynx/LynxPropsProcessor.h>
 
+// Parse an image-shader rect prop ("x,y,w,h" — 4 comma-separated floats) into
+// the 4-number array the encoder turns into the SetPaint rect vector. An
+// empty/malformed string yields nil (identity — 1:1 tiling at the bitmap's
+// intrinsic size).
+static NSArray<NSNumber *> *SkityParseRectString(NSString *s) {
+  if (s.length == 0) return nil;
+  float v[4];
+  if (sscanf(s.UTF8String, "%f,%f,%f,%f", &v[0], &v[1], &v[2], &v[3]) != 4) return nil;
+  return @[ @(v[0]), @(v[1]), @(v[2]), @(v[3]) ];
+}
+
 @implementation SkityNodeBase
 
 // Declares the prop→setter map for this class. Subclasses (SkityRectShadowNode
@@ -55,6 +66,18 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("op", setOp:, NSString *),
     LYNX_PROP_DECLARE("fillGradient", setFillGradient:, NSString *),
     LYNX_PROP_DECLARE("strokeGradient", setStrokeGradient:, NSString *),
+    // Image shader slots: uri (also fires the platform load, like the image
+    // node's image prop), fit/tx/ty bytes, rect as "x,y,w,h".
+    LYNX_PROP_DECLARE("fillImageUri", setFillImageUri:, NSString *),
+    LYNX_PROP_DECLARE("fillImageFit", setFillImageFit:, NSNumber *),
+    LYNX_PROP_DECLARE("fillImageTx", setFillImageTx:, NSNumber *),
+    LYNX_PROP_DECLARE("fillImageTy", setFillImageTy:, NSNumber *),
+    LYNX_PROP_DECLARE("fillImageRect", setFillImageRect:, NSString *),
+    LYNX_PROP_DECLARE("strokeImageUri", setStrokeImageUri:, NSString *),
+    LYNX_PROP_DECLARE("strokeImageFit", setStrokeImageFit:, NSNumber *),
+    LYNX_PROP_DECLARE("strokeImageTx", setStrokeImageTx:, NSNumber *),
+    LYNX_PROP_DECLARE("strokeImageTy", setStrokeImageTy:, NSNumber *),
+    LYNX_PROP_DECLARE("strokeImageRect", setStrokeImageRect:, NSString *),
     // Paint filter slots (base64-encoded JS-built Filter bytes). An empty
     // payload clears the slot.
     LYNX_PROP_DECLARE("fillColorFilter", setFillColorFilter:, NSString *),
@@ -93,6 +116,8 @@ LYNX_PROPS_GROUP_DECLARE(
     _strokeMiter = 4.f;
     _blendMode = 3; // SRC_OVER
     _opacity = 1.f;
+    _fillImageFit = 1; // BoxFit CONTAIN (schema default)
+    _strokeImageFit = 1;
   }
   return self;
 }
@@ -298,6 +323,66 @@ LYNX_PROP_SETTER("strokeGradient", setStrokeGradient, NSString *) {
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _strokeGradientData = decoded.length > 0 ? decoded : nil;
   _dirtyPaintMask |= kSkityPaintFieldStrokeGradient;
+  [self setNeedsLayout];
+}
+// Image shader slots. The uri doubles as the ImageStore key AND the platform
+// loader request — fire it here on the TASM thread so the load runs in
+// parallel with the command batch that carries it (same trick as the image
+// node's image prop). An empty string clears the slot.
+LYNX_PROP_SETTER("fillImageUri", setFillImageUri, NSString *) {
+  _fillImageUri = value.length > 0 ? [value copy] : nil;
+  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  [self setNeedsLayout];
+  if (_fillImageUri != nil) {
+    [SkityImageLoaderRegistry requestImage:_fillImageUri];
+  }
+}
+LYNX_PROP_SETTER("fillImageFit", setFillImageFit, NSNumber *) {
+  _fillImageFit = (uint8_t)value.unsignedCharValue;
+  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("fillImageTx", setFillImageTx, NSNumber *) {
+  _fillImageTx = (uint8_t)value.unsignedCharValue;
+  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("fillImageTy", setFillImageTy, NSNumber *) {
+  _fillImageTy = (uint8_t)value.unsignedCharValue;
+  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("fillImageRect", setFillImageRect, NSString *) {
+  _fillImageRect = SkityParseRectString(value);
+  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("strokeImageUri", setStrokeImageUri, NSString *) {
+  _strokeImageUri = value.length > 0 ? [value copy] : nil;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  [self setNeedsLayout];
+  if (_strokeImageUri != nil) {
+    [SkityImageLoaderRegistry requestImage:_strokeImageUri];
+  }
+}
+LYNX_PROP_SETTER("strokeImageFit", setStrokeImageFit, NSNumber *) {
+  _strokeImageFit = (uint8_t)value.unsignedCharValue;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("strokeImageTx", setStrokeImageTx, NSNumber *) {
+  _strokeImageTx = (uint8_t)value.unsignedCharValue;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("strokeImageTy", setStrokeImageTy, NSNumber *) {
+  _strokeImageTy = (uint8_t)value.unsignedCharValue;
+  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("strokeImageRect", setStrokeImageRect, NSString *) {
+  _strokeImageRect = SkityParseRectString(value);
+  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
   [self setNeedsLayout];
 }
 // Paint filter slots — one dirty bit per (paint × filter kind) slot.

@@ -8,6 +8,7 @@ import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
 import { ImageDemo } from "./ImageDemo";
+import { ImageShaderDemo } from "./ImageShaderDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
 import { PathOpsDemo } from "./PathOpsDemo";
@@ -105,9 +106,16 @@ export const DEMOS: DemoConfig[] = [
   {
     key: "image",
     title: "Image",
-    subtitle: "data URI · http(s) · fit 七值 · 异步上屏",
+    subtitle: "data URI · http(s) · fit 七值 · sampling · 异步上屏",
     accent: "#14b8a6",
     render: () => <ImageDemo />,
+  },
+  {
+    key: "image-shader",
+    title: "ImageShader",
+    subtitle: "纹理填充 · repeat/mirror/decal · stroke 纹理",
+    accent: "#f43f5e",
+    render: () => <ImageShaderDemo />,
   },
 ];
 

@@ -3,7 +3,14 @@
 
 import { describe, it, expect } from "vitest";
 
-import { parseBlendMode, parseFit, parseImageFilterMode, parseImageMipmapMode } from "../enum.js";
+import {
+  formatImageRect,
+  parseBlendMode,
+  parseFit,
+  parseImageFilterMode,
+  parseImageMipmapMode,
+  parseTileMode,
+} from "../enum.js";
 
 import { parseFillRule, parseStrokeCap, parseStrokeJoin } from "../enum.js";
 
@@ -107,5 +114,37 @@ describe("parseImageMipmapMode", () => {
     expect(parseImageMipmapMode(2)).toBe(2);
     expect(parseImageMipmapMode(9999)).toBe(9999 & 0xff); // masked to a byte
     expect(parseImageMipmapMode("banana")).toBe(0);
+  });
+});
+
+describe("parseTileMode", () => {
+  it("maps literals to their TileMode bytes (skity value order)", () => {
+    expect(parseTileMode("clamp")).toBe(0);
+    expect(parseTileMode("repeat")).toBe(1);
+    expect(parseTileMode("mirror")).toBe(2);
+    expect(parseTileMode("decal")).toBe(3);
+  });
+
+  it("is case-insensitive", () => {
+    expect(parseTileMode("Clamp")).toBe(0);
+    expect(parseTileMode("REPEAT")).toBe(1);
+    expect(parseTileMode("Decal")).toBe(3);
+  });
+
+  it("passes bytes through and defaults unknown strings to CLAMP", () => {
+    expect(parseTileMode(2)).toBe(2);
+    expect(parseTileMode(9999)).toBe(9999 & 0xff); // masked to a byte
+    expect(parseTileMode("banana")).toBe(0);
+  });
+});
+
+describe("formatImageRect", () => {
+  it("serializes a rect to the x,y,w,h string", () => {
+    expect(formatImageRect({ x: 10, y: 20, width: 30, height: 40 })).toBe("10,20,30,40");
+    expect(formatImageRect({ width: 8, height: 8 })).toBe("0,0,8,8"); // x/y default 0
+  });
+
+  it("undefined in, undefined out (identity — 1:1 tiling)", () => {
+    expect(formatImageRect(undefined)).toBeUndefined();
   });
 });

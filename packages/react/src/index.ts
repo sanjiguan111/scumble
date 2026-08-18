@@ -64,6 +64,7 @@ export type {
   ImageFilterMode,
   ImageMipmapMode,
   ImageSamplingOptions,
+  TileMode,
 } from "@lynx-skity/graphics";
 // ---- shaders & paints ----
 // Gradient shaders are declarative children of a shape: `<Rect><LinearGradient .../></Rect>`. vec() builds the {x,y} points
@@ -72,6 +73,9 @@ export { LinearGradient } from "./shaders/LinearGradient";
 export { RadialGradient } from "./shaders/RadialGradient";
 export { SweepGradient } from "./shaders/SweepGradient";
 export { TwoPointConicalGradient } from "./shaders/TwoPointConicalGradient";
+// ImageShader fills (or strokes) a shape with a bitmap texture — same
+// declarative-child pattern, flattening to uri/fit/tx/ty/rect paint props.
+export { ImageShader } from "./shaders/ImageShader";
 // <Paint> is a declarative paint override child : it
 // overrides the fill or stroke paint of its parent shape, and shaders nested
 // inside it apply to that paint.
@@ -126,6 +130,7 @@ export type {
   RadialGradientProps,
   SweepGradientProps,
   TwoPointConicalGradientProps,
+  ImageShaderProps,
   PaintProps,
   BlurProps,
   DropShadowProps,

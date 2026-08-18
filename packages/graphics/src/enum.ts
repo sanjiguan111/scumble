@@ -256,3 +256,47 @@ export function parseImageMipmapMode(v: string | number): number {
   if (typeof v === "number") return v & 0xff;
   return IMAGE_MIPMAP_MODE_BYTES[v.toLowerCase()] ?? 0;
 }
+
+/**
+ * How an image shader tiles outside its fitted rect (Skia's SkTileMode
+ * family; also applies to gradient spread).
+ */
+export type TileMode = "clamp" | "repeat" | "mirror" | "decal";
+
+/** `TileMode` literal → `skityrt.TileMode` byte (command_batch.fbs value order == skity). */
+const TILE_MODE_BYTES: Record<string, number> = {
+  clamp: 0,
+  repeat: 1,
+  mirror: 2,
+  decal: 3,
+};
+
+/**
+ * Resolve a {@link TileMode} literal (or its raw byte) to the `TileMode` byte
+ * the native side expects. Case-insensitive; numbers pass through masked to a
+ * byte; an unknown string falls back to `CLAMP` (0) — the `<ImageShader>`
+ * default.
+ *
+ * @example
+ * parseTileMode("decal");  // 3
+ */
+export function parseTileMode(v: string | number): number {
+  if (typeof v === "number") return v & 0xff;
+  return TILE_MODE_BYTES[v.toLowerCase()] ?? 0;
+}
+
+/**
+ * Serialize an image-shader destination rect to the `"x,y,w,h"` string the
+ * native prop channel expects (same shape as the dash intervals string).
+ * `undefined` in, `undefined` out (identity — 1:1 tiling at the bitmap's
+ * intrinsic size).
+ *
+ * @example
+ * formatImageRect({x: 10, y: 20, width: 30, height: 40});  // "10,20,30,40"
+ */
+export function formatImageRect(
+  rect: { x?: number; y?: number; width: number; height: number } | undefined,
+): string | undefined {
+  if (rect === undefined) return undefined;
+  return `${rect.x ?? 0},${rect.y ?? 0},${rect.width},${rect.height}`;
+}

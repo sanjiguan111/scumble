@@ -39,6 +39,38 @@ void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
     node->style.stroke.type = 2; // GRADIENT
     AssignOwnedBytes(p->stroke_gradient(), &node->style.stroke.gradient_data);
   }
+  if (dirty & PaintField_FILL_IMAGE_SHADER) {
+    const ::flatbuffers::String *uri = p->fill_image_uri();
+    node->style.fill.type = (uri != nullptr && uri->size() > 0) ? 3 : 0; // IMAGE_SHADER : NONE
+    node->style.fill.image_shader_uri = uri != nullptr ? uri->str() : std::string();
+    node->style.fill.image_shader_fit = static_cast<uint8_t>(p->fill_image_fit());
+    node->style.fill.image_shader_tx = static_cast<uint8_t>(p->fill_image_tx());
+    node->style.fill.image_shader_ty = static_cast<uint8_t>(p->fill_image_ty());
+    const auto *rect = p->fill_image_rect();
+    if (rect != nullptr && rect->size() == 4) {
+      for (uint32_t i = 0; i < 4; i++)
+        node->style.fill.image_shader_rect[i] = rect->Get(i);
+    } else {
+      node->style.fill.image_shader_rect[0] = node->style.fill.image_shader_rect[1] =
+          node->style.fill.image_shader_rect[2] = node->style.fill.image_shader_rect[3] = 0.f;
+    }
+  }
+  if (dirty & PaintField_STROKE_IMAGE_SHADER) {
+    const ::flatbuffers::String *uri = p->stroke_image_uri();
+    node->style.stroke.type = (uri != nullptr && uri->size() > 0) ? 3 : 0;
+    node->style.stroke.image_shader_uri = uri != nullptr ? uri->str() : std::string();
+    node->style.stroke.image_shader_fit = static_cast<uint8_t>(p->stroke_image_fit());
+    node->style.stroke.image_shader_tx = static_cast<uint8_t>(p->stroke_image_tx());
+    node->style.stroke.image_shader_ty = static_cast<uint8_t>(p->stroke_image_ty());
+    const auto *rect = p->stroke_image_rect();
+    if (rect != nullptr && rect->size() == 4) {
+      for (uint32_t i = 0; i < 4; i++)
+        node->style.stroke.image_shader_rect[i] = rect->Get(i);
+    } else {
+      node->style.stroke.image_shader_rect[0] = node->style.stroke.image_shader_rect[1] =
+          node->style.stroke.image_shader_rect[2] = node->style.stroke.image_shader_rect[3] = 0.f;
+    }
+  }
   if (dirty & PaintField_STROKE_DASH) {
     // Empty/absent vector clears dashes (solid stroke); offset travels with it.
     node->style.stroke_dash.clear();

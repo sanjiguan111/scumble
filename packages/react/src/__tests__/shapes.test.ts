@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { resolvePaint } from "../internal/paint";
 import { Paint } from "../Paint";
 import { LinearGradient } from "../shaders/LinearGradient";
+import { ImageShader } from "../shaders/ImageShader";
 import { Blur, ColorMatrix, DropShadow } from "../filters/filters";
 import { pointsToVerticesProp } from "../shapes/Polyline";
 import { pointsToPathBytes } from "../shapes/Points";
@@ -19,6 +20,11 @@ function shaderChild(): ReactNode {
     type: LinearGradient,
     props: { start: { x: 0, y: 0 }, end: { x: 1, y: 1 }, colors: ["#fff", "#000"] },
   } as never;
+}
+
+/** A data-only ImageShader child (same {type, props} contract). */
+function imageShaderChild(props: Record<string, unknown>): ReactNode {
+  return { type: ImageShader, props } as never;
 }
 
 /** A data-only filter child (findFilterSpecs only reads {type, props}). */
@@ -52,6 +58,60 @@ describe("resolvePaint defaultStyle", () => {
     const r = resolvePaint({ color: "red" }, shaderChild(), "stroke");
     expect(r.strokeGradient).toBeTypeOf("string");
     expect(r.fillGradient).toBeUndefined();
+  });
+});
+
+describe("resolvePaint image shader", () => {
+  it("flattens a direct ImageShader child to the fill slot's intrinsic props", () => {
+    const r = resolvePaint(
+      {},
+      imageShaderChild({
+        image: "https://x/t.png",
+        fit: "cover",
+        rect: { x: 10, y: 20, width: 30, height: 40 },
+        tx: "decal",
+        ty: "repeat",
+      }),
+    );
+    expect(r.fillImageUri).toBe("https://x/t.png");
+    expect(r.fillImageFit).toBe(2); // BoxFit COVER
+    expect(r.fillImageTx).toBe(3); // TileMode DECAL
+    expect(r.fillImageTy).toBe(1); // TileMode REPEAT
+    expect(r.fillImageRect).toBe("10,20,30,40");
+    expect(r.strokeImageUri).toBeUndefined();
+  });
+
+  it("accepts an ImageHandle and defaults fit/tx/ty; rect omitted stays undefined", () => {
+    const r = resolvePaint(
+      {},
+      imageShaderChild({ image: { __kind: "skity-image", uri: "data:image/png;base64,AAA" } }),
+    );
+    expect(r.fillImageUri).toBe("data:image/png;base64,AAA");
+    expect(r.fillImageFit).toBe(1); // CONTAIN
+    expect(r.fillImageTx).toBe(0); // CLAMP
+    expect(r.fillImageTy).toBe(0); // CLAMP
+    expect(r.fillImageRect).toBeUndefined();
+  });
+
+  it('routes to the stroke slot on stroke shapes (style="stroke")', () => {
+    const r = resolvePaint({ style: "stroke" }, imageShaderChild({ image: "https://x/t.png" }));
+    expect(r.strokeImageUri).toBe("https://x/t.png");
+    expect(r.fillImageUri).toBeUndefined();
+  });
+
+  it('an empty image string clears the slot (uri "")', () => {
+    const r = resolvePaint({}, imageShaderChild({ image: "" }));
+    expect(r.fillImageUri).toBe("");
+  });
+
+  it('an ImageShader inside <Paint style="stroke"> routes to that paint', () => {
+    const paintChild = {
+      type: Paint,
+      props: { style: "stroke", children: imageShaderChild({ image: "u" }) },
+    } as never;
+    const r = resolvePaint({}, paintChild);
+    expect(r.strokeImageUri).toBe("u");
+    expect(r.fillImageUri).toBeUndefined();
   });
 });
 
