@@ -14,6 +14,8 @@
 
 #include "image_store.h" // shared/skity (on the shared include path)
 
+#include "skity/paragraph_shaper.h"
+
 #include <skity/gpu/gpu_context_vk.hpp>
 #include <skity/io/data.hpp>
 #include <vulkan/vulkan.h>
@@ -127,6 +129,54 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyCommands(
   renderer->ApplyCommands(reinterpret_cast<const uint8_t *>(bytes),
                           static_cast<std::size_t>(length));
   env->ReleaseByteArrayElements(commands, bytes, JNI_ABORT);
+}
+
+// <Paragraph> glyph-run snapshot — applied on the render thread right after
+// the batch of the same flush (the runs reference nodes the batch inserts).
+JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyParagraphRuns(
+    JNIEnv *env, jclass /*clazz*/, jlong handle, jbyteArray runs) {
+  auto *renderer = FromHandle(handle);
+  if (renderer == nullptr || runs == nullptr) {
+    return;
+  }
+  jsize length = env->GetArrayLength(runs);
+  jbyte *bytes = env->GetByteArrayElements(runs, nullptr);
+  if (bytes == nullptr) {
+    return;
+  }
+  renderer->ApplyParagraphRuns(reinterpret_cast<const uint8_t *>(bytes),
+                               static_cast<std::size_t>(length));
+  env->ReleaseByteArrayElements(runs, bytes, JNI_ABORT);
+}
+
+// <Paragraph> layout: shape + wrap the SpanList on the calling (TASM) thread,
+// registering fonts with the shared FontRegistry. Returns a one-entry
+// ParagraphRunList (height/line_count inside) or null for empty content.
+JNIEXPORT jbyteArray JNICALL Java_com_skity_graphics_SkityNative_nativeShapeParagraph(
+    JNIEnv *env, jclass /*clazz*/, jbyteArray spans, jint nodeId, jfloat width, jbyte align,
+    jfloat lineHeight, jint maxLines) {
+  if (spans == nullptr) {
+    return nullptr;
+  }
+  jsize length = env->GetArrayLength(spans);
+  jbyte *bytes = env->GetByteArrayElements(spans, nullptr);
+  if (bytes == nullptr) {
+    return nullptr;
+  }
+  skityrt::ParagraphShapeResult result = skityrt::ShapeParagraph(
+      reinterpret_cast<const uint8_t *>(bytes), static_cast<std::size_t>(length), (uint32_t)nodeId,
+      width, (uint8_t)align, lineHeight, maxLines);
+  env->ReleaseByteArrayElements(spans, bytes, JNI_ABORT);
+  if (result.runsBytes.empty()) {
+    return nullptr;
+  }
+  jbyteArray out = env->NewByteArray((jsize)result.runsBytes.size());
+  if (out == nullptr) {
+    return nullptr;
+  }
+  env->SetByteArrayRegion(out, 0, (jsize)result.runsBytes.size(),
+                          reinterpret_cast<const jbyte *>(result.runsBytes.data()));
+  return out;
 }
 
 // ImageStore entry points. Called on the active backend's render thread only

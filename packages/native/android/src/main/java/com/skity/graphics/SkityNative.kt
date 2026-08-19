@@ -55,6 +55,23 @@ object SkityNative {
   @JvmStatic
   external fun nativeApplyCommands(handle: Long, commands: ByteArray)
 
+  /** Apply a <Paragraph> ParagraphRunList snapshot to the retained tree.
+   * Called on the render thread right after the batch of the same flush —
+   * the runs reference nodes the batch inserts. */
+  @JvmStatic
+  external fun nativeApplyParagraphRuns(handle: Long, runs: ByteArray)
+
+  /**
+   * <Paragraph> layout: shape + wrap the SpanList (HarfBuzz against skity
+   * FontManager-resolved typefaces) and return a one-entry ParagraphRunList
+   * (height/line_count inside), or null for empty content. Called on the
+   * TASM thread from the paragraph ShadowNode's layout pass.
+   */
+  @JvmStatic
+  external fun nativeShapeParagraph(
+    spans: ByteArray, nodeId: Int, width: Float, align: Byte, lineHeight: Float, maxLines: Int,
+  ): ByteArray?
+
   /**
    * Store decoded pixels for a uri in the process-wide ImageStore. MUST be
    * called on the active backend's render thread (the store is render-thread

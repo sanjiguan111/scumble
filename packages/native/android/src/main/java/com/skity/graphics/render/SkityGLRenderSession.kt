@@ -78,6 +78,20 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
     }
   }
 
+  override fun applyParagraphRuns(runs: List<ByteArray>) {
+    // Same render-queue ordering as the batch (post order = FIFO), so the
+    // batch of this flush applies before the runs that reference its nodes.
+    renderHandler.post {
+      ensureRenderer()
+      if (rendererHandle != 0L) {
+        for (entry in runs) {
+          SkityNative.nativeApplyParagraphRuns(rendererHandle, entry)
+        }
+      }
+      drawIfReady()
+    }
+  }
+
   private fun drawIfReady() {
     if (!surfaceReady || rendererHandle == 0L) return
     // Draw only — commands are applied in applyCommands (or already in the tree

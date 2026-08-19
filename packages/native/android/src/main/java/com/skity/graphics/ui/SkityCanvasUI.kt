@@ -23,8 +23,20 @@ class SkityCanvasUI(context: LynxContext) : LynxUI<SkityCanvasView>(context) {
 
   override fun updateExtraData(extraData: Any?) {
     super.updateExtraData(extraData)
-    if (extraData is ByteArray) {
-      view?.consumeCommands(extraData)
+    when (extraData) {
+      is ByteArray -> view?.consumeCommands(extraData)
+      // <skity-paragraph> flush: the command batch + the glyph-run snapshot,
+      // same payload, applied in order (batch first).
+      is Map<*, *> -> {
+        (extraData["batch"] as? ByteArray)?.takeIf { it.isNotEmpty() }?.let {
+          view?.consumeCommands(it)
+        }
+        @Suppress("UNCHECKED_CAST")
+        val runs = extraData["runs"] as? List<ByteArray>
+        if (!runs.isNullOrEmpty()) {
+          view?.consumeParagraphRuns(runs)
+        }
+      }
     }
   }
 

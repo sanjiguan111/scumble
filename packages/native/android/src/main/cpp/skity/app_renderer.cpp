@@ -67,4 +67,11 @@ void AppRenderer::ApplyCommands(const uint8_t *data, std::size_t size) {
   retained_tree_.ApplyCommandBatch(data, size);
 }
 
+void AppRenderer::ApplyParagraphRuns(const uint8_t *data, std::size_t size) {
+  if (data == nullptr || size == 0) {
+    return;
+  }
+  retained_tree_.ApplyParagraphRuns(data, size);
+}
+
 } // namespace lynxskity

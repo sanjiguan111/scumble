@@ -73,14 +73,18 @@ add_library(skityrender SHARED
   src/main/cpp/skity/gles_render_backend.cpp
   src/main/cpp/skity/vulkan_render_backend.cpp
   src/main/cpp/skity/gl_proc_resolver.cpp
-  src/main/cpp/skity/harfbuzz_probe.cc
+  # <Paragraph> Android layout backend: skity FontManager font resolution +
+  # per-character fallback, HarfBuzz shaping against the same Typeface, and
+  # the shared CJK-aware line breaker (Task 16).
+  src/main/cpp/skity/paragraph_shaper.cc
   src/main/cpp/jni/skity_jni.cpp
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/SkityRenderer.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/retained_render_tree.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/image_store.cc"
   # TASM→render font bridge for <Paragraph> glyph runs (cross-platform C++;
   # the TASM side registers, DrawShape's paragraph branch reads).
-  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/font_registry.cc")
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/font_registry.cc"
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/line_breaker.cc")
 
 target_include_directories(skityrender PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/skity"

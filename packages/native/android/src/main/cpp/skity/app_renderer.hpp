@@ -36,6 +36,11 @@ public:
   // mutation path now — Step 3b retired the snapshot channel).
   void ApplyCommands(const uint8_t *data, std::size_t size);
 
+  // <Paragraph>: apply a ParagraphRunList snapshot (glyph runs keyed by node
+  // id) to the retained tree. Call after the batch of the same flush — the
+  // runs reference nodes the batch inserts.
+  void ApplyParagraphRuns(const uint8_t *data, std::size_t size);
+
 private:
   std::unique_ptr<RenderBackend> backend_;
   skityrt::RetainedRenderTree retained_tree_;

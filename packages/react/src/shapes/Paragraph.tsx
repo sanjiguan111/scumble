@@ -80,6 +80,15 @@ export function Paragraph({ children, onLayout, ...rest }: ParagraphProps) {
   const n = normalizeParagraphProps(rest, children);
   if (n === null) return null;
   const { opacity, blendMode } = rest;
+  // Undefined number props must NOT reach the element: Android Lynx marshals
+  // them to 0 (opacity=0 → fully transparent, blendMode 0 = CLEAR wipes the
+  // draw), while iOS drops them. Other shapes go through internal/paint.ts
+  // which already filters undefined — the paragraph channel bypasses it, so
+  // filter here the same way.
+  const paintProps = {
+    ...(opacity !== undefined ? { opacity } : {}),
+    ...(blendMode !== undefined ? { blendMode: parseBlendMode(blendMode) } : {}),
+  };
   return (
     <skity-paragraph
       spans={n.spans}
@@ -89,8 +98,7 @@ export function Paragraph({ children, onLayout, ...rest }: ParagraphProps) {
       x={n.x}
       y={n.y}
       width={n.width}
-      opacity={opacity}
-      blendMode={blendMode !== undefined ? parseBlendMode(blendMode) : undefined}
+      {...paintProps}
       bindlayout={
         onLayout !== undefined
           ? (e: { detail: { height: number; lineCount: number } }) => onLayout(e.detail)

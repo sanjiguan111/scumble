@@ -110,6 +110,13 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   // now — snapshot retired). Drained in measure(), consumed in getExtraBundle().
   private var pendingCommandBatch: ByteArray? = null
 
+  // <skity-paragraph>: the FULL glyph-run snapshot of every live paragraph,
+  // serialized on each measure flush (dirty ones re-laid inside the walk,
+  // clean ones from cache). One entry's bytes per paragraph; the renderer's
+  // ApplyParagraphRuns overwrites per node id, so the entries are applied
+  // individually and idempotently — whichever flush lands carries everything.
+  private var pendingParagraphRuns: List<ByteArray>? = null
+
   init {
     setCustomMeasureFunc(this)
   }
@@ -119,7 +126,13 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   override fun getExtraBundle(): Any? {
     val c = pendingCommandBatch
     pendingCommandBatch = null
-    return c
+    val runs = pendingParagraphRuns
+    pendingParagraphRuns = null
+    if (runs == null) return c
+    // Multi-key payload: the command batch + the paragraph glyph runs, same
+    // flush, applied on the render queue in order (batch first — the runs
+    // reference nodes the batch inserts). Mirrors the iOS extra bundle.
+    return mapOf("batch" to (c ?: ByteArray(0)), "runs" to runs)
   }
 
   override fun measure(mp: MeasureParam?, mc: MeasureContext?): MeasureResult? {
@@ -137,6 +150,11 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     // into a CommandBatch — the only mutation path now (snapshot retired). Stored
     // for getExtraBundle; null when nothing is dirty.
     pendingCommandBatch = buildCommandBatchIfNeeded(this)
+
+    // <skity-paragraph> TASM-thread layout walk: lay out every dirty
+    // paragraph under this canvas and snapshot ALL live paragraphs' current
+    // runs (HarfBuzz + the shared breaker, on this thread).
+    pendingParagraphRuns = collectParagraphRuns(this)
 
     // Layout is driven by Lynx (style width/height). Resolve to a concrete size
     // from the measure param; only fall back to the width/height props when the
@@ -213,6 +231,35 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     nextCommandVersion += 1
     CommandBatch.finishCommandBatchBuffer(fbb, batch)
     return fbb.sizedByteArray()
+  }
+
+  /** Walk the shadow tree and snapshot every <skity-paragraph> descendant's
+   * current layout (one serialized ParagraphRunList entry each, node-id
+   * keyed). Null when the canvas has no paragraphs at all. */
+  private fun collectParagraphRuns(root: SkityNodeBase): List<ByteArray>? {
+    if (!hasParagraphDescendant(root)) return null
+    val out = mutableListOf<ByteArray>()
+    walkParagraphs(root, out)
+    return out
+  }
+
+  private fun hasParagraphDescendant(node: SkityNodeBase): Boolean {
+    if (node is SkityParagraphShadowNode) return true
+    for (i in 0 until node.childCount) {
+      val child = node.getChildAt(i)
+      if (child is SkityNodeBase && hasParagraphDescendant(child)) return true
+    }
+    return false
+  }
+
+  private fun walkParagraphs(node: SkityNodeBase, out: MutableList<ByteArray>) {
+    if (node is SkityParagraphShadowNode) {
+      node.layoutIfNeeded()?.let { out.add(it.runsBytes) }
+    }
+    for (i in 0 until node.childCount) {
+      val child = node.getChildAt(i)
+      if (child is SkityNodeBase) walkParagraphs(child, out)
+    }
   }
 
   private fun collectCommands(

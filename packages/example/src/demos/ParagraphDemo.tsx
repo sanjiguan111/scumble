@@ -61,8 +61,14 @@ export function ParagraphDemo() {
         <Paragraph x={10} y={10} width={330} fontSize={14}>
           <TextSpan text="首段文字的测量结果会显示在下方。" />
         </Paragraph>
-        <text style={{ top: 40, left: 10, fontSize: 12, color: "#6b7280" }}>首段: {info}</text>
       </DemoSection>
+      {/* Lynx <text> 是非 virtual 元素（有真实 UI），不能放进 skity-canvas
+          （SkityCanvasUI 不是 UIGroup，Android 直接报错）——结果文本放 canvas 外。 */}
+      <text
+        style={{ fontSize: "12px", color: "#6b7280", paddingLeft: "16px", marginBottom: "24px" }}
+      >
+        首段: {info}
+      </text>
     </view>
   );
 }

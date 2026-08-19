@@ -61,6 +61,18 @@ class SkityVulkanRenderSession(private val density: Float) : SkityRenderSession 
     }
   }
 
+  override fun applyParagraphRuns(runs: List<ByteArray>) {
+    renderHandler.post {
+      ensureRenderer()
+      if (rendererHandle != 0L) {
+        for (entry in runs) {
+          SkityNative.nativeApplyParagraphRuns(rendererHandle, entry)
+        }
+      }
+      drawIfReady()
+    }
+  }
+
   private fun drawIfReady() {
     if (!surfaceReady || rendererHandle == 0L) return
     SkityNative.nativeDrawFrame(rendererHandle)

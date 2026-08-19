@@ -115,6 +115,16 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var imageCubicB: Float = 0f
   @JvmField var imageCubicC: Float = 0f
 
+  // ---- <skity-paragraph> input (paragraph_runs.fbs SpanList bytes) + style.
+  // Only meaningful on SkityParagraphShadowNode, but kept on the base (mirrors
+  // iOS) so the setters live next to every other prop setter; the canvas walk
+  // only reads them on paragraph nodes.
+  @JvmField var paragraphSpansData: ByteArray? = null
+  @JvmField var paragraphAlign: Byte = 0        // 0=left 1=center 2=right
+  @JvmField var paragraphLineHeight = 1f        // multiplier; <=0 = 1
+  @JvmField var paragraphMaxLines = 0           // 0 = unlimited
+  @JvmField var dirtyParagraph = false
+
   // Phase 2: stable node id assigned by the canvas node for the retained tree.
   // 0 = not yet assigned; assigned lazily (1, 2, …) in measure() before the
   // snapshot is serialized. Never reused.
@@ -202,6 +212,9 @@ abstract class SkityNodeBase : ShadowNode() {
   @LynxProp(name = "width") fun setWidth(v: Float) {
     width = v
     dirtyGeometry = dirtyGeometry or GeometryField.WIDTH
+    // Paragraphs lay out at their width — a width change forces a re-layout
+    // (harmless no-op flag on shape nodes: only the paragraph walk reads it).
+    dirtyParagraph = true
     markDirty()
   }
   @LynxProp(name = "height") fun setHeight(v: Float) {
@@ -518,6 +531,31 @@ abstract class SkityNodeBase : ShadowNode() {
   @LynxProp(name = "fit") fun setFit(v: Int) {
     imageFit = v.toByte()
     dirtyImage = true
+    markDirty()
+  }
+
+  // ---- <skity-paragraph> props (mirrors the iOS base node setters) ----
+  // Spans arrive as base64-encoded SpanList FlatBuffer bytes (the same string
+  // channel as d/transform/gradients). An empty payload clears the paragraph.
+  @LynxProp(name = "spans") fun setSpans(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    paragraphSpansData = if (decoded.isNotEmpty()) decoded else null
+    dirtyParagraph = true
+    markDirty()
+  }
+  @LynxProp(name = "textAlign") fun setTextAlign(v: Int) {
+    paragraphAlign = v.toByte()
+    dirtyParagraph = true
+    markDirty()
+  }
+  @LynxProp(name = "lineHeight") fun setLineHeight(v: Float) {
+    paragraphLineHeight = v
+    dirtyParagraph = true
+    markDirty()
+  }
+  @LynxProp(name = "maxLines") fun setMaxLines(v: Int) {
+    paragraphMaxLines = v
+    dirtyParagraph = true
     markDirty()
   }
 

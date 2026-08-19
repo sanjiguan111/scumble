@@ -13,6 +13,13 @@ interface SkityRenderSession {
   fun attachSurface(surface: Surface, width: Int, height: Int)
   fun updateSize(width: Int, height: Int)
   fun applyCommands(commands: ByteArray)
+
+  /**
+   * Push <skity-paragraph> glyph-run snapshots (one ParagraphRunList entry
+   * each, node-id keyed — applied individually, overwrite semantics). Called
+   * from the UI thread right after the batch of the same flush.
+   */
+  fun applyParagraphRuns(runs: List<ByteArray>)
   fun detachSurface()
   fun destroy()
 
