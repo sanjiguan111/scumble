@@ -91,6 +91,13 @@ dependencies {
   // skity rendering engine (prefab). Consumed in CMake via find_package(skity);
   // see packages/native/shared/skity/SkityRenderer.
   implementation("org.lynxsdk.lynx:skity-native:1.1.0-alpha.3")
+
+  // HarfBuzz text shaping for <Paragraph> (Android layout backend). Static
+  // prefab AAR: libharfbuzz.a links into libskityrender.so — no runtime .so
+  // reaches the APK, so hosts need no extra packaging pickFirsts. Prefab
+  // module `harfbuzz` declares stl c++_shared, matching ANDROID_STL below;
+  // ndk26 build is the closest variant to this project's default NDK (r27).
+  implementation("com.viliussutkus89.ndk.thirdparty:harfbuzz-ndk26-static:8.3.0-beta-4")
 }
 
 

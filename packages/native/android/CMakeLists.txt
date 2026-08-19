@@ -61,16 +61,26 @@ set_target_properties(LynxSkityAddon PROPERTIES
 # ---------------------------------------------------------------------------
 find_package(skity-native CONFIG REQUIRED)
 
+# HarfBuzz text shaping (static prefab, MavenCentral) — <Paragraph> Android
+# layout backend. The core `harfbuzz` module is self-contained (cairo/glib
+# only serve the harfbuzz-cairo variant); libharfbuzz.a links statically into
+# libskityrender.so, no runtime .so reaches the APK.
+find_package(harfbuzz CONFIG REQUIRED)
+
 add_library(skityrender SHARED
   src/main/cpp/skity/app_renderer.cpp
   src/main/cpp/skity/shared_gl_context.cpp
   src/main/cpp/skity/gles_render_backend.cpp
   src/main/cpp/skity/vulkan_render_backend.cpp
   src/main/cpp/skity/gl_proc_resolver.cpp
+  src/main/cpp/skity/harfbuzz_probe.cc
   src/main/cpp/jni/skity_jni.cpp
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/SkityRenderer.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/retained_render_tree.cc"
-  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/image_store.cc")
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/image_store.cc"
+  # TASM→render font bridge for <Paragraph> glyph runs (cross-platform C++;
+  # the TASM side registers, DrawShape's paragraph branch reads).
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/font_registry.cc")
 
 target_include_directories(skityrender PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/skity"
@@ -87,6 +97,7 @@ target_include_directories(skityrender PRIVATE
 
 target_link_libraries(skityrender PRIVATE
   skity-native::skity
+  harfbuzz::harfbuzz
   EGL
   GLESv3
   vulkan
