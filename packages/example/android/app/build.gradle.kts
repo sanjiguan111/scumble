@@ -54,6 +54,13 @@ android {
             )
         }
     }
+    // The loader CMake currently links only prebuilt primjs .so files (no
+    // find_package); prefab dependencies the native library links (skity-native,
+    // later HarfBuzz) are consumed by that module's own prefab setting. Flip this
+    // on so a host-side prefab dependency resolves without another change here.
+    buildFeatures {
+        prefab = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

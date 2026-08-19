@@ -56,6 +56,28 @@ host owns the versions, no surprise nested copy):
 pnpm add @lynx-skity/react @lynx-skity/graphics @lynx-skity/native
 ```
 
+### Android host integration
+
+One Gradle-side change comes from the skity integration: the native library
+links skity-native via prefab, and AGP copies the prefab runtime `.so` into
+the library AAR's `jni/` — duplicating the copy that the skity-native AAR
+already ships transitively. The files are identical, so the host just picks
+one at merge time:
+
+```kotlin
+android {
+    packaging {
+        jniLibs {
+            pickFirsts += setOf("**/libskity.so")
+        }
+    }
+}
+```
+
+(`libc++_shared.so` and the primjs `.so` files may need the same treatment if
+the host doesn't configure them already — those duplicates come from the Lynx
+toolchain, not from skity.)
+
 ## Getting started
 
 ```bash
