@@ -267,8 +267,8 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     std::vector<float> py;
   };
   std::vector<OutRun> outRuns;
-  // Dedupe FontRegistry ids per (typeface, size) so re-layouts don't grow it.
-  std::unordered_map<MetricsKey, uint32_t, MetricsKeyHash> fontIds;
+  // FontRegistry::Register is idempotent per (typeface, size) — repeated
+  // layouts return the existing id and don't grow the registry.
 
   float y = 0.f;
   int32_t lastLineIndex = (int32_t)lines.size() - 1;
@@ -338,13 +338,9 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     OutRun *run = nullptr;
     for (uint32_t i = start; i < contentEnd; i++) {
       const auto &g = glyphs[i];
-      const MetricsKey key{g.typeface->TypefaceId(), g.fontSize};
-      auto fit = fontIds.find(key);
-      if (fit == fontIds.end()) {
-        fit = fontIds.emplace(key, FontRegistry::Instance().Register(g.typeface, g.fontSize)).first;
-      }
-      if (run == nullptr || run->fontId != fit->second || run->color != g.color) {
-        outRuns.push_back(OutRun{fit->second, g.color, {}, {}, {}});
+      const uint32_t fontId = FontRegistry::Instance().Register(g.typeface, g.fontSize);
+      if (run == nullptr || run->fontId != fontId || run->color != g.color) {
+        outRuns.push_back(OutRun{fontId, g.color, {}, {}, {}});
         run = &outRuns.back();
       }
       run->glyphs.push_back(g.glyphId);
@@ -355,14 +351,9 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     if (hasEllipsis) {
       // Append "…" with the tail glyph's font+color at the line's content end.
       const ShapedGlyph &tail = glyphs[end > start ? end - 1 : start];
-      const MetricsKey key{tail.typeface->TypefaceId(), tail.fontSize};
-      auto fit = fontIds.find(key);
-      if (fit == fontIds.end()) {
-        fit = fontIds.emplace(key, FontRegistry::Instance().Register(tail.typeface, tail.fontSize))
-                  .first;
-      }
+      const uint32_t fontId = FontRegistry::Instance().Register(tail.typeface, tail.fontSize);
       outRuns.push_back(
-          OutRun{fit->second, tail.color, {(uint16_t)ellGlyph}, {x0 + cursor}, {baseline}});
+          OutRun{fontId, tail.color, {(uint16_t)ellGlyph}, {x0 + cursor}, {baseline}});
     }
   }
   result.height = y;

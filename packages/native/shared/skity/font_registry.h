@@ -20,10 +20,13 @@
 #ifndef SKITY_FONT_REGISTRY_H_
 #define SKITY_FONT_REGISTRY_H_
 
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <utility>
 
 #include <skity/text/font.hpp>
 
@@ -34,8 +37,10 @@ public:
   static FontRegistry &Instance();
 
   // TASM thread (layout). Registers a font and returns its id. Ids are
-  // process-unique and never reused; the same font may be registered twice
-  // (callers dedupe by (typefaceId, size) if they care).
+  // process-unique and never reused. The same (typeface, size) registers
+  // idempotently — repeated layouts don't grow the registry (the iOS backend
+  // re-registers every CTRun on each layout; Android relied on a caller-side
+  // dedupe map before this moved in).
   uint32_t Register(std::shared_ptr<skity::Typeface> typeface, float size);
 
   // Any thread. Returns nullptr for an unknown id (the run is skipped).
@@ -44,9 +49,17 @@ public:
 private:
   FontRegistry() = default;
 
+  using DedupeKey = std::pair<skity::Typeface *, float>;
+  struct KeyHash {
+    size_t operator()(const DedupeKey &k) const noexcept {
+      return std::hash<void *>{}(k.first) ^ (std::hash<float>{}(k.second) << 1);
+    }
+  };
+
   mutable std::mutex mutex_;
   std::unordered_map<uint32_t, std::shared_ptr<skity::Typeface>> typefaces_;
   std::unordered_map<uint32_t, float> sizes_;
+  std::unordered_map<DedupeKey, uint32_t, KeyHash> dedupe_;
   uint32_t next_id_ = 1; // 0 = invalid
 };
 
