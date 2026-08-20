@@ -51,6 +51,18 @@ export function ParagraphDemo() {
         </Paragraph>
       </DemoSection>
 
+      <DemoSection title="shaping 排版" caption="连字 · 字距 · emoji 组合字形" height={150}>
+        <Paragraph x={10} y={10} width={330} fontSize={16}>
+          <TextSpan text="Office workflow: fine figure affine. " />
+          <TextSpan text="AVATAR To Ya" fontWeight={700} />
+          {/* 国旗 = 两个 Regional Indicator 经 GSUB 组合成单字形；基础
+              emoji（😀🎉❤️）用于验证 fallback 通路。 */}
+          <TextSpan text=" 🇨🇳" />
+          <TextSpan text=" 😀🎉" />
+          <TextSpan text=" ❤️" />
+        </Paragraph>
+      </DemoSection>
+
       <DemoSection title="maxLines 截断" caption="3 行截断 + 省略号" height={90}>
         <Paragraph x={10} y={10} width={330} fontSize={14} maxLines={3}>
           <TextSpan text="这是一段很长的文本用来验证 maxLines 截断与省略号行为。 Lynx-skity renders text through skity's glyph pipeline with CoreText laying out the paragraph on iOS. 这段文本超过三行时应该被截断并显示省略号。" />
