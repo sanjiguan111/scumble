@@ -148,9 +148,22 @@ LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
   CGFloat top = 0.f;
   for (CFIndex li = 0; li < lineCount && li < maxLines; li++) {
     CTLineRef line = (CTLineRef)CFArrayGetValueAtIndex(lines, li);
-    // Last line of a maxLines-clamped paragraph gets end-ellipsis.
+    // Last line of a maxLines-clamped paragraph gets end-ellipsis. The token
+    // uses the tail run's font+size (Android resolves U+2026 on the line's
+    // tail font the same way) — a fixed 14pt token shrank visibly in
+    // large-print paragraphs.
     if (self.paragraphMaxLines > 0 && li + 1 == maxLines && li + 1 < lineCount) {
-      CTFontRef tokenFont = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, 14, nullptr);
+      CTFontRef tokenFont = nullptr;
+      CFArrayRef runs = CTLineGetGlyphRuns(line);
+      if (runs != nullptr && CFArrayGetCount(runs) > 0) {
+        CTRunRef tailRun = (CTRunRef)CFArrayGetValueAtIndex(runs, CFArrayGetCount(runs) - 1);
+        CTFontRef tailFont =
+            (CTFontRef)CFDictionaryGetValue(CTRunGetAttributes(tailRun), kCTFontAttributeName);
+        if (tailFont != nullptr) tokenFont = (CTFontRef)CFRetain(tailFont);
+      }
+      if (tokenFont == nullptr) {
+        tokenFont = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, 14, nullptr);
+      }
       NSDictionary *tokenAttrs = @{(NSString *)kCTFontAttributeName : (__bridge id)tokenFont};
       CTLineRef token = CTLineCreateWithAttributedString(
           (CFAttributedStringRef)[[NSAttributedString alloc] initWithString:@"…"
@@ -158,6 +171,7 @@ LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
       CTLineRef truncated =
           CTLineCreateTruncatedLine(line, (double)width, kCTLineTruncationEnd, token);
       if (token != nullptr) CFRelease(token);
+      CFRelease(tokenFont);
       if (truncated != nullptr) line = truncated;
     }
     const CGPoint origin = lineOrigins[(size_t)li];
