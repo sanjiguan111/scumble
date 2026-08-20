@@ -724,16 +724,19 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
   back a process-unique monotonic id; the render thread rebuilds the Font from
   it by value at draw time. Plain mutex (TASM writes, render reads — unlike
   the lock-free render-thread-only ImageStore); entries live for the process;
-  ids never reused. Android dedupes registrations by (TypefaceID, size);
-  iOS registers per CTRun per layout (re-layouts grow the registry — accepted
-  v1, see open items).
+  ids never reused. `Register` is idempotent per (typeface, size) — repeated
+  layouts return the existing id (2026-08-20; iOS used to grow the registry
+  by re-registering every CTRun on every layout).
 - **Drawing**: `SkityRenderer.cc` `tag == "paragraph"` — `Save` →
-  `Translate(x, y)` → one `DrawGlyphs` per run with a fresh paint carrying
-  only anti-alias, `SetBlendMode` (inherited), and `SetColor(span color ×
-inherited opacity)`; the `skity::Font` is rebuilt from the registry (an
-  unknown font id yields an empty typeface → run skipped). Inherited filters
-  and image-shader text fill are explicitly deferred (v2: per-run paint
-  pipeline — the node's shape-style paint doesn't apply to glyph runs).
+  `Translate(x, y)` → one `DrawGlyphs` per run. The paint is built per run:
+  the node-level fill (explicit or inherited) styles every run when present —
+  a GRADIENT rides skity's glyph-atlas shader path (span colors survive only
+  as alpha modulation), a COLOR fill replaces the span colors, and color
+  filters chain in; without one it is the span color × inherited opacity.
+  Image-shader fills and image/mask filters are ignored by skity's text
+  pipeline (upstream) and fall back to the span colors. The `skity::Font` is
+  rebuilt from the registry (an unknown font id yields an empty typeface →
+  run skipped).
 - **onLayout**: the measured `{height, lineCount}` reaches JS asynchronously
   as a Lynx `"layout"` `LynxDetailEvent` — the exact channel Lynx's own
   `<text>` uses (gated on the `bindlayout` subscription: `needsEventSet` /
@@ -743,19 +746,36 @@ inherited opacity)`; the `skity::Font` is rebuilt from the registry (an
   claim the implementation dropped): paragraphs are virtual nodes, the canvas
   measure size is independent of paragraph heights, and the height reaches JS
   only through this event.
-- **Custom fonts: not wired** (v1 is system fonts by family name on both
-  platforms; the schema comment still sketches a data-URI custom-font
-  registry, but nothing consumes it).
+- **Custom fonts (2026-08-20): inline `data:` URIs**. A span `fontFamily`
+  may carry a base64 ttf/otf — the shared `TypefaceCache`
+  (`shared/skity/typeface_cache.{h,cc}`) decodes it once (process-cached,
+  sticky failure; the decode uses the shared `base64.{h,cc}` since the URI
+  rides INSIDE the SpanList bytes, past the platform-layer base64) into a
+  `Typeface::MakeFromData` typeface. iOS bridges it back to CoreText for
+  layout (`CTFontFromTypeface` is a BORROWED pointer — copy out an owned
+  span-sized CTFont, never release the bridge result) while the run walk
+  re-wraps the same typeface, so glyph ids match `DrawGlyphs`; Android uses
+  it as the shaper's base typeface (fallback segmentation unchanged). A
+  broken payload falls back to the default font, not a dropped span. One
+  file = one style (no weight/italic variants from a single URI). Remote /
+  bundled font sources are on the v2 list below.
+- **Empty text clears (2026-08-20)**: a paragraph whose spans decode empty
+  emits a 0-height/0-run ENTRY (not a missing entry) — `ApplyParagraphRuns`
+  then clears the retained node's previous runs. iOS produces it via
+  `emptyResult`; Android's shaper already serialized one.
 
 ### 13.1 Open items (v2 backlog)
 
-- Per-run paint pipeline: inherited filters, image-shader text fill, gradient
-  fills (currently color-only runs).
-- Custom ttf/otf fonts (base64 data URI → `Typeface::MakeFromData`, family
-  registry keyed by URI).
-- Empty-text handling: a paragraph whose spans decode empty produces no
-  entry — the retained node keeps its previous runs instead of clearing.
-- iOS FontRegistry dedup (per-CTFont, like Android's (typeface, size) key) so
-  long-lived re-layouts stop growing the registry.
+- ~~Per-run paint pipeline~~ — done (2026-08-20): gradient fills + color
+  filters ride the glyph-atlas path; image-shader fills and image/mask
+  filters are ignored by skity's text pipeline (upstream limitation, falls
+  back to span colors).
+- ~~Custom ttf/otf fonts~~ — data URIs done (2026-08-20, above). Remaining:
+  remote (`http(s)`) and bundled/asset sources — reuse the Image loader
+  pipeline + trigger a re-layout when bytes land asynchronously (fonts are a
+  layout INPUT, unlike images' render-time consumption).
+- ~~Empty-text handling~~ — done (2026-08-20).
+- ~~iOS FontRegistry dedup~~ — done (2026-08-20): `Register` is idempotent
+  per (typeface, size).
 - BiDi/RTL, justification — out of scope per the design, revisit with a real
   case (iOS gets BiDi nearly free via CoreText; Android would need ICU).
