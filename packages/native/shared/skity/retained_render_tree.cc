@@ -287,16 +287,33 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       RetainedNode *node = Find(pf->node_id());
       if (node == nullptr) break;
       RetainedPaint &paint = pf->slot() == PaintSlot_STROKE ? node->style.stroke : node->style.fill;
+      // Mark the slot authored (or clear the mark when the payload is empty —
+      // a removed filter falls back to inheritance again). These bits live
+      // above the schema's PaintField range (no fields_dirty rides the
+      // SetPaintFilter command).
+      const bool stroke = pf->slot() == PaintSlot_STROKE;
+      uint32_t bit;
       switch (pf->kind()) {
       case FilterSlot_IMAGE:
+        bit = stroke ? RetainedComputedStyle::kBitStrokeImageFilter
+                     : RetainedComputedStyle::kBitFillImageFilter;
         AssignOwnedBytes(pf->data(), &paint.image_filter_data);
         break;
       case FilterSlot_MASK:
+        bit = stroke ? RetainedComputedStyle::kBitStrokeMaskFilter
+                     : RetainedComputedStyle::kBitFillMaskFilter;
         AssignOwnedBytes(pf->data(), &paint.mask_filter_data);
         break;
       default: // COLOR
+        bit = stroke ? RetainedComputedStyle::kBitStrokeColorFilter
+                     : RetainedComputedStyle::kBitFillColorFilter;
         AssignOwnedBytes(pf->data(), &paint.color_filter_data);
         break;
+      }
+      if (pf->data() != nullptr && pf->data()->size() > 0) {
+        node->style.explicit_paint |= bit;
+      } else {
+        node->style.explicit_paint &= ~bit;
       }
       break;
     }

@@ -72,7 +72,21 @@ struct RetainedComputedStyle {
   // "explicitly authored" markers driving group→child paint inheritance.
   // Fields whose bit is 0 fall back to the nearest ancestor's explicit value
   // (resolved at render time in DrawNode; nothing is stored per child).
+  //
+  // The filter slots (below) ride the SEPARATE SetPaintFilter command, whose
+  // schema has no fields_dirty bits — so these retained-local bits (above the
+  // schema's PaintField range) record that the node authored a filter. The
+  // resolver then merges just the filter bytes into the inherited paint slot
+  // (field-level, NOT the whole-slot takeover of the fill/stroke bits — a
+  // filter-only node keeps inheriting the ancestor's fill color/gradient).
   uint32_t explicit_paint = 0;
+
+  static constexpr uint32_t kBitFillColorFilter = 1u << 14;
+  static constexpr uint32_t kBitFillImageFilter = 1u << 15;
+  static constexpr uint32_t kBitFillMaskFilter = 1u << 16;
+  static constexpr uint32_t kBitStrokeColorFilter = 1u << 17;
+  static constexpr uint32_t kBitStrokeImageFilter = 1u << 18;
+  static constexpr uint32_t kBitStrokeMaskFilter = 1u << 19;
 };
 
 // Mutable, owning counterpart of RenderNode. Lifetime is owned exclusively by

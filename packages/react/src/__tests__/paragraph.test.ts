@@ -2,8 +2,16 @@ import { describe, it, expect } from "vitest";
 
 import { bytesToBase64, buildSpanList } from "@lynx-skity/graphics";
 
-import { collectSpans, normalizeParagraphProps, resolveSpanText } from "../shapes/Paragraph";
+import {
+  collectSpans,
+  normalizeParagraphProps,
+  resolveSpanText,
+  Paragraph,
+} from "../shapes/Paragraph";
 import { TextSpan } from "../shapes/TextSpan";
+import { LinearGradient } from "../shaders/LinearGradient";
+import { Paint } from "../Paint";
+import { ColorMatrix } from "../filters/filters";
 
 // childElements consumes plain {type, props} objects — no JSX needed.
 const span = (props: Record<string, unknown>) => ({ type: TextSpan, props });
@@ -99,5 +107,68 @@ describe("normalizeParagraphProps", () => {
     expect(
       normalizeParagraphProps({ ...base, lineHeight: 1.5, maxLines: 3, x: 4, y: 5 } as never),
     ).toMatchObject({ lineHeight: 1.5, maxLines: 3, x: 4, y: 5 });
+  });
+});
+
+describe("Paragraph paint routing", () => {
+  // Calling the component directly returns the intrinsic element (a plain
+  // object from createElement) — inspect its props without a renderer.
+  const elementFor = (props: Record<string, unknown>) =>
+    Paragraph(props as never) as unknown as { props: Record<string, unknown> };
+
+  it("routes a gradient child onto the fill slot next to the spans payload", () => {
+    const el = elementFor({
+      width: 100,
+      children: [
+        {
+          type: LinearGradient,
+          props: { start: [0, 0], end: [100, 0], colors: ["#ff0000", "#0000ff"] },
+        },
+        span({ text: "hi" }),
+      ],
+    });
+    expect(typeof el.props.fillGradient).toBe("string");
+    expect(el.props.fill).toBeUndefined(); // no color fill — the span colors apply
+    expect(el.props.spans).toBeDefined(); // the layout payload rides along
+  });
+
+  it("routes <Paint color> to the node fill (span colors are then overridden)", () => {
+    const el = elementFor({
+      width: 100,
+      children: [{ type: Paint, props: { color: "#ff0000", children: [] } }, span({ text: "hi" })],
+    });
+    expect(el.props.fill).toBe(0xffff0000);
+  });
+
+  it("routes a <ColorMatrix> child onto the fill color-filter slot", () => {
+    const el = elementFor({
+      width: 100,
+      children: [
+        {
+          type: ColorMatrix,
+          props: {
+            matrix: [
+              0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0,
+              0, 0, 0, 0, 1, 0,
+            ],
+          },
+        },
+        span({ text: "hi" }),
+      ],
+    });
+    expect(typeof el.props.fillColorFilter).toBe("string");
+  });
+
+  it("keeps the paragraph `color` prop OUT of the node fill (it is the span default)", () => {
+    const el = elementFor({ width: 100, color: "#00ff00", children: [span({ text: "hi" })] });
+    expect(el.props.fill).toBeUndefined();
+    // …and it lands in the spans payload as the span default color instead.
+    expect(el.props.spans).toBe(bytesToBase64(buildSpanList([{ text: "hi", color: "#00ff00" }])));
+  });
+
+  it("does not emit undefined paint props (Android marshals them to 0)", () => {
+    const el = elementFor({ width: 100, children: [span({ text: "hi" })] });
+    expect(el.props.opacity).toBeUndefined();
+    expect(el.props.blendMode).toBeUndefined();
   });
 });

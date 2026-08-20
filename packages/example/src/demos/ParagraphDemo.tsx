@@ -4,7 +4,7 @@
 
 import { useState } from "@lynx-js/react";
 
-import { Paragraph, TextSpan } from "@lynx-skity/react";
+import { ColorMatrix, LinearGradient, Paragraph, TextSpan } from "@lynx-skity/react";
 
 import { DemoSection } from "../components/DemoSection";
 
@@ -63,6 +63,28 @@ export function ParagraphDemo() {
           <TextSpan text=" 🇨🇳" />
           <TextSpan text=" 😀🎉" />
           <TextSpan text=" ❤️" />
+        </Paragraph>
+      </DemoSection>
+
+      <DemoSection title="渐变与滤镜" caption="渐变 fill 整段;ColorMatrix 滤色" height={130}>
+        {/* 渐变子元素走 fill 槽,span 颜色只剩 alpha 参与调制 */}
+        <Paragraph x={10} y={10} width={330} fontSize={22} fontWeight={700}>
+          <LinearGradient
+            start={[10, 0]}
+            end={[340, 0]}
+            colors={["#8b5cf6", "#ec4899", "#f59e0b"]}
+          />
+          <TextSpan>Gradient text</TextSpan>
+        </Paragraph>
+        {/* ColorMatrix(饱和度置 0)对整段文字做滤色 */}
+        <Paragraph x={10} y={70} width={330} fontSize={15} color="#3b82f6">
+          <ColorMatrix
+            matrix={[
+              0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0,
+              0, 0, 0, 0, 1, 0,
+            ]}
+          />
+          <TextSpan>color-filtered (grayscale) span text</TextSpan>
         </Paragraph>
       </DemoSection>
 

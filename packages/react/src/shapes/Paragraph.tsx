@@ -1,11 +1,11 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { buildSpanList, bytesToBase64, parseBlendMode } from "@lynx-skity/graphics";
+import { buildSpanList, bytesToBase64 } from "@lynx-skity/graphics";
 import type { SpanSpec } from "@lynx-skity/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
-import { childElements } from "../internal/paint";
+import { childElements, resolvePaint } from "../internal/paint";
 import { TextSpan } from "./TextSpan";
 import type { ParagraphProps, TextSpanProps } from "../types";
 
@@ -89,24 +89,51 @@ export function normalizeParagraphProps(
  * height reaches JS asynchronously via `onLayout` (a Lynx `"layout"`
  * component event). Inherits opacity/blendMode like every shape.
  *
+ * A gradient child (or `<Paint>` wrapping one) fills the whole paragraph
+ * through skity's glyph atlas — the span colors then only contribute their
+ * alpha; `<ColorMatrix>`/`<ColorBlend>` children apply as color filters.
+ * Image-shader fills and blur/shadow filters are ignored by skity's text
+ * pipeline (falls back to the span colors). Note `color` on a paragraph is
+ * the SPAN default color, not a node fill — use `<Paint color>` for that.
+ *
  * @example
  * <Paragraph x={0} y={0} width={300} fontSize={16} onLayout={(d) => console.log(d.height)}>
  *   <TextSpan text="Hello " />
  *   <TextSpan text="skity" color="#3b82f6" fontWeight={700} />
  * </Paragraph>
+ *
+ * @example
+ * <Paragraph x={0} y={0} width={300} fontSize={22} fontWeight={700}>
+ *   <LinearGradient start={[0, 0]} end={[300, 0]} colors={["#8b5cf6", "#ec4899"]} />
+ *   <TextSpan>gradient text</TextSpan>
+ * </Paragraph>
  */
 export function Paragraph({ children, onLayout, ...rest }: ParagraphProps) {
   const n = normalizeParagraphProps(rest, children);
   if (n === null) return null;
-  const { opacity, blendMode } = rest;
-  // Undefined number props must NOT reach the element: Android Lynx marshals
-  // them to 0 (opacity=0 → fully transparent, blendMode 0 = CLEAR wipes the
-  // draw), while iOS drops them. Other shapes go through internal/paint.ts
-  // which already filters undefined — the paragraph channel bypasses it, so
-  // filter here the same way.
+  // resolvePaint routes the declarative shader/filter children onto the fill
+  // slot (the only paint a paragraph draws with — text has no stroke). `color`
+  // and `style` are neutralized before resolving: on a paragraph, `color`
+  // means the SPAN default color (serialized into the spans payload), not a
+  // node fill. resolvePaint also filters undefined number props (Android
+  // marshals those to 0 — opacity 0 / blendMode CLEAR wipe the draw).
+  const {
+    opacity,
+    blendMode,
+    fill,
+    fillGradient,
+    fillColorFilter,
+    fillImageFilter,
+    fillMaskFilter,
+  } = resolvePaint({ ...rest, color: undefined, style: undefined }, children);
   const paintProps = {
     ...(opacity !== undefined ? { opacity } : {}),
-    ...(blendMode !== undefined ? { blendMode: parseBlendMode(blendMode) } : {}),
+    ...(blendMode !== undefined ? { blendMode } : {}),
+    ...(fill !== undefined ? { fill } : {}),
+    ...(fillGradient !== undefined ? { fillGradient } : {}),
+    ...(fillColorFilter !== undefined ? { fillColorFilter } : {}),
+    ...(fillImageFilter !== undefined ? { fillImageFilter } : {}),
+    ...(fillMaskFilter !== undefined ? { fillMaskFilter } : {}),
   };
   return (
     <skity-paragraph

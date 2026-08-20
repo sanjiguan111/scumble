@@ -765,6 +765,12 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     if (node->paragraph.runs.empty()) return;
     canvas->Save();
     canvas->Translate(node->x, node->y);
+    // Node-level fill (explicit or inherited) rides every run: skity's glyph
+    // atlas path natively renders gradient shaders and color filters through
+    // the A8 mask. Image-shader fills (type 3) and image/mask filters are
+    // ignored by skity's text pipeline — they ride along harmlessly or the
+    // run falls back to its span color.
+    const RetainedPaint *fill = style != nullptr ? &style->fill : nullptr;
     for (const auto &run : node->paragraph.runs) {
       skity::Font font = FontRegistry::Instance().Find(run.font_id);
       if (font.GetTypefaceOrDefault() == nullptr) continue;
@@ -772,11 +778,18 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
       paint.SetAntiAlias(true);
       paint.SetBlendMode(
           static_cast<skity::BlendMode>(style != nullptr ? style->blend_mode : BlendMode_SRC_OVER));
-      paint.SetColor(ColorFromARGB(run.color, opacity));
-      // Inherited opacity/blend ride the paint above; span color modulates
-      // (the platform layout resolved the final color per run). Filters and
-      // image-shader fills on text are a v2 concern (they need run-level
-      // paint plumbing, not the node's shape-style paint).
+      bool styled = false;
+      if (fill != nullptr && fill->type == 2 /*GRADIENT*/) {
+        // The shader supplies the hue; the span color survives only as alpha
+        // modulation (a transparent span stays invisible under a gradient).
+        const float spanAlpha = opacity * (float)((run.color >> 24) & 0xFF) / 255.f;
+        styled = ApplyGradient(fill->gradient_data, spanAlpha, &paint);
+      } else if (fill != nullptr && fill->type == 1 /*COLOR*/) {
+        paint.SetColor(ColorFromARGB(fill->color, opacity));
+        styled = true;
+      }
+      if (!styled) paint.SetColor(ColorFromARGB(run.color, opacity));
+      if (fill != nullptr) ApplyPaintFilters(*fill, &paint);
       canvas->DrawGlyphs(static_cast<int>(run.glyphs.size()), run.glyphs.data(), run.pos_x.data(),
                          run.pos_y.data(), font, paint);
     }
@@ -902,6 +915,23 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
     if (explicitPaint &
         (PaintField_STROKE | PaintField_STROKE_GRADIENT | PaintField_STROKE_IMAGE_SHADER))
       scratch.stroke = style.stroke;
+    // Filter-only authorship merges at field level: the inherited fill or
+    // stroke (type/color/gradient) survives, only the filter bytes override —
+    // a node declaring e.g. a <ColorMatrix> still inherits the group's fill.
+    if (explicitPaint &
+        (RetainedComputedStyle::kBitFillColorFilter | RetainedComputedStyle::kBitFillImageFilter |
+         RetainedComputedStyle::kBitFillMaskFilter)) {
+      scratch.fill.color_filter_data = style.fill.color_filter_data;
+      scratch.fill.image_filter_data = style.fill.image_filter_data;
+      scratch.fill.mask_filter_data = style.fill.mask_filter_data;
+    }
+    if (explicitPaint & (RetainedComputedStyle::kBitStrokeColorFilter |
+                         RetainedComputedStyle::kBitStrokeImageFilter |
+                         RetainedComputedStyle::kBitStrokeMaskFilter)) {
+      scratch.stroke.color_filter_data = style.stroke.color_filter_data;
+      scratch.stroke.image_filter_data = style.stroke.image_filter_data;
+      scratch.stroke.mask_filter_data = style.stroke.mask_filter_data;
+    }
     if (explicitPaint & PaintField_STROKE_WIDTH) scratch.stroke_width = style.stroke_width;
     if (explicitPaint & PaintField_STROKE_CAP) scratch.stroke_cap = style.stroke_cap;
     if (explicitPaint & PaintField_STROKE_JOIN) scratch.stroke_join = style.stroke_join;
