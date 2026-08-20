@@ -15,6 +15,7 @@
 
 #include "font_registry.h"
 #include "paragraph_runs_generated.h"
+#include "typeface_cache.h"
 
 #include <algorithm>
 
@@ -36,11 +37,29 @@ using skityrt::FontRegistry;
 static NSString *const kSkitySpanColorKey = @"skitySpanColor";
 
 // Map a span's family/weight/slant to a CTFont. Family empty → the system
-// font; weight ≥ 600 or italic → symbolic traits on a copy.
+// font; a `data:` URI → the custom-font cache (MakeFromData typeface bridged
+// back to CoreText — same typeface object the run extraction will re-wrap, so
+// glyph ids match DrawGlyphs); weight ≥ 600 or italic → symbolic traits on a
+// copy.
 CTFontRef SkitySpanFont(NSString *family, float size, int weight, bool italic) {
-  CTFontRef base = family.length > 0
-                       ? CTFontCreateWithName((CFStringRef)family, size, nullptr)
-                       : CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, size, nullptr);
+  CTFontRef base = nullptr;
+  if ([family hasPrefix:@"data:"]) {
+    auto typeface = skityrt::TypefaceCache::Instance().FindOrLoad(family.UTF8String);
+    if (typeface != nullptr) {
+      // BORROWED: CTFontFromTypeface forwards the typeface's own CTFont
+      // without a +1 — releasing it would dangle the typeface's scaler (a
+      // SIGSEGV on the render thread). Copy out an owned, span-sized font.
+      CTFontRef borrowed = skity::TypefaceCT::CTFontFromTypeface(typeface);
+      if (borrowed != nullptr) {
+        base = CTFontCreateCopyWithAttributes(borrowed, (CGFloat)size, nullptr, nullptr);
+      }
+    }
+    // A broken payload falls through to the system font, not a missing run.
+  }
+  if (base == nullptr) {
+    base = family.length > 0 ? CTFontCreateWithName((CFStringRef)family, size, nullptr)
+                             : CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, size, nullptr);
+  }
   if (base == nullptr) return nullptr;
   const bool bold = weight >= 600;
   if (!bold && !italic) return base;
@@ -98,7 +117,7 @@ LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
   const auto *spanList =
       ::flatbuffers::GetRoot<skityrt::SpanList>((const uint8_t *)self.paragraphSpansData.bytes);
   const auto *spans = spanList != nullptr ? spanList->spans() : nullptr;
-  if (spans == nullptr || spans->size() == 0) return nullptr;
+  if (spans == nullptr || spans->size() == 0) return [self emptyResult];
 
   // Build the attributed string: one attribute dict per span (font, span
   // color as a custom attribute, letter spacing as kern, paragraph style).
@@ -126,7 +145,7 @@ LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
     CFRelease(font);
   }
   CFRelease(paraStyle);
-  if (text.length == 0) return nullptr;
+  if (text.length == 0) return [self emptyResult];
 
   // Lay out in a width-constrained, downward-extending frame. The negative-y
   // path trick makes the flip trivial: render y = -coretext y (the first
@@ -244,6 +263,17 @@ LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
   CFRelease(frame);
   CFRelease(framesetter);
 
+  [self dispatchLayoutEventWithHeight:result->height lineCount:result->lineCount];
+  _lastResult = result;
+  return result;
+}
+
+// The paragraph exists but lays out to nothing (no spans, or every span's
+// text is empty). Emitting a 0-height/0-run ENTRY — instead of no entry —
+// lets the retained tree clear the previous runs: a missing entry is not a
+// clear, the node would keep drawing its last layout.
+- (std::shared_ptr<SkityParagraphResult>)emptyResult {
+  auto result = std::make_shared<SkityParagraphResult>();
   [self dispatchLayoutEventWithHeight:result->height lineCount:result->lineCount];
   _lastResult = result;
   return result;

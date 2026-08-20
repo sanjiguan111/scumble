@@ -16,6 +16,7 @@
 #include "font_registry.h"
 #include "generated/paragraph_runs_generated.h"
 #include "line_breaker.h"
+#include "typeface_cache.h"
 
 #include <skity/graphic/paint.hpp>
 #include <skity/text/font.hpp>
@@ -190,9 +191,18 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
         span->fontFamily() != nullptr ? span->fontFamily()->str() : std::string();
     const FontStyle style(span->fontWeight(), FontStyle::kNormal_Width,
                           span->italic() ? FontStyle::kItalic_Slant : FontStyle::kUpright_Slant);
-    std::shared_ptr<Typeface> base = family.empty()
-                                         ? fontManager->GetDefaultTypeface(style)
-                                         : fontManager->MatchFamilyStyle(family.c_str(), style);
+    // A `data:` URI is an inline ttf/otf (the custom-font channel) — decoded
+    // once by the process-wide cache. Its bytes are the single file's style,
+    // so weight/italic don't select variants (ship one URI per style). A
+    // broken payload falls back to the default font, not a dropped span.
+    std::shared_ptr<Typeface> base;
+    if (TypefaceCache::IsDataUri(family)) {
+      base = TypefaceCache::Instance().FindOrLoad(family);
+    } else if (family.empty()) {
+      base = fontManager->GetDefaultTypeface(style);
+    } else {
+      base = fontManager->MatchFamilyStyle(family.c_str(), style);
+    }
     if (base == nullptr) base = fontManager->GetDefaultTypeface(style);
     if (base == nullptr) continue;
 

@@ -7,9 +7,12 @@ import { useState } from "@lynx-js/react";
 import { ColorMatrix, LinearGradient, Paragraph, TextSpan } from "@lynx-skity/react";
 
 import { DemoSection } from "../components/DemoSection";
+import { PRESS_START_2P } from "./fontData";
 
 export function ParagraphDemo() {
   const [info, setInfo] = useState("");
+  // 空文本清空语义:切到空串时段落应彻底消失(而非保留上一次的 runs)。
+  const [clearText, setClearText] = useState(false);
 
   return (
     <view>
@@ -88,10 +91,49 @@ export function ParagraphDemo() {
         </Paragraph>
       </DemoSection>
 
+      <DemoSection
+        title="custom 字体"
+        caption="fontFamily 直接收 data URI(内联 base64 ttf)"
+        height={90}
+      >
+        {/* Press Start 2P(OFL,ASCII 子集 ~21KB)——原生端解码一次进程级缓存 */}
+        <Paragraph x={10} y={10} width={330} fontSize={12} fontFamily={PRESS_START_2P}>
+          <TextSpan>Custom font!</TextSpan>
+          <TextSpan text=" via data URI" fontSize={10} />
+        </Paragraph>
+      </DemoSection>
+
       <DemoSection title="maxLines 截断" caption="3 行截断 + 省略号" height={90}>
         <Paragraph x={10} y={10} width={330} fontSize={14} maxLines={3}>
           <TextSpan text="这是一段很长的文本用来验证 maxLines 截断与省略号行为。 Lynx-skity renders text through skity's glyph pipeline with CoreText laying out the paragraph on iOS. 这段文本超过三行时应该被截断并显示省略号。" />
         </Paragraph>
+      </DemoSection>
+
+      <DemoSection title="空文本清空" caption="切空后旧内容必须消失(不残留 runs)" height={90}>
+        <Paragraph x={10} y={10} width={330} fontSize={14}>
+          <TextSpan text={clearText ? "" : "点按钮把这段文字切空 —— 段落应整体消失。"} />
+        </Paragraph>
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            paddingLeft: "10px",
+            marginTop: "45px",
+          }}
+        >
+          <view
+            style={{
+              padding: "6px 14px",
+              backgroundColor: "#e5e7eb",
+              borderRadius: "6px",
+            }}
+            bindtap={() => setClearText((v) => !v)}
+          >
+            <text style={{ fontSize: "13px", color: "#374151" }}>
+              {clearText ? "恢复文本" : "切空文本"}
+            </text>
+          </view>
+        </view>
       </DemoSection>
 
       <DemoSection title="onLayout 测量回传" caption="异步事件携带 height/lineCount" height={70}>

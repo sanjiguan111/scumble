@@ -46,3 +46,4 @@ xcuserdata/
 *.log
 .DS_Store
 packages/native/tests/compile_commands.json
+packages/native/tests/.cache/

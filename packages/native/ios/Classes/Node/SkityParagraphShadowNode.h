@@ -50,6 +50,11 @@ struct SkityParagraphResult {
 /// when JS bound it.
 - (std::shared_ptr<SkityParagraphResult>)layoutIfNeeded;
 
+/// Layout outcome for a paragraph with no content — a 0-height/0-run entry
+/// (NOT a nil result): an entry clears the retained node's previous runs,
+/// a missing entry would keep the last layout alive.
+- (std::shared_ptr<SkityParagraphResult>)emptyResult;
+
 @end
 
 NS_ASSUME_NONNULL_END

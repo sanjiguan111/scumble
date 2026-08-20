@@ -84,7 +84,11 @@ add_library(skityrender SHARED
   # TASM→render font bridge for <Paragraph> glyph runs (cross-platform C++;
   # the TASM side registers, DrawShape's paragraph branch reads).
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/font_registry.cc"
-  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/line_breaker.cc")
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/line_breaker.cc"
+  # custom-font channel: base64 payload decode + the process-wide
+  # data-URI→Typeface cache (shared with the iOS backend).
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/base64.cc"
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/typeface_cache.cc")
 
 target_include_directories(skityrender PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/skity"

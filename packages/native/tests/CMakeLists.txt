@@ -1,7 +1,7 @@
 # Host-side unit tests for the pure-std pieces of the shared layer (line
-# breaker) — no skity, no platform SDKs, no device needed. GoogleTest comes
-# from habitat (DEPS.py → shared/third_party/googletest; run `tools/hab sync`
-# first). Configure/build/run everything via
+# breaker, base64) — no skity, no platform SDKs, no device needed. GoogleTest
+# comes from habitat (DEPS.py → shared/third_party/googletest; run
+# `tools/hab sync` first). Configure/build/run everything via
 # `pnpm --filter @lynx-skity/native test:native` (cmake + ctest).
 cmake_minimum_required(VERSION 3.16)
 project(skityrt_tests CXX)
@@ -27,5 +27,9 @@ add_subdirectory("${GOOGLETEST_ROOT}" googletest EXCLUDE_FROM_ALL)
 add_executable(line_breaker_test line_breaker_test.cc ../shared/skity/line_breaker.cc)
 target_link_libraries(line_breaker_test GTest::gtest_main)
 
+add_executable(base64_test base64_test.cc ../shared/skity/base64.cc)
+target_link_libraries(base64_test GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(line_breaker_test)
+gtest_discover_tests(base64_test)
