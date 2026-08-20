@@ -637,3 +637,125 @@ setImageLoader:]` (iOS). Unknown schemes → host loader only.
   - `MakeFillPaint`/`MakeStrokePaint` take a trailing `gpu_context` (all call
     sites are inside `DrawShape`, which already holds it) — image-shader
     paints need `ImageStore::FindImage(uri, ctx)`.
+
+## 13. Paragraph / text nodes (2026-08-19)
+
+`<Paragraph width>` + `<TextSpan>` children — width-constrained rich text laid
+out **natively in the TASM measure pass** (no JSI: the public Lynx Android SDK
+compiles `ENABLE_NAPI_BINDING` off, so there is no synchronous JS→native call
+path — the reason layout can't live in JS). Pre-implementation design and
+rationale: `TEXT_PARAGRAPH_DESIGN.md`; this section is the as-built record.
+
+- **API alignment**: RN-Skia-shaped declarative API, but no imperative
+  `ParagraphBuilder`. `ParagraphProps` = `x/y/width` + `textAlign
+(left|center|right)` + `lineHeight` multiplier + `maxLines` (0 = unlimited,
+  overflow ellipsized) + paragraph-level default span style + `onLayout`;
+  `TextSpanProps` = `text` + per-field style overrides (unset fields fall back
+  to the paragraph's). The react layer (`packages/react/src/shapes/
+Paragraph.tsx`) serializes spans to a base64 `SpanList` FlatBuffer on the
+  `spans` string prop — **text + styles only, never glyph data** (the §7
+  replacement seam in the design doc). It also filters undefined
+  `opacity/blendMode`: Android marshals an undefined number prop to 0
+  (opacity 0 = invisible, blendMode 0 = CLEAR), iOS drops it.
+- **Layout timing**: every paragraph prop setter — and the `width` setter, the
+  layout constraint — sets a `dirtyParagraph` flag plus `setNeedsLayout` /
+  `markDirty()`. The canvas measure walk then calls `layoutIfNeeded` on each
+  live paragraph (dirty → re-layout, clean → cached `lastResult`), so layout
+  runs on the TASM thread, batched into the existing Lynx layout pass (still
+  the only flush point — §11.6/§11.7). The layout width is the node's own
+  `width` prop, not the measure param.
+- **The two layout backends fork at the core, by design**:
+  - **iOS** (`SkityParagraphShadowNode.mm`): CoreText does everything —
+    shaping, breaking, kinsoku, line height (`kCTParagraphStyleSpecifier
+LineHeightMultiple`), alignment. Spans build a `CFAttributedString`
+    (weight ≥ 600 → symbolic traits, letterSpacing via `kCTKern`, the span
+    color as a custom run attribute — read back per CTRun, no UTF-16 offset
+    bookkeeping). `CTFramesetter` over a huge negative-y frame flips CoreText
+    y-down into render y-up; the walk extracts `CTRunGetGlyphs`/`Positions`
+    per run (CGGlyph ids feed `DrawGlyphs` unchanged — skity's darwin typeface
+    IS CoreText) and registers each run's real post-fallback `CTFontRef` into
+    the FontRegistry. maxLines truncation = `CTLineCreateTruncatedLine` on the
+    last line with a "…" token (hardcoded system font 14pt). First-line top =
+    measured `origin.y + ascent`, not assumed 0.
+  - **Android** (`paragraph_shaper.cc` via JNI `nativeShapeParagraph`):
+    skity `FontManager::RefDefault()` (ships its own fonts.xml parser) picks
+    the span typeface (`MatchFamilyStyle`, empty family → default), then
+    **per-character fallback** segments the run wherever the base typeface has
+    no glyph (`UnicharToGlyph(cp) == 0` → `MatchFamilyStyleCharacter`, per-cp
+    memo; a char with no glyph anywhere is dropped). `hb_face` is built from
+    the SAME `Typeface::GetData()` bytes (glyph ids strictly match skity's;
+    cache keyed by TypefaceID, `shared_ptr<Data>` keeps the bytes alive;
+    variable-font axes mirrored via `hb_font_set_var_coords_design`). `hb_shape`
+    per segment (UTF-32 buffer, cluster → first code point, advance folds in
+    letterSpacing) feeds the **shared line breaker**
+    (`shared/skity/line_breaker.{h,cc}` — greedy + space/CJK kinsoku table,
+    host-side GoogleTest coverage: `tests/` via
+    `pnpm --filter @lynx-skity/native test:native`; the framework itself is a
+    habitat dep, `DEPS.py → shared/third_party/googletest`).
+    Line assembly: ascent/descent = max over the line's fonts, `lineAdvance =
+(asc+desc) × mult` with the extra centered around the baseline, trailing
+    spaces excluded from the alignment width, run split on font/color change,
+    and maxLines ellipsis = U+2026 resolved on the line's tail font with glyphs
+    trimmed until `lineWidth + ellAdvance ≤ width`. (iOS builds its truncation
+    token from the tail run's CTFont too — a fixed 14pt token shrank visibly
+    in large-print paragraphs.)
+  - HarfBuzz ships as the third-party static prefab
+    `com.viliussutkus89.ndk.thirdparty:harfbuzz-ndk26-static:8.3.0-beta-4`
+    (`libharfbuzz.a` links into `libskityrender.so` — no new runtime `.so`,
+    no pickFirst fallout; see `android/build.gradle.kts` / `CMakeLists.txt`).
+- **The glyph-run side channel** (the design's biggest deviation): runs ride
+  the **extra bundle next to the CommandBatch**, not a node-id-keyed native
+  store. Every flush carries a full snapshot of all live paragraphs (a dirty
+  one re-laid-out, clean ones from cache) because a single extra-bundle
+  delivery is best-effort — idempotent overwrite makes the last flush that
+  lands carry everything. Payload: `{"batch": …, "runs": …}`, batch applied
+  first (runs reference nodes the batch just inserted). Platform shapes
+  differ: iOS serializes ALL paragraphs into one `ParagraphRunList` FlatBuffer
+  (`NSData` under `runs`); Android ships `List<ByteArray>`, one
+  single-entry `ParagraphRunList` per paragraph straight out of the shaper.
+  UI side: `SkityCanvasUI.onReceiveUIOperation` / `updateExtraData` dispatch
+  to the render session, which applies batch → runs → redraw in one
+  render-queue block, then `RetainedRenderTree::ApplyParagraphRuns`:
+  per-entry `Find(node_id)` (missing node → entry skipped), `has_paragraph =
+true`, height/line_count/runs overwritten whole. **A missing entry is not a
+  clear** — a node with no entry keeps its last layout.
+- **FontRegistry** (`shared/skity/font_registry.{h,cc}`): the TASM thread
+  registers the real post-fallback `skity::Font` (typeface + size) and hands
+  back a process-unique monotonic id; the render thread rebuilds the Font from
+  it by value at draw time. Plain mutex (TASM writes, render reads — unlike
+  the lock-free render-thread-only ImageStore); entries live for the process;
+  ids never reused. Android dedupes registrations by (TypefaceID, size);
+  iOS registers per CTRun per layout (re-layouts grow the registry — accepted
+  v1, see open items).
+- **Drawing**: `SkityRenderer.cc` `tag == "paragraph"` — `Save` →
+  `Translate(x, y)` → one `DrawGlyphs` per run with a fresh paint carrying
+  only anti-alias, `SetBlendMode` (inherited), and `SetColor(span color ×
+inherited opacity)`; the `skity::Font` is rebuilt from the registry (an
+  unknown font id yields an empty typeface → run skipped). Inherited filters
+  and image-shader text fill are explicitly deferred (v2: per-run paint
+  pipeline — the node's shape-style paint doesn't apply to glyph runs).
+- **onLayout**: the measured `{height, lineCount}` reaches JS asynchronously
+  as a Lynx `"layout"` `LynxDetailEvent` — the exact channel Lynx's own
+  `<text>` uses (gated on the `bindlayout` subscription: `needsEventSet` /
+  `setEvents`; iOS dispatches via main queue, Android's emitter hops threads
+  itself). `Paragraph.tsx` maps `onLayout` → `bindlayout`, unpacking
+  `e.detail`. **Auto-height is NOT synchronous Lynx layout** (a design-doc
+  claim the implementation dropped): paragraphs are virtual nodes, the canvas
+  measure size is independent of paragraph heights, and the height reaches JS
+  only through this event.
+- **Custom fonts: not wired** (v1 is system fonts by family name on both
+  platforms; the schema comment still sketches a data-URI custom-font
+  registry, but nothing consumes it).
+
+### 13.1 Open items (v2 backlog)
+
+- Per-run paint pipeline: inherited filters, image-shader text fill, gradient
+  fills (currently color-only runs).
+- Custom ttf/otf fonts (base64 data URI → `Typeface::MakeFromData`, family
+  registry keyed by URI).
+- Empty-text handling: a paragraph whose spans decode empty produces no
+  entry — the retained node keeps its previous runs instead of clearing.
+- iOS FontRegistry dedup (per-CTFont, like Android's (typeface, size) key) so
+  long-lived re-layouts stop growing the registry.
+- BiDi/RTL, justification — out of scope per the design, revisit with a real
+  case (iOS gets BiDi nearly free via CoreText; Android would need ICU).

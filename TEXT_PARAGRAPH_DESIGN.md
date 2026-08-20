@@ -1,9 +1,12 @@
 # Text / Paragraph — design (pre-implementation, 2026-08-18)
 
-> Status: **design only — not implemented**. This is the plan for the last
-> major feature gap (see `FEATURE_PARITY.md`). skity itself has a paragraph
-> engine on its own roadmap; this design keeps a clean replacement seam so the
-> layout core can swap to it later without touching the schema or the DOM API.
+> Status: **implemented (2026-08-19, both platforms)** — this document is the
+> pre-implementation design, kept for the reasoning; the as-built record (with
+> the deviations from this plan — e.g. glyph runs ride the extra-bundle side
+> channel rather than a node-id keyed store) is
+> [`packages/native/RENDER_ARCHITECTURE.md` §13](packages/native/RENDER_ARCHITECTURE.md).
+> skity itself has a paragraph engine on its own roadmap; the §7 replacement
+> seam below is why a swap stays cheap.
 
 ## 1. Goal
 
