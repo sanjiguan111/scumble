@@ -32,6 +32,25 @@ export function collectSpans(children?: ReactNode): TextSpanProps[] {
 }
 
 /**
+ * Resolve a span's text: the `text` prop wins, then JSX children —
+ * `<TextSpan text="hi" />` and `<TextSpan>hi</TextSpan>` are equivalent.
+ * Child text is trimmed (JSX indentation whitespace is not meaningful);
+ * nested elements inside a span are ignored (only plain text is collected).
+ */
+export function resolveSpanText(props: TextSpanProps): string {
+  if (props.text !== undefined) return props.text;
+  const c = props.children;
+  if (typeof c === "string" || typeof c === "number") return String(c).trim();
+  if (Array.isArray(c)) {
+    return c
+      .map((part) => (typeof part === "string" || typeof part === "number" ? String(part) : ""))
+      .join("")
+      .trim();
+  }
+  return "";
+}
+
+/**
  * Normalize {@link ParagraphProps} + span children into the flat props
  * `<skity-paragraph>` consumes: spans serialize to base64 SpanList bytes with
  * the paragraph-level defaults merged in (span fields win), alignment maps to
@@ -45,7 +64,7 @@ export function normalizeParagraphProps(
   if (!(width > 0)) return null;
   const spans = collectSpans(children);
   const spec: SpanSpec[] = spans.map((s) => ({
-    text: s.text,
+    text: resolveSpanText(s),
     fontFamily: s.fontFamily ?? props.fontFamily,
     fontSize: s.fontSize ?? props.fontSize,
     fontWeight: s.fontWeight ?? props.fontWeight,

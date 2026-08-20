@@ -120,8 +120,14 @@ export interface ImageShaderProps {
  * Fields left unset fall back to the parent `<Paragraph>`'s defaults.
  */
 export interface TextSpanProps {
-  /** The span's text (may be empty). */
-  text: string;
+  /** The span's text as a prop (may be empty). Alternative to JSX children —
+   *  `<TextSpan text="hi" />` ≡ `<TextSpan>hi</TextSpan>`; the prop wins when
+   *  both are given. */
+  text?: string;
+  /** The span's text as JSX children (`<TextSpan>hi</TextSpan>`); string
+   *  content is trimmed (JSX indentation whitespace is not meaningful).
+   *  Only plain text is collected — nested elements are ignored. */
+  children?: string | number | ReadonlyArray<string | number>;
   /** Font family; unset = the paragraph's default, then the platform default. */
   fontFamily?: string;
   /** Font size in px. Unset = the paragraph's default (then 14). */

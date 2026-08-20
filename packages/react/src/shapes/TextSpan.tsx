@@ -4,7 +4,12 @@
 /**
  * One styled run of text inside a {@link Paragraph}. A data-only declarative
  * child — the parent's collector reads these props and serializes them into
- * the `spans` payload, so this component never mounts.
+ * the `spans` payload, so this component never mounts. The text rides the
+ * `text` prop or JSX children (trimmed), whichever is given:
+ *
+ * @example
+ * <TextSpan text="Hello " />
+ * <TextSpan color="#3b82f6">skity</TextSpan>
  */
 
 export function TextSpan(_props: import("../types").TextSpanProps): null {

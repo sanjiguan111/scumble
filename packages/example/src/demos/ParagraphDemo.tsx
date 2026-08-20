@@ -30,7 +30,10 @@ export function ParagraphDemo() {
           <TextSpan text="Hello " />
           <TextSpan text="skity" color="#3b82f6" fontWeight={700} fontSize={24} />
           <TextSpan text=" — " color="#9ca3af" />
-          <TextSpan text="italic span" italic={true} color="#ef4444" />
+          {/* 文本也可以走 children(首尾空白会被 trim,注意别吃掉段内空格) */}
+          <TextSpan italic={true} color="#ef4444">
+            italic span
+          </TextSpan>
           <TextSpan text=" and back to normal weight text." />
         </Paragraph>
       </DemoSection>
