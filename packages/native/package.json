@@ -27,9 +27,7 @@
     "ios/Classes",
     "ios/addon_use.h",
     "ios/generated",
-    "shared/skity/SkityRenderer.cc",
-    "shared/skity/SkityRenderer.h",
-    "shared/skity/generated",
+    "shared/skity",
     "shared/nativeModule",
     "shared/elements",
     "shared/CMakeLists.txt",
@@ -40,7 +38,8 @@
   "scripts": {
     "codegen": "lynx-autolink-codegen",
     "generate-fbs": "node scripts/generate-fbs.mjs",
-    "postinstall": "node scripts/generate-fbs.mjs"
+    "postinstall": "node scripts/generate-fbs.mjs",
+    "test:native": "node scripts/run-native-tests.mjs"
   },
   "dependencies": {
     "@lynx-js/weak-node-api": "^0.0.9",
