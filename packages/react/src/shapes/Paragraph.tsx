@@ -6,6 +6,7 @@ import type { SpanSpec } from "@lynx-skity/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
 import { childElements, resolvePaint } from "../internal/paint";
+import { resolveTransform } from "../internal/transform";
 import { TextSpan } from "./TextSpan";
 import type { ParagraphProps, TextSpanProps } from "../types";
 
@@ -119,7 +120,7 @@ export function normalizeParagraphProps(
  *   <TextSpan>gradient text</TextSpan>
  * </Paragraph>
  */
-export function Paragraph({ children, onLayout, ...rest }: ParagraphProps) {
+export function Paragraph({ children, onLayout, transform, ...rest }: ParagraphProps) {
   const n = normalizeParagraphProps(rest, children);
   if (n === null) return null;
   // resolvePaint routes the declarative shader/filter children onto the fill
@@ -151,6 +152,7 @@ export function Paragraph({ children, onLayout, ...rest }: ParagraphProps) {
       spans={n.spans}
       textAlign={n.textAlign}
       direction={n.direction}
+      transform={resolveTransform(transform)}
       lineHeight={n.lineHeight}
       maxLines={n.maxLines}
       x={n.x}

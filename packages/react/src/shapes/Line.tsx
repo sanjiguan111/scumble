@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 import { resolvePaint } from "../internal/paint";
+import { resolveTransform } from "../internal/transform";
 import type { LineProps } from "../types";
 
 /**
@@ -12,13 +13,14 @@ import type { LineProps } from "../types";
  * @example
  * <Line x1={0} y1={0} x2={100} y2={80} color="#3b82f6" strokeWidth={4} />
  */
-export function Line({ x1, y1, x2, y2, children, ...rest }: LineProps) {
+export function Line({ x1, y1, x2, y2, transform, children, ...rest }: LineProps) {
   return (
     <skity-line
       x1={x1 ?? 0}
       y1={y1 ?? 0}
       x2={x2 ?? 0}
       y2={y2 ?? 0}
+      transform={resolveTransform(transform)}
       {...resolvePaint(rest, children, "stroke")}
     />
   );

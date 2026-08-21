@@ -6,6 +6,8 @@ import { describe, it, expect } from "vitest";
 import { bytesToBase64, parseTransform } from "@lynx-skity/graphics";
 
 import { resolveTransform } from "../internal/transform";
+import { Circle } from "../shapes/Circle";
+import { Rect } from "../shapes/Rect";
 
 // resolveTransform returns a base64-encoded TransformOpList (the nested
 // FlatBuffer bytes go through Lynx's string prop channel). Assert equality
@@ -41,7 +43,45 @@ describe("resolveTransform", () => {
     expectBytes(resolveTransform(m), "matrix(1,0,0,1,80,20)");
   });
 
+  it("composes an op array left-to-right (translate then rotate)", () => {
+    expectBytes(
+      resolveTransform([{ translateX: 10 }, { rotate: 45 }]),
+      "translate(10,0) rotate(45)",
+    );
+  });
+
+  it("composes a 4x4 matrix element inside an op array", () => {
+    const m = [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    expectBytes(
+      resolveTransform([m, { translateX: 5, translateY: 5 }]),
+      "matrix(2,0,0,2,0,0) translate(5,5)",
+    );
+  });
+
   it("returns undefined when no transform is given", () => {
     expect(resolveTransform(undefined)).toBeUndefined();
+  });
+});
+
+describe("shape transform passthrough", () => {
+  // Calling a component directly returns the intrinsic element (a plain
+  // object from createElement) — inspect its props without a renderer.
+  const elementFor = (el: unknown) => el as { props: Record<string, unknown> };
+
+  it("routes a shape-level transform onto the intrinsic transform prop", () => {
+    const el = elementFor(Rect({ x: 0, y: 0, width: 10, height: 10, transform: { rotate: 30 } }));
+    expectBytes(el.props.transform as string, "rotate(30)");
+  });
+
+  it("omits the intrinsic transform prop when the shape has none", () => {
+    const el = elementFor(Rect({ x: 0, y: 0, width: 10, height: 10 }));
+    expect(el.props.transform).toBeUndefined();
+  });
+
+  it("accepts an op array on a shape", () => {
+    const el = elementFor(
+      Circle({ cx: 5, cy: 5, radius: 5, transform: [{ scaleX: 2 }, { translateY: 8 }] }),
+    );
+    expectBytes(el.props.transform as string, "scale(2,2) translate(0,8)");
   });
 });

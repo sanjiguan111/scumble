@@ -49,6 +49,30 @@ export function TransformDemo() {
           <Rect x={0} y={0} width={70} height={70} color="#06b6d4" />
         </Group>
       </DemoSection>
+
+      <DemoSection title="shape 级 transform" caption="transform 直接挂在形状上（不必包 Group）" height={130}>
+        {/* 灰色参考：未旋转；蓝/橙：同一 Rect 定义，仅 transform 不同 */}
+        <Rect x={20} y={10} width={60} height={60} color="#cbd5e1" />
+        <Rect x={20} y={10} width={60} height={60} color="#3b82f6" transform={{ rotate: 45, x: 50, y: 40 }} />
+        <Rect x={20} y={10} width={60} height={60} color="#f59e0b" transform={{ translateX: 160, scaleY: 0.6 }} />
+      </DemoSection>
+
+      <DemoSection title="op 数组组合" caption="transform={[op, op]} 依序复合：先 translate 后 rotate" height={130}>
+        {/* 与上面嵌套 Group 小节等价：外平移 40 + 内绕(60,100) 旋转 30° */}
+        <Group transform={[{ translateX: 40 }]}>
+          <Group transform={[{ rotate: 30, x: 60, y: 100 }]}>
+            <Rect x={20} y={60} width={80} height={80} color="#ec4899" />
+          </Group>
+        </Group>
+        <Rect
+          x={200}
+          y={60}
+          width={80}
+          height={80}
+          color="#14b8a6"
+          transform={[{ translateX: -15 }, { rotate: 15, x: 240, y: 100 }]}
+        />
+      </DemoSection>
     </view>
   );
 }

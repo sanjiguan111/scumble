@@ -13,7 +13,9 @@ import type { GroupProps } from "./types";
  * inheritance to its subtree via the native `<skity-group>`.
  *
  * `transform` accepts a single translate/scale/rotate object (rotate in
- * degrees) or a 4×4 column-major matrix.
+ * degrees), a 4×4 column-major matrix, or an array of ops composed
+ * left-to-right. Nested group/shape transforms CASCADE (standard 2D
+ * scene-graph matrix composition, inside the canvas `viewPort`).
  *
  * **Clipping**: declarative
  * clip children — {@link ClipRect}/{@link ClipRRect}/{@link ClipPath} — clip
@@ -26,7 +28,8 @@ import type { GroupProps } from "./types";
  * attributes/`dash` (and a direct gradient child or `<Paint>` override) apply
  * to every descendant that doesn't set its own — e.g. a `color`-less
  * `<Circle>` under `<Group color="red">` fills red. `opacity` multiplies down
- * the tree. NOT inherited: `transform`, geometry, `display`/`visibility`.
+ * the tree. NOT inherited: geometry, `display`/`visibility` (transform is not
+ * a paint attribute, but its MATRIX composes geometrically down the tree).
  *
  * @example
  * <Group transform={{ translateX: 10, translateY: 10 }}>

@@ -4,6 +4,7 @@
 import { floatsToBase64, parsePoints } from "@lynx-skity/graphics";
 
 import { resolvePaint } from "../internal/paint";
+import { resolveTransform } from "../internal/transform";
 import type { PointsProp, PolylineProps } from "../types";
 
 /**
@@ -28,10 +29,11 @@ export function pointsToVerticesProp(points: PointsProp): string | undefined {
  * <Polyline points="10,10 60,80 110,20 160,90" color="#3b82f6" strokeWidth={4} />
  * <Polyline points={[vec(10, 10), vec(60, 80)]} color="#f00" />
  */
-export function Polyline({ points, children, ...rest }: PolylineProps) {
+export function Polyline({ points, transform, children, ...rest }: PolylineProps) {
   return (
     <skity-polyline
       points={pointsToVerticesProp(points)}
+      transform={resolveTransform(transform)}
       {...resolvePaint(rest, children, "stroke")}
     />
   );

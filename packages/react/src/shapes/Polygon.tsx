@@ -3,6 +3,7 @@
 
 import { pointsToVerticesProp } from "./Polyline";
 import { resolvePaint } from "../internal/paint";
+import { resolveTransform } from "../internal/transform";
 import type { PolygonProps } from "../types";
 
 /**
@@ -15,6 +16,12 @@ import type { PolygonProps } from "../types";
  * <Polygon points="50,0 100,90 0,90" color="#22c55e" />
  * <Polygon points={[vec(50, 0), vec(100, 90), vec(0, 90)]} color="#22c55e" style="stroke" />
  */
-export function Polygon({ points, children, ...rest }: PolygonProps) {
-  return <skity-polygon points={pointsToVerticesProp(points)} {...resolvePaint(rest, children)} />;
+export function Polygon({ points, transform, children, ...rest }: PolygonProps) {
+  return (
+    <skity-polygon
+      points={pointsToVerticesProp(points)}
+      transform={resolveTransform(transform)}
+      {...resolvePaint(rest, children)}
+    />
+  );
 }

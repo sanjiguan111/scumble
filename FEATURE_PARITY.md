@@ -40,7 +40,7 @@
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | translate / scale / rotate / matrix / skew               | ✅                                                                                                                                                                                                                                                                                                      |
 | **Group clip (clipRect / clipPath / RRect)**             | ✅ RN-Skia-style declarative children `<ClipRect>`/`<ClipRRect>`/`<ClipPath>` (`op: intersect\|difference`, combined in order); transported as a base64 ClipList on a new `SetClip` command, applied after the group's transform. ClipRRect radii: uniform / per-axis only (no per-corner)              |
-| **Group paint inheritance** (color / opacity to subtree) | ✅ Render-time resolution via `RetainedComputedStyle.explicit_paint` (the SetPaint dirty bits): unset fields fall back to the nearest ancestor; opacity multiplies. Inherits fill/stroke paint (color + gradient), stroke attrs, dash, fillRule. NOT inherited: transform, geometry, display/visibility |
+| **Group paint inheritance** (color / opacity to subtree) | ✅ Render-time resolution via `RetainedComputedStyle.explicit_paint` (the SetPaint dirty bits): unset fields fall back to the nearest ancestor; opacity multiplies. Inherits fill/stroke paint (color + gradient), stroke attrs, dash, fillRule. NOT paint-inherited: geometry, display/visibility (transform is not a paint attribute, but its matrix composes geometrically down the tree — cascading) |
 | **Exact group opacity (saveLayer)**                      | ⚠️ Approximate — folded into each paint's color alpha; exact for leaves, lossy for overlapping groups                                                                                                                                                                                                   |
 
 ## D. Path advanced
@@ -73,9 +73,14 @@ at all.
 
 ### F.1 Same-name components, different semantics (fixable, touches the command stream)
 
-1. **Nested transforms don't cascade** — an RN-Skia `Group` matrix multiplies
-   down the whole subtree; ours applies only to the direct children
-   (`types.ts` GroupProps JSDoc says so). Biggest porting friction.
+1. ~~**Nested transforms don't cascade**~~ — **retracted (2026-08-21)**: the
+   renderer has cascaded since the initial commit (`DrawNode`:
+   `Save → ApplyTransform → recurse children → Restore`, standard Skia canvas
+   semantics; the viewport matrix is the outermost layer). The "no cascade"
+   claim was a documentation misreading of "transform is not a *paint*
+   inheritance attribute". The real gap was the React API surface — shapes
+   had no `transform` prop and op arrays weren't accepted — both fixed
+   2026-08-21 (`GraphicProps.transform`, `TransformProp` array composition).
 2. **Group opacity is approximate** — folded into each paint's color alpha
    (exact for leaves, lossy where a group's children overlap); RN-Skia does a
    saveLayer offscreen composite.
@@ -133,8 +138,10 @@ at all.
 7. ~~**Image**~~ — done (`SetImageSource` command + platform image loader + render-thread `ImageStore`; see RENDER_ARCHITECTURE.md §12).
 8. ~~**Text / Paragraph**~~ — done (platform layout backends + the extra-bundle glyph-run side channel; see RENDER_ARCHITECTURE.md §13). ImageShader landed with §12.
 9. ~~**BiDi/RTL**~~ — done (2026-08-21, `direction` prop + SheenBidi/CoreText; §13).
-10. **Transform cascade** (F.1.1) — render-time matrix composition down the
-    retained tree; no schema change. The largest porting-friction fix.
+10. ~~**Transform cascade**~~ — done by retraction (2026-08-21): rendering
+    always cascaded; what shipped is the React API completion — `transform`
+    on every shape/`Group`/`<Paragraph>` + op-array composition
+    (`TransformProp`), zero native changes.
 11. **Animation path investigation** (F.3) — does the Lynx ecosystem offer a
     React-bypassing value driver (analog of RN-Skia worklets)? Decides
     whether animation-heavy use cases can reach parity at all.

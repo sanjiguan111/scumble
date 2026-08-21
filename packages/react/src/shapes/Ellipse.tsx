@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 import { resolvePaint } from "../internal/paint";
+import { resolveTransform } from "../internal/transform";
 import type { EllipseProps } from "../types";
 
 /**
@@ -11,8 +12,14 @@ import type { EllipseProps } from "../types";
  * @example
  * <Ellipse cx={100} cy={50} rx={80} ry={40} color="#3b82f6" />
  */
-export function Ellipse({ cx, cy, rx, ry, children, ...rest }: EllipseProps) {
+export function Ellipse({ cx, cy, rx, ry, transform, children, ...rest }: EllipseProps) {
   return (
-    <skity-ellipse cx={cx ?? 0} cy={cy ?? 0} rx={rx} ry={ry} {...resolvePaint(rest, children)} />
+    <skity-ellipse
+      cx={cx ?? 0}
+      cy={cy ?? 0}
+      rx={rx}
+      ry={ry}
+      transform={resolveTransform(transform)}
+      {...resolvePaint(rest, children)} />
   );
 }

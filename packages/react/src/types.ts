@@ -70,6 +70,16 @@ export interface GraphicProps {
   blendMode?: BlendMode;
   /** z-index. Accepted for parity; native z-ordering follows tree order today. */
   zIndex?: number;
+  /**
+   * Transform applied to this node's own drawing (shapes) and its whole
+   * subtree (groups) — standard 2D scene-graph semantics: nested transforms
+   * CASCADE (each node's matrix pre-multiplies onto the inherited one, inside
+   * the canvas `viewPort` matrix). A single op object, a 4×4 column-major
+   * matrix, or an array of ops composed left-to-right
+   * (`[translate, rotate]` = translate first, then rotate). See
+   * {@link TransformProp}.
+   */
+  transform?: TransformProp;
   /** Child shaders (e.g. `<LinearGradient>`) and `<Paint>` overrides consumed
    * by the shape's paint. */
   children?: ReactNode;
@@ -304,7 +314,15 @@ export interface RotateProps {
   y?: number;
 }
 
-export type Transform = TranslateProps | ScaleProps | RotateProps | number[];
+export type Transform = TranslateProps | ScaleProps | RotateProps | number[16];
+
+/**
+ * A `transform` prop value: a single {@link Transform} op (or 4×4
+ * column-major matrix), or an array of ops composed left-to-right (Skia
+ * canvas semantics — `[translate, rotate]` translates first, then rotates).
+ * A `number[16]` matrix inside an array composes like any other op.
+ */
+export type TransformProp = Transform | readonly Transform[];
 
 // ---- shape props ----
 
@@ -471,13 +489,6 @@ export interface ImageProps extends GraphicProps {
 
 export interface GroupProps extends GraphicProps {
   children?: ReactNode;
-  /**
-   * A single translate/scale/rotate object (rotate in degrees) or a 4×4
-   * column-major matrix, applied to the subtree. Transforms are **not**
-   * inherited across groups — each group's transform applies to its own
-   * subtree only (as everywhere else).
-   */
-  transform?: Transform;
 }
 
 // ---- paint filters (declarative children of a shape / <Paint>) ----

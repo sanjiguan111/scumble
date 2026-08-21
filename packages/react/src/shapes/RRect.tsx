@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 import { resolvePaint } from "../internal/paint";
+import { resolveTransform } from "../internal/transform";
 import type { CornerRadius, RRectProps } from "../types";
 
 function resolveRadii(radii: RRectProps["radii"]): { rx?: number; ry?: number } {
@@ -24,7 +25,7 @@ function resolveRadii(radii: RRectProps["radii"]): { rx?: number; ry?: number } 
  * <RRect x={10} y={10} width={80} height={80} radii={16} color="red" />
  * <RRect width={100} height={100} radii={{ x: 10, y: 20 }} color="blue" />
  */
-export function RRect({ x, y, width, height, radii, children, ...rest }: RRectProps) {
+export function RRect({ x, y, width, height, radii, transform, children, ...rest }: RRectProps) {
   return (
     <skity-rect
       x={x ?? 0}
@@ -32,6 +33,7 @@ export function RRect({ x, y, width, height, radii, children, ...rest }: RRectPr
       width={width}
       height={height}
       {...resolveRadii(radii)}
+      transform={resolveTransform(transform)}
       {...resolvePaint(rest, children)}
     />
   );
