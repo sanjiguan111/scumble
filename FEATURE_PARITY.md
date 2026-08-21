@@ -1,6 +1,6 @@
 # Feature parity with React Native Skia
 
-> Snapshot: 2026-08-20. Covers **geometry drawing** (`<Rect>`/`<Circle>`/`<Path>` …, paint, transform, clip), **`<Image>`**, and **`<Paragraph>`** — the focus so far. Remaining non-geometry surfaces (Vertices …) are listed for completeness.
+> Snapshot: 2026-08-21 (baseline: [@shopify/react-native-skia](https://github.com/Shopify/react-native-skia) 2.11.0, Skia m152). Covers **geometry drawing** (`<Rect>`/`<Circle>`/`<Path>` …, paint, transform, clip), **`<Image>`**, and **`<Paragraph>`** — the focus so far. Remaining non-geometry surfaces (Vertices …) are listed for completeness.
 >
 > Cross-reference: native architecture & command-stream details live in [`packages/native/RENDER_ARCHITECTURE.md`](packages/native/RENDER_ARCHITECTURE.md). Status legend: ✅ implemented · ⚠️ partial · ❌ missing.
 
@@ -58,8 +58,67 @@
 | --------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Image**                               | ✅     | `<Image image x y width height fit sampling>` + `useImage(source)` — RN-Skia-style API. `fit`: all seven values (fill/contain/cover/fitWidth/fitHeight/none/scaleDown, Flutter BoxFit semantics) resolved at render time against the bitmap's intrinsic size. `sampling`: `{ filter, mipmap, cubic: {B, C} }` — filter (nearest/linear) + mipmap (none/nearest/linear) ride `SetImageSource` (value order == skity); defaults linear/none match the pre-sampling behavior. Sources: `data:` URIs and `http(s)` URLs built-in (Android HttpURLConnection/BitmapFactory, iOS NSURLSession/CGImageSource), host-injectable loader on both platforms. Pixels travel platform→ImageStore (uri-keyed, render-thread only)→`DrawImageRect`; inherited opacity/blendMode/filters apply (fill color does not). **Differences vs RN-Skia**: `useImage` returns the handle immediately (no null-while-loading phase, no onError — no native→JS channel); mipmap modes pass through but need the GPU texture to carry a mip chain; no imperative `Skia.Image.*`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | **Text / Paragraph**                    | ✅     | `<Paragraph width>` + `<TextSpan>` children — styled spans serialize to base64 `SpanList` bytes on the `spans` prop (text + styles only; glyphs never cross JS). Layout runs in the TASM measure pass — iOS CoreText, Android HarfBuzz + skity `FontManager` fallback + a shared space/CJK-kinsoku line breaker — so the measured height feeds Lynx layout synchronously; `onLayout` (async `"layout"` LynxDetailEvent) carries `{height, lineCount}`. The laid-out glyph runs ride the **extra-bundle side channel** next to the command batch (`ParagraphRunList`, node-id keyed, entry-level idempotent overwrite), fonts cross threads through the shared `FontRegistry`, and the renderer draws one `DrawGlyphs` per run (glyph atlas handles the rest). `textAlign` (left/center/right), `lineHeight` multiplier, `maxLines` + ellipsis, custom fonts by URI (inline `data:` base64 ttf/otf, or schemed `http(s)`/`file`/host sources via a host-injectable loader — a miss falls back to the default font, bytes landing asynchronously re-trigger layout), and node-level gradient fills + color filters through the glyph-atlas paint, and `direction` (ltr/rtl/auto) BiDi reordering — CoreText's built-in UAX #9 on iOS, SheenBidi statically linked + per-bidi-run HarfBuzz shaping on Android. **Differences vs RN-Skia**: no imperative `ParagraphBuilder`/JSI — layout is native by necessity (public Lynx Android SDK compiles NAPI off); no justification; image-shader fills and blur filters on text are ignored by skity's glyph pipeline (upstream). See [TEXT_PARAGRAPH_DESIGN.md](TEXT_PARAGRAPH_DESIGN.md) + RENDER_ARCHITECTURE.md §13 |
-| Vertices / Mesh / Patch, Atlas, Picture | ❌     |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Vertices / Mesh / Patch, Atlas, Picture | ❌     | skity has no mesh-drawing primitive; Picture-style record/replay is structurally covered by the CommandBatch itself (replayable), but no user-facing API                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| BackdropFilter (glass/blur-behind)      | ❌     | The canvas is a standalone GL surface — layer-compositor content underneath is not reachable in the Lynx composition model. Not fixable without a compositor hook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| RuntimeEffect (SkSL) / procedural shaders (FractalNoise, Turbulence) | ❌ | skity exposes no shader-injection path and no built-in noise shaders; also a JIT-shader surface we'd rather not open on-device |
 | non-gradient Shader — **ImageShader**   | ✅     | `<ImageShader image fit rect tx ty>` — declarative child like the gradients (data-only; routed by `resolvePaint` to the fill/stroke slot the shape draws with, also nested in `<Paint style=…>`). Flattened to scalar `SetPaint` fields (uri/fit/tx/ty bytes + rect `[float]`, new FILL/STROKE_IMAGE_SHADER bits) — no nested bytes. The uri doubles as the ImageStore key AND the platform loader request (the TASM setter fires it, same as `<Image>`); a shader-filled shape stays blank until pixels land, then the live-session redraw picks it up. `fit`/`rect` resolve at render time (same `ApplyBoxFit` math as `<Image>`, tiled outside the fitted area per `tx`/`ty`); rect omitted = 1:1 tiling. Sampling fixed linear/none (RN-Skia's ImageShader exposes no sampling either); no `transform` prop. FractalNoise/PerlinNoise & other procedural shaders still ❌                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+---
+
+## F. Gap taxonomy vs RN-Skia (2026-08-21)
+
+Overall: geometry ~95%, paint ~90%, text ~85%. What remains falls into four
+buckets by ROOT CAUSE — the bucket decides whether a gap is schedulable work
+at all.
+
+### F.1 Same-name components, different semantics (fixable, touches the command stream)
+
+1. **Nested transforms don't cascade** — an RN-Skia `Group` matrix multiplies
+   down the whole subtree; ours applies only to the direct children
+   (`types.ts` GroupProps JSDoc says so). Biggest porting friction.
+2. **Group opacity is approximate** — folded into each paint's color alpha
+   (exact for leaves, lossy where a group's children overlap); RN-Skia does a
+   saveLayer offscreen composite.
+3. **Single paint slot** — blendMode/opacity are shared by the fill and
+   stroke paints; RN-Skia keeps them independent, and multiple `<Paint>`
+   children draw multiple passes (we have a fixed fill+stroke double pass).
+4. Minor: no per-corner ClipRRect radii; antiAlias hard-wired true;
+   DropShadow has no `inner`/`shadowOnly`.
+
+### F.2 skity upstream limits (needs an upstream change or a workaround)
+
+- Morphology (Dilate/Erode) — not implemented by the HW backend.
+- Image-shader fills and blur filters on text — the glyph pipeline consumes
+  gradient + ColorFilter only.
+- Vertices / Patch (coons mesh) / Atlas — no mesh-drawing primitive.
+- DisplacementMap/Offset image filters; FractalNoise/Turbulence; Corner and
+  Discrete path effects.
+
+### F.3 Architecture limits (Android public SDK compiles NAPI off → no synchronous JSI)
+
+- **Imperative API** — `Skia.Canvas/Path/Paint/Image` objects, `draw*` calls,
+  ParagraphBuilder, `getImageBytes`/encode, `makeImageFromView`: everything
+  needing a native→JS channel or JS-held objects. This is WHY the whole
+  library is declarative + serialized command stream (v1 design decision).
+- **Animation value system** — RN-Skia 2.x shared values / `select` drive
+  animated props straight into native, bypassing React; we go React state →
+  setter → command stream, and rAF does not drive redraws (setInterval is
+  the current ceiling). Highest-pain scenario today.
+- `useImage` loading/onError phases (no native→JS state channel).
+
+### F.4 Lynx composition-model limits
+
+- BackdropFilter — the canvas can't see compositor layers beneath it.
+- MaskedView-style native-view/canvas blending — SkityCanvasUI is not a
+  UIGroup (native elements can't live inside the canvas).
+
+### F.5 What we have that RN-Skia doesn't
+
+- Canvas `viewPort` — SVG viewBox semantics + preserveAspectRatio (RN-Skia
+  emulates with a manual Group scale).
+- The command stream is serializable/replayable by construction (future
+  record/replay, snapshots).
+- Naming follows SVG conventions (cx/cy/radius, x1y1x2y2) vs RN-Skia's vecs.
 
 ---
 
@@ -73,3 +132,16 @@
 6. ~~**Path ops**~~ — done (`Path2D.op` lazy composition → `SetPathOpData` → render-time `PathOp::Execute`; see RENDER_ARCHITECTURE.md §11.13).
 7. ~~**Image**~~ — done (`SetImageSource` command + platform image loader + render-thread `ImageStore`; see RENDER_ARCHITECTURE.md §12).
 8. ~~**Text / Paragraph**~~ — done (platform layout backends + the extra-bundle glyph-run side channel; see RENDER_ARCHITECTURE.md §13). ImageShader landed with §12.
+9. ~~**BiDi/RTL**~~ — done (2026-08-21, `direction` prop + SheenBidi/CoreText; §13).
+10. **Transform cascade** (F.1.1) — render-time matrix composition down the
+    retained tree; no schema change. The largest porting-friction fix.
+11. **Animation path investigation** (F.3) — does the Lynx ecosystem offer a
+    React-bypassing value driver (analog of RN-Skia worklets)? Decides
+    whether animation-heavy use cases can reach parity at all.
+12. **Multi-`<Paint>` multi-pass + exact group opacity** (F.1.2/F.1.3) —
+    needs a saveLayer-equivalent; verify skity exposes one first.
+13. **Small-items bundle** (F.1.4 + justification) — per-corner radii,
+    antiAlias toggle, DropShadow variants, paragraph justification.
+14. **Explicitly out of scope** — BackdropFilter, Vertices/Atlas/Patch,
+    SkSL/RuntimeEffect, imperative API (F.2–F.4: double-constrained by
+    upstream and architecture; worst effort/return on this list).
