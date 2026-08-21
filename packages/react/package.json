@@ -1,7 +1,7 @@
 {
   "name": "@lynx-skity/react",
   "version": "0.0.1",
-  "description": "React component layer for lynx-skity — react-native-skity-style API (<Canvas>/<Circle color='red'/>) over the skity intrinsic tags.",
+  "description": "React component layer for lynx-skity \u2014 react-native-skity-style API (<Canvas>/<Circle color='red'/>) over the skity intrinsic tags.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -12,7 +12,7 @@
     "src"
   ],
   "scripts": {
-    "test": "vitest run"
+    "test": "tsc --noEmit && vitest run"
   },
   "peerDependencies": {
     "@lynx-skity/graphics": "workspace:*",
@@ -21,6 +21,7 @@
     "@lynx-js/types": "*"
   },
   "devDependencies": {
+    "typescript": "~5.9.3",
     "vitest": "^4.1.10"
   }
 }
