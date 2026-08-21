@@ -179,6 +179,8 @@ export interface SkityParagraphProps extends SkityCommonProps {
   spans?: string;
   /** Text alignment byte: 0=left, 1=center, 2=right. Default 0. */
   textAlign?: number;
+  /** Base writing direction byte: 0=ltr, 1=rtl, 2=auto (first strong). Default 0. */
+  direction?: number;
   /** Line-height multiplier. Default 1. */
   lineHeight?: number;
   /** Maximum lines; 0 = unlimited (overflow ellipsized when set). */

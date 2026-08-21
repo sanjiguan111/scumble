@@ -7,7 +7,7 @@
 
 import { bytesToBase64, parseTransform } from "@lynx-skity/graphics";
 
-import type { RotateProps, Transform, TransformProp } from "../types";
+import type { Matrix4, RotateProps, Transform, TransformProp } from "../types";
 
 function opToCss(t: Transform): string {
   if (Array.isArray(t)) {
@@ -56,7 +56,7 @@ export function resolveTransform(t: TransformProp | undefined): string | undefin
   let css: string;
   if (Array.isArray(t) && typeof t[0] === "number") {
     // A bare 4×4 matrix (element type disambiguates it from an op array).
-    css = opToCss(t as number[16]);
+    css = opToCss(t as Matrix4);
   } else if (Array.isArray(t)) {
     css = t.map(opToCss).join(" ");
   } else {

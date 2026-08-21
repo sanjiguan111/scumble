@@ -14,14 +14,15 @@ import { Paint } from "../Paint";
 import { ColorMatrix } from "../filters/filters";
 
 // childElements consumes plain {type, props} objects — no JSX needed.
-const span = (props: Record<string, unknown>) => ({ type: TextSpan, props });
+// `as never` because a hand-built element literal isn't a real ReactNode.
+const span = (props: Record<string, unknown>) => ({ type: TextSpan, props } as never);
 
 describe("collectSpans", () => {
   it("keeps <TextSpan> children in declaration order and skips everything else", () => {
     const spans = collectSpans([
       "ignored string child",
       span({ text: "one" }),
-      { type: function NotASpan() {}, props: {} },
+      { type: function NotASpan() {}, props: {} } as never,
       span({ text: "two" }),
     ]);
     expect(spans.map((s) => s.text)).toEqual(["one", "two"]);
@@ -50,7 +51,7 @@ describe("resolveSpanText", () => {
 
   it("yields empty text for nested elements / no text at all", () => {
     // Nested elements inside a span are ignored — only plain text is collected.
-    expect(resolveSpanText({ children: ["a", { type: TextSpan, props: {} }, "b"] })).toBe("ab");
+    expect(resolveSpanText({ children: ["a", { type: TextSpan, props: {} } as never, "b"] })).toBe("ab");
     expect(resolveSpanText({})).toBe("");
   });
 });

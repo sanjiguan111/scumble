@@ -314,15 +314,20 @@ export interface RotateProps {
   y?: number;
 }
 
-export type Transform = TranslateProps | ScaleProps | RotateProps | number[16];
+/** A 4×4 column-major matrix — 16 numbers, m[col*4 + row]; the 2D affine
+ *  part is m0,m1,m4,m5,m12,m13. Left loose (not a fixed-length tuple) so a
+ *  plain `const m = [1,0,0,0, …]` literal assigns without a cast. */
+export type Matrix4 = number[];
+
+export type Transform = TranslateProps | ScaleProps | RotateProps | Matrix4;
 
 /**
  * A `transform` prop value: a single {@link Transform} op (or 4×4
  * column-major matrix), or an array of ops composed left-to-right (Skia
  * canvas semantics — `[translate, rotate]` translates first, then rotates).
- * A `number[16]` matrix inside an array composes like any other op.
+ * A matrix inside an array composes like any other op.
  */
-export type TransformProp = Transform | readonly Transform[];
+export type TransformProp = Transform | Transform[];
 
 // ---- shape props ----
 
