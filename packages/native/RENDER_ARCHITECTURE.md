@@ -746,23 +746,39 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
   claim the implementation dropped): paragraphs are virtual nodes, the canvas
   measure size is independent of paragraph heights, and the height reaches JS
   only through this event.
-- **Custom fonts (2026-08-20): inline `data:` URIs**. A span `fontFamily`
-  may carry a base64 ttf/otf — the shared `TypefaceCache`
-  (`shared/skity/typeface_cache.{h,cc}`) decodes it once (process-cached,
-  sticky failure; the decode uses the shared `base64.{h,cc}` since the URI
-  rides INSIDE the SpanList bytes, past the platform-layer base64) into a
-  `Typeface::MakeFromData` typeface. iOS bridges it back to CoreText for
-  layout (`CTFontFromTypeface` is a BORROWED pointer — copy out an owned
-  span-sized CTFont, never release the bridge result) while the run walk
-  re-wraps the same typeface, so glyph ids match `DrawGlyphs`; Android uses
-  it as the shaper's base typeface (fallback segmentation unchanged). A
-  broken payload falls back to the default font, not a dropped span. One
-  file = one style (no weight/italic variants from a single URI). Remote /
-  bundled font sources are on the v2 list below.
-- **Empty text clears (2026-08-20)**: a paragraph whose spans decode empty
+- **Custom fonts (2026-08-20..21)**. A span `fontFamily` may carry:
+  - an inline `data:...;base64,...` URI — the shared `TypefaceCache`
+    (`shared/skity/typeface_cache.{h,cc}`) decodes it synchronously
+    (process-cached, sticky failure; the decode uses the shared
+    `base64.{h,cc}` since the URI rides INSIDE the SpanList bytes, past the
+    platform-layer base64) into a `Typeface::MakeFromData` typeface;
+  - any other schemed URI (`http(s)`, `file`, host schemes) — loaded
+    ASYNCHRONOUSLY by a platform font pipeline mirroring the image loader:
+    host-injectable loaders (`SkityInit.fontLoader` on Android,
+    `[SkityFontLoaderRegistry setFontLoader:]` on iOS; built-ins cover
+    http/file), bytes delivered to `TypefaceCache::StoreBytes` (any thread,
+    mutex-guarded), with a three-state lookup (`kMiss/kReady/kFailed`).
+    A miss falls back to the default font for THAT layout; when bytes land,
+    the controller/registry re-triggers layout on the waiting paragraphs via
+    `findShadowNodeAndRunTask` (the public Lynx API its own async-font /
+    inline-image paths use) — fonts are a layout INPUT, unlike images'
+    render-time consumption. Android's shaper reports missed URIs through
+    `TakeMissedFontUris` drained per shape; iOS collects them in
+    `SkitySpanFont`'s out-param.
+    iOS bridges a custom typeface back to CoreText for layout
+    (`CTFontFromTypeface` is a BORROWED pointer — copy out an owned span-sized
+    CTFont, never release the bridge result) while the run walk re-wraps the
+    same typeface, so glyph ids match `DrawGlyphs`; Android uses it as the
+    shaper's base typeface (fallback segmentation unchanged). A broken payload
+    is a sticky fallback to the default font, never a dropped span. One file =
+    one style (no weight/italic variants from a single URI).
+- **Empty text clears (2026-08-20..21)**: a paragraph whose spans decode empty
   emits a 0-height/0-run ENTRY (not a missing entry) — `ApplyParagraphRuns`
   then clears the retained node's previous runs. iOS produces it via
-  `emptyResult`; Android's shaper already serialized one.
+  `emptyResult`; Android's shaper used to bail out early on empty glyph
+  content (`if (glyphs.empty()) return`) which produced NO payload and kept
+  the last layout alive — both early returns are gone, empty content falls
+  through to the serialization.
 
 ### 13.1 Open items (v2 backlog)
 
@@ -770,12 +786,29 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
   filters ride the glyph-atlas path; image-shader fills and image/mask
   filters are ignored by skity's text pipeline (upstream limitation, falls
   back to span colors).
-- ~~Custom ttf/otf fonts~~ — data URIs done (2026-08-20, above). Remaining:
-  remote (`http(s)`) and bundled/asset sources — reuse the Image loader
-  pipeline + trigger a re-layout when bytes land asynchronously (fonts are a
-  layout INPUT, unlike images' render-time consumption).
-- ~~Empty-text handling~~ — done (2026-08-20).
+- ~~Custom ttf/otf fonts~~ — done (2026-08-20..21): data URIs + schemed
+  remote/local sources through the platform font pipeline (above).
+- ~~Empty-text handling~~ — done (2026-08-20..21).
 - ~~iOS FontRegistry dedup~~ — done (2026-08-20): `Register` is idempotent
   per (typeface, size).
-- BiDi/RTL, justification — out of scope per the design, revisit with a real
-  case (iOS gets BiDi nearly free via CoreText; Android would need ICU).
+- **BiDi/RTL — plan settled (2026-08-21), pending implementation.** Port
+  [SheenBidi](https://github.com/Tehreer/SheenBidi) (Apache-2.0, pure C89,
+  zero deps, UAX #9 with compiled-in data tables; the API is line-shaped —
+  `SBAlgorithm → SBParagraph → SBLine` runs+levels — which matches our
+  break-then-assemble flow). The two platforms are asymmetric:
+  - iOS needs NO library — CoreText already implements UAX #9; only a
+    `direction` prop mapped to
+    `kCTParagraphStyleSpecifierBaseWritingDirection` + a visual pass.
+  - Android links SheenBidi statically into `libskityrender.so` (habitat git
+    dep, same pattern as HarfBuzz; podspec untouched — BiDi is
+    Android-only). The shaper gains: a paragraph-level `direction`
+    ("ltr"/"rtl"/"auto" byte prop, auto = first-strong detection), full-text
+    `SBAlgorithmCreate` up front, and per-LINE `SBParagraphCreateLine` after
+    breaking to assemble runs in visual order (L2 nested reordering comes
+    from the line runs; HarfBuzz already emits RTL scripts in visual glyph
+    order). `textAlign` stays physical left/center/right (no start/end in
+    v1).
+    Estimated ~3.5 focused days (0.5 integration, 2 shaper bidi-ification,
+    0.5 direction prop through the chain, 0.5 Arabic/Hebrew visual pass).
+    fribidi was rejected (LGPL vs static linking), ICU as too heavy.
+- Justification — out of scope per the design, revisit with a real case.
