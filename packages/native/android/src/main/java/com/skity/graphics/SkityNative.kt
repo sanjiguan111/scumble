@@ -73,6 +73,21 @@ object SkityNative {
   ): ByteArray?
 
   /**
+   * Font URIs the last [nativeShapeParagraph] for this node found missing in
+   * the TypefaceCache (drained per call — the shaper records them during
+   * layout). The paragraph node hands each to SkityFontController.
+   */
+  @JvmStatic
+  external fun nativeTakeMissedFontUris(nodeId: Int): Array<String>
+
+  /**
+   * Deliver font-loader bytes into the process-wide TypefaceCache (any
+   * thread; null/empty bytes record a sticky failure for the uri).
+   */
+  @JvmStatic
+  external fun nativeStoreFontBytes(uri: String, bytes: ByteArray?)
+
+  /**
    * Store decoded pixels for a uri in the process-wide ImageStore. MUST be
    * called on the active backend's render thread (the store is render-thread
    * only); [com.skity.graphics.image.SkityImageController] dispatches there.

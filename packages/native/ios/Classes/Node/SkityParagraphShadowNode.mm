@@ -11,6 +11,8 @@
 #import "SkityParagraphShadowNode.h"
 #import "SkityCanvasShadowNode.h"
 
+#import "../Font/SkityFontLoader.h"
+
 #import <Lynx/LynxComponentRegistry.h>
 
 #include "font_registry.h"
@@ -37,28 +39,48 @@ using skityrt::FontRegistry;
 static NSString *const kSkitySpanColorKey = @"skitySpanColor";
 
 // Map a span's family/weight/slant to a CTFont. Family empty → the system
-// font; a `data:` URI → the custom-font cache (MakeFromData typeface bridged
-// back to CoreText — same typeface object the run extraction will re-wrap, so
-// glyph ids match DrawGlyphs); weight ≥ 600 or italic → symbolic traits on a
-// copy.
-CTFontRef SkitySpanFont(NSString *family, float size, int weight, bool italic) {
+// font; a `data:` URI → the custom-font cache decoded synchronously; any
+// other schemed URI (http/file/host) → the cache WHEN the platform font
+// loader has delivered its bytes — a miss is reported into `missedFontUris`
+// (the layout falls back to the system font, and the registry re-triggers
+// layout once the bytes land). The typeface is bridged back to CoreText —
+// same typeface object the run extraction will re-wrap, so glyph ids match
+// DrawGlyphs; weight ≥ 600 or italic → symbolic traits on a copy.
+CTFontRef SkitySpanFont(NSString *family, float size, int weight, bool italic,
+                        NSMutableSet<NSString *> *missedFontUris) {
   CTFontRef base = nullptr;
-  if ([family hasPrefix:@"data:"]) {
-    auto typeface = skityrt::TypefaceCache::Instance().FindOrLoad(family.UTF8String);
-    if (typeface != nullptr) {
-      // BORROWED: CTFontFromTypeface forwards the typeface's own CTFont
-      // without a +1 — releasing it would dangle the typeface's scaler (a
-      // SIGSEGV on the render thread). Copy out an owned, span-sized font.
-      CTFontRef borrowed = skity::TypefaceCT::CTFontFromTypeface(typeface);
-      if (borrowed != nullptr) {
-        base = CTFontCreateCopyWithAttributes(borrowed, (CGFloat)size, nullptr, nullptr);
-      }
+  const std::string fam(family.UTF8String != nullptr ? family.UTF8String : "");
+  std::shared_ptr<skity::Typeface> custom;
+  if (skityrt::TypefaceCache::IsDataUri(fam)) {
+    custom = skityrt::TypefaceCache::Instance().FindOrLoad(fam);
+  } else if (skityrt::TypefaceCache::IsLoadableUri(fam)) {
+    std::shared_ptr<skity::Typeface> hit;
+    switch (skityrt::TypefaceCache::LookupUri(fam, &hit)) {
+    case skityrt::TypefaceCache::Lookup::kReady:
+      custom = hit;
+      break;
+    case skityrt::TypefaceCache::Lookup::kMiss:
+      [missedFontUris addObject:family];
+      break;
+    case skityrt::TypefaceCache::Lookup::kFailed:
+      break;
     }
-    // A broken payload falls through to the system font, not a missing run.
   }
+  if (custom != nullptr) {
+    // BORROWED: CTFontFromTypeface forwards the typeface's own CTFont
+    // without a +1 — releasing it would dangle the typeface's scaler (a
+    // SIGSEGV on the render thread). Copy out an owned, span-sized font.
+    CTFontRef borrowed = skity::TypefaceCT::CTFontFromTypeface(custom);
+    if (borrowed != nullptr) {
+      base = CTFontCreateCopyWithAttributes(borrowed, (CGFloat)size, nullptr, nullptr);
+    }
+  }
+  // A missed/failed custom font falls through to the system font, not a
+  // missing run.
   if (base == nullptr) {
-    base = family.length > 0 ? CTFontCreateWithName((CFStringRef)family, size, nullptr)
-                             : CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, size, nullptr);
+    base = family.length > 0 && !skityrt::TypefaceCache::IsLoadableUri(fam)
+               ? CTFontCreateWithName((CFStringRef)family, size, nullptr)
+               : CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, size, nullptr);
   }
   if (base == nullptr) return nullptr;
   const bool bold = weight >= 600;
@@ -124,14 +146,17 @@ LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
   NSMutableAttributedString *text = [NSMutableAttributedString new];
   CTParagraphStyleRef paraStyle =
       SkityParagraphStyle(self.paragraphAlign, self.paragraphLineHeight);
+  // Schemed custom-font URIs this layout found missing — handed to the font
+  // registry after the span walk; when the bytes land it re-triggers layout.
+  NSMutableSet<NSString *> *missedFonts = [NSMutableSet set];
   for (::flatbuffers::uoffset_t i = 0; i < spans->size(); i++) {
     const skityrt::Span *span = spans->Get(i);
     NSString *str =
         span->text() != nullptr ? [NSString stringWithUTF8String:span->text()->c_str()] : @"";
-    CTFontRef font = SkitySpanFont(span->fontFamily() != nullptr
-                                       ? [NSString stringWithUTF8String:span->fontFamily()->c_str()]
-                                       : @"",
-                                   span->fontSize(), span->fontWeight(), span->italic());
+    CTFontRef font = SkitySpanFont(
+        span->fontFamily() != nullptr ? [NSString stringWithUTF8String:span->fontFamily()->c_str()]
+                                      : @"",
+        span->fontSize(), span->fontWeight(), span->italic(), missedFonts);
     if (font == nullptr) continue;
     NSMutableDictionary *attrs = [NSMutableDictionary dictionary];
     attrs[(NSString *)kCTFontAttributeName] = (__bridge id)font;
@@ -145,6 +170,14 @@ LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
     CFRelease(font);
   }
   CFRelease(paraStyle);
+  // Request every missed custom font (dedup'd globally by the registry);
+  // this layout already fell back to the system font for them.
+  if (missedFonts.count > 0 && self.uiOwner != nil) {
+    LynxUIContext *uiContext = self.uiOwner.uiContext;
+    for (NSString *uri in missedFonts) {
+      [SkityFontLoaderRegistry requestFont:uri sign:self.sign uiContext:uiContext];
+    }
+  }
   if (text.length == 0) return [self emptyResult];
 
   // Lay out in a width-constrained, downward-extending frame. The negative-y

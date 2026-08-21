@@ -13,6 +13,7 @@
 #define SKITYRT_PARAGRAPH_SHAPER_H
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace skityrt {
@@ -32,6 +33,12 @@ struct ParagraphShapeResult {
 ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanListSize,
                                     uint32_t nodeId, float width, uint8_t align, float lineHeight,
                                     int32_t maxLines);
+
+// Drain the schemed font URIs the last ShapeParagraph for this node found
+// missing in the TypefaceCache (recorded during layout; the JNI layer hands
+// them to the Kotlin SkityFontController, which loads and re-triggers
+// layout). Same-thread drain, per call.
+std::vector<std::string> TakeMissedFontUris(uint32_t node_id);
 
 } // namespace skityrt
 

@@ -18,6 +18,23 @@
 #include "line_breaker.h"
 #include "typeface_cache.h"
 
+namespace {
+
+// Font URIs a shape pass found missing in the TypefaceCache, keyed by node.
+// Written on the TASM thread (inside ShapeParagraph) and drained by the JNI
+// nativeTakeMissedFontUris on the same thread right after — mutex only as a
+// guard against future misuse.
+std::mutex g_missed_mutex;
+std::unordered_map<uint32_t, std::vector<std::string>> g_missed_fonts;
+
+void RecordMissedFont(uint32_t node_id, const std::string &uri) {
+  std::lock_guard<std::mutex> lock(g_missed_mutex);
+  auto &uris = g_missed_fonts[node_id];
+  if (std::find(uris.begin(), uris.end(), uri) == uris.end()) uris.push_back(uri);
+}
+
+} // namespace
+
 #include <skity/graphic/paint.hpp>
 #include <skity/text/font.hpp>
 #include <skity/text/font_manager.hpp>
@@ -191,13 +208,27 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
         span->fontFamily() != nullptr ? span->fontFamily()->str() : std::string();
     const FontStyle style(span->fontWeight(), FontStyle::kNormal_Width,
                           span->italic() ? FontStyle::kItalic_Slant : FontStyle::kUpright_Slant);
-    // A `data:` URI is an inline ttf/otf (the custom-font channel) — decoded
-    // once by the process-wide cache. Its bytes are the single file's style,
-    // so weight/italic don't select variants (ship one URI per style). A
-    // broken payload falls back to the default font, not a dropped span.
+    // Custom fonts: `data:` URIs decode synchronously; schemed URIs
+    // (http/file/host) come back from the TypefaceCache when the platform
+    // font loader has delivered them — a miss falls back to the default font
+    // for THIS layout (recorded for SkityFontController, which re-triggers
+    // layout once the bytes land). One file = one style; broken payloads are
+    // sticky failures, never dropped spans.
     std::shared_ptr<Typeface> base;
     if (TypefaceCache::IsDataUri(family)) {
       base = TypefaceCache::Instance().FindOrLoad(family);
+    } else if (TypefaceCache::IsLoadableUri(family)) {
+      std::shared_ptr<Typeface> hit;
+      switch (TypefaceCache::LookupUri(family, &hit)) {
+      case TypefaceCache::Lookup::kReady:
+        base = hit;
+        break;
+      case TypefaceCache::Lookup::kMiss:
+        RecordMissedFont(nodeId, family);
+        break;
+      case TypefaceCache::Lookup::kFailed:
+        break;
+      }
     } else if (family.empty()) {
       base = fontManager->GetDefaultTypeface(style);
     } else {
@@ -247,16 +278,21 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     }
     flush();
   }
-  if (glyphs.empty()) return result;
 
-  // 2) Line breaking over the glyph stream.
+  // 2) Line breaking over the glyph stream. Empty glyph content falls
+  // through — see the note above the serialization: a 0-run entry must still
+  // be produced so the retained runs clear.
   std::vector<BreakChar> breakChars;
   breakChars.reserve(glyphs.size());
   for (const auto &g : glyphs) {
     breakChars.push_back(BreakChar{g.firstCp, g.advance, ClassifyBreakChar(g.firstCp)});
   }
   std::vector<std::pair<uint32_t, uint32_t>> lines = BreakLines(breakChars, width);
-  if (lines.empty()) return result;
+  // Empty content (every span blank) falls THROUGH to the serialization: a
+  // 0-run entry clears the retained node's previous runs, while an empty
+  // payload would keep the last layout alive (the iOS backend's emptyResult
+  // mirrors this). The line-assembly loop below is naturally safe on empty
+  // lines/glyphs.
   const size_t totalLines = lines.size();
   if (maxLines > 0 && (int32_t)totalLines > maxLines) {
     lines.resize((size_t)maxLines);
@@ -388,6 +424,15 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
   fbb.Finish(root);
   result.runsBytes.assign(fbb.GetBufferPointer(), fbb.GetBufferPointer() + fbb.GetSize());
   return result;
+}
+
+std::vector<std::string> TakeMissedFontUris(uint32_t node_id) {
+  std::lock_guard<std::mutex> lock(g_missed_mutex);
+  auto it = g_missed_fonts.find(node_id);
+  if (it == g_missed_fonts.end()) return {};
+  std::vector<std::string> uris = std::move(it->second);
+  g_missed_fonts.erase(it);
+  return uris;
 }
 
 } // namespace skityrt

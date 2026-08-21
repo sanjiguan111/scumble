@@ -129,10 +129,13 @@ export interface TextSpanProps {
    *  Only plain text is collected — nested elements are ignored. */
   children?: string | number | ReadonlyArray<string | number>;
   /** Font family; unset = the paragraph's default, then the platform default.
-   *  May instead be a `data:...;base64,...` URI with an inline ttf/otf —
-   *  decoded natively once per URI (process-cached); a broken payload falls
-   *  back to the default font. One file = one style (no weight/italic
-   *  variants from a single URI). */
+   *  May instead be a font URI: `data:...;base64,...` (inline ttf/otf,
+   *  decoded synchronously, process-cached) or any schemed URI — `http(s)`,
+   *  `file`, host schemes (loaded asynchronously by the platform font
+   *  loader, host-injectable; the paragraph first lays out with the default
+   *  font and re-lays out when the bytes arrive). A broken payload is a
+   *  sticky fallback to the default font. One file = one style (no
+   *  weight/italic variants from a single URI). */
   fontFamily?: string;
   /** Font size in px. Unset = the paragraph's default (then 14). */
   fontSize?: number;
@@ -173,7 +176,8 @@ export interface ParagraphProps extends GraphicProps {
   /** Maximum lines; 0 = unlimited. Overflow is ellipsized when set. */
   maxLines?: number;
   /** Default span style — spans override per field. `fontFamily` may be a
-   *  `data:` URI with an inline ttf/otf (see TextSpanProps.fontFamily). */
+   *  font URI (inline `data:` or schemed remote/local — see
+   *  TextSpanProps.fontFamily). */
   fontFamily?: string;
   fontSize?: number;
   fontWeight?: number;

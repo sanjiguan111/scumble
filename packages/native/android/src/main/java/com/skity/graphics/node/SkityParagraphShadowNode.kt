@@ -5,6 +5,7 @@ package com.skity.graphics.node
 import com.lynx.tasm.event.EventsListener
 import com.lynx.tasm.event.LynxDetailEvent
 import com.skity.graphics.SkityNative
+import com.skity.graphics.font.SkityFontController
 import com.skity.graphics.skityrt.ParagraphRunList
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -54,6 +55,15 @@ class SkityParagraphShadowNode : SkityNodeBase() {
 
     val bytes = SkityNative.nativeShapeParagraph(
       spans, id, width, paragraphAlign, paragraphLineHeight, paragraphMaxLines)
+    // Custom fonts the shaper found missing (schemed URIs): request them —
+    // this layout already fell back to the default font; when the bytes land
+    // the controller re-triggers layout (fonts are a layout input).
+    val context = context
+    if (context != null) {
+      for (uri in SkityNative.nativeTakeMissedFontUris(id)) {
+        SkityFontController.request(uri, context, signature)
+      }
+    }
     if (bytes == null) {
       lastResult = null
       return null

@@ -3,6 +3,8 @@
 package com.skity.graphics
 
 import com.lynx.tasm.LynxEnv
+import com.skity.graphics.font.BuiltInSkityFontLoader
+import com.skity.graphics.font.SkityFontLoader
 import com.skity.graphics.image.BuiltInSkityImageLoader
 import com.skity.graphics.image.SkityImageLoader
 
@@ -38,6 +40,15 @@ object SkityInit {
    */
   @Volatile
   var imageLoader: SkityImageLoader = BuiltInSkityImageLoader()
+
+  /**
+   * Font loader for `<skity-paragraph>` custom fonts with schemed URIs
+   * (http(s)/file; `data:` URIs never reach a loader). Hosts with their own
+   * pipeline reassign it; loaded bytes land in the native TypefaceCache and
+   * trigger a re-layout of the waiting paragraphs.
+   */
+  @Volatile
+  var fontLoader: SkityFontLoader = BuiltInSkityFontLoader()
 
   @JvmStatic
   @JvmOverloads

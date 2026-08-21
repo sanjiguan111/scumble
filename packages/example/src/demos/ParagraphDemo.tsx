@@ -103,38 +103,51 @@ export function ParagraphDemo() {
         </Paragraph>
       </DemoSection>
 
+      <DemoSection
+        title="远程字体(异步)"
+        caption="先系统字体占位,字节到位后自动重排成像素风"
+        height={60}
+      >
+        {/* http 字体走平台 loader:首次布局 miss → 系统 fallback 占位,
+            加载完成触发 relayout 切换(字体是布局输入,与图片不同) */}
+        <Paragraph
+          x={10}
+          y={10}
+          width={330}
+          fontSize={11}
+          fontFamily="https://raw.githubusercontent.com/google/fonts/main/ofl/pressstart2p/PressStart2P-Regular.ttf"
+        >
+          <TextSpan>Remote font, re-laid out when bytes arrive.</TextSpan>
+        </Paragraph>
+      </DemoSection>
+
       <DemoSection title="maxLines 截断" caption="3 行截断 + 省略号" height={90}>
         <Paragraph x={10} y={10} width={330} fontSize={14} maxLines={3}>
           <TextSpan text="这是一段很长的文本用来验证 maxLines 截断与省略号行为。 Lynx-skity renders text through skity's glyph pipeline with CoreText laying out the paragraph on iOS. 这段文本超过三行时应该被截断并显示省略号。" />
         </Paragraph>
       </DemoSection>
 
-      <DemoSection title="空文本清空" caption="切空后旧内容必须消失(不残留 runs)" height={90}>
+      <DemoSection title="空文本清空" caption="切空后旧内容必须消失(不残留 runs)" height={70}>
         <Paragraph x={10} y={10} width={330} fontSize={14}>
           <TextSpan text={clearText ? "" : "点按钮把这段文字切空 —— 段落应整体消失。"} />
         </Paragraph>
+      </DemoSection>
+      {/* 按钮是 Lynx 原生 view,必须在 canvas 外(SkityCanvasUI 不是
+          UIGroup,原生元素进 canvas 在 iOS 被静默吞掉、Android 直接报错)。 */}
+      <view style={{ display: "flex", paddingLeft: "16px", marginBottom: "24px" }}>
         <view
           style={{
-            display: "flex",
-            flexDirection: "row",
-            paddingLeft: "10px",
-            marginTop: "45px",
+            padding: "6px 14px",
+            backgroundColor: "#e5e7eb",
+            borderRadius: "6px",
           }}
+          bindtap={() => setClearText((v) => !v)}
         >
-          <view
-            style={{
-              padding: "6px 14px",
-              backgroundColor: "#e5e7eb",
-              borderRadius: "6px",
-            }}
-            bindtap={() => setClearText((v) => !v)}
-          >
-            <text style={{ fontSize: "13px", color: "#374151" }}>
-              {clearText ? "恢复文本" : "切空文本"}
-            </text>
-          </view>
+          <text style={{ fontSize: "13px", color: "#374151" }}>
+            {clearText ? "恢复文本" : "切空文本"}
+          </text>
         </view>
-      </DemoSection>
+      </view>
 
       <DemoSection title="onLayout 测量回传" caption="异步事件携带 height/lineCount" height={70}>
         <Paragraph x={10} y={10} width={330} fontSize={14}>

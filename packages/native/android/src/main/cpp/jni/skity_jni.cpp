@@ -13,6 +13,7 @@
 #include "skity/shared_gl_context.hpp"
 
 #include "image_store.h" // shared/skity (on the shared include path)
+#include "typeface_cache.h"
 
 #include "skity/paragraph_shaper.h"
 
@@ -177,6 +178,43 @@ JNIEXPORT jbyteArray JNICALL Java_com_skity_graphics_SkityNative_nativeShapePara
   env->SetByteArrayRegion(out, 0, (jsize)result.runsBytes.size(),
                           reinterpret_cast<const jbyte *>(result.runsBytes.data()));
   return out;
+}
+
+// Custom-font plumbing: schemed font URIs the shaper found missing during
+// layout (drained per shape on the same TASM thread), and loader bytes
+// arriving from any thread.
+JNIEXPORT jobjectArray JNICALL Java_com_skity_graphics_SkityNative_nativeTakeMissedFontUris(
+    JNIEnv *env, jclass /*clazz*/, jint nodeId) {
+  std::vector<std::string> uris = skityrt::TakeMissedFontUris((uint32_t)nodeId);
+  jclass stringCls = env->FindClass("java/lang/String");
+  if (stringCls == nullptr) return nullptr;
+  auto out = (jobjectArray)env->NewObjectArray((jsize)uris.size(), stringCls, nullptr);
+  for (size_t i = 0; out != nullptr && i < uris.size(); i++) {
+    env->SetObjectArrayElement(out, (jsize)i, env->NewStringUTF(uris[i].c_str()));
+  }
+  return out;
+}
+
+JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeStoreFontBytes(JNIEnv *env,
+                                                                                jclass /*clazz*/,
+                                                                                jstring uri,
+                                                                                jbyteArray bytes) {
+  const char *uriChars = env->GetStringUTFChars(uri, nullptr);
+  if (uriChars == nullptr) return;
+  std::string key(uriChars);
+  env->ReleaseStringUTFChars(uri, uriChars);
+  if (bytes == nullptr) {
+    skityrt::TypefaceCache::Instance().StoreBytes(key, nullptr, 0);
+    return;
+  }
+  jsize length = env->GetArrayLength(bytes);
+  jbyte *data = env->GetByteArrayElements(bytes, nullptr);
+  if (data == nullptr) {
+    skityrt::TypefaceCache::Instance().StoreBytes(key, nullptr, 0);
+    return;
+  }
+  skityrt::TypefaceCache::Instance().StoreBytes(key, data, (size_t)length);
+  env->ReleaseByteArrayElements(bytes, data, JNI_ABORT);
 }
 
 // ImageStore entry points. Called on the active backend's render thread only
