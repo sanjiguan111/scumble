@@ -772,6 +772,39 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
     shaper's base typeface (fallback segmentation unchanged). A broken payload
     is a sticky fallback to the default font, never a dropped span. One file =
     one style (no weight/italic variants from a single URI).
+- **BiDi / RTL (2026-08-21)**. A paragraph-level `direction` prop
+  (`"ltr"|"rtl"|"auto"`, byte 0/1/2 through the shadow-node prop channel like
+  `textAlign`; `auto` = first strong character, LTR when none) drives UAX #9
+  reordering. `textAlign` stays PHYSICAL — left/center/right are screen edges
+  regardless of direction (iOS maps align 0 to `kCTTextAlignmentLeft`
+  explicitly, since `Natural` would flip with the writing direction).
+  - **iOS** needs no library: CoreText implements UAX #9 itself — the prop
+    only feeds `kCTParagraphStyleSpecifierBaseWritingDirection` (Natural for
+    `auto`); the existing CTRun walk already extracts visual order.
+  - **Android** links [SheenBidi](https://github.com/Tehreer/SheenBidi) v3.0.0
+    (Apache-2.0, pure C, data tables compiled in) — a habitat git dep
+    (`DEPS.py → shared/third_party/sheenbidi`, `tools/hab sync`) statically
+    linked into `libskityrender.so` like HarfBuzz; the source ships in the
+    npm package (`files`) so consumers never sync it themselves. In the
+    shaper: all spans concatenate into ONE UTF-32 array (newlines become
+    spaces first — SB would end the paragraph at the first separator, while
+    v1 keeps the payload a single paragraph), `SBAlgorithm → SBParagraph`
+    resolves per-code-point levels once up front, and shaping splits each
+    span into bidi-level-homogeneous sub-ranges BEFORE the fallback
+    segmentation, shaping each with `hb_buffer_set_direction` (odd level →
+    RTL). HarfBuzz then emits every segment already in visual
+    (left-to-right) order — odd-level runs reversed, even-level runs logical
+    (= visual). After breaking, each line's code-point range goes to
+    `SBParagraphCreateLine` (UAX #9 L1 trailing-whitespace reset + L2
+    reordering applied; runs come back in visual order) and
+    `shared/skity/bidi_line.cc` (`BuildLineVisualOrder`, host-tested in
+    `tests/`) maps that onto the glyph stream: stream order within each
+    visual-order run IS visual order, so no interior re-reversal anywhere.
+    Trailing-space exclusion and maxLines ellipsis operate on the line's
+    VISUAL edge that holds the logical tail (right for an LTR paragraph,
+    left for RTL); the ellipsis lands on that same edge with the cut-adjacent
+    glyph's font. fribidi (LGPL, incompatible with static linking) and ICU
+    (too heavy) were considered and rejected.
 - **Empty text clears (2026-08-20..21)**: a paragraph whose spans decode empty
   emits a 0-height/0-run ENTRY (not a missing entry) — `ApplyParagraphRuns`
   then clears the retained node's previous runs. iOS produces it via
@@ -791,24 +824,6 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
 - ~~Empty-text handling~~ — done (2026-08-20..21).
 - ~~iOS FontRegistry dedup~~ — done (2026-08-20): `Register` is idempotent
   per (typeface, size).
-- **BiDi/RTL — plan settled (2026-08-21), pending implementation.** Port
-  [SheenBidi](https://github.com/Tehreer/SheenBidi) (Apache-2.0, pure C89,
-  zero deps, UAX #9 with compiled-in data tables; the API is line-shaped —
-  `SBAlgorithm → SBParagraph → SBLine` runs+levels — which matches our
-  break-then-assemble flow). The two platforms are asymmetric:
-  - iOS needs NO library — CoreText already implements UAX #9; only a
-    `direction` prop mapped to
-    `kCTParagraphStyleSpecifierBaseWritingDirection` + a visual pass.
-  - Android links SheenBidi statically into `libskityrender.so` (habitat git
-    dep, same pattern as HarfBuzz; podspec untouched — BiDi is
-    Android-only). The shaper gains: a paragraph-level `direction`
-    ("ltr"/"rtl"/"auto" byte prop, auto = first-strong detection), full-text
-    `SBAlgorithmCreate` up front, and per-LINE `SBParagraphCreateLine` after
-    breaking to assemble runs in visual order (L2 nested reordering comes
-    from the line runs; HarfBuzz already emits RTL scripts in visual glyph
-    order). `textAlign` stays physical left/center/right (no start/end in
-    v1).
-    Estimated ~3.5 focused days (0.5 integration, 2 shaper bidi-ification,
-    0.5 direction prop through the chain, 0.5 Arabic/Hebrew visual pass).
-    fribidi was rejected (LGPL vs static linking), ICU as too heavy.
+- ~~BiDi/RTL~~ — done (2026-08-21): `direction` prop (ltr/rtl/auto) +
+  SheenBidi on Android, CoreText `BaseWritingDirection` on iOS (above).
 - Justification — out of scope per the design, revisit with a real case.
