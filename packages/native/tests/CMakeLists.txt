@@ -30,6 +30,10 @@ target_link_libraries(line_breaker_test GTest::gtest_main)
 add_executable(base64_test base64_test.cc ../shared/skity/base64.cc)
 target_link_libraries(base64_test GTest::gtest_main)
 
+add_executable(bidi_line_test bidi_line_test.cc ../shared/skity/bidi_line.cc)
+target_link_libraries(bidi_line_test GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(line_breaker_test)
 gtest_discover_tests(base64_test)
+gtest_discover_tests(bidi_line_test)

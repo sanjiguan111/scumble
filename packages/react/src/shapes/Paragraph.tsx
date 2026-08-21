@@ -13,6 +13,7 @@ import type { ParagraphProps, TextSpanProps } from "../types";
 export interface NormalizedParagraph {
   spans: string; // base64 SpanList bytes
   textAlign: number; // 0=left 1=center 2=right
+  direction: number; // 0=ltr 1=rtl 2=auto (first-strong)
   lineHeight: number;
   maxLines: number;
   x: number;
@@ -21,6 +22,7 @@ export interface NormalizedParagraph {
 }
 
 const TEXT_ALIGN_BYTES: Record<string, number> = { left: 0, center: 1, right: 2 };
+const DIRECTION_BYTES: Record<string, number> = { ltr: 0, rtl: 1, auto: 2 };
 
 /** Collect the `<TextSpan>` children's props in declaration order. */
 export function collectSpans(children?: ReactNode): TextSpanProps[] {
@@ -60,7 +62,15 @@ export function normalizeParagraphProps(
   props: ParagraphProps,
   children?: ReactNode,
 ): NormalizedParagraph | null {
-  const { width, textAlign = "left", lineHeight = 1, maxLines = 0, x = 0, y = 0 } = props;
+  const {
+    width,
+    textAlign = "left",
+    direction = "ltr",
+    lineHeight = 1,
+    maxLines = 0,
+    x = 0,
+    y = 0,
+  } = props;
   if (!(width > 0)) return null;
   const spans = collectSpans(children);
   const spec: SpanSpec[] = spans.map((s) => ({
@@ -75,6 +85,7 @@ export function normalizeParagraphProps(
   return {
     spans: bytesToBase64(buildSpanList(spec.length > 0 ? spec : [{ text: "" }])),
     textAlign: TEXT_ALIGN_BYTES[textAlign] ?? 0,
+    direction: DIRECTION_BYTES[direction] ?? 0,
     lineHeight,
     maxLines,
     x,
@@ -139,6 +150,7 @@ export function Paragraph({ children, onLayout, ...rest }: ParagraphProps) {
     <skity-paragraph
       spans={n.spans}
       textAlign={n.textAlign}
+      direction={n.direction}
       lineHeight={n.lineHeight}
       maxLines={n.maxLines}
       x={n.x}

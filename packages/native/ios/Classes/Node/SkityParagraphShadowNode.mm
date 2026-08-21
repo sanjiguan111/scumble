@@ -93,13 +93,22 @@ CTFontRef SkitySpanFont(NSString *family, float size, int weight, bool italic,
   return styled != nullptr ? styled : nullptr;
 }
 
-CTParagraphStyleRef SkityParagraphStyle(uint8_t align, float lineHeight) {
-  CTTextAlignment alignment = kCTTextAlignmentNatural;
+CTParagraphStyleRef SkityParagraphStyle(uint8_t align, uint8_t direction, float lineHeight) {
+  // Physical alignment: left/center/right are screen edges, so align 0 must be
+  // kCTTextAlignmentLeft explicitly — kCTTextAlignmentNatural would flip with
+  // the writing direction below and turn "left" into right under RTL.
+  CTTextAlignment alignment = kCTTextAlignmentLeft;
   if (align == 1) alignment = kCTTextAlignmentCenter;
   if (align == 2) alignment = kCTTextAlignmentRight;
+  // Base writing direction feeds CoreText's built-in UAX #9 (bidi reordering,
+  // mirroring, run order). `auto` = first strong character (Natural).
+  CTWritingDirection writing = kCTWritingDirectionLeftToRight;
+  if (direction == 1) writing = kCTWritingDirectionRightToLeft;
+  if (direction == 2) writing = kCTWritingDirectionNatural;
   const CGFloat multiple = lineHeight > 0.f ? (CGFloat)lineHeight : 1.0;
   CTParagraphStyleSetting settings[] = {
       {kCTParagraphStyleSpecifierAlignment, sizeof(CTTextAlignment), &alignment},
+      {kCTParagraphStyleSpecifierBaseWritingDirection, sizeof(CTWritingDirection), &writing},
       {kCTParagraphStyleSpecifierLineHeightMultiple, sizeof(CGFloat), &multiple},
   };
   return CTParagraphStyleCreate(settings, sizeof(settings) / sizeof(settings[0]));
@@ -145,7 +154,7 @@ LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
   // color as a custom attribute, letter spacing as kern, paragraph style).
   NSMutableAttributedString *text = [NSMutableAttributedString new];
   CTParagraphStyleRef paraStyle =
-      SkityParagraphStyle(self.paragraphAlign, self.paragraphLineHeight);
+      SkityParagraphStyle(self.paragraphAlign, self.paragraphDirection, self.paragraphLineHeight);
   // Schemed custom-font URIs this layout found missing — handed to the font
   // registry after the span walk; when the bytes land it re-triggers layout.
   NSMutableSet<NSString *> *missedFonts = [NSMutableSet set];

@@ -69,7 +69,13 @@ object SkityNative {
    */
   @JvmStatic
   external fun nativeShapeParagraph(
-    spans: ByteArray, nodeId: Int, width: Float, align: Byte, lineHeight: Float, maxLines: Int,
+    spans: ByteArray,
+    nodeId: Int,
+    width: Float,
+    align: Byte,
+    direction: Byte,
+    lineHeight: Float,
+    maxLines: Int,
   ): ByteArray?
 
   /**

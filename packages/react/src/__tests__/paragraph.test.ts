@@ -91,10 +91,11 @@ describe("normalizeParagraphProps", () => {
     expect(n.spans).toBe(bytesToBase64(buildSpanList([{ text: "hi" }])));
   });
 
-  it("maps textAlign to its byte and defaults the layout scalars", () => {
+  it("maps textAlign/direction to their bytes and defaults the layout scalars", () => {
     const base = { width: 100 };
     expect(normalizeParagraphProps({ ...base } as never)).toMatchObject({
       textAlign: 0, // left
+      direction: 0, // ltr
       lineHeight: 1,
       maxLines: 0,
       x: 0,
@@ -104,6 +105,9 @@ describe("normalizeParagraphProps", () => {
     expect(normalizeParagraphProps({ ...base, textAlign: "center" } as never)!.textAlign).toBe(1);
     expect(normalizeParagraphProps({ ...base, textAlign: "right" } as never)!.textAlign).toBe(2);
     expect(normalizeParagraphProps({ ...base, textAlign: "justify" } as never)!.textAlign).toBe(0);
+    expect(normalizeParagraphProps({ ...base, direction: "rtl" } as never)!.direction).toBe(1);
+    expect(normalizeParagraphProps({ ...base, direction: "auto" } as never)!.direction).toBe(2);
+    expect(normalizeParagraphProps({ ...base, direction: "ttb" } as never)!.direction).toBe(0);
     expect(
       normalizeParagraphProps({ ...base, lineHeight: 1.5, maxLines: 3, x: 4, y: 5 } as never),
     ).toMatchObject({ lineHeight: 1.5, maxLines: 3, x: 4, y: 5 });

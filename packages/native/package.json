@@ -33,6 +33,9 @@
     "shared/CMakeLists.txt",
     "shared/third_party/flatbuffers/include",
     "shared/third_party/flatbuffers/LICENSE",
+    "shared/third_party/sheenbidi/Headers",
+    "shared/third_party/sheenbidi/Source",
+    "shared/third_party/sheenbidi/LICENSE",
     "LICENSE"
   ],
   "scripts": {

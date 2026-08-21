@@ -103,6 +103,7 @@ LYNX_PROPS_GROUP_DECLARE(
     // Paragraph node: SpanList bytes (base64) + paragraph-level style.
     LYNX_PROP_DECLARE("spans", setSpans:, NSString *),
     LYNX_PROP_DECLARE("textAlign", setTextAlign:, NSNumber *),
+    LYNX_PROP_DECLARE("direction", setDirection:, NSNumber *),
     LYNX_PROP_DECLARE("lineHeight", setLineHeight:, NSNumber *),
     LYNX_PROP_DECLARE("maxLines", setMaxLines:, NSNumber *))
 
@@ -468,6 +469,11 @@ LYNX_PROP_SETTER("spans", setSpans, NSString *) {
 }
 LYNX_PROP_SETTER("textAlign", setTextAlign, NSNumber *) {
   _paragraphAlign = (uint8_t)value.unsignedCharValue;
+  _dirtyParagraph = YES;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("direction", setDirection, NSNumber *) {
+  _paragraphDirection = (uint8_t)value.unsignedCharValue;
   _dirtyParagraph = YES;
   [self setNeedsLayout];
 }

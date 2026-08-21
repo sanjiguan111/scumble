@@ -171,6 +171,11 @@ export interface ParagraphProps extends GraphicProps {
   width: number;
   /** Line alignment. Defaults to `"left"`. */
   textAlign?: "left" | "center" | "right";
+  /** Base writing direction for bidi (UAX #9) reordering. `"auto"` picks the
+   *  first strong directional character (LTR when there is none). Defaults to
+   *  `"ltr"`. `textAlign` stays physical — left/right always mean the screen
+   *  edges, regardless of direction. */
+  direction?: "ltr" | "rtl" | "auto";
   /** Line-height multiplier (1 = font default). Defaults to 1. */
   lineHeight?: number;
   /** Maximum lines; 0 = unlimited. Overflow is ellipsized when set. */

@@ -48,4 +48,15 @@ deps = {
         "ignore_in_git": True,
         "tag": "v1.17.0",
     },
+    # SheenBidi — UAX #9 bidirectional algorithm, Android-only <Paragraph>
+    # backend (iOS uses CoreText's built-in UAX #9). Pure C, zero deps, data
+    # tables compiled in. Statically linked into libskityrender.so (same
+    # pattern as the HarfBuzz static prefab — no runtime .so); the podspec
+    # never globs third_party.
+    'packages/native/shared/third_party/sheenbidi': {
+        "type": "git",
+        "url": "https://github.com/Tehreer/SheenBidi.git",
+        "ignore_in_git": True,
+        "tag": "v3.0.0",
+    },
 }

@@ -121,6 +121,7 @@ abstract class SkityNodeBase : ShadowNode() {
   // only reads them on paragraph nodes.
   @JvmField var paragraphSpansData: ByteArray? = null
   @JvmField var paragraphAlign: Byte = 0        // 0=left 1=center 2=right
+  @JvmField var paragraphDirection: Byte = 0    // 0=ltr 1=rtl 2=auto (first-strong)
   @JvmField var paragraphLineHeight = 1f        // multiplier; <=0 = 1
   @JvmField var paragraphMaxLines = 0           // 0 = unlimited
   @JvmField var dirtyParagraph = false
@@ -545,6 +546,11 @@ abstract class SkityNodeBase : ShadowNode() {
   }
   @LynxProp(name = "textAlign") fun setTextAlign(v: Int) {
     paragraphAlign = v.toByte()
+    dirtyParagraph = true
+    markDirty()
+  }
+  @LynxProp(name = "direction") fun setDirection(v: Int) {
+    paragraphDirection = v.toByte()
     dirtyParagraph = true
     markDirty()
   }

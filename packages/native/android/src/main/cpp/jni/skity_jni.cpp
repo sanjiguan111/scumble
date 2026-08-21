@@ -155,7 +155,7 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyParagraphR
 // ParagraphRunList (height/line_count inside) or null for empty content.
 JNIEXPORT jbyteArray JNICALL Java_com_skity_graphics_SkityNative_nativeShapeParagraph(
     JNIEnv *env, jclass /*clazz*/, jbyteArray spans, jint nodeId, jfloat width, jbyte align,
-    jfloat lineHeight, jint maxLines) {
+    jbyte direction, jfloat lineHeight, jint maxLines) {
   if (spans == nullptr) {
     return nullptr;
   }
@@ -166,7 +166,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_skity_graphics_SkityNative_nativeShapePara
   }
   skityrt::ParagraphShapeResult result = skityrt::ShapeParagraph(
       reinterpret_cast<const uint8_t *>(bytes), static_cast<std::size_t>(length), (uint32_t)nodeId,
-      width, (uint8_t)align, lineHeight, maxLines);
+      width, (uint8_t)align, (uint8_t)direction, lineHeight, maxLines);
   env->ReleaseByteArrayElements(spans, bytes, JNI_ABORT);
   if (result.runsBytes.empty()) {
     return nullptr;

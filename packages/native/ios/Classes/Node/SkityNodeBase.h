@@ -165,6 +165,7 @@ enum SkityPaintFilterField {
 /// measure pass; the glyph runs ride the extra bundle's runs key.
 @property(nonatomic, strong, nullable) NSData *paragraphSpansData;
 @property(nonatomic, assign) uint8_t paragraphAlign;    // 0=left 1=center 2=right
+@property(nonatomic, assign) uint8_t paragraphDirection; // 0=ltr 1=rtl 2=auto (first-strong)
 @property(nonatomic, assign) float paragraphLineHeight; // multiplier; 0 = 1
 @property(nonatomic, assign) int32_t paragraphMaxLines; // 0 = unlimited
 @property(nonatomic, assign) BOOL dirtyParagraph;

@@ -54,7 +54,7 @@ class SkityParagraphShadowNode : SkityNodeBase() {
     if (id == 0) return lastResult
 
     val bytes = SkityNative.nativeShapeParagraph(
-      spans, id, width, paragraphAlign, paragraphLineHeight, paragraphMaxLines)
+      spans, id, width, paragraphAlign, paragraphDirection, paragraphLineHeight, paragraphMaxLines)
     // Custom fonts the shaper found missing (schemed URIs): request them —
     // this layout already fell back to the default font; when the bytes land
     // the controller re-triggers layout (fonts are a layout input).

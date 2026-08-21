@@ -4,6 +4,7 @@
 import type { ReactNode } from "@lynx-js/react";
 
 import { BlendDemo } from "./BlendDemo";
+import { BiDiDemo } from "./BiDiDemo";
 import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
@@ -124,6 +125,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "富文本 · 换行对齐 · maxLines · onLayout",
     accent: "#10b981",
     render: () => <ParagraphDemo />,
+  },
+  {
+    key: "bidi",
+    title: "BiDi",
+    subtitle: "RTL · auto 检测 · 混排 · 物理对齐",
+    accent: "#f97316",
+    render: () => <BiDiDemo />,
   },
 ];
 

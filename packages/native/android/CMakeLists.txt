@@ -67,6 +67,22 @@ find_package(skity-native CONFIG REQUIRED)
 # libskityrender.so, no runtime .so reaches the APK.
 find_package(harfbuzz CONFIG REQUIRED)
 
+# SheenBidi — UAX #9 bidirectional algorithm for the <Paragraph> Android
+# backend (iOS uses CoreText's built-in UAX #9, so the pod never links this).
+# Pure C, zero deps, data tables compiled in; fetched by habitat (DEPS.py)
+# into shared/third_party/sheenbidi and linked statically like HarfBuzz —
+# no runtime .so reaches the APK.
+set(SHEENBIDI_ROOT "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/third_party/sheenbidi")
+if(NOT EXISTS "${SHEENBIDI_ROOT}/Headers/SheenBidi/SheenBidi.h")
+  message(FATAL_ERROR "SheenBidi sources missing under shared/third_party/sheenbidi — run `tools/hab sync` (root DEPS.py) and rebuild.")
+endif()
+file(GLOB_RECURSE SHEENBIDI_SOURCES "${SHEENBIDI_ROOT}/Source/*.c")
+add_library(sheenbidi STATIC ${SHEENBIDI_SOURCES})
+target_include_directories(sheenbidi PUBLIC "${SHEENBIDI_ROOT}/Headers")
+# Internal cross-includes use paths relative to Source/ (<API/...>, <Core/...>).
+target_include_directories(sheenbidi PRIVATE "${SHEENBIDI_ROOT}/Source")
+target_compile_options(sheenbidi PRIVATE -w) # third-party C, silence warnings
+
 add_library(skityrender SHARED
   src/main/cpp/skity/app_renderer.cpp
   src/main/cpp/skity/shared_gl_context.cpp
@@ -85,6 +101,9 @@ add_library(skityrender SHARED
   # the TASM side registers, DrawShape's paragraph branch reads).
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/font_registry.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/line_breaker.cc"
+  # BiDi visual-order mapping for the shaper's line assembly (UAX #9 levels
+  # come from SheenBidi; this is the pure-std part the host tests cover).
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/bidi_line.cc"
   # custom-font channel: base64 payload decode + the process-wide
   # data-URI→Typeface cache (shared with the iOS backend).
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/base64.cc"
@@ -106,6 +125,7 @@ target_include_directories(skityrender PRIVATE
 target_link_libraries(skityrender PRIVATE
   skity-native::skity
   harfbuzz::harfbuzz
+  sheenbidi
   EGL
   GLESv3
   vulkan
