@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -25,11 +26,37 @@
 #include "command_batch_generated.h" // PaintField_* (inheritance explicit markers)
 #include "font_registry.h"           // FontRegistry (paragraph glyph runs)
 #include "image_store.h"             // ImageStore (image nodes)
+#include "render_cache.h"            // build cache (RENDER_ARCHITECTURE.md §15)
 #include "render_tree_common_generated.h"
 #include "render_tree_style_generated.h"
 
 namespace skityrt {
 namespace {
+
+// Frame-local build cache (per-tree, attached by Draw below). Render-thread
+// only, and Draw is never re-entrant on that thread (Android's shared
+// SkityRenderThread serializes every canvas; iOS serializes on the render
+// queue), so a thread-local beats threading a parameter through the whole
+// DrawNode/DrawShape/MakePaint call graph. Null = cache disabled (kill
+// switch or allocation failure) — every consumer falls back to the uncached
+// build path.
+thread_local RenderCache *t_frame_cache = nullptr;
+
+// Intern-or-build: lookup by content hash (collision-verified), call `build`
+// only on a miss and insert the product. Hits/misses feed the stats counters.
+template <typename T, typename Build>
+std::shared_ptr<T> InternOrBuild(LRUInternTable<T> &table, uint64_t *hits, uint64_t *misses,
+                                 const uint8_t *data, std::size_t size, Build build) {
+  uint64_t h = HashBytes(data, size);
+  if (auto v = table.Lookup(h, data, size)) {
+    if (hits != nullptr) (*hits)++;
+    return v;
+  }
+  if (misses != nullptr) (*misses)++;
+  auto v = build();
+  if (v != nullptr) table.Insert(h, data, size, v);
+  return v;
+}
 
 using skity::Canvas;
 using skity::ColorFilter;
@@ -230,14 +257,115 @@ void TrimPath(Path &path, float start, float end) {
   if (!trimmed.IsEmpty()) path = trimmed;
 }
 
-void ApplyTransform(const RetainedNode *node, Canvas *canvas) {
-  if (node == nullptr) return;
-  const RetainedComputedStyle *style = &node->style;
-  // Transform ops come as a nested FlatBuffer (TransformOpList) built on the JS
-  // side; native only memcpys the bytes. See RENDER_ARCHITECTURE.md §5.
+// Defined below (after the filter/shader builders they consume).
+bool MakeFillPaint(const RetainedComputedStyle *style, float opacity, skity::GPUContext *gpu,
+                   Paint *out);
+bool MakeStrokePaint(const RetainedComputedStyle *style, float opacity, skity::GPUContext *gpu,
+                     Paint *out);
+
+// Cached path draw (RENDER_ARCHITECTURE.md §15) for path/polyline/polygon/
+// circle/ellipse shapes. The base Path (fill type baked in) is cached per
+// node id and validated by the (geom_version, paint_version, epoch) stamp;
+// oval shapes additionally key on their scalar geometry (cx,cy,rx,ry) —
+// animated radii rewrite those values without bumping geom_version, so the
+// values themselves join the hit check. Animated trims split the base into
+// per-contour paths with resident PathMeasures so a moving trim window costs
+// only GetSegment per frame. An untrimmed cache hit feeds the canvas by
+// const& — zero per-frame path work. With the cache disabled this is the
+// original build+trim lane, unchanged (rollback path).
+void DrawCachedPath(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style,
+                    float opacity, skity::GPUContext *gpu_context, bool force_close, bool oval,
+                    const float *geom_key = nullptr, uint32_t geom_key_len = 0) {
+  const FillRule fill_rule = style != nullptr ? style->fill_rule : FillRule_NONZERO;
+  RenderCache *rc = t_frame_cache;
+  Path local; // uncached lane / trim output
+  const Path *draw_path = nullptr;
+  auto build_oval = [&geom_key](Path *p) {
+    p->AddOval(Rect::MakeXYWH(geom_key[0] - geom_key[3], geom_key[1] - geom_key[2],
+                              geom_key[3] * 2.f, geom_key[2] * 2.f));
+  };
+  if (rc == nullptr) {
+    local = Path{};
+    if (oval) {
+      build_oval(&local);
+    } else {
+      local = BuildPath(node, force_close);
+    }
+    TrimPath(local, AnimPathStart(node), AnimPathEnd(node));
+    if (style != nullptr && fill_rule == FillRule_EVENODD) {
+      local.SetFillType(Path::PathFillType::kEvenOdd);
+    }
+    draw_path = &local;
+  } else {
+    RenderCache::PathCacheEntry &e = rc->paths[node->id];
+    bool key_ok =
+        e.geom_key_len == geom_key_len &&
+        (geom_key_len == 0 || std::memcmp(e.geom_key, geom_key, geom_key_len * sizeof(float)) == 0);
+    if (!key_ok || e.fill_rule != fill_rule ||
+        !e.stamp.Matches(node->geom_version, node->paint_version, rc->current_epoch)) {
+      e.base = Path{};
+      if (oval) {
+        build_oval(&e.base);
+      } else {
+        e.base = BuildPath(node, force_close);
+      }
+      e.base.SetFillType(fill_rule == FillRule_EVENODD ? Path::PathFillType::kEvenOdd
+                                                       : Path::PathFillType::kWinding);
+      e.fill_rule = fill_rule;
+      e.geom_key_len = geom_key_len;
+      for (uint32_t k = 0; k < geom_key_len && k < 4; k++)
+        e.geom_key[k] = geom_key[k];
+      e.stamp = CacheStamp{node->geom_version, node->paint_version, rc->current_epoch};
+      e.contours.clear();
+      e.contours_built = false;
+      rc->stats.path_misses++;
+      rc->EvictPathEntriesIfNeeded();
+    } else {
+      rc->stats.path_hits++;
+    }
+    e.lru_tick = ++rc->lru_tick;
+    // Trim-window semantics mirror TrimPath exactly: full window / s>=e leave
+    // the path untouched; a degenerate result falls back to the base path.
+    float s = std::clamp(AnimPathStart(node), 0.f, 1.f);
+    float t = std::clamp(AnimPathEnd(node), 0.f, 1.f);
+    if ((s <= 0.f && t >= 1.f) || s >= t) {
+      draw_path = &e.base;
+    } else {
+      if (!e.contours_built) {
+        RenderCache::SplitContours(e.base, &e.contours);
+        e.contours_built = true;
+        rc->stats.trim_misses++;
+      } else {
+        rc->stats.trim_hits++;
+      }
+      RenderCache::TrimFromContours(e.contours, s, t, &local);
+      if (local.IsEmpty()) {
+        draw_path = &e.base;
+      } else {
+        local.SetFillType(e.base.GetFillType());
+        draw_path = &local;
+      }
+    }
+  }
+  Paint fillPaint;
+  if (MakeFillPaint(style, opacity, gpu_context, &fillPaint))
+    canvas->DrawPath(*draw_path, fillPaint);
+  Paint strokePaint;
+  if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
+    canvas->DrawPath(*draw_path, strokePaint);
+}
+
+// Transform ops come as a nested FlatBuffer (TransformOpList) built on the JS
+// side; native only memcpys the bytes. See RENDER_ARCHITECTURE.md §5. Both
+// lanes below must stay op-for-op equivalent: the uncached one replays ops on
+// the canvas, the folded one post-multiplies them into a single Matrix
+// (skity Matrix post* methods are exactly the canvas primitive semantics,
+// including the pivot-rotate variant).
+
+void ApplyTransformOpsUncached(const RetainedComputedStyle *style, Canvas *canvas) {
   const TransformOpList *tlist = nullptr;
-  if (!style->transform_data.empty()) {
-    tlist = ::flatbuffers::GetRoot<TransformOpList>(style->transform_data.data());
+  if (style->transform_data != nullptr) {
+    tlist = ::flatbuffers::GetRoot<TransformOpList>(style->transform_data->data());
   }
   const auto *ops = tlist != nullptr ? tlist->ops() : nullptr;
   auto len = ops != nullptr ? ops->size() : 0u;
@@ -292,6 +420,84 @@ void ApplyTransform(const RetainedNode *node, Canvas *canvas) {
     default:
       break;
     }
+  }
+}
+
+Matrix FoldTransformOps(const BytesPtr &transform_data) {
+  Matrix m; // identity (constexpr default ctor)
+  if (transform_data == nullptr) return m;
+  const TransformOpList *tlist = ::flatbuffers::GetRoot<TransformOpList>(transform_data->data());
+  const auto *ops = tlist != nullptr ? tlist->ops() : nullptr;
+  auto len = ops != nullptr ? ops->size() : 0u;
+  for (size_t i = 0; i < len; i++) {
+    const TransformOp *op = ops->Get(i);
+    if (op == nullptr) continue;
+    const auto *args = op->args();
+    switch (op->type()) {
+    case TransformType_TRANSLATE:
+      m.PostTranslate(VecArg(args, 0), VecArg(args, 1));
+      break;
+    case TransformType_SCALE: {
+      float sx = VecArg(args, 0, 1.f);
+      m.PostScale(sx, VecArg(args, 1, sx));
+      break;
+    }
+    case TransformType_ROTATE: {
+      float deg = VecArg(args, 0);
+      size_t n = args != nullptr ? args->size() : 0;
+      if (n >= 3) {
+        m.PostRotate(deg, VecArg(args, 1), VecArg(args, 2));
+      } else {
+        m.PostRotate(deg);
+      }
+      break;
+    }
+    case TransformType_MATRIX: {
+      if (args != nullptr && args->size() >= 6) {
+        Matrix mm; // same field mapping as the uncached lane
+        mm.SetScaleX(VecArg(args, 0));
+        mm.SetSkewY(VecArg(args, 1));
+        mm.SetSkewX(VecArg(args, 2));
+        mm.SetScaleY(VecArg(args, 3));
+        mm.SetTranslateX(VecArg(args, 4));
+        mm.SetTranslateY(VecArg(args, 5));
+        m.PostConcat(mm);
+      }
+      break;
+    }
+    case TransformType_SKEW_X:
+      m.PostSkew(std::tan(VecArg(args, 0) * kDegToRad), 0.f);
+      break;
+    case TransformType_SKEW_Y:
+      m.PostSkew(0.f, std::tan(VecArg(args, 0) * kDegToRad));
+      break;
+    default:
+      break;
+    }
+  }
+  return m;
+}
+
+void ApplyTransform(const RetainedNode *node, Canvas *canvas) {
+  if (node == nullptr) return;
+  const RetainedComputedStyle *style = &node->style;
+  RenderCache *rc = t_frame_cache;
+  if (rc == nullptr) {
+    // Uncached lane: replay the ops straight onto the canvas each frame.
+    ApplyTransformOpsUncached(style, canvas);
+  } else {
+    // Cached lane: fold the op list into ONE matrix on miss; each frame is a
+    // single Concat (the per-frame FlatBuffer re-parse disappears).
+    RenderCache::TransformCacheEntry &e = rc->xforms[node->id];
+    if (!e.valid || !e.stamp.Matches(node->geom_version, node->paint_version, rc->current_epoch)) {
+      e.base = FoldTransformOps(style->transform_data);
+      e.stamp = CacheStamp{node->geom_version, node->paint_version, rc->current_epoch};
+      e.valid = true;
+      rc->stats.transform_misses++;
+    } else {
+      rc->stats.transform_hits++;
+    }
+    canvas->Concat(e.base);
   }
   // Animated transform components APPEND after the base ops (post-multiply,
   // D1): the overlay holds resolved scalars, so the JS-built TransformOpList
@@ -387,8 +593,26 @@ std::shared_ptr<Shader> BuildGradientShader(const std::vector<uint8_t> &data) {
 // Apply a gradient shader to `out` (shared by fill + stroke). opacity is folded
 // in via SetAlphaF (approximate — skity premultiplies per-stop, this scales the
 // whole paint alpha). Returns false (inactive paint) if no valid shader builds.
-bool ApplyGradient(const std::vector<uint8_t> &data, float opacity, Paint *out) {
-  auto shader = BuildGradientShader(data);
+// The shader payload is interned by descriptor hash when the frame cache is
+// live — the FlatBuffer re-parse + double vector copy was a per-shape (and
+// per-paragraph-run) per-frame cost.
+bool ApplyGradient(const BytesPtr &data, float opacity, Paint *out) {
+  if (data == nullptr) return false;
+  std::shared_ptr<Shader> shader;
+  RenderCache *rc = t_frame_cache;
+  if (rc == nullptr || data->empty()) {
+    shader = BuildGradientShader(*data);
+  } else {
+    uint64_t h = HashBytes(data->data(), data->size());
+    shader = rc->gradient_intern.Lookup(h, data->data(), data->size());
+    if (shader != nullptr) {
+      rc->stats.gradient_hits++;
+    } else {
+      rc->stats.gradient_misses++;
+      shader = BuildGradientShader(*data);
+      if (shader != nullptr) rc->gradient_intern.Insert(h, data->data(), data->size(), shader);
+    }
+  }
   if (shader == nullptr) return false;
   out->SetShader(shader);
   out->SetAlphaF(opacity);
@@ -461,22 +685,36 @@ std::shared_ptr<ColorFilter> BuildColorFilterNode(const skityrt::Filter *f) {
   }
 }
 
-std::shared_ptr<ImageFilter> BuildImageFilter(const std::vector<uint8_t> &data) {
-  if (data.empty()) return nullptr;
-  return BuildImageFilterNode(::flatbuffers::GetRoot<skityrt::Filter>(data.data()));
+std::shared_ptr<ImageFilter> BuildImageFilter(const BytesPtr &data) {
+  if (data == nullptr || data->empty()) return nullptr;
+  const skityrt::Filter *f = ::flatbuffers::GetRoot<skityrt::Filter>(data->data());
+  RenderCache *rc = t_frame_cache;
+  if (rc == nullptr) return BuildImageFilterNode(f);
+  return InternOrBuild(rc->image_filter_intern, &rc->stats.filter_hits, &rc->stats.filter_misses,
+                       data->data(), data->size(), [&] { return BuildImageFilterNode(f); });
 }
 
-std::shared_ptr<ColorFilter> BuildColorFilter(const std::vector<uint8_t> &data) {
-  if (data.empty()) return nullptr;
-  return BuildColorFilterNode(::flatbuffers::GetRoot<skityrt::Filter>(data.data()));
+std::shared_ptr<ColorFilter> BuildColorFilter(const BytesPtr &data) {
+  if (data == nullptr || data->empty()) return nullptr;
+  const skityrt::Filter *f = ::flatbuffers::GetRoot<skityrt::Filter>(data->data());
+  RenderCache *rc = t_frame_cache;
+  if (rc == nullptr) return BuildColorFilterNode(f);
+  return InternOrBuild(rc->color_filter_intern, &rc->stats.filter_hits, &rc->stats.filter_misses,
+                       data->data(), data->size(), [&] { return BuildColorFilterNode(f); });
 }
 
-std::shared_ptr<MaskFilter> BuildMaskFilter(const std::vector<uint8_t> &data) {
-  if (data.empty()) return nullptr;
-  const skityrt::Filter *f = ::flatbuffers::GetRoot<skityrt::Filter>(data.data());
-  if (f == nullptr || f->kind() != skityrt::FilterKind_MASK_BLUR) return nullptr;
-  // skityrt::BlurStyle value order == skity::BlurStyle (1-based, kNormal..kInner).
-  return MaskFilter::MakeBlur(static_cast<skity::BlurStyle>(f->style()), f->fx());
+std::shared_ptr<MaskFilter> BuildMaskFilter(const BytesPtr &data) {
+  if (data == nullptr || data->empty()) return nullptr;
+  const skityrt::Filter *f = ::flatbuffers::GetRoot<skityrt::Filter>(data->data());
+  auto build = [&]() -> std::shared_ptr<MaskFilter> {
+    if (f == nullptr || f->kind() != skityrt::FilterKind_MASK_BLUR) return nullptr;
+    // skityrt::BlurStyle value order == skity::BlurStyle (1-based, kNormal..kInner).
+    return MaskFilter::MakeBlur(static_cast<skity::BlurStyle>(f->style()), f->fx());
+  };
+  RenderCache *rc = t_frame_cache;
+  if (rc == nullptr) return build();
+  return InternOrBuild(rc->mask_filter_intern, &rc->stats.filter_hits, &rc->stats.filter_misses,
+                       data->data(), data->size(), build);
 }
 
 // Attach the paint's three filter slots. Called on every successful paint
@@ -516,18 +754,37 @@ bool MakeFillPaint(const RetainedComputedStyle *style, float opacity,
 
 // Apply the style's dash pattern as the paint's path effect. Valid patterns:
 // even count ≥ 2, non-negative intervals, positive sum (skity requires the
-// same); anything else is skipped (solid stroke).
+// same); anything else is skipped (solid stroke). The effect object is
+// interned on (intervals + phase) — the canvas-side FilterPath expansion
+// still runs per draw (upstream behavior; caching the EXPANDED path is the
+// P4 follow-up).
 void ApplyDashIfAny(const RetainedComputedStyle *style, Paint *out) {
-  const auto &dash = style->stroke_dash;
-  if (dash.size() < 2 || dash.size() % 2 != 0) return;
+  const FloatsPtr &dash = style->stroke_dash;
+  if (dash == nullptr || dash->size() < 2 || dash->size() % 2 != 0) return;
   float sum = 0.f;
-  for (float v : dash) {
+  for (float v : *dash) {
     if (v < 0.f) return;
     sum += v;
   }
   if (sum <= 0.f) return;
-  auto effect = PathEffect::MakeDashPathEffect(dash.data(), static_cast<int>(dash.size()),
-                                               style->stroke_dashoffset);
+  float offset = style->stroke_dashoffset;
+  RenderCache *rc = t_frame_cache;
+  if (rc == nullptr || dash->size() > 64) {
+    // Uncached lane (or absurd pattern): build directly.
+    auto effect =
+        PathEffect::MakeDashPathEffect(dash->data(), static_cast<int>(dash->size()), offset);
+    if (effect != nullptr) out->SetPathEffect(effect);
+    return;
+  }
+  // Intern key = float bits of (intervals…, phase) — stack buffer, no alloc.
+  float key[65];
+  std::memcpy(key, dash->data(), dash->size() * sizeof(float));
+  key[dash->size()] = offset;
+  auto effect = InternOrBuild(
+      rc->dash_intern, &rc->stats.dash_hits, &rc->stats.dash_misses,
+      reinterpret_cast<const uint8_t *>(key), (dash->size() + 1) * sizeof(float), [&] {
+        return PathEffect::MakeDashPathEffect(dash->data(), static_cast<int>(dash->size()), offset);
+      });
   if (effect != nullptr) out->SetPathEffect(effect);
 }
 
@@ -635,9 +892,9 @@ void ApplyBoxFit(uint8_t fit, float iw, float ih, const Rect &dstFull, Rect *src
 // the fitted area follows tx/ty (skity TileMode value order).
 bool ApplyImageShader(const RetainedPaint &paint, float opacity, skity::GPUContext *gpu_context,
                       Paint *out) {
-  if (gpu_context == nullptr || paint.image_shader_uri.empty()) return false;
+  if (gpu_context == nullptr || paint.image_shader_uri == nullptr) return false;
   std::shared_ptr<skity::Image> image =
-      ImageStore::Instance().FindImage(paint.image_shader_uri, gpu_context);
+      ImageStore::Instance().FindImage(*paint.image_shader_uri, gpu_context);
   if (image == nullptr) return false;
   const float iw = static_cast<float>(image->Width());
   const float ih = static_cast<float>(image->Height());
@@ -709,50 +966,26 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
   } else if (tag == "circle") {
     float r = AnimR(node);
     if (r <= 0.f) return;
-    Paint fillPaint;
-    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint))
-      canvas->DrawCircle(AnimCX(node), AnimCY(node), r, fillPaint);
-    Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
-      canvas->DrawCircle(AnimCX(node), AnimCY(node), r, strokePaint);
+    // {cx, cy, rx, ry} — the animated scalars join the cache key so an
+    // animated radius misses while a static circle keeps hitting.
+    float key[4] = {AnimCX(node), AnimCY(node), r, r};
+    DrawCachedPath(node, canvas, style, opacity, gpu_context, /*force_close=*/false,
+                   /*oval=*/true, key, 4);
   } else if (tag == "ellipse") {
-    float rx = node->rx;
-    float ry = node->ry;
-    if (rx <= 0.f || ry <= 0.f) return;
-    Path path;
-    path.AddOval(Rect::MakeXYWH(node->cx - rx, node->cy - ry, rx * 2.f, ry * 2.f));
-    Paint fillPaint;
-    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint)) canvas->DrawPath(path, fillPaint);
-    Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
-      canvas->DrawPath(path, strokePaint);
+    if (node->rx <= 0.f || node->ry <= 0.f) return;
+    float key[4] = {node->cx, node->cy, node->rx, node->ry};
+    DrawCachedPath(node, canvas, style, opacity, gpu_context, /*force_close=*/false,
+                   /*oval=*/true, key, 4);
   } else if (tag == "line") {
     Paint strokePaint;
     if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint)) {
       canvas->DrawLine(node->x1, node->y1, node->x2, node->y2, strokePaint);
     }
   } else if (tag == "path") {
-    Path path = BuildPath(node, false);
-    TrimPath(path, AnimPathStart(node), AnimPathEnd(node));
-    if (style != nullptr && style->fill_rule == FillRule_EVENODD) {
-      path.SetFillType(Path::PathFillType::kEvenOdd);
-    }
-    Paint fillPaint;
-    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint)) canvas->DrawPath(path, fillPaint);
-    Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
-      canvas->DrawPath(path, strokePaint);
+    DrawCachedPath(node, canvas, style, opacity, gpu_context, /*force_close=*/false,
+                   /*oval=*/false);
   } else if (tag == "polyline" || tag == "polygon") {
-    Path path = BuildPath(node, tag == "polygon");
-    TrimPath(path, AnimPathStart(node), AnimPathEnd(node));
-    if (style != nullptr && style->fill_rule == FillRule_EVENODD) {
-      path.SetFillType(Path::PathFillType::kEvenOdd);
-    }
-    Paint fillPaint;
-    if (MakeFillPaint(style, opacity, gpu_context, &fillPaint)) canvas->DrawPath(path, fillPaint);
-    Paint strokePaint;
-    if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
-      canvas->DrawPath(path, strokePaint);
+    DrawCachedPath(node, canvas, style, opacity, gpu_context, tag == "polygon", /*oval=*/false);
   } else if (tag == "image") {
     // Bitmap node. Pixels arrive asynchronously in the ImageStore (keyed by
     // uri); pending/failed/missing all mean "draw nothing this frame" — the
@@ -791,7 +1024,21 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     // run falls back to its span color.
     const RetainedPaint *fill = style != nullptr ? &style->fill : nullptr;
     for (const auto &run : node->paragraph.runs) {
-      skity::Font font = FontRegistry::Instance().Find(run.font_id);
+      // Font lookup through the per-tree cache: FontRegistry::Find takes a
+      // mutex (TASM writers vs render readers); the cache pays it once per id.
+      skity::Font font;
+      RenderCache *rc = t_frame_cache;
+      if (rc != nullptr) {
+        auto it = rc->fonts.find(run.font_id);
+        if (it != rc->fonts.end()) {
+          font = it->second;
+        } else {
+          font = FontRegistry::Instance().Find(run.font_id);
+          rc->fonts.emplace(run.font_id, font);
+        }
+      } else {
+        font = FontRegistry::Instance().Find(run.font_id);
+      }
       if (font.GetTypefaceOrDefault() == nullptr) continue;
       Paint paint;
       paint.SetAntiAlias(true);
@@ -873,9 +1120,10 @@ void ApplyViewport(const RetainedViewport &vp, Canvas *canvas, float canvasWidth
 // coordinate space (after its own transform, before its subtree). The canvas
 // accumulates intersect/difference ops natively, so a ClipList is just applied
 // in order.
-void ApplyClipIfAny(const RetainedNode *node, Canvas *canvas) {
-  if (node->clip_data.empty()) return;
-  const ClipList *list = ::flatbuffers::GetRoot<ClipList>(node->clip_data.data());
+// Uncached clip lane: re-parse the ClipList every frame (kept verbatim from
+// the pre-cache implementation — the rollback path).
+void ApplyClipUncached(const std::vector<uint8_t> &clip_data, Canvas *canvas) {
+  const ClipList *list = ::flatbuffers::GetRoot<ClipList>(clip_data.data());
   const auto *clips = list != nullptr ? list->clips() : nullptr;
   if (clips == nullptr) return;
   for (uint32_t i = 0; i < clips->size(); i++) {
@@ -902,6 +1150,73 @@ void ApplyClipIfAny(const RetainedNode *node, Canvas *canvas) {
       canvas->ClipPath(BuildPathFromBytes(data, false), op);
       break;
     }
+    }
+  }
+}
+
+void ApplyClipIfAny(const RetainedNode *node, Canvas *canvas) {
+  if (node->clip_data.empty()) return;
+  RenderCache *rc = t_frame_cache;
+  if (rc == nullptr) {
+    ApplyClipUncached(node->clip_data, canvas);
+    return;
+  }
+  // Cached lane: parse the ClipList (and decode nested path bytes) once per
+  // change; each frame replays the resolved items — the per-frame nested-
+  // bytes heap copy of the uncached lane disappears.
+  RenderCache::ClipCacheEntry &e = rc->clips[node->id];
+  if (!e.built || !e.stamp.Matches(node->geom_version, node->paint_version, rc->current_epoch)) {
+    e.items.clear();
+    const ClipList *list = ::flatbuffers::GetRoot<ClipList>(node->clip_data.data());
+    const auto *clips = list != nullptr ? list->clips() : nullptr;
+    if (clips != nullptr) {
+      for (uint32_t i = 0; i < clips->size(); i++) {
+        const Clip *c = clips->Get(i);
+        if (c == nullptr) continue;
+        RenderCache::ClipCacheItem item;
+        item.op = c->op() == ClipOp_DIFFERENCE ? 1 : 0;
+        switch (c->type()) {
+        case ClipType_RECT:
+          item.kind = RenderCache::ClipCacheItem::Kind::kRect;
+          item.rect = Rect::MakeXYWH(c->x(), c->y(), c->width(), c->height());
+          break;
+        case ClipType_RRECT:
+          item.kind = RenderCache::ClipCacheItem::Kind::kRRect;
+          item.rect = Rect::MakeXYWH(c->x(), c->y(), c->width(), c->height());
+          item.rx = c->rx();
+          item.ry = c->ry();
+          break;
+        case ClipType_PATH: {
+          const auto *bytes = c->path();
+          if (bytes == nullptr || bytes->size() == 0) continue;
+          std::vector<uint8_t> data(bytes->Data(), bytes->Data() + bytes->size());
+          item.kind = RenderCache::ClipCacheItem::Kind::kPath;
+          item.path = BuildPathFromBytes(data, false);
+          break;
+        }
+        }
+        e.items.push_back(std::move(item));
+      }
+    }
+    e.stamp = CacheStamp{node->geom_version, node->paint_version, rc->current_epoch};
+    e.built = true;
+    rc->stats.clip_misses++;
+  } else {
+    rc->stats.clip_hits++;
+  }
+  e.lru_tick = ++rc->lru_tick;
+  for (const RenderCache::ClipCacheItem &item : e.items) {
+    Canvas::ClipOp op = item.op == 1 ? Canvas::ClipOp::kDifference : Canvas::ClipOp::kIntersect;
+    switch (item.kind) {
+    case RenderCache::ClipCacheItem::Kind::kRect:
+      canvas->ClipRect(item.rect, op);
+      break;
+    case RenderCache::ClipCacheItem::Kind::kRRect:
+      canvas->ClipRRect(skity::RRect::MakeRectXY(item.rect, item.rx, item.ry), op);
+      break;
+    case RenderCache::ClipCacheItem::Kind::kPath:
+      canvas->ClipPath(item.path, op);
+      break;
     }
   }
 }
@@ -1005,6 +1320,12 @@ void SkityRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float d
   if (tree == nullptr || canvas == nullptr) return;
   const RetainedNode *root = tree->root();
   if (root == nullptr) return;
+  // Attach/refresh the frame cache: per-tree blob (id safety across canvases),
+  // epoch snapshot for this frame's stamp validation. Null when the kill
+  // switch is off — the whole frame then runs the original uncached lanes.
+  RenderCache *rc = GetRenderCache(tree);
+  if (rc != nullptr) rc->current_epoch = tree->structure_epoch();
+  t_frame_cache = rc;
   canvas->Save();
   if (density != 1.f) canvas->Scale(density, density);
   ApplyViewport(tree->viewport(), canvas, canvasWidth, canvasHeight, density);
@@ -1012,6 +1333,7 @@ void SkityRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float d
   // fall back to it for fields their ancestors never set.
   DrawNode(root, canvas, RetainedComputedStyle{}, gpu_context);
   canvas->Restore();
+  t_frame_cache = nullptr;
 }
 
 } // namespace skityrt

@@ -22,6 +22,16 @@
 
 namespace skityrt {
 
+// Owning immutable byte/string payloads for style deep fields (§15 P3: COW).
+// The renderer's per-node inheritance merge copies the parent's style into a
+// scratch every frame — with raw vectors that was ~12 heap allocations per
+// styled node per frame; with shared_ptr<const> copies it is a refcount bump.
+// null == empty everywhere; writes always allocate a fresh object (writes are
+// rare — command-executor time), so no consumer can ever observe mutation.
+using BytesPtr = std::shared_ptr<const std::vector<uint8_t>>;
+using StringPtr = std::shared_ptr<const std::string>;
+using FloatsPtr = std::shared_ptr<const std::vector<float>>;
+
 // Mutable, owning counterpart of ResolvedPaint. type: 0=NONE, 1=COLOR,
 // 2=GRADIENT, 3=IMAGE_SHADER. color is packed 0xAARRGGBB (valid for COLOR;
 // opacity is applied by the renderer, not stored here). gradient_data holds a
@@ -31,25 +41,26 @@ namespace skityrt {
 // platform loader request (fired by the TASM setter); fit/tx/ty are
 // command_batch.fbs enum bytes (value order == skity); rect is [x, y, w, h]
 // with w/h == 0 meaning identity (1:1 tiling at the bitmap's intrinsic size).
-// The three filter slots hold JS-built Filter FlatBuffer bytes; empty = no
+// The three filter slots hold JS-built Filter FlatBuffer bytes; null = no
 // filter (the renderer builds skity filter objects from them at paint
 // construction).
 struct RetainedPaint {
   uint8_t type = 0;
   uint32_t color = 0;
-  std::vector<uint8_t> gradient_data;
-  std::string image_shader_uri;
+  BytesPtr gradient_data;
+  StringPtr image_shader_uri;
   uint8_t image_shader_fit = 1; // BoxFit CONTAIN
   uint8_t image_shader_tx = 0;  // TileMode CLAMP
   uint8_t image_shader_ty = 0;  // TileMode CLAMP
   float image_shader_rect[4] = {0.f, 0.f, 0.f, 0.f};
-  std::vector<uint8_t> color_filter_data;
-  std::vector<uint8_t> image_filter_data;
-  std::vector<uint8_t> mask_filter_data;
+  BytesPtr color_filter_data;
+  BytesPtr image_filter_data;
+  BytesPtr mask_filter_data;
 };
 
-// Mutable, owning counterpart of ComputedStyle. Variable-length fields are owned
-// as std::vector copies (the FlatBuffer source is transient).
+// Mutable, owning counterpart of ComputedStyle. Deep fields are COW payloads
+// (BytesPtr/FloatsPtr — see RetainedPaint) so the per-frame inheritance
+// scratch copy stays allocation-free.
 struct RetainedComputedStyle {
   RetainedPaint fill;
   RetainedPaint stroke;
@@ -58,9 +69,9 @@ struct RetainedComputedStyle {
   LineJoin stroke_join = LineJoin_MITER;
   float stroke_miter = 4.f;
   // Stroke dash pattern: [on, off, ...] intervals in px + phase offset into the
-  // pattern. Empty = solid stroke. Valid patterns have an even count ≥ 2 and a
+  // pattern. Null = solid stroke. Valid patterns have an even count ≥ 2 and a
   // positive sum (validated by the producer; MakeStrokePaint re-checks).
-  std::vector<float> stroke_dash;
+  FloatsPtr stroke_dash;
   float stroke_dashoffset = 0.f;
   FillRule fill_rule = FillRule_NONZERO;
   // Blend mode applied to both the fill and stroke paints (inheritable).
@@ -68,7 +79,7 @@ struct RetainedComputedStyle {
   float opacity = 1.f;
   Display display = Display_INLINE;
   Visibility visibility = Visibility_VISIBLE;
-  std::vector<uint8_t> transform_data; // JS-built TransformOpList bytes
+  BytesPtr transform_data; // JS-built TransformOpList bytes
 
   // Which PaintField bits were ever set by a SetPaint command — the
   // "explicitly authored" markers driving group→child paint inheritance.
@@ -156,6 +167,14 @@ struct RetainedNode {
   // Tracks are parsed once at apply time; the overlay is rewritten per tick.
   // Base fields above are NEVER touched by the engine.
   RetainedAnimationState anim;
+
+  // ---- Render build-cache invalidation counters (RENDER_ARCHITECTURE §15).
+  // Bumped by the command executor whenever a write touches the corresponding
+  // field family; the render-side cache stamps entries with the values it was
+  // built against (CacheStamp). Animation ticks never bump these — animated
+  // nodes keep hitting the cache while their per-frame scalars compose fresh.
+  uint32_t geom_version = 0;  // path/path_op/points/geometry/clip writes
+  uint32_t paint_version = 0; // paint/filter/transform/image/paragraph writes
 
   std::vector<RetainedNode *> children; // non-owning; owned by RetainedRenderTree
   RetainedNode *parent = nullptr;
@@ -253,6 +272,18 @@ public:
   const RetainedNode *root() const { return root_; }
   const RetainedViewport &viewport() const { return viewport_; }
 
+  // Bumped by every structural command (Insert/Remove/Move). Cache entries
+  // carry the epoch they were built under so a Remove→Insert reusing the same
+  // node id can never validate a stale entry.
+  uint64_t structure_epoch() const { return structure_epoch_; }
+
+  // ---- Render build-cache blob (type-erased so this header stays skity-free;
+  // the typed owner is render_cache.h's RenderCache). Render-thread only;
+  // lifetime = tree lifetime (freed by the custom deleter on destruction).
+  // const: the cache attaches lazily from Draw, which sees the tree as const.
+  void *render_cache() const { return render_cache_.get(); }
+  void set_render_cache(void *cache, void (*deleter)(void *)) const;
+
 private:
   // Structural helpers (Step 2).
   RetainedNode *CreateNode(int32_t id);
@@ -268,6 +299,10 @@ private:
   // Nodes carrying live animation tracks (ids, never pointers — EraseSubtree
   // removes them in the same walk that frees the nodes). Render thread only.
   std::unordered_set<int32_t> animated_ids_;
+  uint64_t structure_epoch_ = 0;
+  // Type-erased RenderCache (render_cache.cc owns the deleter). mutable: the
+  // cache attaches lazily from Draw, which sees the tree as const.
+  mutable std::unique_ptr<void, void (*)(void *)> render_cache_{nullptr, nullptr};
   RetainedNode *root_ = nullptr;
   RetainedViewport viewport_;
 };

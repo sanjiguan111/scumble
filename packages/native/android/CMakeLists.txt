@@ -99,6 +99,9 @@ add_library(skityrender SHARED
   # Native animation engine (ANIMATION_DESIGN.md): easing curves + track
   # parsing/evaluation/tick; the tree-side state lives on RetainedNode.
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/node_animation.cc"
+  # Render build cache (RENDER_ARCHITECTURE.md §15): interned shader/filter
+  # payloads + cached paths/contour-resident trim measures.
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/render_cache.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/easing.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/image_store.cc"
   # TASM→render font bridge for <Paragraph> glyph runs (cross-platform C++;

@@ -897,3 +897,66 @@ graphics `animation.test.ts` (9, read-back via generated TS reader); react
 `animation.test.ts` (5). Dynamic verification: example `AnimationDemo`
 (registered in demos) — trim loop / breathing + color / transform spin /
 finite+forwards, all with zero JS per frame.
+
+## 15. Render build cache (2026-08-25)
+
+The per-frame cost audit found `Draw` rebuilding everything, every frame, on
+every canvas — on a MI 6 (Adreno 540) three animated canvases saturated one
+core of the shared `SkityRenderThread` (70–77%). §15 caches the BUILD
+PRODUCTS, keyed for O(1) invalidation, animated-value-safe.
+
+**Model**: one `RenderCache` per retained tree, attached as the tree's
+type-erased `render_cache` blob (`retained_render_tree.h` stays skity-free;
+lifetime = tree lifetime; per-tree so node ids from different canvases can
+never collide). SkityRenderer reaches it via a frame-local thread_local set
+at `Draw` entry; null means disabled and every consumer falls back to the
+original uncached lane (kept verbatim as the rollback). `SetRenderCacheEnabled`
+is the global kill switch.
+
+**Invalidation contract** (`CacheStamp` = node's two counters + tree epoch):
+
+| write                                                                     | bumps                          | invalidates                                                                                                                                                     |
+| ------------------------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SetPaint / SetPaintFilter / SetTransform / SetImageSource / ParagraphRuns | `paint_version`                | shader/filter/dash interns, folded transform matrix, oval geom keys                                                                                             |
+| SetPathData / SetPathOpData / SetGeometry / SetClip                       | `geom_version`                 | cached paths (+ contours), clip items                                                                                                                           |
+| Insert / Remove / Move                                                    | `structure_epoch_` (tree-wide) | everything — a Remove→Insert reusing an id can never validate a stale entry                                                                                     |
+| SetAnimation / animation ticks                                            | **nothing**                    | the load-bearing invariant: animated nodes keep hitting every cache; only their per-frame scalars (color/alpha/trim window/transform append) are computed fresh |
+
+Oval shapes additionally key on their scalar geometry (cx,cy,rx,ry) — an
+animated radius rewrites the values without bumping any version, so the
+values themselves join the hit check.
+
+**What is cached** (and what is not):
+
+- path/polyline/polygon/circle/ellipse base `skity::Path` (fill type baked
+  in; untrimmed hits feed the canvas by const&);
+- trims: the base splits into per-contour single-contour paths each with a
+  RESIDENT PathMeasure (skity's PathMeasure rebuilds its tables on
+  construction/SetPath, so per-contour residency is the only way an animated
+  window avoids re-subdividing — GetSegment per frame only);
+- gradient shaders (intern by descriptor hash; fill/stroke/paragraph share),
+  filter objects (3 slots), dash path effects (intervals+phase), folded
+  transform matrices (ops → one Matrix; the animation overlay still appends
+  on the canvas), group-clip items (nested path bytes decoded once),
+  paragraph fonts by id (FontRegistry::Find takes a mutex);
+- NOT cached: Paints themselves (cheap to build; animation composes
+  per-frame color/alpha on fresh ones) and skity's per-draw arena copies
+  (upstream, accepted).
+
+**COW style payloads (P3)**: the style deep fields (gradient/filter bytes,
+image-shader uri, dash floats, transform bytes) are `shared_ptr<const T>`
+(`BytesPtr`/`StringPtr`/`FloatsPtr`, null == empty) — the per-node
+inheritance scratch copy went from ~12 heap allocations to refcount bumps.
+Writes (command time, rare) allocate fresh immutable objects.
+
+**Bounds**: path/xform/clip tables are LRU-capped (512 entries each, evict a
+quarter on overflow), intern tables 256/128 — overflow degrades to uncached
+lanes, never errors. Stale-id entries (node removed) die by stamp/epoch miss
+and LRU; no observer on EraseSubtree is needed.
+
+**Stats**: `RenderCacheStats` counts hits/misses per layer (see
+render_cache_core.h); the skew-jank A/B on the MI 6 Animation page measured
+the shared render thread at ~50% median CPU after §15 vs 70–77% before
+(the uncached remainder is skity per-draw arena copies + GetSegment +
+rasterization driver cost; the TransformSpin section stopped dropping
+frames).

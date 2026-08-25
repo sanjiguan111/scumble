@@ -16,6 +16,7 @@ namespace {
 // Forward decl — defined below (after the Apply* helpers). ApplySetPaint uses
 // it to copy the gradient bytes; the definition sits further down in this file.
 void AssignOwnedBytes(const ::flatbuffers::Vector<uint8_t> *src, std::vector<uint8_t> *dst);
+BytesPtr CloneBytes(const ::flatbuffers::Vector<uint8_t> *src); // same story (COW payloads)
 
 // Apply a SetPaint command to a retained node. Only fields whose PaintField bit
 // is set in fields_dirty are written; the rest are left untouched (FlatBuffer
@@ -35,16 +36,18 @@ void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
   }
   if (dirty & PaintField_FILL_GRADIENT) {
     node->style.fill.type = 2; // GRADIENT
-    AssignOwnedBytes(p->fill_gradient(), &node->style.fill.gradient_data);
+    node->style.fill.gradient_data = CloneBytes(p->fill_gradient());
   }
   if (dirty & PaintField_STROKE_GRADIENT) {
     node->style.stroke.type = 2; // GRADIENT
-    AssignOwnedBytes(p->stroke_gradient(), &node->style.stroke.gradient_data);
+    node->style.stroke.gradient_data = CloneBytes(p->stroke_gradient());
   }
   if (dirty & PaintField_FILL_IMAGE_SHADER) {
     const ::flatbuffers::String *uri = p->fill_image_uri();
     node->style.fill.type = (uri != nullptr && uri->size() > 0) ? 3 : 0; // IMAGE_SHADER : NONE
-    node->style.fill.image_shader_uri = uri != nullptr ? uri->str() : std::string();
+    node->style.fill.image_shader_uri = uri != nullptr && uri->size() > 0
+                                            ? std::make_shared<const std::string>(uri->str())
+                                            : nullptr;
     node->style.fill.image_shader_fit = static_cast<uint8_t>(p->fill_image_fit());
     node->style.fill.image_shader_tx = static_cast<uint8_t>(p->fill_image_tx());
     node->style.fill.image_shader_ty = static_cast<uint8_t>(p->fill_image_ty());
@@ -60,7 +63,9 @@ void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
   if (dirty & PaintField_STROKE_IMAGE_SHADER) {
     const ::flatbuffers::String *uri = p->stroke_image_uri();
     node->style.stroke.type = (uri != nullptr && uri->size() > 0) ? 3 : 0;
-    node->style.stroke.image_shader_uri = uri != nullptr ? uri->str() : std::string();
+    node->style.stroke.image_shader_uri = uri != nullptr && uri->size() > 0
+                                              ? std::make_shared<const std::string>(uri->str())
+                                              : nullptr;
     node->style.stroke.image_shader_fit = static_cast<uint8_t>(p->stroke_image_fit());
     node->style.stroke.image_shader_tx = static_cast<uint8_t>(p->stroke_image_tx());
     node->style.stroke.image_shader_ty = static_cast<uint8_t>(p->stroke_image_ty());
@@ -74,14 +79,15 @@ void ApplySetPaint(const SetPaint *p, RetainedNode *node) {
     }
   }
   if (dirty & PaintField_STROKE_DASH) {
-    // Empty/absent vector clears dashes (solid stroke); offset travels with it.
-    node->style.stroke_dash.clear();
+    // Null clears dashes (solid stroke); offset travels with it.
+    auto owned = std::make_shared<std::vector<float>>();
     const auto *dash = p->stroke_dash();
     if (dash != nullptr) {
-      node->style.stroke_dash.reserve(dash->size());
+      owned->reserve(dash->size());
       for (uint32_t i = 0; i < dash->size(); i++)
-        node->style.stroke_dash.push_back(dash->Get(i));
+        owned->push_back(dash->Get(i));
     }
+    node->style.stroke_dash = owned->empty() ? nullptr : std::move(owned);
     node->style.stroke_dashoffset = p->stroke_dashoffset();
   }
   if (dirty & PaintField_STROKE_WIDTH) node->style.stroke_width = p->stroke_width();
@@ -148,6 +154,13 @@ void AssignOwnedBytes(const ::flatbuffers::Vector<uint8_t> *src, std::vector<uin
   } else {
     dst->clear();
   }
+}
+
+// Same, but as an immutable COW payload for the style deep fields (§15 P3):
+// writes are rare (command time), every consumer copies by refcount.
+BytesPtr CloneBytes(const ::flatbuffers::Vector<uint8_t> *src) {
+  if (src == nullptr || src->size() == 0) return nullptr;
+  return std::make_shared<const std::vector<uint8_t>>(src->Data(), src->Data() + src->size());
 }
 
 } // namespace
@@ -226,6 +239,7 @@ void RetainedRenderTree::ApplyParagraphRuns(const uint8_t *data, std::size_t siz
     const ParagraphLayout *entry = entries->Get(i);
     RetainedNode *node = Find(entry->node_id());
     if (node == nullptr) continue;
+    node->paint_version++; // paragraph runs feed per-run paint/font builds
     node->has_paragraph = true;
     node->paragraph.height = entry->height();
     node->paragraph.line_count = entry->line_count();
@@ -270,6 +284,7 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       RetainedNode *node = Find(p->node_id());
       if (node != nullptr) {
         ApplySetPaint(p, node);
+        node->paint_version++; // build-cache invalidation (§15)
         // Animated tracks on the fields this command writes are conflicted —
         // cancel them so the command value takes over (ANIMATION_DESIGN.md D2).
         CancelAnimationsFor(node, PaintDirtyToAnimBits(static_cast<uint32_t>(p->fields_dirty())),
@@ -280,7 +295,10 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
     case Command_SetPathData: {
       const auto *pd = static_cast<const SetPathData *>(obj);
       RetainedNode *node = Find(pd->node_id());
-      if (node != nullptr) AssignOwnedBytes(pd->data(), &node->path_data);
+      if (node != nullptr) {
+        AssignOwnedBytes(pd->data(), &node->path_data);
+        node->geom_version++;
+      }
       break;
     }
     case Command_SetPathOpData: {
@@ -288,7 +306,10 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       RetainedNode *node = Find(po->node_id());
       // Empty/absent vector clears the op payload — the node falls back to its
       // plain path_data.
-      if (node != nullptr) AssignOwnedBytes(po->data(), &node->path_op_data);
+      if (node != nullptr) {
+        AssignOwnedBytes(po->data(), &node->path_op_data);
+        node->geom_version++;
+      }
       break;
     }
     case Command_SetPaintFilter: {
@@ -306,17 +327,17 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       case FilterSlot_IMAGE:
         bit = stroke ? RetainedComputedStyle::kBitStrokeImageFilter
                      : RetainedComputedStyle::kBitFillImageFilter;
-        AssignOwnedBytes(pf->data(), &paint.image_filter_data);
+        paint.image_filter_data = CloneBytes(pf->data());
         break;
       case FilterSlot_MASK:
         bit = stroke ? RetainedComputedStyle::kBitStrokeMaskFilter
                      : RetainedComputedStyle::kBitFillMaskFilter;
-        AssignOwnedBytes(pf->data(), &paint.mask_filter_data);
+        paint.mask_filter_data = CloneBytes(pf->data());
         break;
       default: // COLOR
         bit = stroke ? RetainedComputedStyle::kBitStrokeColorFilter
                      : RetainedComputedStyle::kBitFillColorFilter;
-        AssignOwnedBytes(pf->data(), &paint.color_filter_data);
+        paint.color_filter_data = CloneBytes(pf->data());
         break;
       }
       if (pf->data() != nullptr && pf->data()->size() > 0) {
@@ -324,13 +345,15 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       } else {
         node->style.explicit_paint &= ~bit;
       }
+      node->paint_version++;
       break;
     }
     case Command_SetTransform: {
       const auto *td = static_cast<const SetTransform *>(obj);
       RetainedNode *node = Find(td->node_id());
       if (node != nullptr) {
-        AssignOwnedBytes(td->data(), &node->style.transform_data);
+        node->style.transform_data = CloneBytes(td->data());
+        node->paint_version++; // transform bytes feed the cached base matrix
         // The whole op list is replaced — every transform track conflicts.
         CancelAnimationsFor(node, kTransformAnimBits, &animated_ids_);
       }
@@ -339,7 +362,10 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
     case Command_SetClip: {
       const auto *sc = static_cast<const SetClip *>(obj);
       RetainedNode *node = Find(sc->node_id());
-      if (node != nullptr) AssignOwnedBytes(sc->data(), &node->clip_data);
+      if (node != nullptr) {
+        AssignOwnedBytes(sc->data(), &node->clip_data);
+        node->geom_version++;
+      }
       break;
     }
     case Command_SetImageSource: {
@@ -354,6 +380,7 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
         node->image_mipmap_mode = static_cast<uint8_t>(si->mipmap_mode());
         node->image_cubic_b = si->cubic_b();
         node->image_cubic_c = si->cubic_c();
+        node->paint_version++;
       }
       break;
     }
@@ -372,11 +399,13 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
         // Parent not yet present (out-of-order): node created but unattached;
         // a later batch's Insert/Move will place it.
       }
+      structure_epoch_++;
       break;
     }
     case Command_RemoveNode: {
       const auto *rm = static_cast<const RemoveNode *>(obj);
       EraseSubtree(rm->node_id());
+      structure_epoch_++;
       break;
     }
     case Command_MoveNode: {
@@ -394,6 +423,7 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
         DetachFromParent(node);
         AttachChild(newParent, node, mv->index());
       }
+      structure_epoch_++;
       break;
     }
     case Command_SetGeometry: {
@@ -401,6 +431,7 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       RetainedNode *node = Find(g->node_id());
       if (node != nullptr) {
         ApplySetGeometry(g, node);
+        node->geom_version++;
         CancelAnimationsFor(node, GeometryDirtyToAnimBits(static_cast<uint32_t>(g->fields_dirty())),
                             &animated_ids_);
       }
@@ -421,6 +452,10 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       break;
     }
   }
+}
+
+void RetainedRenderTree::set_render_cache(void *cache, void (*deleter)(void *)) const {
+  render_cache_ = {cache, deleter != nullptr ? deleter : +[](void *) {}};
 }
 
 } // namespace skityrt

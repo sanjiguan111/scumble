@@ -66,12 +66,11 @@ class ExampleApplication : Application() {
         // global skity init, in one place. Backend flip for A/B smoothness
         // testing: GLES (default) vs VULKAN (falls back to GLES when the
         // device can't probe a usable Vulkan context).
-        SkityInit.init(LynxEnv.inst())
-        // SkityInit.init(LynxEnv.inst(), SkityNative.BACKEND_VULKAN)
-        // NOTE: A/B'd 2026-08-25 on a MI 6 (Adreno 540): GL vs Vulkan showed
-        // no perceptible smoothness difference, while the Vulkan backend logs
-        // `Failed to create Vulkan image … -8` (OUT_OF_DEVICE_MEMORY) on this
-        // device — GLES stays the default.
+        SkityInit.init(LynxEnv.inst(), SkityNative.BACKEND_VULKAN)
+        // SkityInit.init(LynxEnv.inst()) // GLES
+        // Vulkan preferred per user request 2026-08-25; SkityInit falls back
+        // to GLES when the device can't probe a usable Vulkan context (this
+        // MI 6 logs image-alloc failures under Vulkan but runs).
         // Dev-mode switches — OFF for smoothness A/B (debug bridge, devtool
         // inspector and LogBox all add per-frame overhead on the Lynx side).
         // LynxEnv.inst().enableLynxDebug(true)

@@ -18,6 +18,7 @@ Pod::Spec.new do |s|
   s.source_files = 'ios/Classes/**/*.{h,m,mm}', 'shared/skity/SkityRenderer.{h,cc}',
                    'shared/skity/retained_render_tree.{h,cc}',
                    'shared/skity/node_animation.{h,cc}', 'shared/skity/easing.{h,cc}',
+                   'shared/skity/render_cache.{h,cc}', 'shared/skity/render_cache_core.h',
                    'shared/skity/image_store.{h,cc}', 'shared/skity/font_registry.{h,cc}',
                    'shared/skity/base64.{h,cc}', 'shared/skity/typeface_cache.{h,cc}'
   s.public_header_files = 'ios/Classes/**/*.h', 'shared/skity/SkityRenderer.h',

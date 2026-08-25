@@ -48,9 +48,25 @@ target_include_directories(animation_test PRIVATE
   ../shared/skity ../shared/skity/generated ../shared/third_party/flatbuffers/include)
 target_link_libraries(animation_test GTest::gtest_main)
 
+# Render build cache (RENDER_ARCHITECTURE.md §15). The core is header-only
+# and skity-free; the version-contract test drives the real tree through
+# FlatBuffer batches (same手法 as animation_test).
+add_executable(render_cache_core_test render_cache_core_test.cc)
+target_include_directories(render_cache_core_test PRIVATE ../shared/skity)
+target_link_libraries(render_cache_core_test GTest::gtest_main)
+
+add_executable(retained_tree_version_test retained_tree_version_test.cc
+  ../shared/skity/node_animation.cc ../shared/skity/easing.cc
+  ../shared/skity/retained_render_tree.cc)
+target_include_directories(retained_tree_version_test PRIVATE
+  ../shared/skity ../shared/skity/generated ../shared/third_party/flatbuffers/include)
+target_link_libraries(retained_tree_version_test GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(line_breaker_test)
 gtest_discover_tests(base64_test)
 gtest_discover_tests(bidi_line_test)
 gtest_discover_tests(easing_test)
 gtest_discover_tests(animation_test)
+gtest_discover_tests(render_cache_core_test)
+gtest_discover_tests(retained_tree_version_test)
