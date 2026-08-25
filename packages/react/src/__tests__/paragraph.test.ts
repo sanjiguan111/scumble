@@ -15,7 +15,7 @@ import { ColorMatrix } from "../filters/filters";
 
 // childElements consumes plain {type, props} objects — no JSX needed.
 // `as never` because a hand-built element literal isn't a real ReactNode.
-const span = (props: Record<string, unknown>) => ({ type: TextSpan, props } as never);
+const span = (props: Record<string, unknown>) => ({ type: TextSpan, props }) as never;
 
 describe("collectSpans", () => {
   it("keeps <TextSpan> children in declaration order and skips everything else", () => {
@@ -51,7 +51,9 @@ describe("resolveSpanText", () => {
 
   it("yields empty text for nested elements / no text at all", () => {
     // Nested elements inside a span are ignored — only plain text is collected.
-    expect(resolveSpanText({ children: ["a", { type: TextSpan, props: {} } as never, "b"] })).toBe("ab");
+    expect(resolveSpanText({ children: ["a", { type: TextSpan, props: {} } as never, "b"] })).toBe(
+      "ab",
+    );
     expect(resolveSpanText({})).toBe("");
   });
 });

@@ -13,8 +13,10 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include "node_animation.h"               // RetainedAnimationState (native animation engine)
 #include "render_tree_common_generated.h" // LineCap/LineJoin/FillRule/Display/Visibility
 #include "render_tree_generated.h" // AspectRatioAlign/AspectRatioMeetOrSlice (RetainedViewport enums)
 
@@ -150,9 +152,68 @@ struct RetainedNode {
   bool has_paragraph = false;
   Paragraph paragraph;
 
+  // Native animation state (SetAnimation command; ANIMATION_DESIGN.md).
+  // Tracks are parsed once at apply time; the overlay is rewritten per tick.
+  // Base fields above are NEVER touched by the engine.
+  RetainedAnimationState anim;
+
   std::vector<RetainedNode *> children; // non-owning; owned by RetainedRenderTree
   RetainedNode *parent = nullptr;
 };
+
+// ---- Animation overlay read accessors (renderer side) ----
+// Overlay value when the slot is set, else the base field. Inline + branch:
+// called once per field per frame on the render thread.
+
+inline float AnimOpacity(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitOpacity) ? n->anim.overlay.opacity
+                                                                : n->style.opacity;
+}
+inline float AnimX(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitX) ? n->anim.overlay.x : n->x;
+}
+inline float AnimY(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitY) ? n->anim.overlay.y : n->y;
+}
+inline float AnimWidth(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitWidth) ? n->anim.overlay.w : n->width;
+}
+inline float AnimHeight(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitHeight) ? n->anim.overlay.h : n->height;
+}
+inline float AnimCX(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitCX) ? n->anim.overlay.cx : n->cx;
+}
+inline float AnimCY(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitCY) ? n->anim.overlay.cy : n->cy;
+}
+inline float AnimR(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitR) ? n->anim.overlay.r : n->r;
+}
+inline float AnimPathStart(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitPathStart) ? n->anim.overlay.path_start
+                                                                  : n->path_start;
+}
+inline float AnimPathEnd(const RetainedNode *n) {
+  return (n->anim.overlay.mask & AnimationOverlay::kBitPathEnd) ? n->anim.overlay.path_end
+                                                                : n->path_end;
+}
+
+// ---- Animation application entry points (animation.cc; called from
+// ApplyCommandBatch's SetAnimation case and the conflict-cancellation hooks) ----
+
+struct SetAnimation; // generated (command_batch_generated.h)
+
+// Install/replace/clear a node's animation tracks (empty data = clear all).
+// Registers the node id in `animated_ids` while any track is live.
+void ApplySetAnimation(const SetAnimation *cmd, RetainedNode *node,
+                       std::unordered_set<int32_t> *animated_ids);
+
+// Cancel tracks whose property bits intersect `property_bits` (built via
+// PaintDirtyToAnimBits / GeometryDirtyToAnimBits / kTransformAnimBits) and
+// clear their overlay slots — a conflicting command takes over the value.
+void CancelAnimationsFor(RetainedNode *node, uint32_t property_bits,
+                         std::unordered_set<int32_t> *animated_ids);
 
 // In-memory viewport state (decoupled from the FlatBuffer ViewBox table).
 struct RetainedViewport {
@@ -182,6 +243,13 @@ public:
   // previous layout (a missing entry is not a clear).
   void ApplyParagraphRuns(const uint8_t *data, std::size_t size);
 
+  // Interpolate every live animation track to `now_ns` (a vsync frame
+  // timestamp; the driver owns the clock). Returns true when anything is
+  // still live OR finished on this very frame — i.e. "draw this frame". A
+  // false return means the tree is fully idle (the driver stops). Render
+  // thread only. Implemented in animation.cc.
+  bool TickAnimations(uint64_t now_ns);
+
   const RetainedNode *root() const { return root_; }
   const RetainedViewport &viewport() const { return viewport_; }
 
@@ -197,6 +265,9 @@ private:
   // id → owning node. Owns every RetainedNode; `children`/`root_` are raw
   // pointers into these.
   std::unordered_map<int32_t, std::unique_ptr<RetainedNode>> node_map_;
+  // Nodes carrying live animation tracks (ids, never pointers — EraseSubtree
+  // removes them in the same walk that frees the nodes). Render thread only.
+  std::unordered_set<int32_t> animated_ids_;
   RetainedNode *root_ = nullptr;
   RetainedViewport viewport_;
 };

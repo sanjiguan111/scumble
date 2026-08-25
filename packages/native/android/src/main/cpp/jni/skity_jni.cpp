@@ -132,6 +132,17 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyCommands(
   env->ReleaseByteArrayElements(commands, bytes, JNI_ABORT);
 }
 
+// Native animation tick — render thread only (the tree is single-threaded by
+// contract). Returns whether any track is still live (the driver redraws on
+// true and stops the Choreographer loop when every session goes idle).
+JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeTickAnimations(
+    JNIEnv * /*env*/, jclass /*clazz*/, jlong handle, jlong now_nanos) {
+  auto *renderer = FromHandle(handle);
+  return renderer != nullptr && renderer->TickAnimations(static_cast<uint64_t>(now_nanos))
+             ? JNI_TRUE
+             : JNI_FALSE;
+}
+
 // <Paragraph> glyph-run snapshot — applied on the render thread right after
 // the batch of the same flush (the runs reference nodes the batch inserts).
 JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyParagraphRuns(

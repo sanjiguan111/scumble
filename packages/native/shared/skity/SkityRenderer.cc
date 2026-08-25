@@ -230,8 +230,9 @@ void TrimPath(Path &path, float start, float end) {
   if (!trimmed.IsEmpty()) path = trimmed;
 }
 
-void ApplyTransform(const RetainedComputedStyle *style, Canvas *canvas) {
-  if (style == nullptr) return;
+void ApplyTransform(const RetainedNode *node, Canvas *canvas) {
+  if (node == nullptr) return;
+  const RetainedComputedStyle *style = &node->style;
   // Transform ops come as a nested FlatBuffer (TransformOpList) built on the JS
   // side; native only memcpys the bytes. See RENDER_ARCHITECTURE.md §5.
   const TransformOpList *tlist = nullptr;
@@ -291,6 +292,24 @@ void ApplyTransform(const RetainedComputedStyle *style, Canvas *canvas) {
     default:
       break;
     }
+  }
+  // Animated transform components APPEND after the base ops (post-multiply,
+  // D1): the overlay holds resolved scalars, so the JS-built TransformOpList
+  // bytes are never rebuilt per frame.
+  const AnimationOverlay &ov = node->anim.overlay;
+  if (ov.mask & (AnimationOverlay::kBitTranslateX | AnimationOverlay::kBitTranslateY)) {
+    canvas->Translate((ov.mask & AnimationOverlay::kBitTranslateX) ? ov.tx : 0.f,
+                      (ov.mask & AnimationOverlay::kBitTranslateY) ? ov.ty : 0.f);
+  }
+  if (ov.mask & AnimationOverlay::kBitRotate) {
+    canvas->Translate(ov.pivot_x, ov.pivot_y);
+    canvas->Rotate(ov.rotate);
+    canvas->Translate(-ov.pivot_x, -ov.pivot_y);
+  }
+  if (ov.mask & AnimationOverlay::kBitScaleXY) {
+    canvas->Translate(ov.pivot_x, ov.pivot_y);
+    canvas->Scale(ov.sx, ov.sy);
+    canvas->Translate(-ov.pivot_x, -ov.pivot_y);
   }
 }
 
@@ -668,10 +687,10 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
   float opacity = style != nullptr ? style->opacity : 1.f;
 
   if (tag == "rect") {
-    float w = node->width;
-    float h = node->height;
+    float w = AnimWidth(node);
+    float h = AnimHeight(node);
     if (w <= 0.f || h <= 0.f) return;
-    Rect rect = Rect::MakeXYWH(node->x, node->y, w, h);
+    Rect rect = Rect::MakeXYWH(AnimX(node), AnimY(node), w, h);
     float rx = node->rx;
     float ry = node->ry;
     bool round = rx > 0.f || ry > 0.f;
@@ -688,14 +707,14 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
             : canvas->DrawRect(rect, strokePaint);
     }
   } else if (tag == "circle") {
-    float r = node->r;
+    float r = AnimR(node);
     if (r <= 0.f) return;
     Paint fillPaint;
     if (MakeFillPaint(style, opacity, gpu_context, &fillPaint))
-      canvas->DrawCircle(node->cx, node->cy, r, fillPaint);
+      canvas->DrawCircle(AnimCX(node), AnimCY(node), r, fillPaint);
     Paint strokePaint;
     if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
-      canvas->DrawCircle(node->cx, node->cy, r, strokePaint);
+      canvas->DrawCircle(AnimCX(node), AnimCY(node), r, strokePaint);
   } else if (tag == "ellipse") {
     float rx = node->rx;
     float ry = node->ry;
@@ -714,7 +733,7 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     }
   } else if (tag == "path") {
     Path path = BuildPath(node, false);
-    TrimPath(path, node->path_start, node->path_end);
+    TrimPath(path, AnimPathStart(node), AnimPathEnd(node));
     if (style != nullptr && style->fill_rule == FillRule_EVENODD) {
       path.SetFillType(Path::PathFillType::kEvenOdd);
     }
@@ -725,7 +744,7 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
       canvas->DrawPath(path, strokePaint);
   } else if (tag == "polyline" || tag == "polygon") {
     Path path = BuildPath(node, tag == "polygon");
-    TrimPath(path, node->path_start, node->path_end);
+    TrimPath(path, AnimPathStart(node), AnimPathEnd(node));
     if (style != nullptr && style->fill_rule == FillRule_EVENODD) {
       path.SetFillType(Path::PathFillType::kEvenOdd);
     }
@@ -739,14 +758,14 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     // uri); pending/failed/missing all mean "draw nothing this frame" — the
     // store write triggers another draw, so the image just appears late.
     if (gpu_context == nullptr || node->image_uri.empty()) return;
-    if (node->width <= 0.f || node->height <= 0.f) return;
+    if (AnimWidth(node) <= 0.f || AnimHeight(node) <= 0.f) return;
     std::shared_ptr<skity::Image> image =
         ImageStore::Instance().FindImage(node->image_uri, gpu_context);
     if (image == nullptr) return;
     Rect src, dst;
-    ApplyBoxFit(node->image_fit, static_cast<float>(image->Width()),
-                static_cast<float>(image->Height()),
-                Rect::MakeXYWH(node->x, node->y, node->width, node->height), &src, &dst);
+    ApplyBoxFit(
+        node->image_fit, static_cast<float>(image->Width()), static_cast<float>(image->Height()),
+        Rect::MakeXYWH(AnimX(node), AnimY(node), AnimWidth(node), AnimHeight(node)), &src, &dst);
     if (src.IsEmpty() || dst.IsEmpty()) return;
     Paint paint;
     MakeImagePaint(style, opacity, &paint);
@@ -764,7 +783,7 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     if (!node->has_paragraph) return;
     if (node->paragraph.runs.empty()) return;
     canvas->Save();
-    canvas->Translate(node->x, node->y);
+    canvas->Translate(AnimX(node), AnimY(node));
     // Node-level fill (explicit or inherited) rides every run: skity's glyph
     // atlas path natively renders gradient shaders and color filters through
     // the A8 mask. Image-shader fills (type 3) and image/mask filters are
@@ -900,7 +919,7 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
   if (style.visibility != Visibility_VISIBLE) return;
 
   canvas->Save();
-  ApplyTransform(&style, canvas);
+  ApplyTransform(node, canvas);
   // TODO(skity): precise group opacity via saveLayer; for now opacity is folded
   // into each paint's color alpha (approximate — fine for leaves, lossy for
   // groups with overlapping children).
@@ -908,6 +927,13 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
   RetainedComputedStyle scratch; // eff storage when this node overrides anything
   const RetainedComputedStyle *eff = &inherited;
   uint32_t explicitPaint = style.explicit_paint;
+  // Animated paint slots act as if explicitly authored (D1): they enter the
+  // same inheritance merge below, so an animated fill under a styled group
+  // wins instead of being overridden (the explicit_paint trap).
+  const AnimationOverlay &ov = node->anim.overlay;
+  if (ov.mask & AnimationOverlay::kBitFillColor) explicitPaint |= PaintField_FILL;
+  if (ov.mask & AnimationOverlay::kBitStrokeColor) explicitPaint |= PaintField_STROKE;
+  if (ov.mask & AnimationOverlay::kBitOpacity) explicitPaint |= PaintField_OPACITY;
   if (explicitPaint != 0) {
     scratch = inherited;
     if (explicitPaint & (PaintField_FILL | PaintField_FILL_GRADIENT | PaintField_FILL_IMAGE_SHADER))
@@ -943,7 +969,19 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
     if (explicitPaint & PaintField_FILL_RULE) scratch.fill_rule = style.fill_rule;
     if (explicitPaint & PaintField_BLEND_MODE) scratch.blend_mode = style.blend_mode;
     // Opacity multiplies down the tree (only when explicitly authored).
-    if (explicitPaint & PaintField_OPACITY) scratch.opacity *= style.opacity;
+    if (explicitPaint & PaintField_OPACITY)
+      scratch.opacity *= (ov.mask & AnimationOverlay::kBitOpacity) ? ov.opacity : style.opacity;
+    // Animated colors override AFTER the inheritance merge: the base paint
+    // (gradient bytes, filters) still comes from the node/inherited state,
+    // only the color+type are animated.
+    if (ov.mask & AnimationOverlay::kBitFillColor) {
+      scratch.fill.type = 1; // COLOR
+      scratch.fill.color = ov.fill;
+    }
+    if (ov.mask & AnimationOverlay::kBitStrokeColor) {
+      scratch.stroke.type = 1;
+      scratch.stroke.color = ov.stroke;
+    }
     eff = &scratch;
   }
 

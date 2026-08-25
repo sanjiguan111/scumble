@@ -4,6 +4,7 @@
 import { buildClipList, bytesToBase64 } from "@lynx-skity/graphics";
 
 import { findClipSpecs } from "./internal/clip";
+import { resolveAnimation } from "./internal/animation";
 import { resolvePaint } from "./internal/paint";
 import { resolveTransform } from "./internal/transform";
 import type { GroupProps } from "./types";
@@ -40,11 +41,12 @@ import type { GroupProps } from "./types";
  *   <Circle cx={50} cy={40} radius={45} />
  * </Group>
  */
-export function Group({ transform, children, ...rest }: GroupProps) {
+export function Group({ animate, transform, children, ...rest }: GroupProps) {
   const clipBytes = buildClipList(findClipSpecs(children));
   return (
     <skity-group
       transform={resolveTransform(transform)}
+      animationData={resolveAnimation(animate)}
       clip={clipBytes ? bytesToBase64(clipBytes) : undefined}
       {...resolvePaint(rest, children)}
     >

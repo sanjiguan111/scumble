@@ -209,6 +209,18 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     types.push_back(skityrt::Command_SetClip);
     node.dirtyClip = NO;
   }
+  if (node.dirtyAnimation) {
+    // Empty/absent payload clears the node's animations on the render side.
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
+    if (node.animationData.length > 0) {
+      dataOff =
+          fbb.CreateVector((const uint8_t *)node.animationData.bytes, node.animationData.length);
+    }
+    auto off = skityrt::CreateSetAnimation(fbb, node.nativeId, dataOff);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetAnimation);
+    node.dirtyAnimation = NO;
+  }
   if (node.dirtyImage) {
     flatbuffers::Offset<flatbuffers::String> uriOff = 0;
     if (node.imageUri.length > 0) {

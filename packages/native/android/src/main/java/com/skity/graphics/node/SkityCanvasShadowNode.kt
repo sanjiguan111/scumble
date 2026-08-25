@@ -16,6 +16,7 @@ import com.skity.graphics.skityrt.CommandBatch
 import com.skity.graphics.skityrt.InsertNode
 import com.skity.graphics.skityrt.MoveNode
 import com.skity.graphics.skityrt.RemoveNode
+import com.skity.graphics.skityrt.SetAnimation
 import com.skity.graphics.skityrt.SetClip
 import com.skity.graphics.skityrt.SetGeometry
 import com.skity.graphics.skityrt.SetPaint
@@ -359,6 +360,14 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       offsets += SetClip.createSetClip(fbb, node.nativeId, off)
       types += Command.SetClip
       node.dirtyClip = false
+    }
+    if (node.dirtyAnimation) {
+      // Empty/absent payload clears the node's animations on the render side.
+      val data = node.animationData
+      val off = if (data != null && data.isNotEmpty()) SetAnimation.createDataVector(fbb, data) else 0
+      offsets += SetAnimation.createSetAnimation(fbb, node.nativeId, off)
+      types += Command.SetAnimation
+      node.dirtyAnimation = false
     }
     if (node.dirtyImage) {
       val uri = node.imageUri

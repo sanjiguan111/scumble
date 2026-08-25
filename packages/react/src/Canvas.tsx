@@ -1,6 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
+import { resolveAnimation } from "./internal/animation";
 import type { CanvasProps } from "./types";
 
 /**
@@ -24,7 +25,7 @@ import type { CanvasProps } from "./types";
  *   <Rect x={5} y={5} width={40} height={40} color="red" />
  * </Canvas>
  */
-export function Canvas({ children, style, viewPort }: CanvasProps) {
+export function Canvas({ children, style, viewPort, animate }: CanvasProps) {
   return (
     <skity-canvas
       style={style}
@@ -32,6 +33,7 @@ export function Canvas({ children, style, viewPort }: CanvasProps) {
       viewportY={viewPort?.y}
       viewportWidth={viewPort?.width}
       viewportHeight={viewPort?.height}
+      animationData={resolveAnimation(animate)}
     >
       {children}
     </skity-canvas>

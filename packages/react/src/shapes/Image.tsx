@@ -3,6 +3,7 @@
 
 import { parseFit, parseImageFilterMode, parseImageMipmapMode } from "@lynx-skity/graphics";
 
+import { resolveAnimation } from "../internal/animation";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { ImageProps } from "../types";
@@ -76,7 +77,7 @@ export function normalizeImageProps(props: ImageProps): NormalizedImageSource | 
  * <Image image={image} x={0} y={0} width={300} height={200} fit="cover" />
  * <Image image={image} width={300} height={200} sampling={{ filter: "nearest" }} />
  */
-export function Image({ transform, children, ...rest }: ImageProps) {
+export function Image({ animate, transform, children, ...rest }: ImageProps) {
   const n = normalizeImageProps(rest);
   if (n === null) return null;
   const { uri, ...geometry } = n;
@@ -84,6 +85,7 @@ export function Image({ transform, children, ...rest }: ImageProps) {
     <skity-image
       image={uri}
       transform={resolveTransform(transform)}
+      animationData={resolveAnimation(animate)}
       {...geometry}
       {...resolvePaint(rest, children)}
     />

@@ -33,6 +33,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// SkityImageLoader.mm) invoke this directly; others go through postDraw.
 - (void)drawIfReady;
 
+/// Native animation tick — render-queue only (SkityAnimationDriver dispatches
+/// there before calling). Redraws this frame when live; reports liveness so
+/// the driver can stop when every canvas goes idle.
+- (BOOL)tickAnimations:(uint64_t)nowNs;
+
 /// Release this session. The shared render queue is not torn down.
 - (void)destroy;
 

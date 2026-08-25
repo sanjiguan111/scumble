@@ -96,6 +96,10 @@ add_library(skityrender SHARED
   src/main/cpp/jni/skity_jni.cpp
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/SkityRenderer.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/retained_render_tree.cc"
+  # Native animation engine (ANIMATION_DESIGN.md): easing curves + track
+  # parsing/evaluation/tick; the tree-side state lives on RetainedNode.
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/node_animation.cc"
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/easing.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/image_store.cc"
   # TASM→render font bridge for <Paragraph> glyph runs (cross-platform C++;
   # the TASM side registers, DrawShape's paragraph branch reads).

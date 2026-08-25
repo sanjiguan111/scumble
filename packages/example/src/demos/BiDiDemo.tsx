@@ -21,13 +21,21 @@ export function BiDiDemo() {
         </Paragraph>
       </DemoSection>
 
-      <DemoSection title="auto 首强字符检测" caption="阿语/希伯来语开头自动按 RTL 处理" height={120}>
+      <DemoSection
+        title="auto 首强字符检测"
+        caption="阿语/希伯来语开头自动按 RTL 处理"
+        height={120}
+      >
         <Paragraph x={10} y={10} width={330} fontSize={16} direction="auto">
           <TextSpan text={HE_MIXED} />
         </Paragraph>
       </DemoSection>
 
-      <DemoSection title="LTR 中的 RTL 片段" caption="不设 direction:嵌段原地内部反转,位置不动" height={70}>
+      <DemoSection
+        title="LTR 中的 RTL 片段"
+        caption="不设 direction:嵌段原地内部反转,位置不动"
+        height={70}
+      >
         <Paragraph x={10} y={10} width={330} fontSize={15}>
           <TextSpan text="Hello " />
           <TextSpan text="مرحبا" color="#3b82f6" fontWeight={700} />

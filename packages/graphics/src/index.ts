@@ -86,3 +86,6 @@ export * from "./filter";
 // Paragraph: styled span specs → nested SpanList FlatBuffer bytes (the
 // <Paragraph> layout input).
 export * from "./paragraph";
+// Animation: track specs → nested AnimationList FlatBuffer bytes (render-side
+// per-vsync interpolation — ANIMATION_DESIGN.md).
+export * from "./animation";

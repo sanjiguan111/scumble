@@ -70,6 +70,15 @@
   slot->ApplyParagraphRuns(static_cast<const uint8_t *>(runs.bytes), runs.length);
 }
 
+// Native animation tick (ANIMATION_DESIGN.md D4). Render queue ONLY — the
+// driver dispatches there before calling; the tree is single-threaded by
+// contract. Returns whether anything on this tree is still animating.
+- (BOOL)tickAnimations:(uint64_t)nowNs treeKey:(NSInteger)treeKey {
+  auto it = _retainedTrees.find(static_cast<intptr_t>(treeKey));
+  if (it == _retainedTrees.end() || it->second == nullptr) return NO;
+  return it->second->TickAnimations(nowNs) ? YES : NO;
+}
+
 - (void)drawLayer:(CAMetalLayer *)layer
           treeKey:(NSInteger)treeKey
         viewportW:(uint32_t)w

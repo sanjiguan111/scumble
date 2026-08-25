@@ -33,7 +33,24 @@ target_link_libraries(base64_test GTest::gtest_main)
 add_executable(bidi_line_test bidi_line_test.cc ../shared/skity/bidi_line.cc)
 target_link_libraries(bidi_line_test GTest::gtest_main)
 
+# Native animation engine (ANIMATION_DESIGN.md): easing curves, then the
+# full track/tick lifecycle through the retained tree (FlatBuffer batches
+# built in-test, synthetic frame timestamps).
+add_executable(easing_test easing_test.cc ../shared/skity/easing.cc)
+target_include_directories(easing_test PRIVATE
+  ../shared/skity ../shared/skity/generated ../shared/third_party/flatbuffers/include)
+target_link_libraries(easing_test GTest::gtest_main)
+
+add_executable(animation_test animation_test.cc
+  ../shared/skity/node_animation.cc ../shared/skity/easing.cc
+  ../shared/skity/retained_render_tree.cc)
+target_include_directories(animation_test PRIVATE
+  ../shared/skity ../shared/skity/generated ../shared/third_party/flatbuffers/include)
+target_link_libraries(animation_test GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(line_breaker_test)
 gtest_discover_tests(base64_test)
 gtest_discover_tests(bidi_line_test)
+gtest_discover_tests(easing_test)
+gtest_discover_tests(animation_test)

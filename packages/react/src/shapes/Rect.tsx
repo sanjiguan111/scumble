@@ -1,6 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
+import { resolveAnimation } from "../internal/animation";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { RectProps } from "../types";
@@ -12,7 +13,7 @@ import type { RectProps } from "../types";
  * <Rect x={10} y={10} width={80} height={50} color="#ff0000" />
  * <Rect width={100} height={100} color="#000" style="stroke" strokeWidth={2} />
  */
-export function Rect({ x, y, width, height, transform, children, ...rest }: RectProps) {
+export function Rect({ x, y, width, height, animate, transform, children, ...rest }: RectProps) {
   return (
     <skity-rect
       x={x ?? 0}
@@ -20,6 +21,7 @@ export function Rect({ x, y, width, height, transform, children, ...rest }: Rect
       width={width}
       height={height}
       transform={resolveTransform(transform)}
+      animationData={resolveAnimation(animate)}
       {...resolvePaint(rest, children)}
     />
   );

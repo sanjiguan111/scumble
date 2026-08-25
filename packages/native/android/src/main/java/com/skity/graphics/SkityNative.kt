@@ -55,6 +55,15 @@ object SkityNative {
   @JvmStatic
   external fun nativeApplyCommands(handle: Long, commands: ByteArray)
 
+  /**
+   * Interpolate the retained tree's animation tracks to `nowNanos` (a vsync
+   * frame timestamp) and report whether anything is still live (the driver
+   * redraws on true and stops the vsync loop when every session goes idle).
+   * MUST be called on the active backend's render thread.
+   */
+  @JvmStatic
+  external fun nativeTickAnimations(handle: Long, nowNanos: Long): Boolean
+
   /** Apply a <Paragraph> ParagraphRunList snapshot to the retained tree.
    * Called on the render thread right after the batch of the same flush —
    * the runs reference nodes the batch inserts. */

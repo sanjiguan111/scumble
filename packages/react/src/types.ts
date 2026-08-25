@@ -80,10 +80,24 @@ export interface GraphicProps {
    * {@link TransformProp}.
    */
   transform?: TransformProp;
+  /**
+   * Declarative native animations — one track per property, many tracks per
+   * node (`{ property, from, to, duration, easing, loop… }`). The tracks ride
+   * the command stream once; the render thread interpolates them per vsync
+   * (zero JS work per frame — ANIMATION_DESIGN.md). `null`/`false` entries in
+   * an array are filtered; an EMPTY array (or `null`) CLEARS the node's
+   * animations.
+   */
+  animate?: AnimationProp;
   /** Child shaders (e.g. `<LinearGradient>`) and `<Paint>` overrides consumed
    * by the shape's paint. */
   children?: ReactNode;
 }
+
+/** One animation track spec (see {@link GraphicProps.animate}). */
+export type AnimationSpec = import("@lynx-skity/graphics").AnimationTrackSpec;
+/** A single track, or several (with `null`/`false` holes filtered out). */
+export type AnimationProp = AnimationSpec | (AnimationSpec | null | false)[] | null;
 
 /** A 2D point — the shape returned by {@link vec}. */
 export type Vec = { x: number; y: number };
@@ -580,4 +594,9 @@ export interface CanvasProps {
    * (`preserveAspectRatio = xMidYMid meet`). Omit for 1:1 physical pixels.
    */
   viewPort?: { x?: number; y?: number; width: number; height: number };
+  /**
+   * Declarative native animations on the canvas ROOT node (whole-canvas
+   * transform/opacity). Same semantics as {@link GraphicProps.animate}.
+   */
+  animate?: AnimationProp;
 }

@@ -176,3 +176,80 @@ table Filter {
   matrix:[float]; // COLOR_MATRIX: 20 row-major
   children:[Filter]; // IMAGE_COMPOSE (may nest further composes)
 }
+
+// ---- Native animation (JS-built AnimationList, memcpy'd by native) ----
+// A declarative animation description. The JS side never evaluates frames
+// (there is no synchronous channel back, and per-frame JS is exactly what
+// this removes): the render thread parses the tracks once and interpolates
+// them per vsync into a per-node AnimationOverlay — the base fields are
+// never touched (see ANIMATION_DESIGN.md). One track animates exactly one
+// property; a node may carry many tracks.
+
+enum AnimatedProperty : byte {
+  OPACITY     = 0,
+  TRANSLATE_X = 1,
+  TRANSLATE_Y = 2,
+  ROTATE      = 3,  // degrees, around the (cx, cy) pivot
+  SCALE_XY    = 4,  // value = sx, value2 = sy, around the (cx, cy) pivot
+  PATH_START  = 5,  // trim window start, normalized [0,1]
+  PATH_END    = 6,  // trim window end, normalized [0,1]
+  FILL_COLOR   = 7, // color slot, 0xAARRGGBB
+  STROKE_COLOR = 8, // color slot, 0xAARRGGBB
+  X      = 9,
+  Y      = 10,
+  WIDTH  = 11,
+  HEIGHT = 12,
+  CX     = 13,
+  CY     = 14,
+  R      = 15,
+}
+
+enum EasingKind : byte {
+  LINEAR       = 0,
+  EASE_IN      = 1, // cubic-bezier(0.42, 0, 1, 1)
+  EASE_OUT     = 2, // cubic-bezier(0, 0, 0.58, 1)
+  EASE_IN_OUT  = 3, // cubic-bezier(0.42, 0, 0.58, 1)
+  CUBIC_BEZIER = 4, // control points from the keyframe/track fields
+  STEP_START   = 5, // jump to the target at segment start
+  STEP_END     = 6, // hold the source until segment end
+}
+
+enum FillMode : byte {
+  NONE     = 0, // overlay slot cleared on end → value returns to base
+  FORWARDS = 1, // final value pinned in the overlay; the driver still stops
+}
+
+table Keyframe {
+  // Position within ONE iteration, normalized [0,1]; the producer
+  // normalizes so the first keyframe is 0 and the last is 1.
+  offset:float = 0;
+  value:float = 0;  // scalar slot (opacity / tx / rotate deg / trim / geometry)
+  value2:float = 0; // secondary scalar: SCALE_XY's sy
+  color:uint = 0;   // 0xAARRGGBB: FILL_COLOR / STROKE_COLOR
+  // Easing of the segment STARTING at this keyframe (overrides the track
+  // default).
+  easing:EasingKind = LINEAR;
+  // CUBIC_BEZIER control points (read only when easing == CUBIC_BEZIER);
+  // defaults are the ease-in-out preset.
+  p1x:float = 0.42;
+  p1y:float = 0;
+  p2x:float = 0.58;
+  p2y:float = 1;
+}
+
+table AnimationTrack {
+  property:AnimatedProperty = OPACITY;
+  duration:uint = 300;       // ms per iteration
+  delay:uint = 0;            // ms before the first iteration
+  iterations:int = 1;        // -1 = infinite
+  auto_reverse:bool = false; // even iterations forward, odd reversed
+  fill:FillMode = NONE;
+  easing:EasingKind = LINEAR; // track default; per-keyframe easing wins
+  keyframes:[Keyframe];       // >= 2, offsets ascending
+  cx:float = 0;               // ROTATE / SCALE_XY pivot
+  cy:float = 0;
+}
+
+table AnimationList {
+  tracks:[AnimationTrack];
+}

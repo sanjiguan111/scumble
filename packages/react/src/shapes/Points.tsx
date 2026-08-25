@@ -3,6 +3,7 @@
 
 import { Path2D, bytesToBase64, parsePoints } from "@lynx-skity/graphics";
 
+import { resolveAnimation } from "../internal/animation";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { PointsMode, PointsProp, PointsProps } from "../types";
@@ -44,7 +45,14 @@ export function pointsToPathBytes(points: PointsProp, mode: PointsMode): ArrayBu
  * <Points points={dots} mode="lines" color="#f00" strokeWidth={2} />
  * <Points points={samples} mode="polygon" color="#22c55e" strokeWidth={4} />
  */
-export function Points({ points, mode = "points", transform, children, ...rest }: PointsProps) {
+export function Points({
+  points,
+  mode = "points",
+  animate,
+  transform,
+  children,
+  ...rest
+}: PointsProps) {
   const bytes = pointsToPathBytes(points, mode);
   // Zero-length segments need a cap to be visible; default to round dots
   // unless the caller chose a cap explicitly.
@@ -56,6 +64,7 @@ export function Points({ points, mode = "points", transform, children, ...rest }
     <skity-path
       d={bytes ? bytesToBase64(bytes) : undefined}
       transform={resolveTransform(transform)}
+      animationData={resolveAnimation(animate)}
       {...resolvePaint(withCap, children, "stroke")}
     />
   );

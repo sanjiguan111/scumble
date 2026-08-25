@@ -103,6 +103,9 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var strokeMaskFilterData: ByteArray? = null
   // Group clip sequence (JS-built ClipList bytes; null = no clip).
   @JvmField var clipData: ByteArray? = null
+  // Native animation tracks (JS-built AnimationList bytes; null/empty =
+  // clear all animations on the node).
+  @JvmField var animationData: ByteArray? = null
   // Image node source: the uri doubles as the ImageStore key and the platform
   // loader request. Empty/null = no source (node draws nothing).
   @JvmField var imageUri: String? = null
@@ -142,6 +145,7 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var dirtyFilter: Int = 0
   @JvmField var dirtyTransform: Boolean = false
   @JvmField var dirtyClip: Boolean = false
+  @JvmField var dirtyAnimation: Boolean = false
   @JvmField var dirtyImage: Boolean = false
 
   /** Paint filter slot bitmask (which of the six *FilterData slots is dirty). */
@@ -513,6 +517,20 @@ abstract class SkityNodeBase : ShadowNode() {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     clipData = if (decoded.isNotEmpty()) decoded else null
     dirtyClip = true
+    markDirty()
+  }
+
+  // Native animation tracks: base64-encoded JS-built AnimationList bytes. An
+  // empty payload clears all animations on the node (render-thread
+  // interpolation; the TASM side only forwards the description —
+  // ANIMATION_DESIGN.md). Nullable: Lynx invokes setters with null on the
+  // mount/teardown paths — that's a no-op, NOT a clear (an explicit clear is
+  // the empty string, which resolveAnimation emits for animate={null}/[]).
+  @LynxProp(name = "animationData") fun setAnimationData(v: String?) {
+    if (v == null) return
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    animationData = if (decoded.isNotEmpty()) decoded else null
+    dirtyAnimation = true
     markDirty()
   }
 

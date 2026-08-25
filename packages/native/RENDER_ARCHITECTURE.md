@@ -827,3 +827,73 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
 - ~~BiDi/RTL~~ — done (2026-08-21): `direction` prop (ltr/rtl/auto) +
   SheenBidi on Android, CoreText `BaseWritingDirection` on iOS (above).
 - Justification — out of scope per the design, revisit with a real case.
+
+## 14. Native animation engine (2026-08-25)
+
+Design doc: `ANIMATION_DESIGN.md` (status now: **implemented**). Summary of
+what shipped, as-built:
+
+**Command**: `SetAnimation` (13th `Command` union member) carries JS-built
+`AnimationList` bytes (nested FlatBuffer, memcpy'd like SetClip) — one track
+per property, many tracks per node. First-batch properties (16):
+opacity / translateX / translateY / rotate / scale (sx+sy) / pathStart /
+pathEnd / fillColor / strokeColor / x / y / width / height / cx / cy / r.
+React API: `animate={{ property, from, to, duration, easing, loop… }}` on
+every shape + `Group` + `Canvas` (`resolveAnimation` → base64 `animationData`
+prop — named `animationData`, NOT `animation`: Lynx's StandardProps reserves
+`animation` for its own CSS shape).
+
+**Overlay model (base fields are never written)**: `ApplySetAnimation`
+(shared/skity/node_animation.cc) parses tracks into C++ structs on the node
+(`RetainedNode::anim`). Every tick interpolates and writes a fixed-size
+`AnimationOverlay`; the renderer reads through base-fallback accessors
+(`AnimOpacity` etc. in retained_render_tree.h). Consequences:
+
+- fill=none ends by clearing the slot (value returns to base); fill=forwards
+  pins the terminal value (`finished`+`holding`) — CSS-like semantics for free.
+- A conflicting command wins: `ApplySetPaint`/`ApplySetGeometry`/`SetTransform`
+  call `CancelAnimationsFor` with the dirty-bit → overlay-bit maps
+  (`PaintDirtyToAnimBits` / `GeometryDirtyToAnimBits` / `kTransformAnimBits`).
+- Transform tracks store resolved components; `ApplyTransform` APPENDS them
+  after the base TransformOpList ops (the JS-built bytes are never rebuilt).
+- Animated fill/stroke/opacity enter the inheritance merge as if explicitly
+  authored (`DrawNode` sets the explicitPaint bits + local style copy) — the
+  explicit_paint trap from the design doc.
+
+**Frame driver (stop-on-idle)**: vsync clock on the platform layer, tick body
+on each render thread (never off it):
+
+- Android (`render/SkityAnimationDriver.kt`): `Choreographer.postFrameCallback`
+  on the main thread forwards to EACH session's render handler — GL and Vulkan
+  sessions live on different threads, so the driver fans `scheduleTick(now,
+onDone)` out and funnels the results; one frame in flight; a frame where no
+  session reports live ends the loop. Sessions call
+  `SkityNative.nativeTickAnimations(handle, nowNs)` (JNI → `AppRenderer::
+TickAnimations`) and redraw when live.
+- iOS (`Render/SkityAnimationDriver.{h,mm}`): CADisplayLink on the main runloop
+  forwards to the single `SkityMetalContext.renderQueue`; every session ticks
+  (`tickAnimations:treeKey:`); a fully idle frame invalidates the link.
+  `inFlight` drops frames while a tick block is still queued.
+- Arming: `applyCommands` ends with `driver.wakeUp()` — a batch may install
+  animations while the driver is stopped.
+- Timestamps come from the frame callback itself (`frameTimeNanos` /
+  `targetTimestamp`); the clock origin is the first tick after apply.
+
+**Easing** (`shared/skity/easing.{h,cc}`): LINEAR / EASE_* (cubic-bezier
+presets) / CUBIC_BEZIER (bisection, ≤24 iters) / STEP_START / STEP_END. The
+JS builder (`@lynx-skity/graphics` `buildAnimationList`) resolves from/to
+sugar, evens out offsets, pins 0/1 — and resolves the per-keyframe easing
+fallback (FlatBuffer defaults can't express "inherit the track default", so
+the fallback resolves in JS; native takes keyframe easing as final).
+
+**Header-name trap**: the engine core lives in `node_animation.{h,cc}` (not
+`animation.h`) — CocoaPods header maps resolve a bare `#include "animation.h"`
+against the Lynx pod's `core/animation/animation.h` first.
+
+**Tests**: host-side `tests/animation_test.cc` (12: delay freeze, iteration
+fold, infinite, autoReverse, fill none/forwards, conflict cancel, replace,
+clear, RemoveNode safety, multi-track, multi-keyframe) + `easing_test.cc` (7);
+graphics `animation.test.ts` (9, read-back via generated TS reader); react
+`animation.test.ts` (5). Dynamic verification: example `AnimationDemo`
+(registered in demos) — trim loop / breathing + color / transform spin /
+finite+forwards, all with zero JS per frame.

@@ -3,6 +3,7 @@
 
 import { Path2D, bytesToBase64, parseFillRule, parsePath } from "@lynx-skity/graphics";
 
+import { resolveAnimation } from "../internal/animation";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { PathProps } from "../types";
@@ -28,7 +29,16 @@ import type { PathProps } from "../types";
  * const mask = Path2D.op(circle, square, "difference");
  * <Path path={mask} color="#3b82f6" />
  */
-export function Path({ path, fillRule, start, end, transform, children, ...rest }: PathProps) {
+export function Path({
+  path,
+  fillRule,
+  start,
+  end,
+  animate,
+  transform,
+  children,
+  ...rest
+}: PathProps) {
   // An op-composed Path2D serializes to a PathOpList (separate `op` prop);
   // everything else goes down the plain PathCommandList channel.
   const opBytes = typeof path === "string" ? null : path.toOpBytes();
@@ -42,6 +52,7 @@ export function Path({ path, fillRule, start, end, transform, children, ...rest 
       pathStart={start}
       pathEnd={end}
       transform={resolveTransform(transform)}
+      animationData={resolveAnimation(animate)}
       {...resolvePaint(rest, children)}
     />
   );

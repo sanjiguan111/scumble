@@ -149,6 +149,10 @@ enum SkityPaintFilterField {
 @property(nonatomic, strong, nullable) NSData *strokeMaskFilterData;
 /// Group clip sequence (JS-built ClipList bytes; nil = no clip).
 @property(nonatomic, strong, nullable) NSData *clipData;
+/// Native animation tracks (JS-built AnimationList bytes; nil/empty = clear
+/// all animations on the node). The render thread interpolates per vsync —
+/// the TASM side only forwards the description (ANIMATION_DESIGN.md).
+@property(nonatomic, strong, nullable) NSData *animationData;
 /// Image node source: the uri doubles as the ImageStore key and the platform
 /// loader request. Empty/nil = no source (node draws nothing).
 @property(nonatomic, copy, nullable) NSString *imageUri;
@@ -164,10 +168,10 @@ enum SkityPaintFilterField {
 /// paragraph-level style. Layout happens on the TASM thread inside the canvas
 /// measure pass; the glyph runs ride the extra bundle's runs key.
 @property(nonatomic, strong, nullable) NSData *paragraphSpansData;
-@property(nonatomic, assign) uint8_t paragraphAlign;    // 0=left 1=center 2=right
+@property(nonatomic, assign) uint8_t paragraphAlign;     // 0=left 1=center 2=right
 @property(nonatomic, assign) uint8_t paragraphDirection; // 0=ltr 1=rtl 2=auto (first-strong)
-@property(nonatomic, assign) float paragraphLineHeight; // multiplier; 0 = 1
-@property(nonatomic, assign) int32_t paragraphMaxLines; // 0 = unlimited
+@property(nonatomic, assign) float paragraphLineHeight;  // multiplier; 0 = 1
+@property(nonatomic, assign) int32_t paragraphMaxLines;  // 0 = unlimited
 @property(nonatomic, assign) BOOL dirtyParagraph;
 
 // Phase 2: stable node id assigned by the canvas node for the retained tree.
@@ -187,6 +191,7 @@ enum SkityPaintFilterField {
 @property(nonatomic, assign) BOOL dirtyTransform;
 @property(nonatomic, assign) BOOL dirtyClip;
 @property(nonatomic, assign) BOOL dirtyImage;
+@property(nonatomic, assign) BOOL dirtyAnimation;
 
 // Phase 2 Step 2: structural hooks. Lynx has no "move" primitive — a move is a
 // remove + insert, which the canvas merges into a MoveNode (same id, same batch).

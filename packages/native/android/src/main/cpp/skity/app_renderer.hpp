@@ -41,6 +41,11 @@ public:
   // runs reference nodes the batch inserts.
   void ApplyParagraphRuns(const uint8_t *data, std::size_t size);
 
+  // Native animation: interpolate the tree's tracks to `now_ns` (a vsync frame
+  // timestamp). True while anything is live — the driver redraws on true and
+  // stops when every session goes idle (ANIMATION_DESIGN.md D4).
+  bool TickAnimations(uint64_t now_ns);
+
 private:
   std::unique_ptr<RenderBackend> backend_;
   skityrt::RetainedRenderTree retained_tree_;

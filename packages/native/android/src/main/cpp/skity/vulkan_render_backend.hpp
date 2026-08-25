@@ -43,7 +43,7 @@ private:
   uint32_t height_ = 0;
   std::unique_ptr<skity::GPUContext> context_;
   std::unique_ptr<skity::GPUNativeWindowVK> native_window_;
-  VkPresentModeKHR present_mode_ = VK_PRESENT_MODE_FIFO_KHR;
+  VkPresentModeKHR present_mode_ = VK_PRESENT_MODE_MAILBOX_KHR;
   uint32_t min_image_count_ = 2;
 };
 

@@ -89,6 +89,7 @@ LYNX_PROPS_GROUP_DECLARE(
     // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
     // payload clears the clip.
     LYNX_PROP_DECLARE("clip", setClip:, NSString *),
+    LYNX_PROP_DECLARE("animationData", setAnimationData:, NSString *),
     // Image node source uri (http(s) URL / data URI); an empty string clears
     // the source. Setting it also fires the platform image load.
     LYNX_PROP_DECLARE("image", setImage:, NSString *),
@@ -414,6 +415,18 @@ LYNX_PROP_SETTER("clip", setClip, NSString *) {
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _clipData = decoded.length > 0 ? decoded : nil;
   _dirtyClip = YES;
+  [self setNeedsLayout];
+}
+
+LYNX_PROP_SETTER("animationData", setAnimationData, NSString *) {
+  // Mirror the Android setter's null contract: Lynx fires setters with nil on
+  // mount/teardown paths — no-op (an explicit clear is the empty string).
+  if (value == nil) return;
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _animationData = decoded.length > 0 ? decoded : nil;
+  _dirtyAnimation = YES;
   [self setNeedsLayout];
 }
 

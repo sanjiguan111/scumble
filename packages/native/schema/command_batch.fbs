@@ -75,6 +75,7 @@ union Command {
   SetPathOpData,// path boolean ops: PathOpList bytes, evaluated at render time
   SetPaintFilter,// one paint-filter slot: nested Filter bytes (fill/stroke × color/image/mask)
   SetImageSource,// image node: source uri + fit (pixels arrive via the platform image loader)
+  SetAnimation, // native animation tracks: nested AnimationList bytes (render-thread interpolation)
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; the paint is
@@ -300,6 +301,16 @@ table SetImageSource {
   mipmap_mode:ImageMipmapMode = NONE;
   cubic_b:float = 0;
   cubic_c:float = 0;
+}
+
+// Node animation tracks (JS-built AnimationList bytes, memcpy'd like
+// SetClip). The render thread parses the tracks once and interpolates them
+// per vsync into a per-node overlay — the base fields are never touched
+// (see ANIMATION_DESIGN.md). An empty/absent data vector clears ALL
+// animations on the node.
+table SetAnimation {
+  node_id:int = -1;
+  data:[ubyte] (nested_flatbuffer: "AnimationList");
 }
 
 table CommandBatch {

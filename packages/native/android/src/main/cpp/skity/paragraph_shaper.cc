@@ -242,8 +242,9 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
   SBCodepointSequence sequence = {SBStringEncodingUTF32, fullText.data(),
                                   (SBUInteger)fullText.size()};
   SBAlgorithmRef algorithm = SBAlgorithmCreate(&sequence);
-  const SBLevel requestedLevel =
-      direction == 1 ? (SBLevel)1 : direction == 2 ? SBLevelDefaultLTR : (SBLevel)0;
+  const SBLevel requestedLevel = direction == 1   ? (SBLevel)1
+                                 : direction == 2 ? SBLevelDefaultLTR
+                                                  : (SBLevel)0;
   SBParagraphRef paragraph =
       algorithm != nullptr
           ? SBAlgorithmCreateParagraph(algorithm, 0, (SBUInteger)fullText.size(), requestedLevel)
@@ -305,7 +306,8 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     for (uint32_t bs = st.cpStart; bs < spanEnd;) {
       const uint8_t level = levelAt(bs);
       uint32_t be = bs + 1;
-      while (be < spanEnd && levelAt(be) == level) be++;
+      while (be < spanEnd && levelAt(be) == level)
+        be++;
       const hb_direction_t dir = (level & 1) != 0 ? HB_DIRECTION_RTL : HB_DIRECTION_LTR;
 
       // …then into fallback-homogeneous runs: a char stays on `base` while it
@@ -351,7 +353,8 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
   }
   // The bidi-coordinate view of the glyph stream (parallel to `glyphs`).
   std::vector<uint32_t> glyphCp(glyphs.size());
-  for (size_t i = 0; i < glyphs.size(); i++) glyphCp[i] = glyphs[i].cpIndex;
+  for (size_t i = 0; i < glyphs.size(); i++)
+    glyphCp[i] = glyphs[i].cpIndex;
 
   // 2) Line breaking over the glyph stream. Empty glyph content falls
   // through — see the note above the serialization: a 0-run entry must still
@@ -411,8 +414,8 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     // leftmost first. `cpEnd` anchors on the NEXT line's first glyph so the
     // two lines' code-point ranges tile without cluster gaps.
     const uint32_t cpStart = glyphs[start].cpIndex;
-    const uint32_t cpEnd = li < lastLineIndex ? glyphs[lines[li + 1].first].cpIndex
-                                              : glyphs[end - 1].cpIndex + 1;
+    const uint32_t cpEnd =
+        li < lastLineIndex ? glyphs[lines[li + 1].first].cpIndex : glyphs[end - 1].cpIndex + 1;
     std::vector<uint32_t> order;
     if (paragraph != nullptr && cpEnd > cpStart) {
       SBLineRef sbLine = SBParagraphCreateLine(paragraph, cpStart, cpEnd - cpStart);
@@ -431,14 +434,16 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     if (order.empty() && end > start) {
       // No bidi data (SheenBidi unavailable / empty line) — logical order,
       // which equals visual order for a pure-LTR paragraph.
-      for (uint32_t i = start; i < end; i++) order.push_back(i);
+      for (uint32_t i = start; i < end; i++)
+        order.push_back(i);
     }
 
     // Visual width excludes the space run at the line's VISUAL edge — right
     // for an LTR paragraph, left for RTL (the logical tail either way). The
     // excluded spaces still render, off-margin.
     float lineWidth = 0.f;
-    for (uint32_t i : order) lineWidth += glyphs[i].advance;
+    for (uint32_t i : order)
+      lineWidth += glyphs[i].advance;
     size_t head = 0, tail = order.size();
     if (rtlBase) {
       while (head < tail && breakChars[order[head]].cls == BreakClass::kSpace) {
@@ -506,8 +511,7 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     auto emitEllipsis = [&]() {
       const ShapedGlyph &g = glyphs[ellGlyphIdx];
       const uint32_t fontId = FontRegistry::Instance().Register(g.typeface, g.fontSize);
-      outRuns.push_back(
-          OutRun{fontId, g.color, {(uint16_t)ellGlyph}, {x0 + cursor}, {baseline}});
+      outRuns.push_back(OutRun{fontId, g.color, {(uint16_t)ellGlyph}, {x0 + cursor}, {baseline}});
       cursor += ellAdvance;
     };
     if (hasEllipsis && rtlBase) emitEllipsis();

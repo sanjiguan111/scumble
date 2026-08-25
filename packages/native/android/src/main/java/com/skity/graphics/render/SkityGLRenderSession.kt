@@ -75,6 +75,8 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
         SkityNative.nativeApplyCommands(rendererHandle, commands)
       }
       drawIfReady()
+      // The batch may have installed animations while the driver was idle.
+      SkityAnimationDriver.wakeUp()
     }
   }
 
@@ -101,6 +103,15 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
 
   override fun postRedraw() {
     renderHandler.post { drawIfReady() }
+  }
+
+  override fun scheduleTick(nowNanos: Long, onDone: (Boolean) -> Unit) {
+    renderHandler.post {
+      val live =
+          rendererHandle != 0L && SkityNative.nativeTickAnimations(rendererHandle, nowNanos)
+      if (live) drawIfReady()
+      onDone(live)
+    }
   }
 
   override fun detachSurface() {

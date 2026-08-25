@@ -47,6 +47,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// flush's applyCommandBatch (runs reference nodes the batch inserts).
 - (void)applyParagraphRuns:(NSData *)runs treeKey:(NSInteger)treeKey;
 
+/// Native animation tick (ANIMATION_DESIGN.md D4): interpolate the tree's
+/// animation tracks to `nowNs` (a vsync frame timestamp). Render queue ONLY.
+/// Returns whether anything is still live — the driver redraws on YES and
+/// invalidates the display link when every session goes idle.
+- (BOOL)tickAnimations:(uint64_t)nowNs treeKey:(NSInteger)treeKey;
+
 - (void)drawLayer:(CAMetalLayer *)layer
           treeKey:(NSInteger)treeKey
         viewportW:(uint32_t)w

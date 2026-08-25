@@ -198,13 +198,16 @@ void RetainedRenderTree::EraseSubtree(int32_t id) {
   RetainedNode *node = it->second.get();
   DetachFromParent(node);
   if (node == root_) root_ = nullptr;
-  // Collect the whole subtree's ids, then erase from node_map_ (unique_ptr frees).
+  // Collect the whole subtree's ids, then erase from node_map_ (unique_ptr
+  // frees). Animation ids leave the live set in the same walk — ids only,
+  // never pointers, so nothing dangles.
   std::vector<int32_t> ids;
   std::vector<RetainedNode *> stack{node};
   while (!stack.empty()) {
     RetainedNode *n = stack.back();
     stack.pop_back();
     ids.push_back(n->id);
+    animated_ids_.erase(n->id);
     for (RetainedNode *c : n->children)
       stack.push_back(c);
   }
@@ -265,7 +268,13 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
     case Command_SetPaint: {
       const auto *p = static_cast<const SetPaint *>(obj);
       RetainedNode *node = Find(p->node_id());
-      if (node != nullptr) ApplySetPaint(p, node);
+      if (node != nullptr) {
+        ApplySetPaint(p, node);
+        // Animated tracks on the fields this command writes are conflicted —
+        // cancel them so the command value takes over (ANIMATION_DESIGN.md D2).
+        CancelAnimationsFor(node, PaintDirtyToAnimBits(static_cast<uint32_t>(p->fields_dirty())),
+                            &animated_ids_);
+      }
       break;
     }
     case Command_SetPathData: {
@@ -320,7 +329,11 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
     case Command_SetTransform: {
       const auto *td = static_cast<const SetTransform *>(obj);
       RetainedNode *node = Find(td->node_id());
-      if (node != nullptr) AssignOwnedBytes(td->data(), &node->style.transform_data);
+      if (node != nullptr) {
+        AssignOwnedBytes(td->data(), &node->style.transform_data);
+        // The whole op list is replaced — every transform track conflicts.
+        CancelAnimationsFor(node, kTransformAnimBits, &animated_ids_);
+      }
       break;
     }
     case Command_SetClip: {
@@ -386,7 +399,17 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
     case Command_SetGeometry: {
       const auto *g = static_cast<const SetGeometry *>(obj);
       RetainedNode *node = Find(g->node_id());
-      if (node != nullptr) ApplySetGeometry(g, node);
+      if (node != nullptr) {
+        ApplySetGeometry(g, node);
+        CancelAnimationsFor(node, GeometryDirtyToAnimBits(static_cast<uint32_t>(g->fields_dirty())),
+                            &animated_ids_);
+      }
+      break;
+    }
+    case Command_SetAnimation: {
+      const auto *sa = static_cast<const SetAnimation *>(obj);
+      RetainedNode *node = Find(sa->node_id());
+      if (node != nullptr) ApplySetAnimation(sa, node, &animated_ids_);
       break;
     }
     case Command_SetViewport: {

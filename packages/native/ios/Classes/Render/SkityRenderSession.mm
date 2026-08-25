@@ -3,6 +3,7 @@
 
 #import "SkityRenderSession.h"
 
+#import "SkityAnimationDriver.h"
 #import "SkityImageLoader.h"
 #import "SkityMetalContext.h"
 #import <UIKit/UIScreen.h>
@@ -28,6 +29,8 @@
     // redraw this session without a Lynx layout pass (weak table: removal is
     // automatic once the session deallocs).
     [SkityImageLoaderRegistry addSession:self];
+    // Register for animation ticks (weak table, same cleanup story).
+    [SkityAnimationDriver registerSession:self];
   }
   return self;
 }
@@ -60,6 +63,8 @@
       [strongSelf.context applyParagraphRuns:runData treeKey:strongSelf.treeKey];
     }
     [strongSelf drawIfReady];
+    // The batch may have installed animations while the driver was idle.
+    [SkityAnimationDriver wakeUp];
   });
 }
 
@@ -78,6 +83,8 @@
       [strongSelf.context applyCommandBatch:cmds treeKey:strongSelf.treeKey];
     }
     [strongSelf drawIfReady];
+    // The batch may have installed animations while the driver was idle.
+    [SkityAnimationDriver wakeUp];
   });
 }
 
@@ -87,6 +94,15 @@
     __strong __typeof__(weakSelf) strongSelf = weakSelf;
     [strongSelf drawIfReady];
   });
+}
+
+// Native animation tick — render queue ONLY (the driver dispatches there
+// before calling). Redraws this frame when live; reports liveness so the
+// driver can stop the display link when every canvas goes idle.
+- (BOOL)tickAnimations:(uint64_t)nowNs {
+  BOOL live = [self.context tickAnimations:nowNs treeKey:self.treeKey];
+  if (live) [self drawIfReady];
+  return live;
 }
 
 - (void)drawIfReady {

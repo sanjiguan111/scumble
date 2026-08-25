@@ -76,6 +76,14 @@ export interface SkityPaintProps {
   /** BlendMode byte (skityrt::BlendMode == skity::BlendMode order); shared by
    *  the fill and stroke paints. */
   blendMode?: number;
+  /**
+   * Base64-encoded AnimationList bytes (@lynx-skity/graphics) — native
+   * animation tracks for this node, interpolated per vsync on the render
+   * thread (ANIMATION_DESIGN.md). Empty string clears all animations. (Named
+   * animationData, not animation — Lynx's StandardProps reserves `animation`
+   * for its own CSS-animation shape.)
+   */
+  animationData?: string;
 }
 
 export interface SkityCommonProps extends StandardProps, SkityPaintProps {}

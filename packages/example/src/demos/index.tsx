@@ -14,6 +14,7 @@ import { ParagraphDemo } from "./ParagraphDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
 import { PathOpsDemo } from "./PathOpsDemo";
+import { AnimationDemo } from "./AnimationDemo";
 import { PathsDemo } from "./PathsDemo";
 import { ShapesDemo } from "./ShapesDemo";
 import { TransformDemo } from "./TransformDemo";
@@ -48,6 +49,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "SVG d · Path2D · arc · trim",
     accent: "#22c55e",
     render: () => <PathsDemo />,
+  },
+  {
+    key: "animation",
+    title: "Animation",
+    subtitle: "native interpolation · zero JS per frame",
+    accent: "#f97316",
+    render: () => <AnimationDemo />,
   },
   {
     key: "pathops",

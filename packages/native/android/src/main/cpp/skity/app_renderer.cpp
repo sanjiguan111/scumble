@@ -74,4 +74,8 @@ void AppRenderer::ApplyParagraphRuns(const uint8_t *data, std::size_t size) {
   retained_tree_.ApplyParagraphRuns(data, size);
 }
 
+bool AppRenderer::TickAnimations(uint64_t now_ns) {
+  return retained_tree_.TickAnimations(now_ns);
+}
+
 } // namespace lynxskity

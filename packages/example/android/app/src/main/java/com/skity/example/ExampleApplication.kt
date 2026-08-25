@@ -18,6 +18,7 @@ import com.lynx.tasm.service.LynxServiceCenter
 import com.skity.example.modules.LynxNodeAPIModule
 import com.skity.example.modules.SimpleModule
 import com.skity.graphics.SkityInit
+import com.skity.graphics.SkityNative
 
 class ExampleApplication : Application() {
     override fun onCreate() {
@@ -62,14 +63,20 @@ class ExampleApplication : Application() {
         LynxEnv.inst().registerModule("SimpleModule", SimpleModule::class.java)
         LynxEnv.inst().registerModule("LynxNodeAPI", LynxNodeAPIModule::class.java)
         // Register skity elements (skity-canvas + virtual shapes) + future
-        // global skity init, in one place.
+        // global skity init, in one place. Backend flip for A/B smoothness
+        // testing: GLES (default) vs VULKAN (falls back to GLES when the
+        // device can't probe a usable Vulkan context).
         SkityInit.init(LynxEnv.inst())
-        // Turn on Lynx Debug
-        LynxEnv.inst().enableLynxDebug(true)
-        // Turn on Lynx DevTool
-        LynxEnv.inst().enableDevtool(true)
-        // Turn on Lynx LogBox
-        LynxEnv.inst().enableLogBox(true)
+        // SkityInit.init(LynxEnv.inst(), SkityNative.BACKEND_VULKAN)
+        // NOTE: A/B'd 2026-08-25 on a MI 6 (Adreno 540): GL vs Vulkan showed
+        // no perceptible smoothness difference, while the Vulkan backend logs
+        // `Failed to create Vulkan image … -8` (OUT_OF_DEVICE_MEMORY) on this
+        // device — GLES stays the default.
+        // Dev-mode switches — OFF for smoothness A/B (debug bridge, devtool
+        // inspector and LogBox all add per-frame overhead on the Lynx side).
+        // LynxEnv.inst().enableLynxDebug(true)
+        // LynxEnv.inst().enableDevtool(true)
+        // LynxEnv.inst().enableLogBox(true)
         // Create a Handler associated with the main thread's Looper
         val mainHandler = Handler(Looper.getMainLooper())
         // Register OpenCard for Lynx DevTool

@@ -29,4 +29,13 @@ interface SkityRenderSession {
    * [applyCommands].
    */
   fun postRedraw()
+
+  /**
+   * Native animation tick (ANIMATION_DESIGN.md D4): posts to THIS session's
+   * render thread, interpolates the retained tree's animation tracks to
+   * `nowNanos` (the Choreographer frame timestamp), redraws when live, then
+   * reports whether anything is still animating. The driver funnels results
+   * and stops the vsync loop when every session goes idle.
+   */
+  fun scheduleTick(nowNanos: Long, onDone: (Boolean) -> Unit)
 }

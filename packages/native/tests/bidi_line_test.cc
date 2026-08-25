@@ -18,8 +18,8 @@ using skityrt::BidiRun;
 using skityrt::BuildLineVisualOrder;
 
 // Convenience: glyphs identified by their full-text code-point index.
-std::vector<uint32_t> OrderFor(const std::vector<uint32_t> &glyphCp, uint32_t start,
-                               uint32_t end, std::vector<BidiRun> runs) {
+std::vector<uint32_t> OrderFor(const std::vector<uint32_t> &glyphCp, uint32_t start, uint32_t end,
+                               std::vector<BidiRun> runs) {
   return BuildLineVisualOrder(glyphCp, start, end, runs.data(), runs.size());
 }
 
