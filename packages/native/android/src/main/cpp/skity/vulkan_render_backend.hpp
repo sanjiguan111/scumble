@@ -41,7 +41,10 @@ private:
   ANativeWindow *native_window_handle_ = nullptr;
   uint32_t width_ = 0;
   uint32_t height_ = 0;
-  std::unique_ptr<skity::GPUContext> context_;
+  // Reference into the process-wide shared Vulkan context (see
+  // vulkan_render_backend.cc) — one logical device per process, not per
+  // canvas; released when the last backend goes away.
+  std::shared_ptr<skity::GPUContext> context_;
   std::unique_ptr<skity::GPUNativeWindowVK> native_window_;
   VkPresentModeKHR present_mode_ = VK_PRESENT_MODE_MAILBOX_KHR;
   uint32_t min_image_count_ = 2;

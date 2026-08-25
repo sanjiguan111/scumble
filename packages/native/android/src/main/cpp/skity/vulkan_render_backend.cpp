@@ -12,6 +12,23 @@
 
 namespace lynxskity {
 
+namespace {
+
+// Process-wide shared Vulkan GPUContext — mirrors the GL side's
+// SharedGLContext, as a refcounted C++ singleton instead of a Kotlin-held
+// handle. Every Vulkan session runs on the single SkityVulkanRenderThread,
+// so create/teardown stay single-threaded: first use builds the instance +
+// logical device, the last released backend tears it down. One device for
+// the whole process instead of one per canvas (per-canvas devices multiply
+// driver memory and were implicated in GPU exhaustion on repeated page
+// churn).
+std::shared_ptr<skity::GPUContext> &SharedVKContext() {
+  static std::shared_ptr<skity::GPUContext> context;
+  return context;
+}
+
+} // namespace
+
 std::unique_ptr<RenderBackend> CreateVulkanRenderBackend() {
   return std::make_unique<VulkanRenderBackend>();
 }
@@ -36,10 +53,15 @@ bool VulkanRenderBackend::EnsureContext() {
   if (context_ != nullptr) {
     return true;
   }
-  skity::GPUContextInfoVK context_info = {};
-  context_info.get_instance_proc_addr = vkGetInstanceProcAddr;
-  context_info.enable_debug_runtime = false; // MVP: no validation
-  context_ = skity::CreateGPUContextVK(&context_info);
+  std::shared_ptr<skity::GPUContext> &shared = SharedVKContext();
+  if (shared == nullptr) {
+    skity::GPUContextInfoVK context_info = {};
+    context_info.get_instance_proc_addr = vkGetInstanceProcAddr;
+    context_info.enable_debug_runtime = false; // MVP: no validation
+    shared = skity::CreateGPUContextVK(&context_info);
+  }
+  // Adopt a reference; releasing the last backend releases the device.
+  context_ = shared;
   return context_ != nullptr;
 }
 
