@@ -1,5 +1,5 @@
-import { Circle, Group, Rect } from "@gesso/react";
-import type { BlendMode } from "@gesso/react";
+import { Circle, Group, Rect } from "@scumble/react";
+import type { BlendMode } from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 

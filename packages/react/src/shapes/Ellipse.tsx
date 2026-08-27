@@ -16,7 +16,7 @@ import type { EllipseProps } from "../types";
  */
 export function Ellipse({ cx, cy, rx, ry, animate, transform, children, ...rest }: EllipseProps) {
   return (
-    <gesso-ellipse
+    <scumble-ellipse
       cx={cx ?? 0}
       cy={cy ?? 0}
       rx={rx}

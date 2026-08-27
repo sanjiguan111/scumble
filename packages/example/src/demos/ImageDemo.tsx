@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "@lynx-js/react";
 
-import { Group, Image, Rect, useImage, type Fit, type ImageSamplingOptions } from "@gesso/react";
+import { Group, Image, Rect, useImage, type Fit, type ImageSamplingOptions } from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 
@@ -13,7 +13,7 @@ import { DemoSection } from "../components/DemoSection";
 const QUADRANT_PNG =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAcElEQVR42u3QMQEAIAwDsApDIsIQgZchowc5YiCZZJpyygQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgIAPArJmN81NlQABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIEPBBwAP+Bc3Swt5TugAAAABJRU5ErkJggg==";
 
-const REMOTE_URL = "https://picsum.photos/seed/gesso/300/200";
+const REMOTE_URL = "https://picsum.photos/seed/scumble/300/200";
 
 const FITS: { fit: Fit; caption: string }[] = [
   { fit: "fill", caption: "拉伸变形" },

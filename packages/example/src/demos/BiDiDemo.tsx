@@ -2,7 +2,7 @@
 // with SheenBidi + HarfBuzz visual-order shaping; iOS rides CoreText's
 // built-in UAX #9. textAlign stays physical — left/right are screen edges.
 
-import { Paragraph, TextSpan } from "@gesso/react";
+import { Paragraph, TextSpan } from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 

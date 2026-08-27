@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { Circle, Group, Path, Rect } from "@gesso/react";
+import { Circle, Group, Path, Rect } from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 

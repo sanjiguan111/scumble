@@ -1,4 +1,4 @@
-# @gesso/native Render Architecture & Roadmap
+# @scumble/native Render Architecture & Roadmap
 
 > Status: basic rendering + data flow are working (Android OpenGL ES/Vulkan + iOS Metal, green on 2026-08-07).
 > This document captures the **functional-development phase**: target architecture, design principles, and work breakdown. **Phase 2 (retained render tree + command stream) is implemented** — see §11 for status & roadmap.
@@ -21,25 +21,25 @@ Following this line, the ownership of every attribute falls out naturally. The d
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  @gesso/react        @gesso/vue           │  framework wrapper layer (separate npm pkgs)
+│  @scumble/react        @scumble/vue           │  framework wrapper layer (separate npm pkgs)
 │  <Circle fill="#fff"/>    <Circle fill="#fff"/>      │  ergonomics / defaults / ref / animation
 └───────────────┬───────────────────┬─────────────────┘
                 │   shared parsing    │
         ┌───────▼───────────────────▼─────────┐
-        │  @gesso/graphics (pure JS, no    │  parser/normalizer shared layer
+        │  @scumble/graphics (pure JS, no    │  parser/normalizer shared layer
         │  framework) color→int · path d→...   │  React/Vue don't reinvent it
         │  transform→... · gradient            │
         └───────┬───────────────────────────────┘
                 │  produces "primitive values" (int/float/ArrayBuffer)
         ┌───────▼───────────────────────────────────────┐
-        │  @gesso/native (base contract layer,     │  intrinsic tags + elements.ts types
+        │  @scumble/native (base contract layer,     │  intrinsic tags + elements.ts types
         │  framework-agnostic)                           │  native accepts int/float/base64-string,
-        │  <gesso-circle cx cy r fill=0xAARRGGBB>        │  zero string parsing
+        │  <scumble-circle cx cy r fill=0xAARRGGBB>        │  zero string parsing
         │  ─── FlatBuffer skityrt::RenderTree ───────────│
         └─────────────────────────────────────────────────┘
 ```
 
-Dependency direction is a single directed acyclic chain: `@gesso/{react,vue}` → `@gesso/graphics` → `@gesso/native` (tag contract).
+Dependency direction is a single directed acyclic chain: `@scumble/{react,vue}` → `@scumble/graphics` → `@scumble/native` (tag contract).
 
 ## 3. Responsibility split
 
@@ -78,9 +78,9 @@ The schema lives in `packages/native/schema/render_tree*.fbs` (namespace `skityr
 
 ## 5. Binary serialization
 
-`@gesso/graphics` parses strings/objects and produces FlatBuffer bytes. Lynx component props marshal `NSNumber` / `NSString` / `NSArray` but **not** binary (`NSData` / `byte[]`), so the bytes are **base64-encoded** (`bytesToBase64`, hand-written — Lynx JSC has no `btoa`) and carried as a string prop. The native setter base64-decodes (`-[NSData initWithBase64EncodedString:]` / `android.util.Base64.decode`) then does a **mechanical copy** into the FlatBuffer vector — the decode is an encoding conversion, not structure parsing, so "native never parses" still holds.
+`@scumble/graphics` parses strings/objects and produces FlatBuffer bytes. Lynx component props marshal `NSNumber` / `NSString` / `NSArray` but **not** binary (`NSData` / `byte[]`), so the bytes are **base64-encoded** (`bytesToBase64`, hand-written — Lynx JSC has no `btoa`) and carried as a string prop. The native setter base64-decodes (`-[NSData initWithBase64EncodedString:]` / `android.util.Base64.decode`) then does a **mechanical copy** into the FlatBuffer vector — the decode is an encoding conversion, not structure parsing, so "native never parses" still holds.
 
-**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList` / `PathOpList` / `Filter`) by `@gesso/graphics` using `flatbuffers.js`, and passed in as `[ubyte]` blobs (base64 over the wire).
+**Nested-FlatBuffer approach**: path / transform / (later gradient / shader) are built directly as standalone FlatBuffers (`PathCommandList` / `TransformOpList` / `PathOpList` / `Filter`) by `@scumble/graphics` using `flatbuffers.js`, and passed in as `[ubyte]` blobs (base64 over the wire).
 
 - **schema**: wrapper tables + `RenderNode.path_data` / `ComputedStyle.transform_data`, annotated `(nested_flatbuffer: "...")`
 - **front end**: parsers build finished FlatBuffer bytes using `flatc --ts` stubs + the `flatbuffers` runtime, then `bytesToBase64`
@@ -91,13 +91,13 @@ Why nested flatbuffer over a custom wire format: the native side is fully free o
 
 > The flatbuffers TS runtime is **vendored from the habitat source** (`generate-fbs` copies `shared/third_party/flatbuffers/ts/` → `packages/graphics/src/generated/flatbuffers/`, adds `@ts-nocheck`, excludes flexbuffers, clears the dir before each run), not an npm dependency — flatc (`25.12.19`) and the stub/runtime must match versions exactly, the same reason Android consumes the flatbuffers Java runtime from source rather than maven. Stub imports are rewritten from `'flatbuffers'` to the vendored `'../flatbuffers/flatbuffers.js'`.
 
-> **`@gesso/graphics` is consumed as a tsc-built `dist/`** (`pnpm --filter @gesso/graphics build`), not as raw source. The vendored `flatbuffers.ts` re-exports type-only symbols (`Offset`/`Table`/interfaces) from `types.js`; tsc whole-program erases those re-exports at emit time, but a bundler (rspack/swc, `isolatedModules`) cannot, so raw source fails to link under rspeedy (`module has no exports`). The build keeps `isolatedModules` off deliberately; Lynx packages stay source-only and import the compiled `dist`.
+> **`@scumble/graphics` is consumed as a tsc-built `dist/`** (`pnpm --filter @scumble/graphics build`), not as raw source. The vendored `flatbuffers.ts` re-exports type-only symbols (`Offset`/`Table`/interfaces) from `types.js`; tsc whole-program erases those re-exports at emit time, but a bundler (rspack/swc, `isolatedModules`) cannot, so raw source fails to link under rspeedy (`module has no exports`). The build keeps `isolatedModules` off deliberately; Lynx packages stay source-only and import the compiled `dist`.
 
-> **Lynx JSC lacks `TextEncoder` / `TextDecoder`** (web APIs). The vendored flatbuffers runtime instantiates them in its `Builder` / `ByteBuffer` constructors, so `parsePath` / `parseTransform` would otherwise throw at builder construction and blank the page. `@gesso/graphics`'s entry installs a hand-written polyfill; the nested FlatBuffers carry only numbers, so `encode` is effectively unused.
+> **Lynx JSC lacks `TextEncoder` / `TextDecoder`** (web APIs). The vendored flatbuffers runtime instantiates them in its `Builder` / `ByteBuffer` constructors, so `parsePath` / `parseTransform` would otherwise throw at builder construction and blank the page. `@scumble/graphics`'s entry installs a hand-written polyfill; the nested FlatBuffers carry only numbers, so `encode` is effectively unused.
 
 ## 6. Viewport coordinate system (SVG viewBox semantics)
 
-A front-end `width={100}` is a **logical pixel**; `gesso-canvas` declares the logical coordinate system via the `viewPort` prop (`{x,y,width,height}`, forwarded to native as four scalar props) with a fixed `preserveAspectRatio` (xMidYMid meet), and the renderer maps it to physical pixels.
+A front-end `width={100}` is a **logical pixel**; `scumble-canvas` declares the logical coordinate system via the `viewPort` prop (`{x,y,width,height}`, forwarded to native as four scalar props) with a fixed `preserveAspectRatio` (xMidYMid meet), and the renderer maps it to physical pixels.
 
 - Child coordinates stay as **logical-pixel values** in the FlatBuffer; the transform is applied once at the root canvas → front-end parsers and binary data are uniformly in logical pixels, clean and consistent.
 - **The viewport transform is applied by the renderer `SkityRenderer::Draw`** (scale/translate on the skity Canvas before drawing), not on the front end, because physical size / density are only known after layout — the front end doesn't have them at render time. This neatly sidesteps the layout-timing problem that "front end builds the whole tree bytes" would run into.
@@ -115,29 +115,29 @@ A front-end `width={100}` is a **logical pixel**; `gesso-canvas` declares the lo
 Dependency-ordered; each step is independently reviewable:
 
 1. **schema extension** (viewport + nested_flatbuffer fields) → regenerate stubs. Backward compatible; consumers untouched for now. **✓ done**
-2. **`@gesso/graphics`** (pure-JS shared layer): color→int, enum→byte, path d→nested FlatBuffer, transform→nested FlatBuffer (full SVG command set incl. H/V/S/T/A + relative). Vitest round-trip tests. **✓ done**
+2. **`@scumble/graphics`** (pure-JS shared layer): color→int, enum→byte, path d→nested FlatBuffer, transform→nested FlatBuffer (full SVG command set incl. H/V/S/T/A + relative). Vitest round-trip tests. **✓ done**
 3. **native slim-down**: delete `SkityPropParser`; variable-length setters take a base64 string → decode → memcpy (Lynx props don't marshal binary); enum setters take a number; renderer applies the viewport transform and consumes `path_data` / `transform_data` via `nested_root` (+ MATRIX/SKEW). **✓ done**
-4. **`@gesso/react`**: thin wrapper components `<Circle>` that normalize then render `<gesso-circle>`; reuse parsers. **✓ MVP done** — full SVG path + matrix/skew now flow through after Task 3; Paint/gradient/clip/`forwardRef`/animation still TBD.
+4. **`@scumble/react`**: thin wrapper components `<Circle>` that normalize then render `<scumble-circle>`; reuse parsers. **✓ MVP done** — full SVG path + matrix/skew now flow through after Task 3; Paint/gradient/clip/`forwardRef`/animation still TBD.
 5. **example** switches to the React component layer + a viewport demo. **✓ done**
-6. **`@gesso/vue`** (later): same wrapping; the base tags are framework-agnostic, so this works naturally.
+6. **`@scumble/vue`** (later): same wrapping; the base tags are framework-agnostic, so this works naturally.
 
 **Plus (TBD):** Shader schema extension (needs the shader type confirmed first).
 
 ## 9. Cleanup backlog
 
-- `shared/elements/` (`x-gesso` C++ `LynxNativeView`): autolink default scaffold, unrelated to the graphics pipeline; clean up later.
+- `shared/elements/` (`x-scumble` C++ `LynxNativeView`): autolink default scaffold, unrelated to the graphics pipeline; clean up later.
 - `polyline` / `polygon`: the renderer `SkityRenderer.cc` already dispatches by tag_name, but no tag is registered natively, no TS type exists, and the `points` prop is currently unused — wire these up together when they land.
 
 ## 10. Key file index
 
 - Schema: `packages/native/schema/render_tree{,_common,_style}.fbs`
-- Codegen: `packages/native/scripts/generate-fbs.mjs` (`pnpm --filter @gesso/native generate-fbs`)
+- Codegen: `packages/native/scripts/generate-fbs.mjs` (`pnpm --filter @scumble/native generate-fbs`)
 - Front-end tag types: `packages/native/src/elements.ts` (`declare module` augments `IntrinsicElements`)
-- Parsers: `packages/graphics/` (`@gesso/graphics`)
+- Parsers: `packages/graphics/` (`@scumble/graphics`)
 - Front-end usage: `packages/example/src/App.tsx`
 - Native registration: Android `android/.../graphics/SkityBehavior.kt` + `SkityInit.kt`; iOS `ios/Classes/Node/SkityCanvasShadowNode.mm` + `SkityNodeBase.m`
 - prop setters: Android `android/.../graphics/node/SkityNodeBase.kt`; iOS `ios/Classes/Node/SkityNodeBase.m`
-- parser: **deleted** in Task 3 (was `node/SkityPropParser.kt` / `Node/SkityPropParser.m` — string parsing now lives in `@gesso/graphics`)
+- parser: **deleted** in Task 3 (was `node/SkityPropParser.kt` / `Node/SkityPropParser.m` — string parsing now lives in `@scumble/graphics`)
 - serialization: Android `android/.../graphics/node/SkityCanvasShadowNode.kt` (measure/buildRenderNode/buildStyle/buildPaint); iOS `ios/Classes/Node/SkityCanvasShadowNode.mm`
 - renderer: `packages/native/shared/skity/SkityRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density,W,H)` + viewport)
 - backends: Android `android/src/main/cpp/skity/{gles,vulkan}_render_backend.cpp`; iOS `ios/Classes/Render/`
@@ -483,7 +483,7 @@ disables NAPI on Android), so unlike RN-Skia's `Skia.Path.MakeFromOp` (which
 computes the result via JSI and hands the path back), the composition travels
 as a description and the renderer evaluates it.
 
-- **API**: `Path2D.op(one, two, op)` (@gesso/graphics) builds a _lazy_
+- **API**: `Path2D.op(one, two, op)` (@scumble/graphics) builds a _lazy_
   op-composed `Path2D` (a descriptor tree, no geometry math in JS). Operands
   accept `d` strings, plain `Path2D`s, and other op-composed instances —
   compositions nest arbitrarily. `<Path path={…}>` detects it via
@@ -690,7 +690,7 @@ LineHeightMultiple`), alignment. Spans build a `CFAttributedString`
     letterSpacing) feeds the **shared line breaker**
     (`shared/skity/line_breaker.{h,cc}` — greedy + space/CJK kinsoku table,
     host-side GoogleTest coverage: `tests/` via
-    `pnpm --filter @gesso/native test:native`; the framework itself is a
+    `pnpm --filter @scumble/native test:native`; the framework itself is a
     habitat dep, `DEPS.py → shared/third_party/googletest`).
     Line assembly: ascent/descent = max over the line's fonts, `lineAdvance =
 (asc+desc) × mult` with the extra centered around the baseline, trailing
@@ -881,7 +881,7 @@ TickAnimations`) and redraw when live.
 
 **Easing** (`shared/skity/easing.{h,cc}`): LINEAR / EASE_* (cubic-bezier
 presets) / CUBIC_BEZIER (bisection, ≤24 iters) / STEP_START / STEP_END. The
-JS builder (`@gesso/graphics` `buildAnimationList`) resolves from/to
+JS builder (`@scumble/graphics` `buildAnimationList`) resolves from/to
 sugar, evens out offsets, pins 0/1 — and resolves the per-keyframe easing
 fallback (FlatBuffer defaults can't express "inherit the track default", so
 the fallback resolves in JS; native takes keyframe easing as final).

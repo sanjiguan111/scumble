@@ -1,8 +1,8 @@
 {
-  "name": "@gesso/website",
+  "name": "@scumble/website",
   "version": "0.0.0",
   "private": true,
-  "description": "Static landing page for gesso, deployed to GitHub Pages from packages/website (zero dependencies, one HTML file).",
+  "description": "Static landing page for scumble, deployed to GitHub Pages from packages/website (zero dependencies, one HTML file).",
   "scripts": {
     "dev": "node serve.mjs"
   }

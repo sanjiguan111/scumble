@@ -1,17 +1,17 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-// Friendly API surface types for @gesso/react. These are the
+// Friendly API surface types for @scumble/react. These are the
 // "friendly" props users write; the component layer normalizes them into the
-// numeric/string values the skity intrinsic tags (<gesso-*>) consume.
+// numeric/string values the skity intrinsic tags (<scumble-*>) consume.
 //
-// Color parsing is delegated to @gesso/graphics (parseColor); this package
+// Color parsing is delegated to @scumble/graphics (parseColor); this package
 // does not reinvent it.
 
 import type { ReactNode } from "@lynx-js/react";
 import type { StandardProps } from "@lynx-js/types";
 
-export type { Color } from "@gesso/graphics";
+export type { Color } from "@scumble/graphics";
 
 /** Fill or stroke. Defaults to "fill" at the component layer. */
 export type PaintStyle = "fill" | "stroke";
@@ -23,14 +23,14 @@ export type StrokeJoin = "miter" | "round" | "bevel";
 /** The parser also accepts the hyphenated "even-odd"; native uses "evenodd". */
 export type FillRule = "nonzero" | "even-odd";
 
-// BlendMode mirrors @gesso/graphics' BlendModeLiteral (Skia/skity's 28
+// BlendMode mirrors @scumble/graphics' BlendModeLiteral (Skia/skity's 28
 // modes, kebab-case); parseBlendMode maps it to the skityrt byte.
-export type BlendMode = import("@gesso/graphics").BlendModeLiteral;
+export type BlendMode = import("@scumble/graphics").BlendModeLiteral;
 
 /**
  * Paint + compositing attributes every shape (and `Canvas` / `Group`) may carry.
  *
- * `color` is resolved with `@gesso/graphics`'s `parseColor` and routed to
+ * `color` is resolved with `@scumble/graphics`'s `parseColor` and routed to
  * the native `fill` or `stroke` prop according to `style` (default `"fill"`).
  * The stroke attributes apply only when `style === "stroke"`.
  */
@@ -40,7 +40,7 @@ export interface GraphicProps {
    * `"rgb(..)"`), a packed `0xAARRGGBB` number, an `{r,g,b,a?}` object, or an
    * `[r,g,b,a?]` tuple. Omit for a transparent (no-op) shape.
    */
-  color?: import("@gesso/graphics").Color;
+  color?: import("@scumble/graphics").Color;
   /** Whether `color` fills or strokes the shape. Defaults to `"fill"`. */
   style?: PaintStyle;
   /** Stroke width (dp). Stroke-only. */
@@ -95,7 +95,7 @@ export interface GraphicProps {
 }
 
 /** One animation track spec (see {@link GraphicProps.animate}). */
-export type AnimationSpec = import("@gesso/graphics").AnimationTrackSpec;
+export type AnimationSpec = import("@scumble/graphics").AnimationTrackSpec;
 /** A single track, or several (with `null`/`false` holes filtered out). */
 export type AnimationProp = AnimationSpec | (AnimationSpec | null | false)[] | null;
 
@@ -108,9 +108,9 @@ export type Vec = { x: number; y: number };
  * shape uses.
  */
 export interface LinearGradientProps {
-  start: import("@gesso/graphics").Point;
-  end: import("@gesso/graphics").Point;
-  colors: import("@gesso/graphics").Color[];
+  start: import("@scumble/graphics").Point;
+  end: import("@scumble/graphics").Point;
+  colors: import("@scumble/graphics").Color[];
   positions?: number[];
   mode?: "clamp" | "repeat" | "mirror";
 }
@@ -128,13 +128,13 @@ export interface ImageShaderProps {
    *  clears the slot (that paint draws nothing), matching `<Image image>`. */
   image: ImageHandle | string | null;
   /** How the bitmap is inscribed into `rect` (CSS object-fit family). Defaults to `"contain"`; ignored when `rect` is omitted. */
-  fit?: import("@gesso/graphics").Fit;
+  fit?: import("@scumble/graphics").Fit;
   /** Destination rect in user space. Omit for 1:1 tiling at the bitmap's intrinsic size. */
   rect?: { x?: number; y?: number; width: number; height: number };
   /** Horizontal tiling outside the fitted area. Defaults to `"clamp"`. */
-  tx?: import("@gesso/graphics").TileMode;
+  tx?: import("@scumble/graphics").TileMode;
   /** Vertical tiling outside the fitted area. Defaults to `"clamp"`. */
-  ty?: import("@gesso/graphics").TileMode;
+  ty?: import("@scumble/graphics").TileMode;
 }
 
 /**
@@ -224,10 +224,10 @@ export interface ParagraphProps extends GraphicProps {
  */
 export interface RadialGradientProps {
   /** Center of the circle (absolute user-space px). */
-  c: import("@gesso/graphics").Point;
+  c: import("@scumble/graphics").Point;
   /** Circle radius in px; must be positive. */
   r: number;
-  colors: import("@gesso/graphics").Color[];
+  colors: import("@scumble/graphics").Color[];
   positions?: number[];
   mode?: "clamp" | "repeat" | "mirror";
 }
@@ -240,12 +240,12 @@ export interface RadialGradientProps {
  */
 export interface SweepGradientProps {
   /** Center of the sweep (absolute user-space px). */
-  c: import("@gesso/graphics").Point;
+  c: import("@scumble/graphics").Point;
   /** Start angle in degrees. Defaults to 0. */
   start?: number;
   /** End angle in degrees. Defaults to 360. */
   end?: number;
-  colors: import("@gesso/graphics").Color[];
+  colors: import("@scumble/graphics").Color[];
   positions?: number[];
   mode?: "clamp" | "repeat" | "mirror";
 }
@@ -257,14 +257,14 @@ export interface SweepGradientProps {
  */
 export interface TwoPointConicalGradientProps {
   /** Center of the start (focal) circle (absolute user-space px). */
-  start: import("@gesso/graphics").Point;
+  start: import("@scumble/graphics").Point;
   /** Start circle radius in px; must be ≥ 0. */
   startR: number;
   /** Center of the end circle (absolute user-space px). */
-  end: import("@gesso/graphics").Point;
+  end: import("@scumble/graphics").Point;
   /** End circle radius in px; must be positive. */
   endR: number;
-  colors: import("@gesso/graphics").Color[];
+  colors: import("@scumble/graphics").Color[];
   positions?: number[];
   mode?: "clamp" | "repeat" | "mirror";
 }
@@ -280,7 +280,7 @@ export interface PaintProps {
   /** Which paint this declaration targets. Defaults to `"fill"`. */
   style?: "fill" | "stroke";
   /** Paint color; overrides the shape's `color` for this style. */
-  color?: import("@gesso/graphics").Color;
+  color?: import("@scumble/graphics").Color;
   /**
    * Blend mode; overrides the shape's `blendMode`. NOTE: natively one blend
    * mode is shared by the fill and stroke paints (a per-paint mode is not
@@ -447,7 +447,7 @@ export interface PointsProps extends GraphicProps {
 
 export interface PathProps extends GraphicProps {
   /** SVG path data string, or a Path2D object built command-style. */
-  path: string | import("@gesso/graphics").Path2D;
+  path: string | import("@scumble/graphics").Path2D;
   fillRule?: FillRule;
   /**
    * Trim the start of the path. Normalized path-length fraction in [0,1]
@@ -466,7 +466,7 @@ export interface PathProps extends GraphicProps {
  * reference (`===` stable), so it is safe as a dependency/equality key.
  */
 export interface ImageHandle {
-  readonly __kind: "gesso-image";
+  readonly __kind: "scumble-image";
   readonly uri: string;
 }
 
@@ -495,7 +495,7 @@ export interface ImageProps extends GraphicProps {
    * CSS object-fit family). Defaults to `"contain"`. Resolved against the
    * bitmap's intrinsic size at render time.
    */
-  fit?: import("@gesso/graphics").Fit;
+  fit?: import("@scumble/graphics").Fit;
   /**
    * How texels are sampled when the bitmap is scaled. Defaults to
    * `{ filter: "linear", mipmap: "none" }`. `cubic` is transported but not
@@ -503,7 +503,7 @@ export interface ImageProps extends GraphicProps {
    * skity-native with CubicResampler ships (non-zero B/C then replaces
    * `filter`, Skia semantics).
    */
-  sampling?: import("@gesso/graphics").ImageSamplingOptions;
+  sampling?: import("@scumble/graphics").ImageSamplingOptions;
 }
 
 export interface GroupProps extends GraphicProps {
@@ -531,7 +531,7 @@ export interface DropShadowProps {
   /** Shadow blur sigma (px, uniform). */
   blur: number;
   /** Shadow color. (`inner`/`shadowOnly` variants are not supported.) */
-  color: import("@gesso/graphics").Color;
+  color: import("@scumble/graphics").Color;
 }
 
 export interface ColorMatrixProps {
@@ -546,7 +546,7 @@ export interface ColorBlendProps {
   /** How the blend color combines with the source color. */
   mode: BlendMode;
   /** The blend color. */
-  color: import("@gesso/graphics").Color;
+  color: import("@scumble/graphics").Color;
 }
 
 /** How a {@link MaskBlur} treats the inside of the mask (Skia BlurStyle). */
@@ -581,7 +581,7 @@ export interface ClipRRectProps extends ClipRectProps {
 
 export interface ClipPathProps {
   /** SVG path data string, or a Path2D object built command-style. */
-  path: string | import("@gesso/graphics").Path2D;
+  path: string | import("@scumble/graphics").Path2D;
   op?: ClipOpProp;
 }
 

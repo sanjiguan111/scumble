@@ -17,7 +17,7 @@ import type { LineProps } from "../types";
  */
 export function Line({ x1, y1, x2, y2, animate, transform, children, ...rest }: LineProps) {
   return (
-    <gesso-line
+    <scumble-line
       x1={x1 ?? 0}
       y1={y1 ?? 0}
       x2={x2 ?? 0}

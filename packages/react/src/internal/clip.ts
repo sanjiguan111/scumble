@@ -2,11 +2,11 @@
 // LICENSE file in the root directory of this source tree.
 
 // Find the clip declarations (<ClipRect>/<ClipRRect>/<ClipPath>) among a
-// <Group>'s children and turn them into @gesso/graphics ClipSpecs. The
+// <Group>'s children and turn them into @scumble/graphics ClipSpecs. The
 // components themselves are data-only (render null, like <Paint>); the Group
 // consumes their props here and serializes them into its base64 `clip` prop.
 
-import type { ClipSpec } from "@gesso/graphics";
+import type { ClipSpec } from "@scumble/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
 import { ClipPath } from "../clips/ClipPath";

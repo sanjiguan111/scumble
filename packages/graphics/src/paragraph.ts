@@ -74,7 +74,7 @@ function encodeUtf8(s: string): Uint8Array {
 
 /**
  * Serialize span specs into a nested `SpanList` FlatBuffer (the native
- * `spans` prop payload of `gesso-paragraph`).
+ * `spans` prop payload of `scumble-paragraph`).
  *
  * @returns SpanList FlatBuffer bytes (base64-encode for the prop channel).
  * @throws if `spans` is empty.

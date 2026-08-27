@@ -12,7 +12,7 @@ import com.lynx.tasm.event.LynxCustomEvent
 import com.skity.graphics.render.SkityRenderSession
 
 /**
- * LynxUI for `<gesso-canvas>`. Receives the CommandBatch bytes from the
+ * LynxUI for `<scumble-canvas>`. Receives the CommandBatch bytes from the
  * ShadowNode via Lynx's extra-data channel (Step 3b: the snapshot bundle is
  * retired — commands are the only payload) and forwards them to the view.
  *
@@ -41,7 +41,7 @@ class SkityCanvasUI(context: LynxContext) : LynxUI<SkityCanvasView>(context) {
     super.updateExtraData(extraData)
     when (extraData) {
       is ByteArray -> view?.consumeCommands(extraData)
-      // <gesso-paragraph> flush: the command batch + the glyph-run snapshot,
+      // <scumble-paragraph> flush: the command batch + the glyph-run snapshot,
       // same payload, applied in order (batch first).
       is Map<*, *> -> {
         (extraData["batch"] as? ByteArray)?.takeIf { it.isNotEmpty() }?.let {
@@ -66,7 +66,7 @@ class SkityCanvasUI(context: LynxContext) : LynxUI<SkityCanvasView>(context) {
     private const val ERR_PARAM_INVALID = 1
     private const val ERR_UNKNOWN_HANDLE = 2
     /** Custom-event type (D5): the React layer binds onAnimationFinish. */
-    const val ANIMATION_FINISH_EVENT = "gessoanimationfinish"
+    const val ANIMATION_FINISH_EVENT = "scumbleanimationfinish"
   }
 
   /**

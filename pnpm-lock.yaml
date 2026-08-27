@@ -23,15 +23,6 @@ importers:
 
   packages/example:
     dependencies:
-      '@gesso/graphics':
-        specifier: workspace:*
-        version: link:../graphics
-      '@gesso/native':
-        specifier: workspace:*
-        version: link:../native
-      '@gesso/react':
-        specifier: workspace:*
-        version: link:../react
       '@lynx-js/react':
         specifier: ^0.123.0
         version: 0.123.2(@lynx-js/types@3.9.0)(@types/react@18.3.31)
@@ -41,6 +32,15 @@ importers:
       '@lynx-js/rspeedy':
         specifier: ^0.16.2
         version: 0.16.2(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@rspack/core@2.1.8(@swc/helpers@0.5.23))(typescript@5.9.3)(webpack@5.109.2(postcss@8.5.25))
+      '@scumble/graphics':
+        specifier: workspace:*
+        version: link:../graphics
+      '@scumble/native':
+        specifier: workspace:*
+        version: link:../native
+      '@scumble/react':
+        specifier: workspace:*
+        version: link:../react
       react-router:
         specifier: '6'
         version: 6.30.4(react@19.2.8)
@@ -85,18 +85,18 @@ importers:
 
   packages/react:
     dependencies:
-      '@gesso/graphics':
-        specifier: workspace:^
-        version: link:../graphics
-      '@gesso/native':
-        specifier: workspace:^
-        version: link:../native
       '@lynx-js/react':
         specifier: '*'
         version: 0.123.2(@lynx-js/types@3.9.0)(@types/react@18.3.31)
       '@lynx-js/types':
         specifier: '*'
         version: 3.9.0
+      '@scumble/graphics':
+        specifier: workspace:^
+        version: link:../graphics
+      '@scumble/native':
+        specifier: workspace:^
+        version: link:../native
     devDependencies:
       typescript:
         specifier: ~5.9.3

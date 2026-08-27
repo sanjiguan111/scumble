@@ -2,7 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 /**
- * Paint-enum types + byte mapping for gesso.
+ * Paint-enum types + byte mapping for scumble.
  *
  * The friendly string-literal types are what the React/Vue component props accept — they give
  * compile-time autocomplete on `strokeCap="round"` etc. The parse* functions do

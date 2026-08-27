@@ -7,7 +7,7 @@ import { ImageShader } from "../shaders/ImageShader";
 import { Blur, ColorMatrix, DropShadow } from "../filters/filters";
 import { pointsToVerticesProp } from "../shapes/Polyline";
 import { pointsToPathBytes } from "../shapes/Points";
-import { parsePath } from "@gesso/graphics";
+import { parsePath } from "@scumble/graphics";
 import { findClipSpecs } from "../internal/clip";
 import { ClipPath } from "../clips/ClipPath";
 import { ClipRect } from "../clips/ClipRect";
@@ -84,7 +84,7 @@ describe("resolvePaint image shader", () => {
   it("accepts an ImageHandle and defaults fit/tx/ty; rect omitted stays undefined", () => {
     const r = resolvePaint(
       {},
-      imageShaderChild({ image: { __kind: "gesso-image", uri: "data:image/png;base64,AAA" } }),
+      imageShaderChild({ image: { __kind: "scumble-image", uri: "data:image/png;base64,AAA" } }),
     );
     expect(r.fillImageUri).toBe("data:image/png;base64,AAA");
     expect(r.fillImageFit).toBe(1); // CONTAIN

@@ -19,14 +19,14 @@ static int SkityAnimActionCode(NSString *name) {
 }
 
 // Custom-event type (D5): the React layer binds onAnimationFinish.
-static NSString *const kAnimationFinishEvent = @"gessoanimationfinish";
+static NSString *const kAnimationFinishEvent = @"scumbleanimationfinish";
 
 @implementation SkityCanvasUI
 
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_UI("gesso-canvas")
+LYNX_LAZY_REGISTER_UI("scumble-canvas")
 #else
-LYNX_REGISTER_UI("gesso-canvas")
+LYNX_REGISTER_UI("scumble-canvas")
 #endif
 
 - (UIView *)createView {

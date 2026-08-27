@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { buildClipList, bytesToBase64 } from "@gesso/graphics";
+import { buildClipList, bytesToBase64 } from "@scumble/graphics";
 
 import { findClipSpecs } from "./internal/clip";
 import { resolveAnimation } from "./internal/animation";
@@ -12,7 +12,7 @@ import type { GroupProps } from "./types";
 
 /**
  * Grouping node — applies a `transform`, optional clip children, and paint
- * inheritance to its subtree via the native `<gesso-group>`.
+ * inheritance to its subtree via the native `<scumble-group>`.
  *
  * `transform` accepts a single translate/scale/rotate object (rotate in
  * degrees), a 4×4 column-major matrix, or an array of ops composed
@@ -45,7 +45,7 @@ import type { GroupProps } from "./types";
 export function Group({ animate, transform, children, ...rest }: GroupProps) {
   const clipBytes = buildClipList(findClipSpecs(children));
   return (
-    <gesso-group
+    <scumble-group
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
       animationHandle={animationHandleOf(animate)}
@@ -53,6 +53,6 @@ export function Group({ animate, transform, children, ...rest }: GroupProps) {
       {...resolvePaint(rest, children)}
     >
       {children}
-    </gesso-group>
+    </scumble-group>
   );
 }

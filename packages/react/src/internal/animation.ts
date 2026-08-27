@@ -4,7 +4,7 @@
 /**
  * Resolves {@link GraphicProps.animate} into the base64 `animation` prop —
  * the same pattern as {@link resolveTransform}: the spec serializes into a
- * nested AnimationList FlatBuffer (`@gesso/graphics`), base64-encoded for
+ * nested AnimationList FlatBuffer (`@scumble/graphics`), base64-encoded for
  * Lynx's string-only prop channel; native memcpy's it into the node's parsed
  * tracks (render-thread per-vsync interpolation — ANIMATION_DESIGN.md).
  *
@@ -15,7 +15,7 @@
  * clearing is explicit).
  */
 
-import { buildAnimationList, bytesToBase64 } from "@gesso/graphics";
+import { buildAnimationList, bytesToBase64 } from "@scumble/graphics";
 
 import type { AnimationProp, AnimationSpec } from "../types";
 

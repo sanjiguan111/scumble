@@ -4,7 +4,7 @@
 
 import { useState } from "@lynx-js/react";
 
-import { ColorMatrix, LinearGradient, Paragraph, TextSpan } from "@gesso/react";
+import { ColorMatrix, LinearGradient, Paragraph, TextSpan } from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 import { PRESS_START_2P } from "./fontData";
@@ -154,7 +154,7 @@ export function ParagraphDemo() {
           <TextSpan text="首段文字的测量结果会显示在下方。" />
         </Paragraph>
       </DemoSection>
-      {/* Lynx <text> 是非 virtual 元素（有真实 UI），不能放进 gesso-canvas
+      {/* Lynx <text> 是非 virtual 元素（有真实 UI），不能放进 scumble-canvas
           （SkityCanvasUI 不是 UIGroup，Android 直接报错）——结果文本放 canvas 外。 */}
       <text
         style={{ fontSize: "12px", color: "#6b7280", paddingLeft: "16px", marginBottom: "24px" }}

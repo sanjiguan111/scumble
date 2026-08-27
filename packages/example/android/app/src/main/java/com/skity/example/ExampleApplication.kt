@@ -62,7 +62,7 @@ class ExampleApplication : Application() {
         // this same package, so no import is needed.
         LynxEnv.inst().registerModule("SimpleModule", SimpleModule::class.java)
         LynxEnv.inst().registerModule("LynxNodeAPI", LynxNodeAPIModule::class.java)
-        // Register skity elements (gesso-canvas + virtual shapes) + future
+        // Register skity elements (scumble-canvas + virtual shapes) + future
         // global skity init, in one place. Backend flip for A/B smoothness
         // testing: GLES (default) vs VULKAN (falls back to GLES when the
         // device can't probe a usable Vulkan context).

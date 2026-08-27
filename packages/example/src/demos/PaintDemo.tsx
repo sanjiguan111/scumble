@@ -1,4 +1,4 @@
-import { Path, Path2D } from "@gesso/react";
+import { Path, Path2D } from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 

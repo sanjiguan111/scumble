@@ -11,9 +11,9 @@
 
 @implementation SkityRectShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-rect")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-rect")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-rect")
+LYNX_REGISTER_SHADOW_NODE("scumble-rect")
 #endif
 - (NSString *)skityTagName {
   return @"rect";
@@ -22,9 +22,9 @@ LYNX_REGISTER_SHADOW_NODE("gesso-rect")
 
 @implementation SkityCircleShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-circle")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-circle")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-circle")
+LYNX_REGISTER_SHADOW_NODE("scumble-circle")
 #endif
 - (NSString *)skityTagName {
   return @"circle";
@@ -33,9 +33,9 @@ LYNX_REGISTER_SHADOW_NODE("gesso-circle")
 
 @implementation SkityEllipseShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-ellipse")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-ellipse")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-ellipse")
+LYNX_REGISTER_SHADOW_NODE("scumble-ellipse")
 #endif
 - (NSString *)skityTagName {
   return @"ellipse";
@@ -44,9 +44,9 @@ LYNX_REGISTER_SHADOW_NODE("gesso-ellipse")
 
 @implementation SkityLineShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-line")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-line")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-line")
+LYNX_REGISTER_SHADOW_NODE("scumble-line")
 #endif
 - (NSString *)skityTagName {
   return @"line";
@@ -55,9 +55,9 @@ LYNX_REGISTER_SHADOW_NODE("gesso-line")
 
 @implementation SkityPathShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-path")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-path")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-path")
+LYNX_REGISTER_SHADOW_NODE("scumble-path")
 #endif
 - (NSString *)skityTagName {
   return @"path";
@@ -66,9 +66,9 @@ LYNX_REGISTER_SHADOW_NODE("gesso-path")
 
 @implementation SkityPolylineShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-polyline")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-polyline")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-polyline")
+LYNX_REGISTER_SHADOW_NODE("scumble-polyline")
 #endif
 - (NSString *)skityTagName {
   return @"polyline";
@@ -77,9 +77,9 @@ LYNX_REGISTER_SHADOW_NODE("gesso-polyline")
 
 @implementation SkityPolygonShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-polygon")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-polygon")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-polygon")
+LYNX_REGISTER_SHADOW_NODE("scumble-polygon")
 #endif
 - (NSString *)skityTagName {
   return @"polygon";
@@ -88,9 +88,9 @@ LYNX_REGISTER_SHADOW_NODE("gesso-polygon")
 
 @implementation SkityImageShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-image")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-image")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-image")
+LYNX_REGISTER_SHADOW_NODE("scumble-image")
 #endif
 - (NSString *)skityTagName {
   return @"image";
@@ -99,9 +99,9 @@ LYNX_REGISTER_SHADOW_NODE("gesso-image")
 
 @implementation SkityGroupShadowNode
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-group")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-group")
 #else
-LYNX_REGISTER_SHADOW_NODE("gesso-group")
+LYNX_REGISTER_SHADOW_NODE("scumble-group")
 #endif
 - (NSString *)skityTagName {
   return @"g";

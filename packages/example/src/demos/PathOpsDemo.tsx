@@ -2,7 +2,7 @@
 // Path2D.op — a lazy composition the native renderer evaluates per frame
 // (skity PathOp::Execute). No JS-side geometry computation.
 
-import { Path, Path2D } from "@gesso/react";
+import { Path, Path2D } from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 

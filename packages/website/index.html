@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>gesso — declarative GPU drawing for Lynx</title>
+    <title>scumble — declarative GPU drawing for Lynx</title>
     <meta
       name="description"
       content="A declarative 2D graphics library for Lynx, powered by the skity GPU backend (Android OpenGL ES / Vulkan, iOS Metal). Native animation engine with zero JS per frame."
@@ -514,13 +514,13 @@
   <body>
     <nav>
       <div class="wrap">
-        <a class="brand" href="#"><span class="dot"></span>gesso</a>
+        <a class="brand" href="#"><span class="dot"></span>scumble</a>
         <div class="links">
           <a href="#features">Features</a>
           <a href="#animation">Animation</a>
           <a href="#architecture">Architecture</a>
           <a href="#install">Install</a>
-          <a href="https://github.com/RuiwenTang/gesso">GitHub</a>
+          <a href="https://github.com/RuiwenTang/scumble">GitHub</a>
         </div>
       </div>
     </nav>
@@ -645,7 +645,7 @@
         <div class="showcase">
           <pre
             class="code"
-          ><span class="cap">App.tsx — declarative + imperative control</span><span class="kw">import</span> { Canvas, Rect, Circle, createAnimation } <span class="kw">from</span> <span class="str">"@gesso/react"</span>;
+          ><span class="cap">App.tsx — declarative + imperative control</span><span class="kw">import</span> { Canvas, Rect, Circle, createAnimation } <span class="kw">from</span> <span class="str">"@scumble/react"</span>;
 
 <span class="cmt">// declarative track: keyframes, easing, iterations…</span>
 <span class="kw">const</span> spin = <span class="fn">createAnimation</span>({
@@ -689,22 +689,22 @@ spin.controller.<span class="fn">onFinish</span>(() <span class="kw">=&gt;</span
         </div>
         <div class="arch">
           <div class="layer">
-            <b>@gesso/react</b
+            <b>@scumble/react</b
             ><span
               >the API you write — components, friendly props, <code>createAnimation()</code></span
             >
           </div>
           <div class="layer">
-            <b>@gesso/graphics</b
+            <b>@scumble/graphics</b
             ><span
               >pure-JS value layer — colors, paths (<code>Path2D</code>), transforms resolved before
               anything crosses into native</span
             >
           </div>
           <div class="layer">
-            <b>@gesso/native</b
+            <b>@scumble/native</b
             ><span
-              >the native Lynx library — <code>&lt;gesso-*&gt;</code> tags backed by one shared C++
+              >the native Lynx library — <code>&lt;scumble-*&gt;</code> tags backed by one shared C++
               renderer</span
             >
           </div>
@@ -723,31 +723,31 @@ spin.controller.<span class="fn">onFinish</span>(() <span class="kw">=&gt;</span
         </div>
         <pre
           class="code"
-        ><span class="cap">terminal</span>pnpm add @gesso/react @gesso/graphics @gesso/native
+        ><span class="cap">terminal</span>pnpm add @scumble/react @scumble/graphics @scumble/native
 
 <span class="cmt"># run the demo app (17+ live demos) on a device / simulator</span>
-git clone https://github.com/RuiwenTang/gesso &amp;&amp; cd gesso
+git clone https://github.com/RuiwenTang/scumble &amp;&amp; cd scumble
 pnpm install
-pnpm --filter gesso-example ios      <span class="cmt"># or: android</span></pre>
+pnpm --filter scumble-example ios      <span class="cmt"># or: android</span></pre>
       </div>
     </section>
 
     <footer>
       <div class="wrap">
-        <span>gesso · Apache License 2.0</span>
+        <span>scumble · Apache License 2.0</span>
         <span>
           Docs:
           <a
-            href="https://github.com/RuiwenTang/gesso/blob/main/packages/native/RENDER_ARCHITECTURE.md"
+            href="https://github.com/RuiwenTang/scumble/blob/main/packages/native/RENDER_ARCHITECTURE.md"
             >Render architecture</a
           >
           ·
-          <a href="https://github.com/RuiwenTang/gesso/blob/main/FEATURE_PARITY.md"
+          <a href="https://github.com/RuiwenTang/scumble/blob/main/FEATURE_PARITY.md"
             >Feature parity</a
           >
           ·
           <a
-            href="https://github.com/RuiwenTang/gesso/blob/main/packages/native/ANIMATION_DESIGN.md"
+            href="https://github.com/RuiwenTang/scumble/blob/main/packages/native/ANIMATION_DESIGN.md"
             >Animation design</a
           >
         </span>

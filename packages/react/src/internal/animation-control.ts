@@ -17,7 +17,7 @@
  * mounted; a control dispatch broadcasts to every live canvas — the one
  * holding the handle executes, the others answer "unknown handle" (harmless).
  *
- * Completion: `gessoAnimationFinish` fires on the canvas root carrying the
+ * Completion: `scumbleAnimationFinish` fires on the canvas root carrying the
  * handle; the canvas demuxes it through the registry below
  * (`controller.onFinish`).
  */
@@ -84,7 +84,7 @@ function dispatch(handle: string, action: "play" | "pause" | "seek" | "cancel", 
  * <button bindtap={() => spin.controller.pause()} />
  */
 export function createAnimation(spec: AnimationSpec): ControlledAnimationSpec {
-  const handle = `ga${++nextHandleId}`;
+  const handle = `sc${++nextHandleId}`;
   const controller: AnimationController = {
     handle,
     pause: () => dispatch(handle, "pause"),
@@ -124,7 +124,7 @@ export function unregisterControlHost(host: AnimationControlHost): void {
   controlHosts.delete(host);
 }
 
-/** Canvas receives `gessoanimationfinish` → route by handle. */
+/** Canvas receives `scumbleanimationfinish` → route by handle. */
 export function fireAnimationFinish(handle: unknown): void {
   if (typeof handle === "string") finishHandlers.get(handle)?.();
 }

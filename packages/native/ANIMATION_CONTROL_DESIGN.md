@@ -15,7 +15,7 @@ deviations from this doc:
   `onAnimationFinish` is likewise `controller.onFinish(cb)`, not a per-node
   prop; the canvas demuxes `skityanimationfinish` by handle.
 - **D2's SelectorQuery entry became a plain React ref**: a ref to
-  `<gesso-canvas>` yields RefProxy, which forwards `NodesRef.invoke` through
+  `<scumble-canvas>` yields RefProxy, which forwards `NodesRef.invoke` through
   Lynx's selector machinery (§G.3, type-0 selectors supported) — no
   `#id`-selection needed. Canvas registers that invoke lane while mounted.
 - The finish drain rides the existing tick lane (pull after
@@ -312,7 +312,7 @@ cancel() / state()`), so the lane swap in D2 stays internal.
 
 ## 8. Verification
 
-1. Unit: `pnpm --filter @gesso/native test:native` (Phase A cases).
+1. Unit: `pnpm --filter @scumble/native test:native` (Phase A cases).
 2. Build: Android `./gradlew assembleDebug`; iOS workspace + `pod
 install`.
 3. Dynamic (both platforms, PlaybackDemo): pause freezes mid-flight and

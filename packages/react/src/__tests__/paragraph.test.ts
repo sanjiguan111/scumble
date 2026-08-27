@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { bytesToBase64, buildSpanList } from "@gesso/graphics";
+import { bytesToBase64, buildSpanList } from "@scumble/graphics";
 
 import {
   collectSpans,

@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { Path2D, bytesToBase64, parseFillRule, parsePath } from "@gesso/graphics";
+import { Path2D, bytesToBase64, parseFillRule, parsePath } from "@scumble/graphics";
 
 import { resolveAnimation } from "../internal/animation";
 import { animationHandleOf } from "../internal/animation-control";
@@ -10,7 +10,7 @@ import { resolveTransform } from "../internal/transform";
 import type { PathProps } from "../types";
 
 /**
- * SVG path. `path` may be a `d` string (parsed via @gesso/graphics — full
+ * SVG path. `path` may be a `d` string (parsed via @scumble/graphics — full
  * SVG command set M/L/H/V/C/S/Q/T/A/Z, relative and absolute, incl. arc flag
  * concatenation) or a Path2D object built command-style. Either way it ends up
  * as PathCommandList bytes, base64-encoded for Lynx's string prop channel; the
@@ -46,7 +46,7 @@ export function Path({
   const pathBytes =
     opBytes === null ? (typeof path === "string" ? parsePath(path) : path.toBytes()) : null;
   return (
-    <gesso-path
+    <scumble-path
       d={pathBytes ? bytesToBase64(pathBytes) : undefined}
       op={opBytes !== null ? bytesToBase64(opBytes) : undefined}
       fillRule={fillRule !== undefined ? parseFillRule(fillRule) : undefined}

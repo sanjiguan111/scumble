@@ -1,4 +1,4 @@
-import { Circle, Group, Rect } from "@gesso/react";
+import { Circle, Group, Rect } from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 

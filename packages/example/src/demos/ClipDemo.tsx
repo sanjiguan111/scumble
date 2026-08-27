@@ -8,7 +8,7 @@ import {
   Path2D,
   RRect,
   Rect,
-} from "@gesso/react";
+} from "@scumble/react";
 
 import { DemoSection } from "../components/DemoSection";
 

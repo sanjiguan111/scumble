@@ -39,7 +39,7 @@ export function RRect({
   ...rest
 }: RRectProps) {
   return (
-    <gesso-rect
+    <scumble-rect
       x={x ?? 0}
       y={y ?? 0}
       width={width}
