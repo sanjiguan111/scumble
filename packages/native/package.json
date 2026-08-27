@@ -1,6 +1,6 @@
 {
   "name": "@lynx-skity/native",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A native Lynx library",
   "license": "Apache-2.0",
   "type": "module",
@@ -42,7 +42,8 @@
     "codegen": "lynx-autolink-codegen",
     "generate-fbs": "node scripts/generate-fbs.mjs",
     "postinstall": "node scripts/generate-fbs.mjs",
-    "test:native": "node scripts/run-native-tests.mjs"
+    "test:native": "node scripts/run-native-tests.mjs",
+    "prepublishOnly": "node scripts/generate-fbs.mjs"
   },
   "dependencies": {
     "@lynx-js/weak-node-api": "^0.0.9",
@@ -51,5 +52,17 @@
   "devDependencies": {
     "@lynx-js/autolink-codegen": "^0.4.0",
     "@lynx-js/types": "3.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RuiwenTang/lynx-skity.git",
+    "directory": "packages/native"
+  },
+  "homepage": "https://ruiwentang.github.io/lynx-skity",
+  "bugs": {
+    "url": "https://github.com/RuiwenTang/lynx-skity/issues"
   }
 }

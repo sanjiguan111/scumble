@@ -1,6 +1,6 @@
 {
   "name": "@lynx-skity/graphics",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Framework-agnostic value parsers for lynx-skity: colors, paint enums, CSS transforms, and SVG path data into the numeric/ArrayBuffer values the native skity tags consume. Built with tsc \u2014 the vendored flatbuffers runtime's type-only re-exports are erased at emit time so bundlers can consume the output.",
   "license": "Apache-2.0",
   "type": "module",
@@ -18,10 +18,23 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "tsc --noEmit && vitest run"
+    "test": "tsc --noEmit && vitest run",
+    "prepublishOnly": "tsc"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
     "vitest": "^4.1.10"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RuiwenTang/lynx-skity.git",
+    "directory": "packages/graphics"
+  },
+  "homepage": "https://github.com/RuiwenTang/lynx-skity/tree/main/packages/graphics",
+  "bugs": {
+    "url": "https://github.com/RuiwenTang/lynx-skity/issues"
   }
 }

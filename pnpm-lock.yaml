@@ -92,10 +92,10 @@ importers:
         specifier: '*'
         version: 3.9.0
       '@lynx-skity/graphics':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../graphics
       '@lynx-skity/native':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../native
     devDependencies:
       typescript:
