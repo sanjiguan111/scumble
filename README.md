@@ -5,17 +5,34 @@ backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a declarative drawing
 API — `<Canvas><Circle color="red"/></Canvas>`
 — to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer render tree.
 
+> 🌐 Landing page: <https://YOUR_ORG.github.io/lynx-skity> — served from
+> [`docs/`](docs/index.html) via GitHub Actions (enable *Settings → Pages →
+> Source: GitHub Actions* once, then replace `YOUR_ORG` here and in the HTML).
+
 ## Features
 
-- **Declarative React API** — `<Canvas>`, `Circle`, `Rect`, `RRect`, `Path`, `Group`.
+- **Declarative React API** — 11 shape components (`Circle`, `Rect`, `RRect`, `Ellipse`,
+  `Line`, `Polyline`, `Polygon`, `Points`, `Path`, `Image`, `Paragraph`) plus `Group`
+  with paint inheritance and declarative clips.
+- **Native animation engine** — declarative `animate` tracks (keyframes, cubic-bezier
+  easing, delay/iterations/autoReverse/fill) ride the command stream once; the render
+  thread interpolates per vsync — **zero JS per frame**, stop-on-idle drivers.
+  Playback control ships with it: `createAnimation().controller.{pause, play, seekTo,
+  cancel, onFinish}`.
+- **Gradients & shaders** — linear / radial / sweep / two-point conical, as fill or
+  stroke; images as paint textures (`ImageShader`) with fit/tile modes.
+- **Filters** — blur, drop shadow, color matrix, color blend, mask blur, per paint slot.
+- **28 blend modes**, SVG `viewBox` viewport, cascading transforms.
+- **`Path2D`** — a command-style path builder like the Web Canvas one, interchangeable
+  with a `d` string (full SVG command set), plus lazy boolean ops
+  (`Path2D.op(a, b, "difference")`) evaluated natively at render time.
+- **Text** — platform layout backends with per-span styling, gradient fills, and
+  BiDi/RTL (`direction` prop, SheenBidi + fallback font runs).
 - **GPU rendering** — skity backend: Android (OpenGL ES + Vulkan) and iOS (Metal),
-  driven by one shared C++ renderer.
+  driven by one shared C++ renderer over a retained tree + FlatBuffer command stream.
 - **Friendly values, parsed in JS** — CSS color strings, paint enums, CSS `transform`
-  lists, and SVG path `d` strings (full command set — relative, `S`/`T` reflection,
-  arc-flag concatenation) are all resolved in JS; **the native side never parses strings.**
-- **`Path2D`** — a command-style path builder (`new Path2D().moveTo(…)…`), like the Web
-  Canvas `Path2D`, interchangeable with a `d` string.
-- **Viewport** — SVG `viewBox` logical coordinate spaces via `<Canvas viewPort={…}>`.
+  lists, and SVG path `d` strings are all resolved in JS; **the native side never
+  parses strings.**
 - **Cross-platform** — one C++ renderer (`SkityRenderer`) shared by Android and iOS.
 
 ## Architecture
@@ -98,9 +115,13 @@ Edit `packages/example/src/App.tsx` and reload to iterate.
 
 ## Status
 
-Basic rendering and the data pipeline work on both platforms. In progress: more shape
-types, paint inheritance, gradients/shaders, and filters. See the
-[render architecture & roadmap](packages/native/RENDER_ARCHITECTURE.md).
+Rendering, text, gradients/filters, and the animation engine (including playback
+control) are implemented and verified on both platforms — host-side unit tests
+(native C++ / graphics / react) plus on-device demos. Known architecture limits and
+the remaining roadmap live in
+[`FEATURE_PARITY.md`](FEATURE_PARITY.md); per-feature designs in
+[`packages/native/`](packages/native/) (`RENDER_ARCHITECTURE.md`,
+`ANIMATION_DESIGN.md`, `ANIMATION_CONTROL_DESIGN.md`).
 
 ## License
 
