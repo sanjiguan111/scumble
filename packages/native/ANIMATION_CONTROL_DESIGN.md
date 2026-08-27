@@ -323,12 +323,84 @@ install`.
 4. Regression: AnimationDemo unchanged (handle-less nodes are
    byte-identical commands).
 
-## 9. Future: the `setValue` lane (gesture-driven animation)
+## 9. Future: the `setValue` lane (gesture-driven animation) — design sketch
 
-The same invoke plumbing unlocks the biggest parity gap (RN-Skia
-shared-value semantics): `invoke('setValue', { handle, property, value
-})` writes the overlay slot directly and invalidates — the canvas
-self-paints, so **no flush-forcing rAF is needed** (§G.1's conclusion
-about our canvas). Worklet-frequency invocation (~60 Hz) is where the
-D2 upgrade lane pays off. Deliberately out of scope here; noted so the
-v0 plumbing (handle map, marshal, threading) is built to carry it.
+**PROPOSED, not implemented.** Recorded so the next session can start
+building without re-deriving the analysis.
+
+### 9.1 What gesture-driven animation is
+
+The two animation families differ by **where the value comes from**:
+
+|                 | Timeline (shipped)                                 | Gesture-driven (this lane)                                   |
+| --------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| Value           | `f(t)` — vsync advances t, the engine interpolates | `g(input)` — the input IS the animation; nobody interpolates |
+| React per frame | zero (one declarative payload)                     | must also be zero — today it is not                          |
+| Conflicts       | engine owns the value                              | an external writer owns the value                            |
+
+Typical scenarios: drag-to-follow (a card tracks the finger; release
+hands off to a spring), scroll-linked effects (offset drives header
+collapse / parallax / pull-refresh rings), scrubbers, swipe cards
+(track, then fling-or-snap by velocity). This is reanimated's core
+territory: `sharedValue` + `useDerivedValue` + worklets — a
+per-frame value pipeline that never enters React's render cycle. It is
+the LAST big animation-parity gap (FEATURE_PARITY §F): imperative
+playback control (this doc) steered the timeline; `setValue` adds the
+other value source.
+
+Today's only path is `touchmove → setState → render → patch → layout
+flush → repaint` per frame — the exact "highest-pain" pipeline the
+native engine eliminated for timelines (ANIMATION_DESIGN §1).
+
+### 9.2 API sketch (reactive layer mirrors what shipped)
+
+```tsx
+const drag = createAnimation({ property: "translateX", from: 0, to: 0, duration: 0 });
+// .controller grows:
+drag.controller.setValue("translateX", fingerX);  // per touchmove
+<Rect animate={drag} ... />
+// release: swap in a timeline track — the overlay guarantees continuity
+<Rect animate={{ property: "translateX", from: fingerX, to: 0,
+                 duration: 300, easing: [0.22, 1, 0.36, 1] }} ... />
+```
+
+Native: `invoke('setValue', { handle, property, value, value2? })` —
+the UI method posts onto the render thread, which writes the node's
+overlay slot and invalidates. The canvas self-paints, so **no
+flush-forcing rAF is needed** (§G.1's conclusion about our canvas) —
+invalidate alone repaints.
+
+### 9.3 Implementation notes
+
+- **Addressing**: same handle map (D1); `property` maps through the
+  existing `AnimatedProperty` enum. One method per platform
+  (`setValue`) next to `animateControl`.
+- **Conflict rule — already shipped**: an external value write is the
+  D2 "command takes over the value" case: cancel the conflicting track
+  for that property (`CancelAnimationsFor`, the same hook SetPaint /
+  SetGeometry already fire) and write the overlay slot. Hand-off back
+  to a timeline is a fresh `SetAnimation` (reset semantics, already
+  implemented).
+- **Overlay continuity**: setValue writes the same slot the timeline
+  engine reads/writes, so gesture → spring hand-off never flickers
+  (the base fields stay untouched throughout).
+- **Driver**: no timeline is running during pure gesture frames —
+  repaints ride the setValue invalidations themselves; a hand-off
+  `SetAnimation` wakes the driver as usual (applyCommands → wakeUp).
+- **Frequency / lanes**: touchmove fires ~60–120 Hz. v0 = the same
+  JS-thread RefProxy invoke lane as playback control (Android public
+  SDK safe). The worklet lane (§G.3 PASS on iOS; §G.4 risk on Android
+  public SDK) is the upgrade path for tighter budgets — the react API
+  must stay lane-agnostic (controller methods only).
+- **Scale factor**: `scale` needs `value2` (sy); colors could ride the
+  same channel later (`color` param) — start with the 14 scalar
+  properties, skip FILL/STROKE colors in v0.
+
+### 9.4 Verification sketch
+
+Demo: a draggable card — `bindpan`/touchmove feeds setValue (card
+tracks the finger with zero React re-renders: verify via devtool that
+no patch/flush fires during the drag), release swaps in a spring
+track. Unit: setValue cancels a conflicting timeline track and writes
+the slot; SetAnimation after setValue restarts cleanly; unknown handle
+returns the error code.

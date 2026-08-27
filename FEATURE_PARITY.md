@@ -260,6 +260,16 @@ Stage 2 are unaffected either way.
       Design + as-built deviations:
       `packages/native/ANIMATION_CONTROL_DESIGN.md`, demo `PlaybackDemo`.
       Same plumbing carries the future `setValue` gesture lane.
+    - **11d. Gesture-driven values (`setValue` lane)** — designed, NOT
+      implemented (sketch: `ANIMATION_CONTROL_DESIGN.md` §9). The last
+      big animation-parity gap (reanimated shared-value semantics):
+      `controller.setValue(property, value)` per touchmove writes the
+      node's overlay slot + invalidates on the render thread — canvas
+      self-paints, no flush-forcing rAF, zero React per frame. Conflict
+      rule already shipped (external write cancels the conflicting
+      track via the D2 hooks); hand-off to a spring is a fresh
+      SetAnimation on the same handle. Rides the exact invoke plumbing
+      11c built (handle map, UI method, threading).
 12. **Multi-`<Paint>` multi-pass + exact group opacity** (F.1.2/F.1.3) —
     needs a saveLayer-equivalent; verify skity exposes one first.
 13. **Small-items bundle** (F.1.4 + justification) — per-corner radii,
