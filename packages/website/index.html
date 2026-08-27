@@ -186,7 +186,6 @@
   }
   .layer b { font-family: var(--mono); font-size: 13.5px; color: var(--accent); min-width: 190px; }
   .layer span { font-size: 13.5px; color: var(--muted); }
-  .layer.wire { border-style: dashed; background: transparent; justify-content: center; color: var(--faint); font-family: var(--mono); font-size: 12px; padding: 4px; }
 
   /* install */
   .install .code { margin-top: 4px; }
@@ -216,15 +215,15 @@
       <span class="eyebrow">Android · iOS — one C++ renderer</span>
       <h1>Declarative <span class="grad">GPU drawing</span><br>for Lynx</h1>
       <p class="lede">
-        <strong>&lt;Canvas&gt;&lt;Circle color="red"/&gt;&lt;/Canvas&gt;</strong> — React components
-        compile to a FlatBuffer render tree, shipped once over a command stream and drawn by the
-        <strong>skity GPU backend</strong>. The native side never parses a string; animations
-        interpolate on the render thread with <strong>zero JS per frame</strong>.
+        <strong>&lt;Canvas&gt;&lt;Circle color="red"/&gt;&lt;/Canvas&gt;</strong> — write React
+        components, get GPU-accelerated drawing: one shared C++ renderer drives Android
+        (OpenGL ES / Vulkan) and iOS (Metal), and animations interpolate on the render thread
+        with <strong>zero JS per frame</strong>.
       </p>
       <div class="badges">
         <span class="badge">OpenGL ES / Vulkan</span>
         <span class="badge">Metal</span>
-        <span class="badge">FlatBuffer command stream</span>
+        <span class="badge">Declarative React API</span>
         <span class="badge">Apache-2.0</span>
       </div>
     </div>
@@ -260,8 +259,8 @@
   <div class="wrap">
     <div class="sec-head">
       <h2>Everything you expect from a canvas library</h2>
-      <p>Friendly React props on the surface; serialized FlatBuffers underneath. Strings, colors,
-      transforms and path data are all parsed in JS — native does a thin memcpy and draws.</p>
+      <p>Friendly props in — CSS color strings, SVG path data, transform lists — smooth GPU
+      rendering out. Write what you mean; the library handles the rest.</p>
     </div>
     <div class="grid">
       <div class="card"><h3><span class="ico"></span>Shapes &amp; paths</h3>
@@ -282,9 +281,8 @@
         <p>Platform layout backends, per-span styling, gradient fills, and full RTL/ BiDi with
         fallback font runs (<code>direction</code> prop).</p></div>
       <div class="card"><h3><span class="ico"></span>One renderer, two platforms</h3>
-        <p>A single C++ <code>SkityRenderer</code> over a retained render tree drives Android
-        (GLES/Vulkan) and iOS (Metal) — identical behavior by construction, and a
-        serializable command stream by design.</p></div>
+        <p>A single C++ <code>SkityRenderer</code> drives Android (GLES/Vulkan) and iOS (Metal) —
+        identical drawing behavior on both platforms, by construction.</p></div>
     </div>
   </div>
 </section>
@@ -293,10 +291,9 @@
   <div class="wrap">
     <div class="sec-head">
       <h2>An animation engine that lives on the render thread</h2>
-      <p>Declarative tracks ride the command stream <em>once</em>; a per-vsync tick interpolates
-      into an overlay (base values are never touched) and a stop-on-idle driver powers down when
-      nothing is playing. Playback control rides the same plumbing — pause, seek, and completion
-      callbacks without a single extra frame of JS.</p>
+      <p>Declare a track once; a per-vsync tick on the render thread interpolates every frame
+      and a stop-on-idle driver powers down when nothing is playing. Playback control comes with
+      it — pause, seek, and completion callbacks without a single extra frame of JS.</p>
     </div>
     <div class="showcase">
       <pre class="code"><span class="cap">App.tsx — declarative + imperative control</span><span class="kw">import</span> { Canvas, Rect, Circle, createAnimation } <span class="kw">from</span> <span class="str">"@lynx-skity/react"</span>;
@@ -332,16 +329,14 @@ spin.controller.<span class="fn">onFinish</span>(() <span class="kw">=&gt;</span
 <section id="architecture">
   <div class="wrap">
     <div class="sec-head">
-      <h2>Architecture: a DAG that ends in memcpy</h2>
-      <p>Three packages, one dependency direction. JS does everything friendly; native does
-      everything fast.</p>
+      <h2>Under the hood: thin layers, no magic</h2>
+      <p>Three packages, one dependency direction — every layer stays small enough to read.</p>
     </div>
     <div class="arch">
-      <div class="layer"><b>@lynx-skity/react</b><span>framework wrapper — ergonomic components, friendly props, createAnimation()</span></div>
-      <div class="layer"><b>@lynx-skity/graphics</b><span>pure-JS core — parseColor / parsePath / Path2D / parseTransform → ints, floats, FlatBuffer bytes</span></div>
-      <div class="layer"><b>@lynx-skity/native</b><span>intrinsic <code>&lt;skity-*&gt;</code> tags + the skityrt FlatBuffer schema</span></div>
-      <div class="layer wire">────── skityrt::RenderTree FlatBuffer · base64 over the prop channel ──────</div>
-      <div class="layer"><b>skity GPU backend</b><span>Android OpenGL ES / Vulkan · iOS Metal — one shared C++ SkityRenderer</span></div>
+      <div class="layer"><b>@lynx-skity/react</b><span>the API you write — components, friendly props, <code>createAnimation()</code></span></div>
+      <div class="layer"><b>@lynx-skity/graphics</b><span>pure-JS value layer — colors, paths (<code>Path2D</code>), transforms resolved before anything crosses into native</span></div>
+      <div class="layer"><b>@lynx-skity/native</b><span>the native Lynx library — <code>&lt;skity-*&gt;</code> tags backed by one shared C++ renderer</span></div>
+      <div class="layer"><b>skity GPU backend</b><span>Android OpenGL ES / Vulkan · iOS Metal</span></div>
     </div>
   </div>
 </section>
