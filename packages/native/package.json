@@ -41,7 +41,6 @@
   "scripts": {
     "codegen": "lynx-autolink-codegen",
     "generate-fbs": "node scripts/generate-fbs.mjs",
-    "postinstall": "node scripts/generate-fbs.mjs",
     "test:native": "node scripts/run-native-tests.mjs",
     "prepublishOnly": "node scripts/generate-fbs.mjs"
   },

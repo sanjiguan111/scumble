@@ -7,7 +7,7 @@ API — `<Canvas><Circle color="red"/></Canvas>`
 
 > 🌐 Landing page: <https://ruiwentang.github.io/lynx-skity> — served from
 > [`packages/website`](packages/website/index.html) via GitHub Actions (enable
-> *Settings → Pages → Source: GitHub Actions* once on the repo).
+> _Settings → Pages → Source: GitHub Actions_ once on the repo).
 
 ## Features
 
@@ -18,7 +18,7 @@ API — `<Canvas><Circle color="red"/></Canvas>`
   easing, delay/iterations/autoReverse/fill) ride the command stream once; the render
   thread interpolates per vsync — **zero JS per frame**, stop-on-idle drivers.
   Playback control ships with it: `createAnimation().controller.{pause, play, seekTo,
-  cancel, onFinish}`.
+cancel, onFinish}`.
 - **Gradients & shaders** — linear / radial / sweep / two-point conical, as fill or
   stroke; images as paint textures (`ImageShader`) with fit/tile modes.
 - **Filters** — blur, drop shadow, color matrix, color blend, mask blur, per paint slot.
@@ -100,6 +100,14 @@ toolchain, not from skity.)
 
 ```bash
 pnpm install
+```
+
+The FlatBuffer stubs (C++/Java/TS) are generated, not committed — generate
+them once after cloning (and after any `.fbs` change):
+
+```bash
+tools/hab sync                                                   # fetches flatc
+pnpm --filter @lynx-skity/native generate-fbs
 ```
 
 Run the example app on a booted simulator / connected device:
