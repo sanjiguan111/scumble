@@ -74,6 +74,11 @@ host owns the versions, no surprise nested copy):
 pnpm add @lynx-skity/react @lynx-skity/graphics @lynx-skity/native
 ```
 
+> All packages are consumed through a bundler (rspeedy/rspack) — `@lynx-skity/react`
+> and `@lynx-skity/native` ship TS sources, and `@lynx-skity/graphics`' compiled
+> `dist` uses extensionless relative imports resolvable by bundlers only. Plain
+> Node ESM imports are not a supported consumption mode.
+
 ### Android host integration
 
 One Gradle-side change comes from the skity integration: the native library
