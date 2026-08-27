@@ -22,6 +22,13 @@
   self = [super initWithFrame:frame];
   if (self) {
     _session = [[SkityRenderSession alloc] init];
+    // Finish events (D5): the session hops to the main queue; forward to the
+    // dispatcher SkityCanvasUI installed (emits `skityAnimationFinish`).
+    __weak __typeof__(self) weakSelf = self;
+    _session.onAnimationFinish = ^(NSString *handle) {
+      void (^dispatcher)(NSString *) = weakSelf.animationFinishDispatcher;
+      if (dispatcher != nil) dispatcher(handle);
+    };
 
     CAMetalLayer *ml = (CAMetalLayer *)self.layer;
     ml.device = [SkityMetalContext sharedInstance].device;
@@ -71,6 +78,13 @@
 
 - (void)consumePayloadWithBatch:(NSData *)batch paragraphRuns:(NSData *)runs {
   [_session applyPayloadWithBatch:batch paragraphRuns:runs];
+}
+
+- (void)controlAnimation:(NSString *)handle
+                  action:(int)action
+                  timeMs:(double)timeMs
+                  onDone:(void (^)(BOOL ok))onDone {
+  [_session controlAnimation:handle action:action timeMs:timeMs onDone:onDone];
 }
 
 - (void)destroySession {

@@ -311,6 +311,11 @@ table SetImageSource {
 table SetAnimation {
   node_id:int = -1;
   data:[ubyte] (nested_flatbuffer: "AnimationList");
+  // JS-minted playback-control address (ANIMATION_CONTROL_DESIGN.md D1):
+  // the native node_id never crosses to JS, so the invoke lane addresses
+  // animated nodes by this handle. "" (default) = uncontrolled. The tree
+  // keeps a handle→id map; survives clears, drops with the node.
+  handle:string;
 }
 
 table CommandBatch {

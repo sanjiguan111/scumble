@@ -53,6 +53,21 @@ NS_ASSUME_NONNULL_BEGIN
 /// invalidates the display link when every session goes idle.
 - (BOOL)tickAnimations:(uint64_t)nowNs treeKey:(NSInteger)treeKey;
 
+/// Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D2/D3): posts
+/// onto the render queue. `action` is the skityrt::AnimControlAction enum
+/// value (0=play 1=pause 2=seek 3=cancel); `timeMs` is only read by seek.
+/// `onDone` fires on the render queue with NO for unknown/stale handles.
+- (void)controlAnimation:(NSString *)handle
+                  action:(int)action
+                  timeMs:(double)timeMs
+                 treeKey:(NSInteger)treeKey
+                  onDone:(void (^)(BOOL ok))onDone;
+
+/// Completed-animation handles since the last drain (D5). Render queue ONLY —
+/// the session drains right after a tick or a seeking control, on that queue;
+/// each handle becomes a `skityAnimationFinish` event on the main queue.
+- (NSArray<NSString *> *)takeFinishedHandles:(NSInteger)treeKey;
+
 - (void)drawLayer:(CAMetalLayer *)layer
           treeKey:(NSInteger)treeKey
         viewportW:(uint32_t)w

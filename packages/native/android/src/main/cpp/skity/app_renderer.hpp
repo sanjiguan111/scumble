@@ -46,6 +46,16 @@ public:
   // stops when every session goes idle (ANIMATION_DESIGN.md D4).
   bool TickAnimations(uint64_t now_ns);
 
+  // Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D3): seek is
+  // the only action reading `time_ms` (animation-timeline ms, delay counts).
+  // False when the handle is unknown/stale — reported to JS as an error.
+  bool ControlAnimation(const char *handle, int32_t action, double time_ms);
+
+  // Completed-animation handles since the last drain (D5): the session pulls
+  // right after a tick / seeking control on the render thread; each becomes a
+  // `skityAnimationFinish` event on the Lynx UI thread.
+  std::vector<std::string> TakeFinishedHandles();
+
 private:
   std::unique_ptr<RenderBackend> backend_;
   skityrt::RetainedRenderTree retained_tree_;

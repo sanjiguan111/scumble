@@ -13,6 +13,9 @@ import com.skity.graphics.SkityNative
  */
 class SkityVulkanRenderSession(private val density: Float) : SkityRenderSession {
 
+  /** Finish-event sink (D5): set by SkityCanvasView; invoked on this render thread. */
+  override var onAnimationFinish: ((String) -> Unit)? = null
+
   private val renderHandler = SkityVulkanRenderThread.handler
 
   private var rendererHandle: Long = 0L
@@ -89,7 +92,34 @@ class SkityVulkanRenderSession(private val density: Float) : SkityRenderSession 
       val live =
           rendererHandle != 0L && SkityNative.nativeTickAnimations(rendererHandle, nowNanos)
       if (live) drawIfReady()
+      drainFinishedHandles()
       onDone(live)
+    }
+  }
+
+  /** Finish events (D5): pull completed handles and notify on THIS thread;
+   * the listener (SkityCanvasView) hops to the Lynx UI thread itself. */
+  private fun drainFinishedHandles() {
+    if (rendererHandle == 0L) return
+    val finished = SkityNative.nativeTakeFinishedHandles(rendererHandle) ?: return
+    for (h in finished) onAnimationFinish?.invoke(h)
+  }
+
+  override fun controlAnimation(handle: String, action: Int, timeMs: Double, onDone: (Boolean) -> Unit) {
+    renderHandler.post {
+      val ok =
+          rendererHandle != 0L &&
+              SkityNative.nativeControlAnimation(rendererHandle, handle, action, timeMs)
+      if (ok) {
+        // Resume/restart needs the driver back; seek already re-evaluated the
+        // overlay synchronously — paint it without waiting a vsync (D3/D4).
+        if (action == SkityRenderSession.ACTION_PLAY) SkityAnimationDriver.wakeUp()
+        if (action == SkityRenderSession.ACTION_SEEK) {
+          drawIfReady()
+          drainFinishedHandles() // a seek to/past the end completes inline
+        }
+      }
+      onDone(ok)
     }
   }
 

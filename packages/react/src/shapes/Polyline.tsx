@@ -4,6 +4,7 @@
 import { floatsToBase64, parsePoints } from "@lynx-skity/graphics";
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { PointsProp, PolylineProps } from "../types";
@@ -36,6 +37,7 @@ export function Polyline({ points, animate, transform, children, ...rest }: Poly
       points={pointsToVerticesProp(points)}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(rest, children, "stroke")}
     />
   );

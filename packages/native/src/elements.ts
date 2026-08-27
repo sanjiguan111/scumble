@@ -84,11 +84,24 @@ export interface SkityPaintProps {
    * for its own CSS-animation shape.)
    */
   animationData?: string;
+  /**
+   * JS-minted playback-control address riding the SAME SetAnimation command
+   * (ANIMATION_CONTROL_DESIGN.md D1). Stored by the native setter, never
+   * dirties on its own. "" = uncontrolled node.
+   */
+  animationHandle?: string;
 }
 
 export interface SkityCommonProps extends StandardProps, SkityPaintProps {}
 
 export interface SkityCanvasProps extends SkityCommonProps {
+  /**
+   * `skityAnimationFinish` handler (ANIMATION_CONTROL_DESIGN.md D5): fired on
+   * the canvas root when any descendant's (or the canvas's own) tracked
+   * animation completes; `event.params.handle` identifies the node. The React
+   * wrappers demux this by handle — raw intrinsic consumers read it directly.
+   */
+  bindskityanimationfinish?: (event: { params?: { handle?: string } }) => void;
   /** Logical viewport x (SVG viewBox). */
   viewportX?: number;
   /** Logical viewport y (SVG viewBox). */

@@ -79,6 +79,39 @@
   return it->second->TickAnimations(nowNs) ? YES : NO;
 }
 
+// Playback control (invoke lane). The tree write happens on the render queue
+// (single-thread contract); onDone crosses back from there.
+- (void)controlAnimation:(NSString *)handle
+                  action:(int)action
+                  timeMs:(double)timeMs
+                 treeKey:(NSInteger)treeKey
+                  onDone:(void (^)(BOOL ok))onDone {
+  NSString *h = handle;
+  dispatch_async(_renderQueue, ^{
+    auto it = self->_retainedTrees.find(static_cast<intptr_t>(treeKey));
+    if (it == self->_retainedTrees.end() || it->second == nullptr) {
+      onDone(NO);
+      return;
+    }
+    bool ok = it->second->ControlAnimation(std::string(h.UTF8String ?: ""),
+                                           static_cast<skityrt::AnimControlAction>(action), timeMs);
+    onDone(ok ? YES : NO);
+  });
+}
+
+// Completed-animation handles (D5). Render queue only — drained by the
+// session on that queue right after the tick / seeking control.
+- (NSArray<NSString *> *)takeFinishedHandles:(NSInteger)treeKey {
+  auto it = _retainedTrees.find(static_cast<intptr_t>(treeKey));
+  if (it == _retainedTrees.end() || it->second == nullptr) return @[];
+  std::vector<std::string> handles = it->second->TakeFinishedHandles();
+  NSMutableArray<NSString *> *out = [NSMutableArray arrayWithCapacity:handles.size()];
+  for (const std::string &h : handles) {
+    [out addObject:[NSString stringWithUTF8String:h.c_str()] ?: @""];
+  }
+  return out;
+}
+
 - (void)drawLayer:(CAMetalLayer *)layer
           treeKey:(NSInteger)treeKey
         viewportW:(uint32_t)w

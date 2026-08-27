@@ -216,7 +216,12 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
       dataOff =
           fbb.CreateVector((const uint8_t *)node.animationData.bytes, node.animationData.length);
     }
-    auto off = skityrt::CreateSetAnimation(fbb, node.nativeId, dataOff);
+    // Playback-control handle (invoke lane; empty = uncontrolled node).
+    flatbuffers::Offset<flatbuffers::String> handleOff = 0;
+    if (node.animationHandle.length > 0) {
+      handleOff = fbb.CreateString(node.animationHandle.UTF8String);
+    }
+    auto off = skityrt::CreateSetAnimation(fbb, node.nativeId, dataOff, handleOff);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetAnimation);
     node.dirtyAnimation = NO;

@@ -102,7 +102,44 @@
 - (BOOL)tickAnimations:(uint64_t)nowNs {
   BOOL live = [self.context tickAnimations:nowNs treeKey:self.treeKey];
   if (live) [self drawIfReady];
+  [self drainFinishedHandles];
   return live;
+}
+
+// Finish events (D5): pull completed handles on THIS queue (render); hop to
+// the main queue before invoking the listener SkityCanvasView installed.
+- (void)drainFinishedHandles {
+  for (NSString *handle in [self.context takeFinishedHandles:self.treeKey]) {
+    void (^listener)(NSString *) = self.onAnimationFinish;
+    if (listener == nil) continue;
+    NSString *h = handle;
+    dispatch_async(dispatch_get_main_queue(), ^{ listener(h); });
+  }
+}
+
+// Playback control (invoke lane). Resume/restart wakes the driver; seek
+// already re-evaluated the overlay synchronously — paint it without waiting
+// a vsync (ANIMATION_CONTROL_DESIGN D3/D4).
+- (void)controlAnimation:(NSString *)handle
+                  action:(int)action
+                  timeMs:(double)timeMs
+                  onDone:(void (^)(BOOL ok))onDone {
+  __weak __typeof__(self) weakSelf = self;
+  [self.context controlAnimation:handle
+                          action:action
+                          timeMs:timeMs
+                         treeKey:self.treeKey
+                          onDone:^(BOOL ok) {
+                            __strong __typeof__(weakSelf) strongSelf = weakSelf;
+                            if (ok && strongSelf != nil) {
+                              if (action == 0 /* play */) [SkityAnimationDriver wakeUp];
+                              if (action == 2 /* seek */) {
+                                [strongSelf drawIfReady];
+                                [strongSelf drainFinishedHandles]; // seek-to-end completes inline
+                              }
+                            }
+                            onDone(ok);
+                          }];
 }
 
 - (void)drawIfReady {

@@ -4,6 +4,7 @@
 import { Path2D, bytesToBase64, parseFillRule, parsePath } from "@lynx-skity/graphics";
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { PathProps } from "../types";
@@ -53,6 +54,7 @@ export function Path({
       pathEnd={end}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(rest, children)}
     />
   );

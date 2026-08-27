@@ -4,6 +4,7 @@
 import { parseFit, parseImageFilterMode, parseImageMipmapMode } from "@lynx-skity/graphics";
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { ImageProps } from "../types";
@@ -86,6 +87,7 @@ export function Image({ animate, transform, children, ...rest }: ImageProps) {
       image={uri}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...geometry}
       {...resolvePaint(rest, children)}
     />

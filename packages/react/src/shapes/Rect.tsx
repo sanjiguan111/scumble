@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { RectProps } from "../types";
@@ -22,6 +23,7 @@ export function Rect({ x, y, width, height, animate, transform, children, ...res
       height={height}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(rest, children)}
     />
   );

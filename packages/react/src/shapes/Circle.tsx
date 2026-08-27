@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { CircleProps } from "../types";
@@ -20,6 +21,7 @@ export function Circle({ cx, cy, radius, animate, transform, children, ...rest }
       r={radius}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(rest, children)}
     />
   );

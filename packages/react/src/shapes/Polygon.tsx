@@ -3,6 +3,7 @@
 
 import { pointsToVerticesProp } from "./Polyline";
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { PolygonProps } from "../types";
@@ -23,6 +24,7 @@ export function Polygon({ points, animate, transform, children, ...rest }: Polyg
       points={pointsToVerticesProp(points)}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(rest, children)}
     />
   );

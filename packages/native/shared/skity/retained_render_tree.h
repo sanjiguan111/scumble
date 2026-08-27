@@ -224,9 +224,11 @@ inline float AnimPathEnd(const RetainedNode *n) {
 struct SetAnimation; // generated (command_batch_generated.h)
 
 // Install/replace/clear a node's animation tracks (empty data = clear all).
-// Registers the node id in `animated_ids` while any track is live.
+// Registers the node id in `animated_ids` while any track is live, and the
+// command's playback handle (if any) in `anim_handles` (invoke lane).
 void ApplySetAnimation(const SetAnimation *cmd, RetainedNode *node,
-                       std::unordered_set<int32_t> *animated_ids);
+                       std::unordered_set<int32_t> *animated_ids,
+                       std::unordered_map<std::string, int32_t> *anim_handles);
 
 // Cancel tracks whose property bits intersect `property_bits` (built via
 // PaintDirtyToAnimBits / GeometryDirtyToAnimBits / kTransformAnimBits) and
@@ -269,6 +271,26 @@ public:
   // thread only. Implemented in animation.cc.
   bool TickAnimations(uint64_t now_ns);
 
+  // ---- Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md) ----
+  // Called by the platform UI-method forward (render thread). `time_ms` is
+  // only read by kSeek (the animation-timeline position to jump to, ms,
+  // clamped ≥ 0 — the delay counts, WAAPI currentTime semantics). Returns
+  // false when the handle is unknown/stale (the caller reports an error to
+  // JS; never a crash). Implemented in animation.cc.
+  bool ControlAnimation(const std::string &handle, AnimControlAction action, double time_ms);
+
+  // Latest frame timestamp TickAnimations saw (frame-callback domain; 0
+  // before the first tick). seek() anchors against it — the only frame-domain
+  // "now" available off-vsync.
+  uint64_t last_frame_ns() const { return last_frame_ns_; }
+
+  // Drain the handles whose animations completed since the last call (D5):
+  // the platform layer turns each into a `skityAnimationFinish` event. One
+  // entry per natural completion (replace/cancel fire nothing; seek/play
+  // re-arm). Render thread only — call right after TickAnimations (or a
+  // seeking ControlAnimation) on the same thread.
+  std::vector<std::string> TakeFinishedHandles();
+
   const RetainedNode *root() const { return root_; }
   const RetainedViewport &viewport() const { return viewport_; }
 
@@ -292,6 +314,8 @@ private:
   void EraseSubtree(int32_t id);
   // True if `maybe_ancestor` is `node` or an ancestor of it (cycle guard).
   bool IsAncestor(RetainedNode *maybe_ancestor, RetainedNode *node) const;
+  // Finish-event collector (D5): fires when a node goes idle with tracks.
+  void MaybeReportFinish(RetainedNode *node);
 
   // id → owning node. Owns every RetainedNode; `children`/`root_` are raw
   // pointers into these.
@@ -299,6 +323,13 @@ private:
   // Nodes carrying live animation tracks (ids, never pointers — EraseSubtree
   // removes them in the same walk that frees the nodes). Render thread only.
   std::unordered_set<int32_t> animated_ids_;
+  // Playback-control addresses: JS-minted handle → node id (invoke lane,
+  // ANIMATION_CONTROL_DESIGN.md D1). Survives animation clears (a re-set
+  // re-registers), dropped with the node in EraseSubtree's walk.
+  std::unordered_map<std::string, int32_t> anim_handles_;
+  // Completed-animation handles awaiting TakeFinishedHandles (render thread).
+  std::vector<std::string> finished_handles_;
+  uint64_t last_frame_ns_ = 0;
   uint64_t structure_epoch_ = 0;
   // Type-erased RenderCache (render_cache.cc owns the deleter). mutable: the
   // cache attaches lazily from Draw, which sees the tree as const.

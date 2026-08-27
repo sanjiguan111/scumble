@@ -95,6 +95,26 @@ struct RetainedAnimation {
 struct RetainedAnimationState {
   std::vector<RetainedAnimation> tracks;
   AnimationOverlay overlay;
+
+  // ---- Playback control (ANIMATION_CONTROL_DESIGN.md D3) ----
+  // JS-minted address of this node on the invoke lane ("" = uncontrolled).
+  // Minted by the React layer, carried by SetAnimation, kept across clears,
+  // dropped with the node (the tree's handle→id map mirrors it).
+  std::string handle;
+  // Paused: ticks skip evaluation entirely (the overlay freezes in place);
+  // the node stays in the live set but never reports liveness (D4).
+  bool paused = false;
+  // Steady-clock reading at pause time. play() cuts the pause gap out of
+  // every started track's start_ns — a steady-DOMAIN DELTA (never an
+  // absolute value), so it stays valid even though start_ns itself lives in
+  // the frame-timestamp domain (D4: timestamps come from frame callbacks).
+  uint64_t pause_steady_ns = 0;
+  // seek() before the first tick (last_frame_ns_ == 0, no frame-domain
+  // anchor exists yet): applied when the first tick stamps the clock origin.
+  double pending_seek_ms = -1.0; // < 0 = none
+  // One `skityAnimationFinish` per natural completion (D5): set when the
+  // node leaves the live set with tracks attached; re-armed by seek()/play().
+  bool finish_reported = false;
 };
 
 // ---- Slot helpers ----
@@ -128,6 +148,10 @@ AnimPhase EvaluateTrack(const RetainedAnimation &track, uint64_t now_ns, float o
 
 void WriteOverlaySlot(AnimationOverlay &o, AnimatedProperty p, const float v[2], uint32_t color);
 void ClearOverlaySlot(AnimationOverlay &o, AnimatedProperty p);
+
+// ---- Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D3) ----
+
+enum class AnimControlAction { kPlay, kPause, kSeek, kCancel };
 
 } // namespace skityrt
 

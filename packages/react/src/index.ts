@@ -35,6 +35,11 @@ import "@lynx-skity/native/elements";
 // ---- containers ----
 export { Canvas } from "./Canvas";
 export { Group } from "./Group";
+// Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D6): a plain
+// track spec with a minted handle — usable directly as `animate`, with
+// `.controller` (pause/play/seekTo/cancel/onFinish) as the imperative surface.
+export { createAnimation } from "./internal/animation-control";
+export type { AnimationController, ControlledAnimationSpec } from "./internal/animation-control";
 // ---- shapes ----
 export { Circle } from "./shapes/Circle";
 export { Ellipse } from "./shapes/Ellipse";

@@ -143,6 +143,40 @@ JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeTickAnimati
              : JNI_FALSE;
 }
 
+// Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D3). Posted onto
+// the render thread by the session — tree writes never happen off it. `action`
+// is the AnimControlAction enum value (0=play 1=pause 2=seek 3=cancel).
+JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeControlAnimation(
+    JNIEnv *env, jclass /*clazz*/, jlong handle, jstring anim_handle, jint action,
+    jdouble time_ms) {
+  auto *renderer = FromHandle(handle);
+  if (renderer == nullptr || anim_handle == nullptr) return JNI_FALSE;
+  const char *chars = env->GetStringUTFChars(anim_handle, nullptr);
+  if (chars == nullptr) return JNI_FALSE;
+  bool ok = renderer->ControlAnimation(chars, static_cast<int32_t>(action), time_ms);
+  env->ReleaseStringUTFChars(anim_handle, chars);
+  return ok ? JNI_TRUE : JNI_FALSE;
+}
+
+// Completed-animation handles (D5): drained by the session right after a tick
+// or a seeking control, on the render thread. Each becomes a
+// `skityAnimationFinish` event posted to the Lynx UI thread.
+JNIEXPORT jobjectArray JNICALL Java_com_skity_graphics_SkityNative_nativeTakeFinishedHandles(
+    JNIEnv *env, jclass /*clazz*/, jlong handle) {
+  auto *renderer = FromHandle(handle);
+  jclass string_cls = env->FindClass("java/lang/String");
+  if (renderer == nullptr || string_cls == nullptr) {
+    return string_cls != nullptr ? env->NewObjectArray(0, string_cls, nullptr) : nullptr;
+  }
+  std::vector<std::string> handles = renderer->TakeFinishedHandles();
+  jobjectArray out = env->NewObjectArray(static_cast<jsize>(handles.size()), string_cls, nullptr);
+  jsize i = 0;
+  for (const std::string &h : handles) {
+    env->SetObjectArrayElement(out, i++, env->NewStringUTF(h.c_str()));
+  }
+  return out;
+}
+
 // <Paragraph> glyph-run snapshot — applied on the render thread right after
 // the batch of the same flush (the runs reference nodes the batch inserts).
 JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyParagraphRuns(

@@ -106,6 +106,10 @@ abstract class SkityNodeBase : ShadowNode() {
   // Native animation tracks (JS-built AnimationList bytes; null/empty =
   // clear all animations on the node).
   @JvmField var animationData: ByteArray? = null
+  // JS-minted playback-control address riding the SAME SetAnimation command
+  // (ANIMATION_CONTROL_DESIGN.md D1). Read at collectCommands time; never
+  // dirties on its own — it only matters when animationData changes.
+  @JvmField var animationHandle: String? = null
   // Image node source: the uri doubles as the ImageStore key and the platform
   // loader request. Empty/null = no source (node draws nothing).
   @JvmField var imageUri: String? = null
@@ -532,6 +536,13 @@ abstract class SkityNodeBase : ShadowNode() {
     animationData = if (decoded.isNotEmpty()) decoded else null
     dirtyAnimation = true
     markDirty()
+  }
+
+  // Playback-control handle (invoke lane): stored, never dirties — it is
+  // carried by the next SetAnimation command whatever flushes it (the React
+  // layer always sends handle + animationData from the same render).
+  @LynxProp(name = "animationHandle") fun setAnimationHandle(v: String?) {
+    animationHandle = if (!v.isNullOrEmpty()) v else null
   }
 
   // Image node source uri (http(s) URL / data URI); an empty payload clears

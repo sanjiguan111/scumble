@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { CornerRadius, RRectProps } from "../types";
@@ -46,6 +47,7 @@ export function RRect({
       {...resolveRadii(radii)}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(rest, children)}
     />
   );

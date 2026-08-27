@@ -5,6 +5,7 @@ import { buildClipList, bytesToBase64 } from "@lynx-skity/graphics";
 
 import { findClipSpecs } from "./internal/clip";
 import { resolveAnimation } from "./internal/animation";
+import { animationHandleOf } from "./internal/animation-control";
 import { resolvePaint } from "./internal/paint";
 import { resolveTransform } from "./internal/transform";
 import type { GroupProps } from "./types";
@@ -47,6 +48,7 @@ export function Group({ animate, transform, children, ...rest }: GroupProps) {
     <skity-group
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       clip={clipBytes ? bytesToBase64(clipBytes) : undefined}
       {...resolvePaint(rest, children)}
     >

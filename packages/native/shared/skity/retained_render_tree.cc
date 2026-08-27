@@ -212,8 +212,8 @@ void RetainedRenderTree::EraseSubtree(int32_t id) {
   DetachFromParent(node);
   if (node == root_) root_ = nullptr;
   // Collect the whole subtree's ids, then erase from node_map_ (unique_ptr
-  // frees). Animation ids leave the live set in the same walk — ids only,
-  // never pointers, so nothing dangles.
+  // frees). Animation ids AND playback handles leave their sets in the same
+  // walk — ids only, never pointers, so nothing dangles.
   std::vector<int32_t> ids;
   std::vector<RetainedNode *> stack{node};
   while (!stack.empty()) {
@@ -224,8 +224,12 @@ void RetainedRenderTree::EraseSubtree(int32_t id) {
     for (RetainedNode *c : n->children)
       stack.push_back(c);
   }
-  for (int32_t i : ids)
+  for (int32_t i : ids) {
     node_map_.erase(i);
+    for (auto it = anim_handles_.begin(); it != anim_handles_.end();) {
+      it = it->second == i ? anim_handles_.erase(it) : std::next(it);
+    }
+  }
 }
 
 // ---- ApplyCommandBatch (Step 1b + Step 2) ----
@@ -440,7 +444,7 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
     case Command_SetAnimation: {
       const auto *sa = static_cast<const SetAnimation *>(obj);
       RetainedNode *node = Find(sa->node_id());
-      if (node != nullptr) ApplySetAnimation(sa, node, &animated_ids_);
+      if (node != nullptr) ApplySetAnimation(sa, node, &animated_ids_, &anim_handles_);
       break;
     }
     case Command_SetViewport: {

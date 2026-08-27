@@ -49,13 +49,16 @@ std::vector<uint8_t> BuildList(std::vector<KF> keys, AnimatedProperty property,
 }
 
 // Serialize a batch: root insert (canvas) + child insert + SetAnimation.
-std::vector<uint8_t> BuildBatchWithAnimation(std::vector<uint8_t> anim_bytes) {
+// `handle` (optional) rides the command for playback-control addressing.
+std::vector<uint8_t> BuildBatchWithAnimation(std::vector<uint8_t> anim_bytes,
+                                             const char *handle = nullptr) {
   ::flatbuffers::FlatBufferBuilder fbb;
   auto tag = fbb.CreateString("path");
   auto insRoot = skityrt::CreateInsertNode(fbb, 1, -1, 0, fbb.CreateString("canvas"));
   auto insChild = skityrt::CreateInsertNode(fbb, 2, 1, 0, tag);
   auto data = fbb.CreateVector(anim_bytes);
-  auto sa = skityrt::CreateSetAnimation(fbb, 2, data);
+  auto handleOff = handle != nullptr ? fbb.CreateString(handle) : 0;
+  auto sa = skityrt::CreateSetAnimation(fbb, 2, data, handleOff);
   std::vector<::flatbuffers::Offset<void>> cmds{insRoot.Union(), insChild.Union(), sa.Union()};
   std::vector<uint8_t> types{Command_InsertNode, Command_InsertNode, Command_SetAnimation};
   auto batch = skityrt::CreateCommandBatch(fbb, 0, fbb.CreateVector(types), fbb.CreateVector(cmds));
@@ -96,10 +99,15 @@ protected:
   // T0: the timestamp of the first tick after apply (start_ns origin).
   static constexpr uint64_t kT0 = 16 * kMs;
 
-  void Apply(std::vector<uint8_t> anim_bytes) {
-    auto batch = BuildBatchWithAnimation(std::move(anim_bytes));
+  void Apply(std::vector<uint8_t> anim_bytes, const char *handle = nullptr) {
+    auto batch = BuildBatchWithAnimation(std::move(anim_bytes), handle);
     tree.ApplyCommandBatch(batch.data(), batch.size());
   }
+
+  // Playback tests seek()/pause() with ms-scale timeline offsets; the default
+  // kT0 (16ms) would clamp seek's frame-domain anchor (start_ns ≥ 0). A late
+  // anchor stands in for a real device's boot-relative frame timestamps.
+  static constexpr uint64_t kLateT0 = 60ull * 1000 * kMs; // 60s after boot
 };
 
 TEST_F(AnimationTest, LinearInterpolationMidpoint) {
@@ -247,6 +255,203 @@ TEST_F(AnimationTest, MultiKeyframeSegmentsPiecewiseLinear) {
   EXPECT_NEAR(AnimOpacity(n), 5.f, 1e-3);
   EXPECT_TRUE(tree.TickAnimations(kT0 + 75 * kMs)); // p=0.75 → segment 2 local 0.5
   EXPECT_NEAR(AnimOpacity(n), 15.f, 1e-3);
+}
+
+// ---- Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D3/D4) ----
+
+TEST_F(AnimationTest, UnknownHandleIsAnErrorNotACrash) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  EXPECT_FALSE(tree.ControlAnimation("nope", AnimControlAction::kPause, 0.0));
+}
+
+TEST_F(AnimationTest, PauseFreezesOverlayAndDriverGoesIdle) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 50 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-4);
+  // Pause: the overlay freezes; time advances underneath but nothing moves,
+  // and an all-paused tree reports idle (driver stops — D4).
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kPause, 0.0));
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 500 * kMs));
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 1000 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-6); // frozen exactly at the pause point
+}
+
+TEST_F(AnimationTest, PlayResumesFromThePausePoint) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 50 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-4);
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kPause, 0.0));
+  // Rewind the pause stamp to fake a 100ms real-world pause (the gap is a
+  // steady-clock delta; sleeping in a unit test is not an option). The frame
+  // clock crosses the same 100ms — the next timestamp is pausePoint+gap+16.
+  skityrt::RetainedNode *mutable_n = tree.Find(2);
+  mutable_n->anim.pause_steady_ns -= 100 * kMs;
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kPlay, 0.0));
+  // The pause gap is cut out of start_ns: elapsed = 50 (freeze) + 16 (frame).
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 166 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 0.66f, 1e-3);
+}
+
+TEST_F(AnimationTest, PlayOnFinishedNodeRestartsFromZero) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, 1, false,
+                  FillMode_FORWARDS),
+        "h1");
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 100 * kMs));  // finish, holding 1
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 116 * kMs)); // idle
+  EXPECT_NEAR(AnimOpacity(n), 1.f, 1e-6);
+  // play() on an idle node restarts (WAAPI play semantics): fresh clock,
+  // holding pin dropped.
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kPlay, 0.0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 132 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 0.f, 1e-6);                // restart from the from-value
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 182 * kMs)); // 50ms in
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-3);
+}
+
+TEST_F(AnimationTest, SeekEvaluatesImmediately) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0)); // stamps the frame-domain anchor
+  // seek(50ms) rewrites the overlay synchronously — no tick in between.
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kSeek, 50.0));
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-4);
+}
+
+TEST_F(AnimationTest, SeekRevivesAFinishedTrack) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, 1, false,
+                  FillMode_FORWARDS),
+        "h1");
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 100 * kMs)); // finished, holding 1
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 116 * kMs));
+  // Seek back into the interval: the track revives and keeps playing.
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kSeek, 50.0));
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-4);
+  // The seek anchored t=50 at last_frame (116); 16ms later → t=66.
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 132 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 0.66f, 1e-3);
+}
+
+TEST_F(AnimationTest, SeekIntoDelayReturnsSlotToBase) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, /*delay=*/100), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 150 * kMs)); // mid-animation
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-4);
+  // Seek back before the delay: WAAPI liveness — slot clears, clock continues.
+  // The seek anchored t=50 at last_frame (150): the delay has 50ms left.
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kSeek, 50.0));
+  EXPECT_EQ(n->anim.overlay.mask & AnimationOverlay::kBitOpacity, 0u);
+  EXPECT_NEAR(AnimOpacity(n), 1.f, 1e-6);                // base
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 166 * kMs)); // t=66: still in delay
+  EXPECT_NEAR(AnimOpacity(n), 1.f, 1e-6);
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 200 * kMs)); // t=100: delay ends
+  EXPECT_NEAR(AnimOpacity(n), 0.f, 1e-3);
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 250 * kMs)); // t=150: 50ms into pass
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-3);
+}
+
+TEST_F(AnimationTest, CancelReturnsToBaseAndKeepsTheHandle) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 50 * kMs));
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kCancel, 0.0));
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_FALSE(n->anim.tracks.empty()); // a cancel resets, it does not delete
+  EXPECT_EQ(n->anim.overlay.mask, 0u);
+  EXPECT_NEAR(AnimOpacity(n), 1.f, 1e-6); // base
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 66 * kMs));
+  // play() after cancel restarts from t=0 (WAAPI cancel+play semantics).
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kPlay, 0.0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 82 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 0.f, 1e-4);                // fresh clock: from-value
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 132 * kMs)); // 50ms in
+  EXPECT_NEAR(AnimOpacity(n), 0.5f, 1e-3);
+  // D1: the handle survives — a later SetAnimation re-attaches too.
+  Apply(BuildList({{0.f, 1.f}, {1.f, 0.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 148 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 1.f, 1e-6);
+}
+
+TEST_F(AnimationTest, HandleSurvivesAnimationClear) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  Apply({}, "h1"); // clear all animations, handle re-registered
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kSeek, 0.0)); // still known
+}
+
+TEST_F(AnimationTest, RemoveNodeDropsTheHandle) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  auto rm = MakeRemoveNode(2);
+  tree.ApplyCommandBatch(rm.data(), rm.size());
+  EXPECT_FALSE(tree.ControlAnimation("h1", AnimControlAction::kPause, 0.0)); // stale → error
+}
+
+TEST_F(AnimationTest, ReplacedAnimationResetsPlayback) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kPause, 0.0));
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 16 * kMs)); // paused: idle
+  // A new SetAnimation (React re-render) restarts unpaused (D3 conflict rule).
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100, 0, -1), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 32 * kMs));
+  EXPECT_NEAR(AnimOpacity(n), 0.f, 1e-4); // fresh clock: from-value
+}
+
+TEST_F(AnimationTest, FinishReportedOncePerCompletion) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 100 * kMs));  // final frame: live
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 116 * kMs)); // drains → idle
+  auto handles = tree.TakeFinishedHandles();
+  ASSERT_EQ(handles.size(), 1u);
+  EXPECT_EQ(handles[0], "h1");
+  // Drained: subsequent ticks report nothing more.
+  EXPECT_TRUE(tree.TakeFinishedHandles().empty());
+}
+
+TEST_F(AnimationTest, CancelAndReplaceFireNoFinish) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0));
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kCancel, 0.0));
+  EXPECT_TRUE(tree.TakeFinishedHandles().empty()); // cancel is not a completion
+  // Replace path: a fresh SetAnimation on a running node fires nothing.
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 16 * kMs));
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 200), "h1");
+  EXPECT_TRUE(tree.TakeFinishedHandles().empty());
+}
+
+TEST_F(AnimationTest, SeekToEndTimeFiresFinishAndReArms) {
+  Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100), "h1");
+  EXPECT_TRUE(tree.TickAnimations(kLateT0)); // frame-domain anchor
+  // Seek exactly to the end: the terminal frame is still "live" (it paints);
+  // the drain on the NEXT tick reports the finish.
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kSeek, 100.0));
+  EXPECT_TRUE(tree.TakeFinishedHandles().empty());
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 16 * kMs)); // drains → idle
+  auto handles = tree.TakeFinishedHandles();
+  ASSERT_EQ(handles.size(), 1u);
+  EXPECT_EQ(handles[0], "h1");
+  // Seek back mid-interval: re-armed — a later completion reports again.
+  EXPECT_TRUE(tree.ControlAnimation("h1", AnimControlAction::kSeek, 50.0));
+  EXPECT_TRUE(tree.TakeFinishedHandles().empty());
+  // The seek anchored t=50 at last_frame (kLateT0+16); t reaches 100 at
+  // kLateT0+66 — the terminal frame is live, the NEXT one drains.
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 50 * kMs));  // t=84: active
+  EXPECT_TRUE(tree.TickAnimations(kLateT0 + 66 * kMs));  // t=100: terminal
+  EXPECT_FALSE(tree.TickAnimations(kLateT0 + 82 * kMs)); // drains
+  handles = tree.TakeFinishedHandles();
+  EXPECT_EQ(handles.size(), 1u); // the second completion reported
 }
 
 } // namespace

@@ -1,7 +1,16 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
+import { useEffect, useRef } from "@lynx-js/react";
+import type { NodesRef } from "@lynx-js/types";
+
 import { resolveAnimation } from "./internal/animation";
+import {
+  animationHandleOf,
+  fireAnimationFinish,
+  registerControlHost,
+  unregisterControlHost,
+} from "./internal/animation-control";
 import type { CanvasProps } from "./types";
 
 /**
@@ -13,6 +22,11 @@ import type { CanvasProps } from "./types";
  * geometry authored in those logical pixels is scaled by the renderer to fit
  * the canvas (`preserveAspectRatio = xMidYMid meet`). Omit it for 1:1 physical
  * pixels.
+ *
+ * While mounted, the canvas is the transport for animation playback control
+ * (`createAnimation().controller` dispatches `animateControl` through this
+ * root's `invoke` lane — ANIMATION_CONTROL_DESIGN.md D6) and demuxes the
+ * `skityanimationfinish` events the native side emits here.
  *
  * @example
  * // 1:1 physical pixels
@@ -26,14 +40,40 @@ import type { CanvasProps } from "./types";
  * </Canvas>
  */
 export function Canvas({ children, style, viewPort, animate }: CanvasProps) {
+  const canvasRef = useRef<NodesRef | null>(null);
+  useEffect(() => {
+    // NodesRef.invoke's real shape is a single options object
+    // `{ method, params }` (it is NOT (method, params) — the Lynx
+    // nodes-ref.d.ts contract), and RefProxy is a chained selector API: the
+    // call only queues a task, `.exec()` dispatches it.
+    const host = {
+      invokeAnimateControl: (params: {
+        handle: string;
+        action: "play" | "pause" | "seek" | "cancel";
+        time?: number;
+      }) => {
+        const ref = canvasRef.current as unknown as {
+          invoke?: (o: unknown) => { exec?: () => void };
+        } | null;
+        ref?.invoke?.({ method: "animateControl", params })?.exec?.();
+      },
+    };
+    registerControlHost(host);
+    return () => unregisterControlHost(host);
+  }, []);
   return (
     <skity-canvas
+      ref={canvasRef}
       style={style}
       viewportX={viewPort?.x}
       viewportY={viewPort?.y}
       viewportWidth={viewPort?.width}
       viewportHeight={viewPort?.height}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
+      bindskityanimationfinish={(e: { params?: { handle?: string } }) =>
+        fireAnimationFinish(e?.params?.handle)
+      }
     >
       {children}
     </skity-canvas>

@@ -38,6 +38,21 @@ NS_ASSUME_NONNULL_BEGIN
 /// the driver can stop when every canvas goes idle.
 - (BOOL)tickAnimations:(uint64_t)nowNs;
 
+/// Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D2). Posts onto
+/// the render queue; `onDone` fires there (NO for unknown/stale handles).
+/// `action` is the AnimControlAction enum value (0=play 1=pause 2=seek
+/// 3=cancel); `timeMs` is only read by seek.
+- (void)controlAnimation:(NSString *)handle
+                  action:(int)action
+                  timeMs:(double)timeMs
+                  onDone:(void (^)(BOOL ok))onDone;
+
+/// Finish-event sink (D5): fires on the MAIN queue whenever a tracked
+/// animation completes; SkityCanvasView installs it and forwards to the
+/// dispatcher SkityCanvasUI set (which emits `skityAnimationFinish`).
+/// nil = nobody listening (the drain is a no-op then).
+@property(nonatomic, copy, nullable) void (^onAnimationFinish)(NSString *handle);
+
 /// Release this session. The shared render queue is not torn down.
 - (void)destroy;
 

@@ -64,6 +64,20 @@ object SkityNative {
   @JvmStatic
   external fun nativeTickAnimations(handle: Long, nowNanos: Long): Boolean
 
+  /** Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D3): play /
+   * pause / seek / cancel a handle-addressed node's tracks. [action] is the
+   * AnimControlAction enum value (0=play 1=pause 2=seek 3=cancel); [timeMs]
+   * is only read by seek (animation-timeline ms, delay counts). Returns false
+   * when the handle is unknown/stale. MUST be called on the render thread. */
+  @JvmStatic
+  external fun nativeControlAnimation(handle: Long, animHandle: String, action: Int, timeMs: Double): Boolean
+
+  /** Completed-animation handles since the last drain (finish events, D5).
+   * MUST be called on the render thread, right after a tick or a seeking
+   * control. Returns an empty array when nothing completed. */
+  @JvmStatic
+  external fun nativeTakeFinishedHandles(handle: Long): Array<String>?
+
   /** Apply a <Paragraph> ParagraphRunList snapshot to the retained tree.
    * Called on the render thread right after the batch of the same flush —
    * the runs reference nodes the batch inserts. */

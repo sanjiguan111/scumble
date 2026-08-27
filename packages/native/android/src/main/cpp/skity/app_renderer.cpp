@@ -78,4 +78,14 @@ bool AppRenderer::TickAnimations(uint64_t now_ns) {
   return retained_tree_.TickAnimations(now_ns);
 }
 
+bool AppRenderer::ControlAnimation(const char *handle, int32_t action, double time_ms) {
+  if (handle == nullptr) return false;
+  return retained_tree_.ControlAnimation(handle, static_cast<skityrt::AnimControlAction>(action),
+                                         time_ms);
+}
+
+std::vector<std::string> AppRenderer::TakeFinishedHandles() {
+  return retained_tree_.TakeFinishedHandles();
+}
+
 } // namespace lynxskity

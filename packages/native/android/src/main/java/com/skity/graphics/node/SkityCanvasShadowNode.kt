@@ -365,7 +365,9 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
       // Empty/absent payload clears the node's animations on the render side.
       val data = node.animationData
       val off = if (data != null && data.isNotEmpty()) SetAnimation.createDataVector(fbb, data) else 0
-      offsets += SetAnimation.createSetAnimation(fbb, node.nativeId, off)
+      val handle = node.animationHandle
+      val handleOff = if (!handle.isNullOrEmpty()) fbb.createString(handle) else 0
+      offsets += SetAnimation.createSetAnimation(fbb, node.nativeId, off, handleOff)
       types += Command.SetAnimation
       node.dirtyAnimation = false
     }

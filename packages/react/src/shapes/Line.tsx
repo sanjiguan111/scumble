@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { LineProps } from "../types";
@@ -23,6 +24,7 @@ export function Line({ x1, y1, x2, y2, animate, transform, children, ...rest }: 
       y2={y2 ?? 0}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(rest, children, "stroke")}
     />
   );

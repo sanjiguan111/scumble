@@ -90,6 +90,7 @@ LYNX_PROPS_GROUP_DECLARE(
     // payload clears the clip.
     LYNX_PROP_DECLARE("clip", setClip:, NSString *),
     LYNX_PROP_DECLARE("animationData", setAnimationData:, NSString *),
+    LYNX_PROP_DECLARE("animationHandle", setAnimationHandle:, NSString *),
     // Image node source uri (http(s) URL / data URI); an empty string clears
     // the source. Setting it also fires the platform image load.
     LYNX_PROP_DECLARE("image", setImage:, NSString *),
@@ -428,6 +429,13 @@ LYNX_PROP_SETTER("animationData", setAnimationData, NSString *) {
   _animationData = decoded.length > 0 ? decoded : nil;
   _dirtyAnimation = YES;
   [self setNeedsLayout];
+}
+
+// Playback-control handle (invoke lane): stored, never dirties — carried by
+// the next SetAnimation command whatever flushes it (the React layer always
+// sends handle + animationData from the same render).
+LYNX_PROP_SETTER("animationHandle", setAnimationHandle, NSString *) {
+  _animationHandle = value.length > 0 ? value : nil;
 }
 
 LYNX_PROP_SETTER("image", setImage, NSString *) {

@@ -20,6 +20,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// one block — batch first (runs reference inserted nodes) — then draw.
 - (void)consumePayloadWithBatch:(nullable NSData *)batch paragraphRuns:(nullable NSData *)runs;
 
+/// Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D2): forwards
+/// to the session, which posts onto the render queue. `onDone` fires there.
+- (void)controlAnimation:(NSString *)handle
+                  action:(int)action
+                  timeMs:(double)timeMs
+                  onDone:(void (^)(BOOL ok))onDone;
+
+/// Finish-event dispatcher (D5), installed by SkityCanvasUI: invoked on the
+/// MAIN queue with the completed animation's handle. Emits
+/// `skityAnimationFinish` through the Lynx event emitter.
+@property(nonatomic, copy, nullable) void (^animationFinishDispatcher)(NSString *handle);
+
 /// Release the render session. Called from SkityCanvasUI.detachView.
 - (void)destroySession;
 

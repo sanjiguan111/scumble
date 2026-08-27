@@ -6,6 +6,7 @@ import type { SpanSpec } from "@lynx-skity/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { childElements, resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import { TextSpan } from "./TextSpan";
@@ -155,6 +156,7 @@ export function Paragraph({ children, onLayout, animate, transform, ...rest }: P
       direction={n.direction}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       lineHeight={n.lineHeight}
       maxLines={n.maxLines}
       x={n.x}

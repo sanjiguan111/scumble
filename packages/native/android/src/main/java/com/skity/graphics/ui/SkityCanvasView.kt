@@ -38,6 +38,13 @@ class SkityCanvasView(context: Context) : FrameLayout(context) {
     }
   private val textureView = TextureView(context)
 
+  /**
+   * Finish-event dispatcher (D5), installed by SkityCanvasUI: invoked on THIS
+   * view's thread with the completed animation's handle. Emits
+   * `skityAnimationFinish` through the Lynx event emitter.
+   */
+  var animationFinishDispatcher: ((String) -> Unit)? = null
+
   init {
     // Register for late-bitmap redraws (an ImageStore write pings every live
     // session; weak reference, cleaned up automatically on destroy).
@@ -45,6 +52,10 @@ class SkityCanvasView(context: Context) : FrameLayout(context) {
     // Register for animation ticks (each session receives the vsync timestamp
     // on ITS render thread; weak reference, same cleanup story).
     SkityAnimationDriver.registerSession(session)
+    // Finish events (D5): the session notifies on the render thread — hop to
+    // this view's thread (the Lynx UI thread) before invoking the dispatcher
+    // SkityCanvasUI installed (it emits `skityAnimationFinish`).
+    session.onAnimationFinish = { handle -> post { animationFinishDispatcher?.invoke(handle) } }
     addView(
       textureView,
       LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
@@ -86,6 +97,12 @@ class SkityCanvasView(context: Context) : FrameLayout(context) {
    * overwrite). Same flush as the batch that precedes it. */
   fun consumeParagraphRuns(runs: List<ByteArray>) {
     session.applyParagraphRuns(runs)
+  }
+
+  /** Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D2): forwards
+   * to the session, which posts onto the render thread. */
+  fun controlAnimation(handle: String, action: Int, timeMs: Double, onDone: (Boolean) -> Unit) {
+    session.controlAnimation(handle, action, timeMs, onDone)
   }
 
   /** Release the render thread + native renderer. Called from LynxUI.onDetach. */

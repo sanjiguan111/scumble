@@ -4,8 +4,22 @@
 #import "SkityCanvasUI.h"
 
 #import <Lynx/LynxComponentRegistry.h>
+#import <Lynx/LynxEvent.h>
+#import <Lynx/LynxUIMethodProcessor.h>
 
 #import "SkityCanvasView.h"
+
+// action name → skityrt::AnimControlAction enum value (node_animation.h).
+static int SkityAnimActionCode(NSString *name) {
+  if ([name isEqualToString:@"play"]) return 0;
+  if ([name isEqualToString:@"pause"]) return 1;
+  if ([name isEqualToString:@"seek"]) return 2;
+  if ([name isEqualToString:@"cancel"]) return 3;
+  return -1;
+}
+
+// Custom-event type (D5): the React layer binds onAnimationFinish.
+static NSString *const kAnimationFinishEvent = @"skityanimationfinish";
 
 @implementation SkityCanvasUI
 
@@ -16,7 +30,20 @@ LYNX_REGISTER_UI("skity-canvas")
 #endif
 
 - (UIView *)createView {
-  return [[SkityCanvasView alloc] init];
+  SkityCanvasView *view = [[SkityCanvasView alloc] init];
+  // Finish events (D5): the view delivers on the main queue; emit through the
+  // event emitter (the LynxCustomEvent sendCustomEvent channel).
+  __weak __typeof__(self) weakSelf = self;
+  view.animationFinishDispatcher =
+      ^(NSString *handle) { [weakSelf sendAnimationFinishEvent:handle]; };
+  return view;
+}
+
+- (void)sendAnimationFinishEvent:(NSString *)handle {
+  LynxCustomEvent *event = [[LynxCustomEvent alloc] initWithName:kAnimationFinishEvent
+                                                      targetSign:self.sign
+                                                          params:@{@"handle" : handle}];
+  [self.context.eventEmitter sendCustomEvent:event];
 }
 
 - (void)onReceiveUIOperation:(id)extraData {
@@ -38,6 +65,33 @@ LYNX_REGISTER_UI("skity-canvas")
 - (void)detachView {
   [(SkityCanvasView *)self.view destroySession];
   [super detachView];
+}
+
+// Playback control, the invoke-lane entry (ANIMATION_CONTROL_DESIGN.md D2).
+// Params (scalars only): handle (string), action ("play"|"pause"|"seek"|
+// "cancel"), time (ms, seek only). The body does exactly one thing: forward
+// onto the render queue; all state lives with the retained tree.
+LYNX_UI_METHOD(animateControl) {
+  NSString *handle = params[@"handle"];
+  NSString *actionName = params[@"action"];
+  int action = actionName != nil ? SkityAnimActionCode(actionName) : -1;
+  if (handle.length == 0 || action < 0) {
+    callback(kUIMethodParamInvalid, nil);
+    return;
+  }
+  double timeMs = [params[@"time"] doubleValue];
+  SkityCanvasView *target = (SkityCanvasView *)self.view;
+  if (![target isKindOfClass:[SkityCanvasView class]]) {
+    callback(kUIMethodNodeNotFound, nil);
+    return;
+  }
+  [target controlAnimation:handle
+                    action:action
+                    timeMs:timeMs
+                    onDone:^(BOOL ok) {
+                      // Fires on the render queue; the callback crosses back.
+                      callback(ok ? kUIMethodSuccess : kUIMethodParamInvalid, nil);
+                    }];
 }
 
 @end

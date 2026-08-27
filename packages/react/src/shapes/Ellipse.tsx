@@ -2,6 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { EllipseProps } from "../types";
@@ -22,6 +23,7 @@ export function Ellipse({ cx, cy, rx, ry, animate, transform, children, ...rest 
       ry={ry}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(rest, children)}
     />
   );

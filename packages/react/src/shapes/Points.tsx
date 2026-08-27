@@ -4,6 +4,7 @@
 import { Path2D, bytesToBase64, parsePoints } from "@lynx-skity/graphics";
 
 import { resolveAnimation } from "../internal/animation";
+import { animationHandleOf } from "../internal/animation-control";
 import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { PointsMode, PointsProp, PointsProps } from "../types";
@@ -65,6 +66,7 @@ export function Points({
       d={bytes ? bytesToBase64(bytes) : undefined}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}
+      animationHandle={animationHandleOf(animate)}
       {...resolvePaint(withCap, children, "stroke")}
     />
   );

@@ -4,6 +4,7 @@
 #include "node_animation.h"
 
 #include <algorithm>
+#include <chrono>
 
 #include "command_batch_generated.h" // SetAnimation
 #include "easing.h"
@@ -22,6 +23,55 @@ uint32_t LerpColor(uint32_t a, uint32_t b, float t) {
     return static_cast<uint32_t>(va + (vb - va) * t) & 0xFFu;
   };
   return (ch(a, b, 24) << 24) | (ch(a, b, 16) << 16) | (ch(a, b, 8) << 8) | ch(a, b, 0);
+}
+
+// Steady-clock reading (pause/play deltas only — ANIMATION_CONTROL_DESIGN
+// D4: playback deltas are domain-free differences, never absolute values).
+uint64_t SteadyNowNs() {
+  auto now = std::chrono::steady_clock::now().time_since_epoch();
+  return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
+}
+
+// Evaluate a node's tracks at `now_ns` and write the overlay. Shared by the
+// vsync tick and seek() (which re-evaluates immediately, off-vsync). A
+// finished-and-idle node leaves the live set here. Returns liveness.
+bool EvaluateNodeTracks(RetainedNode *node, uint64_t now_ns) {
+  bool live = false;
+  for (RetainedAnimation &track : node->anim.tracks) {
+    if (track.finished) continue; // holding pins already sit in the overlay
+    if (!track.started) {         // first sighting stamps the clock origin
+      track.started = true;
+      track.start_ns = now_ns;
+    }
+    float v[2] = {0.f, 0.f};
+    uint32_t color = 0u;
+    AnimPhase phase = EvaluateTrack(track, now_ns, v, &color);
+    if (phase == AnimPhase::BeforeDelay) {
+      // Slot reads base during the delay. Tick-time it is already empty, but
+      // seek() can move the clock BACK into the delay with the slot still
+      // holding a pre-seek sample — clear it (WAAPI liveness).
+      ClearOverlaySlot(node->anim.overlay, track.property);
+      live = true; // clock runs
+      continue;
+    }
+    WriteOverlaySlot(node->anim.overlay, track.property, v, color);
+    if (track.property == AnimatedProperty_ROTATE || track.property == AnimatedProperty_SCALE_XY) {
+      node->anim.overlay.pivot_x = track.pivot_x;
+      node->anim.overlay.pivot_y = track.pivot_y;
+    }
+    if (phase == AnimPhase::Active) {
+      live = true;
+    } else { // FinishedThisFrame — paint this frame, then stop unless pinned
+      track.finished = true;
+      if (track.fill_forwards) {
+        track.holding = true; // terminal value stays in the overlay
+      } else {
+        ClearOverlaySlot(node->anim.overlay, track.property);
+      }
+      live = true; // the final frame still needs a draw
+    }
+  }
+  return live;
 }
 
 } // namespace
@@ -176,11 +226,25 @@ void ClearOverlaySlot(AnimationOverlay &o, AnimatedProperty p) {
 // ---- Command application (called from ApplyCommandBatch, render thread) ----
 
 void ApplySetAnimation(const SetAnimation *cmd, RetainedNode *node,
-                       std::unordered_set<int32_t> *animated_ids) {
+                       std::unordered_set<int32_t> *animated_ids,
+                       std::unordered_map<std::string, int32_t> *anim_handles) {
+  // Playback handle first: it outlives the replace below (D1 — survives
+  // clears so a later re-set re-registers; the React layer reuses handles).
+  const ::flatbuffers::String *handle = cmd->handle();
+  if (handle != nullptr && handle->size() > 0) {
+    (*anim_handles)[handle->c_str()] = node->id;
+    node->anim.handle = handle->c_str();
+  }
   // Whole-list replace semantics (D2): the React producer serializes every
   // track of the node in one payload, so a new list replaces the old set.
+  // Playback state resets with it (a changed `animate` prop restarts from
+  // t=0, unpaused — ANIMATION_CONTROL_DESIGN D3 conflict rule).
   node->anim.tracks.clear();
   node->anim.overlay = AnimationOverlay{}; // fresh; next tick rewrites
+  node->anim.paused = false;
+  node->anim.pause_steady_ns = 0;
+  node->anim.pending_seek_ms = -1.0;
+  node->anim.finish_reported = false; // a replace is not a completion (D5)
   const auto *bytes = cmd->data();
   if (bytes != nullptr && bytes->size() > 0) {
     const AnimationList *list = ::flatbuffers::GetRoot<AnimationList>(bytes->Data());
@@ -247,6 +311,7 @@ void CancelAnimationsFor(RetainedNode *node, uint32_t property_bits,
 
 bool RetainedRenderTree::TickAnimations(uint64_t now_ns) {
   if (animated_ids_.empty()) return false;
+  last_frame_ns_ = now_ns; // seek()'s frame-domain anchor (see ControlAnimation)
   bool any_live = false;
   // Iterate a copy: finished-and-idle ids leave the set mid-loop.
   std::vector<int32_t> ids(animated_ids_.begin(), animated_ids_.end());
@@ -256,42 +321,140 @@ bool RetainedRenderTree::TickAnimations(uint64_t now_ns) {
       animated_ids_.erase(id);
       continue;
     }
-    bool live = false;
-    for (RetainedAnimation &track : node->anim.tracks) {
-      if (track.finished) continue; // holding pins already sit in the overlay
-      if (!track.started) {         // first sighting stamps the clock origin
+    // Paused (D4): the overlay freezes in place; the node stays registered
+    // (play() resumes) but never reports liveness — all-paused stops the
+    // driver exactly like all-finished does.
+    if (node->anim.paused) continue;
+    // seek() that arrived before the first tick had no frame-domain anchor —
+    // apply it now that the clock origin is being stamped.
+    if (node->anim.pending_seek_ms >= 0.0) {
+      double t = node->anim.pending_seek_ms;
+      node->anim.pending_seek_ms = -1.0;
+      uint64_t t_ns = static_cast<uint64_t>(t * static_cast<double>(kMsToNs));
+      for (RetainedAnimation &track : node->anim.tracks) {
         track.started = true;
-        track.start_ns = now_ns;
-      }
-      float v[2] = {0.f, 0.f};
-      uint32_t color = 0u;
-      AnimPhase phase = EvaluateTrack(track, now_ns, v, &color);
-      if (phase == AnimPhase::BeforeDelay) { // slot stays base; clock runs
-        live = true;
-        continue;
-      }
-      WriteOverlaySlot(node->anim.overlay, track.property, v, color);
-      if (track.property == AnimatedProperty_ROTATE ||
-          track.property == AnimatedProperty_SCALE_XY) {
-        node->anim.overlay.pivot_x = track.pivot_x;
-        node->anim.overlay.pivot_y = track.pivot_y;
-      }
-      if (phase == AnimPhase::Active) {
-        live = true;
-      } else { // FinishedThisFrame — paint this frame, then stop unless pinned
-        track.finished = true;
-        if (track.fill_forwards) {
-          track.holding = true; // terminal value stays in the overlay
-        } else {
-          ClearOverlaySlot(node->anim.overlay, track.property);
-        }
-        live = true; // the final frame still needs a draw
+        track.start_ns = t_ns < now_ns ? now_ns - t_ns : 0;
       }
     }
-    if (!live) animated_ids_.erase(id);
+    bool live = EvaluateNodeTracks(node, now_ns);
+    if (!live) {
+      animated_ids_.erase(id);
+      MaybeReportFinish(node);
+    }
     any_live |= live;
   }
   return any_live;
+}
+
+// Called when a node leaves the live set with its tracks still attached —
+// by elimination every track played out (pause keeps the node in the set;
+// cancel/SetAnimation-replace clears the tracks first; BeforeDelay and the
+// final frame both report liveness). One shot per natural completion (D5);
+// seek()/play() re-arm finish_reported.
+void RetainedRenderTree::MaybeReportFinish(RetainedNode *node) {
+  if (node->anim.tracks.empty() || node->anim.paused) return;
+  if (node->anim.handle.empty() || node->anim.finish_reported) return;
+  node->anim.finish_reported = true;
+  finished_handles_.push_back(node->anim.handle);
+}
+
+std::vector<std::string> RetainedRenderTree::TakeFinishedHandles() {
+  std::vector<std::string> out = std::move(finished_handles_);
+  finished_handles_.clear();
+  return out;
+}
+
+// ---- Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D3) ----
+
+bool RetainedRenderTree::ControlAnimation(const std::string &handle, AnimControlAction action,
+                                          double time_ms) {
+  auto it = anim_handles_.find(handle);
+  if (it == anim_handles_.end()) return false; // stale/late invoke — error to JS, no crash
+  RetainedNode *node = Find(it->second);
+  if (node == nullptr) { // raced a RemoveNode — the map entry is dead weight
+    anim_handles_.erase(it);
+    return false;
+  }
+
+  switch (action) {
+  case AnimControlAction::kPause:
+    node->anim.paused = true;
+    node->anim.pause_steady_ns = SteadyNowNs();
+    return true;
+
+  case AnimControlAction::kPlay:
+    if (node->anim.paused) {
+      // Resume: cut the pause gap out of every running track's origin. The
+      // gap is a steady-DOMAIN delta (pause and now both steady readings),
+      // so adding it to the frame-domain start_ns is domain-free and exact.
+      node->anim.paused = false;
+      uint64_t now = SteadyNowNs();
+      uint64_t gap = now > node->anim.pause_steady_ns ? now - node->anim.pause_steady_ns : 0;
+      for (RetainedAnimation &track : node->anim.tracks) {
+        if (track.started && !track.finished) track.start_ns += gap;
+      }
+    } else {
+      // Restart from t=0 (play on an idle/finished node — WAAPI play()
+      // semantics): fresh clock, fresh overlay, holding pins dropped.
+      node->anim.pending_seek_ms = -1.0;
+      node->anim.overlay = AnimationOverlay{};
+      node->anim.finish_reported = false; // the restart may complete again
+      for (RetainedAnimation &track : node->anim.tracks) {
+        track.started = false;
+        track.finished = false;
+        track.holding = false;
+      }
+      if (!node->anim.tracks.empty()) animated_ids_.insert(node->id);
+    }
+    return true;
+
+  case AnimControlAction::kSeek: {
+    // WAAPI currentTime: jump the timeline (delay counts), re-evaluate the
+    // overlay immediately at the new position, revive finished tracks whose
+    // interval covers it. Does NOT clear paused (a paused seek shows the
+    // target frame, then keeps holding it).
+    double t = time_ms > 0.0 ? time_ms : 0.0;
+    if (last_frame_ns_ == 0) {
+      node->anim.pending_seek_ms = t; // no frame-domain anchor yet
+      return true;
+    }
+    uint64_t t_ns = static_cast<uint64_t>(t * static_cast<double>(kMsToNs));
+    for (RetainedAnimation &track : node->anim.tracks) {
+      track.started = true;
+      track.finished = false;
+      track.holding = false;
+      track.start_ns = t_ns < last_frame_ns_ ? last_frame_ns_ - t_ns : 0;
+    }
+    node->anim.finish_reported = false; // the revived timeline may complete
+    bool live = EvaluateNodeTracks(node, last_frame_ns_);
+    if (live) {
+      animated_ids_.insert(node->id);
+    } else if (!node->anim.paused) {
+      animated_ids_.erase(node->id); // seeked past every end (finite, fill=none)
+      MaybeReportFinish(node);       // seek to/past the end fires finish (D5)
+    }
+    return true;
+  }
+
+  case AnimControlAction::kCancel:
+    // Back to base values — but the TRACKS stay (a cancel is a reset, not a
+    // delete: play() restarts them from t=0, WAAPI cancel+play semantics).
+    // The handle also stays registered (D1). Clearing the tracks here would
+    // strand the node: play()'s restart branch only re-arms EXISTING tracks.
+    node->anim.overlay = AnimationOverlay{};
+    node->anim.paused = false;
+    node->anim.pause_steady_ns = 0;
+    node->anim.pending_seek_ms = -1.0;
+    node->anim.finish_reported = false;
+    for (RetainedAnimation &track : node->anim.tracks) {
+      track.started = false;
+      track.finished = false;
+      track.holding = false;
+    }
+    animated_ids_.erase(node->id);
+    return true;
+  }
+  return false; // unreachable
 }
 
 } // namespace skityrt

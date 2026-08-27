@@ -15,6 +15,7 @@ import { InteractiveDemo } from "./InteractiveDemo";
 import { PaintDemo } from "./PaintDemo";
 import { PathOpsDemo } from "./PathOpsDemo";
 import { AnimationDemo } from "./AnimationDemo";
+import { PlaybackDemo } from "./PlaybackDemo";
 import { PathsDemo } from "./PathsDemo";
 import { ShapesDemo } from "./ShapesDemo";
 import { TransformDemo } from "./TransformDemo";
@@ -56,6 +57,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "native interpolation · zero JS per frame",
     accent: "#f97316",
     render: () => <AnimationDemo />,
+  },
+  {
+    key: "playback",
+    title: "Playback",
+    subtitle: "createAnimation().controller · pause / seek / finish",
+    accent: "#0ea5e9",
+    render: () => <PlaybackDemo />,
   },
   {
     key: "pathops",

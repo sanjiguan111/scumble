@@ -249,6 +249,17 @@ Stage 2 are unaffected either way.
       Choreographer/CADisplayLink stop-on-idle drivers + `animate` prop on
       every shape/Group/Canvas. Design `packages/native/ANIMATION_DESIGN.md`,
       as-built RENDER_ARCHITECTURE.md §14, demo `AnimationDemo`.
+    - **11c. Playback control + finish event** — **done (2026-08-27)**:
+      `createAnimation().controller.{pause,play,seekTo,cancel,onFinish}`
+      (the spec IS the controller — no hooks/refs, shapes stay plain
+      functions) over the canvas root's UIMethod invoke lane (no NAPI —
+      §G.3); JS-minted playback handles ride `SetAnimation` (native
+      `node_id` never crosses to JS); `skityAnimationFinish` custom event
+      demuxed by handle. `play` wakes the stop-on-idle driver, `seek`
+      re-evaluates the overlay off-vsync (WAAPI `currentTime` semantics).
+      Design + as-built deviations:
+      `packages/native/ANIMATION_CONTROL_DESIGN.md`, demo `PlaybackDemo`.
+      Same plumbing carries the future `setValue` gesture lane.
 12. **Multi-`<Paint>` multi-pass + exact group opacity** (F.1.2/F.1.3) —
     needs a saveLayer-equivalent; verify skity exposes one first.
 13. **Small-items bundle** (F.1.4 + justification) — per-corner radii,

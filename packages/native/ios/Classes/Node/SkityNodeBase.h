@@ -153,6 +153,10 @@ enum SkityPaintFilterField {
 /// all animations on the node). The render thread interpolates per vsync —
 /// the TASM side only forwards the description (ANIMATION_DESIGN.md).
 @property(nonatomic, strong, nullable) NSData *animationData;
+/// JS-minted playback-control address riding the SAME SetAnimation command
+/// (ANIMATION_CONTROL_DESIGN.md D1). Stored, never dirties on its own — it
+/// only matters when animationData changes.
+@property(nonatomic, copy, nullable) NSString *animationHandle;
 /// Image node source: the uri doubles as the ImageStore key and the platform
 /// loader request. Empty/nil = no source (node draws nothing).
 @property(nonatomic, copy, nullable) NSString *imageUri;
