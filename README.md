@@ -5,10 +5,9 @@ backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a declarative drawing
 API — `<Canvas><Circle color="red"/></Canvas>`
 — to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer render tree.
 
-> 🌐 Landing page: <https://YOUR_ORG.github.io/lynx-skity> — served from
+> 🌐 Landing page: <https://ruiwentang.github.io/lynx-skity> — served from
 > [`packages/website`](packages/website/index.html) via GitHub Actions (enable
-> *Settings → Pages → Source: GitHub Actions* once, then replace `YOUR_ORG`
-> here and in the HTML).
+> *Settings → Pages → Source: GitHub Actions* once on the repo).
 
 ## Features
 
