@@ -110,7 +110,7 @@ if (hasCommand("bundle")) {
 } else {
   console.log(
     "⚠ bundler not found — falling back to system `pod`. " +
-      "For reproducible installs: sudo gem install bundler",
+      "For reproducible installs run `mise install` (mise.toml pins ruby 3.4.9)",
   );
   run("pod", ["install"], { cwd: IOS_DIR });
 }

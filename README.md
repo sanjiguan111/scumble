@@ -93,8 +93,8 @@ pnpm --filter lynx-skity-example android   # Android (scripts/run-android.mjs)
 
 Edit `packages/example/src/App.tsx` and reload to iterate.
 
-> The iOS build needs Ruby ≥ 3.0 for CocoaPods — run under `rvm use 3.0.0` if your
-> default Ruby is older (`bundle exec pod install` won't run on 2.7.x).
+> The iOS build needs Ruby ≥ 3.0 for CocoaPods — `mise` provides 3.4.9 (the
+> 3.0.x branch is EOL and won't compile on recent Xcode toolchains).
 
 ## Status
 
