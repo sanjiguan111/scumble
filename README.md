@@ -6,8 +6,9 @@ API — `<Canvas><Circle color="red"/></Canvas>`
 — to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer render tree.
 
 > 🌐 Landing page: <https://YOUR_ORG.github.io/lynx-skity> — served from
-> [`docs/`](docs/index.html) via GitHub Actions (enable *Settings → Pages →
-> Source: GitHub Actions* once, then replace `YOUR_ORG` here and in the HTML).
+> [`packages/website`](packages/website/index.html) via GitHub Actions (enable
+> *Settings → Pages → Source: GitHub Actions* once, then replace `YOUR_ORG`
+> here and in the HTML).
 
 ## Features
 
@@ -62,6 +63,7 @@ Full design + roadmap: [`packages/native/RENDER_ARCHITECTURE.md`](packages/nativ
 | [`@lynx-skity/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                               |
 | [`@lynx-skity/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                         |
 | [`example`](packages/example)               | rspeedy demo app consuming all of the above.                                                                                       |
+| [`website`](packages/website)               | Static landing page (GitHub Pages) — one zero-dependency HTML file, `pnpm --filter @lynx-skity/website dev` to preview.            |
 
 ## Installation
 
