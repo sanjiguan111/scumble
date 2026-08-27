@@ -1,7 +1,7 @@
 {
-  "name": "@lynx-skity/graphics",
+  "name": "@gesso/graphics",
   "version": "0.1.0",
-  "description": "Framework-agnostic value parsers for lynx-skity: colors, paint enums, CSS transforms, and SVG path data into the numeric/ArrayBuffer values the native skity tags consume. Built with tsc \u2014 the vendored flatbuffers runtime's type-only re-exports are erased at emit time so bundlers can consume the output.",
+  "description": "Framework-agnostic value parsers for gesso: colors, paint enums, CSS transforms, and SVG path data into the numeric/ArrayBuffer values the native skity tags consume. Built with tsc \u2014 the vendored flatbuffers runtime's type-only re-exports are erased at emit time so bundlers can consume the output.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,11 +30,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RuiwenTang/lynx-skity.git",
+    "url": "git+https://github.com/RuiwenTang/gesso.git",
     "directory": "packages/graphics"
   },
-  "homepage": "https://github.com/RuiwenTang/lynx-skity/tree/main/packages/graphics",
+  "homepage": "https://github.com/RuiwenTang/gesso/tree/main/packages/graphics",
   "bugs": {
-    "url": "https://github.com/RuiwenTang/lynx-skity/issues"
+    "url": "https://github.com/RuiwenTang/gesso/issues"
   }
 }

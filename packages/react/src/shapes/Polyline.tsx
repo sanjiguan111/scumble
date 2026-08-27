@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { floatsToBase64, parsePoints } from "@lynx-skity/graphics";
+import { floatsToBase64, parsePoints } from "@gesso/graphics";
 
 import { resolveAnimation } from "../internal/animation";
 import { animationHandleOf } from "../internal/animation-control";
@@ -33,7 +33,7 @@ export function pointsToVerticesProp(points: PointsProp): string | undefined {
  */
 export function Polyline({ points, animate, transform, children, ...rest }: PolylineProps) {
   return (
-    <skity-polyline
+    <gesso-polyline
       points={pointsToVerticesProp(points)}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}

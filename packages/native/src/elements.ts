@@ -1,36 +1,36 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-// Type declarations for the skity intrinsic elements (<skity-canvas>,
-// <skity-rect>, ...). No React component wrappers are provided — consumers use
-// the intrinsic tags directly. Importing this module (or `@lynx-skity/native`)
+// Type declarations for the skity intrinsic elements (<gesso-canvas>,
+// <gesso-rect>, ...). No React component wrappers are provided — consumers use
+// the intrinsic tags directly. Importing this module (or `@gesso/native`)
 // augments `@lynx-js/types` IntrinsicElements so the tags are accepted in JSX.
 //
 // The native side never parses strings. Variable-length fields (path d,
-// transform) are pre-serialized FlatBuffer bytes from @lynx-skity/graphics
+// transform) are pre-serialized FlatBuffer bytes from @gesso/graphics
 // (PathCommandList / TransformOpList); enums are numbers already mapped to
 // skityrt bytes. See RENDER_ARCHITECTURE.md §3/§5.
 import type { StandardProps } from "@lynx-js/types";
 
 // ---- Props (numeric colors, numeric geometry) ----
 
-export interface SkityPaintProps {
+export interface GessoPaintProps {
   /** Fill color, 0xAARRGGBB. Omit for no fill. */
   fill?: number;
   /** Stroke color, 0xAARRGGBB. Omit for no stroke. */
   stroke?: number;
   strokeWidth?: number;
-  /** LineCap byte (BUTT=0, ROUND=1, SQUARE=2) from @lynx-skity/graphics. */
+  /** LineCap byte (BUTT=0, ROUND=1, SQUARE=2) from @gesso/graphics. */
   strokeCap?: number;
-  /** LineJoin byte (MITER=0, ROUND=1, BEVEL=2) from @lynx-skity/graphics. */
+  /** LineJoin byte (MITER=0, ROUND=1, BEVEL=2) from @gesso/graphics. */
   strokeJoin?: number;
   strokeMiter?: number;
-  /** FillRule byte (NONZERO=0, EVENODD=1) from @lynx-skity/graphics. */
+  /** FillRule byte (NONZERO=0, EVENODD=1) from @gesso/graphics. */
   fillRule?: number;
   opacity?: number;
-  /** Base64-encoded TransformOpList bytes (@lynx-skity/graphics); native decodes + memcpys. */
+  /** Base64-encoded TransformOpList bytes (@gesso/graphics); native decodes + memcpys. */
   transform?: string;
-  /** Base64-encoded Gradient bytes (@lynx-skity/graphics); the fill paint's shader. */
+  /** Base64-encoded Gradient bytes (@gesso/graphics); the fill paint's shader. */
   fillGradient?: string;
   /** Base64-encoded Gradient bytes; the stroke paint's shader. */
   strokeGradient?: string;
@@ -42,7 +42,7 @@ export interface SkityPaintProps {
   /** Phase offset into the dash pattern (px). */
   strokeDashOffset?: number;
   /**
-   * Base64-encoded Filter bytes (@lynx-skity/graphics) — the paint's filter
+   * Base64-encoded Filter bytes (@gesso/graphics) — the paint's filter
    * slots (fill/stroke × color/image/mask). Native decodes + memcpys, then
    * builds skity filter objects at paint construction. Empty string clears
    * the slot.
@@ -55,7 +55,7 @@ export interface SkityPaintProps {
   strokeMaskFilter?: string;
   /** Image shader slots — an image as the paint's texture (the
    *  `<ImageShader>` channel). The uri doubles as the ImageStore key AND the
-   *  platform loader request (fired by the setter, like skity-image's image
+   *  platform loader request (fired by the setter, like gesso-image's image
    *  prop); empty string clears the slot. */
   fillImageUri?: string;
   strokeImageUri?: string;
@@ -77,7 +77,7 @@ export interface SkityPaintProps {
    *  the fill and stroke paints. */
   blendMode?: number;
   /**
-   * Base64-encoded AnimationList bytes (@lynx-skity/graphics) — native
+   * Base64-encoded AnimationList bytes (@gesso/graphics) — native
    * animation tracks for this node, interpolated per vsync on the render
    * thread (ANIMATION_DESIGN.md). Empty string clears all animations. (Named
    * animationData, not animation — Lynx's StandardProps reserves `animation`
@@ -92,16 +92,16 @@ export interface SkityPaintProps {
   animationHandle?: string;
 }
 
-export interface SkityCommonProps extends StandardProps, SkityPaintProps {}
+export interface GessoCommonProps extends StandardProps, GessoPaintProps {}
 
-export interface SkityCanvasProps extends SkityCommonProps {
+export interface GessoCanvasProps extends GessoCommonProps {
   /**
    * `skityAnimationFinish` handler (ANIMATION_CONTROL_DESIGN.md D5): fired on
    * the canvas root when any descendant's (or the canvas's own) tracked
    * animation completes; `event.params.handle` identifies the node. The React
    * wrappers demux this by handle — raw intrinsic consumers read it directly.
    */
-  bindskityanimationfinish?: (event: { params?: { handle?: string } }) => void;
+  bindgessoanimationfinish?: (event: { params?: { handle?: string } }) => void;
   /** Logical viewport x (SVG viewBox). */
   viewportX?: number;
   /** Logical viewport y (SVG viewBox). */
@@ -112,7 +112,7 @@ export interface SkityCanvasProps extends SkityCommonProps {
   /** Logical viewport height (SVG viewBox). */
   viewportHeight?: number;
 }
-export interface SkityRectProps extends SkityCommonProps {
+export interface GessoRectProps extends GessoCommonProps {
   x?: number;
   y?: number;
   width: number;
@@ -120,28 +120,28 @@ export interface SkityRectProps extends SkityCommonProps {
   rx?: number;
   ry?: number;
 }
-export interface SkityCircleProps extends SkityCommonProps {
+export interface GessoCircleProps extends GessoCommonProps {
   cx: number;
   cy: number;
   r: number;
 }
-export interface SkityEllipseProps extends SkityCommonProps {
+export interface GessoEllipseProps extends GessoCommonProps {
   cx: number;
   cy: number;
   rx: number;
   ry: number;
 }
-export interface SkityLineProps extends SkityCommonProps {
+export interface GessoLineProps extends GessoCommonProps {
   x1: number;
   y1: number;
   x2: number;
   y2: number;
 }
-export interface SkityPathProps extends SkityCommonProps {
-  /** Base64-encoded PathCommandList bytes (@lynx-skity/graphics); native decodes + memcpys. */
+export interface GessoPathProps extends GessoCommonProps {
+  /** Base64-encoded PathCommandList bytes (@gesso/graphics); native decodes + memcpys. */
   d?: string;
   /**
-   * Base64-encoded PathOpList bytes (@lynx-skity/graphics `Path2D.op` — a lazy
+   * Base64-encoded PathOpList bytes (@gesso/graphics `Path2D.op` — a lazy
    * boolean composition); native decodes + memcpys, then evaluates the ops at
    * render time (skity PathOp::Execute left fold). An empty payload clears it
    * — the node falls back to `d`.
@@ -152,9 +152,9 @@ export interface SkityPathProps extends SkityCommonProps {
   /** Path trim end, normalized [0,1]. */
   pathEnd?: number;
 }
-export interface SkityPolylineProps extends SkityCommonProps {
+export interface GessoPolylineProps extends GessoCommonProps {
   /** Base64-encoded little-endian float32 vertices `[x0,y0,x1,y1,...]`
-   *  (@lynx-skity/graphics `floatsToBase64`); native decodes + memcpys. Empty
+   *  (@gesso/graphics `floatsToBase64`); native decodes + memcpys. Empty
    *  string clears the vertices. */
   points?: string;
   /** Path trim start, normalized [0,1]. */
@@ -163,13 +163,13 @@ export interface SkityPolylineProps extends SkityCommonProps {
   pathEnd?: number;
 }
 /** Same props as polyline — the closed shape is implied by the tag name. */
-export type SkityPolygonProps = SkityPolylineProps;
-export interface SkityGroupProps extends SkityCommonProps {
-  /** Base64-encoded ClipList bytes (@lynx-skity/graphics); the group's clip
+export type GessoPolygonProps = GessoPolylineProps;
+export interface GessoGroupProps extends GessoCommonProps {
+  /** Base64-encoded ClipList bytes (@gesso/graphics); the group's clip
    *  sequence, applied after the transform, before the subtree. Omit = no clip. */
   clip?: string;
 }
-export interface SkityImageProps extends SkityCommonProps {
+export interface GessoImageProps extends GessoCommonProps {
   /** Source uri (http(s) URL or data URI) — doubles as the ImageStore key.
    *  Setting it also fires the platform image load (async; the node stays
    *  blank until pixels land, then shows up on the next draw). Empty string
@@ -194,8 +194,8 @@ export interface SkityImageProps extends SkityCommonProps {
   height?: number;
 }
 
-export interface SkityParagraphProps extends SkityCommonProps {
-  /** Base64-encoded SpanList bytes (@lynx-skity/graphics buildSpanList) —
+export interface GessoParagraphProps extends GessoCommonProps {
+  /** Base64-encoded SpanList bytes (@gesso/graphics buildSpanList) —
    *  the layout input: text + span styles only, never glyph data. */
   spans?: string;
   /** Text alignment byte: 0=left, 1=center, 2=right. Default 0. */
@@ -219,16 +219,16 @@ export interface SkityParagraphProps extends SkityCommonProps {
 
 declare module "@lynx-js/types" {
   interface IntrinsicElements {
-    "skity-canvas": SkityCanvasProps;
-    "skity-rect": SkityRectProps;
-    "skity-circle": SkityCircleProps;
-    "skity-ellipse": SkityEllipseProps;
-    "skity-line": SkityLineProps;
-    "skity-path": SkityPathProps;
-    "skity-polyline": SkityPolylineProps;
-    "skity-polygon": SkityPolygonProps;
-    "skity-group": SkityGroupProps;
-    "skity-image": SkityImageProps;
-    "skity-paragraph": SkityParagraphProps;
+    "gesso-canvas": GessoCanvasProps;
+    "gesso-rect": GessoRectProps;
+    "gesso-circle": GessoCircleProps;
+    "gesso-ellipse": GessoEllipseProps;
+    "gesso-line": GessoLineProps;
+    "gesso-path": GessoPathProps;
+    "gesso-polyline": GessoPolylineProps;
+    "gesso-polygon": GessoPolygonProps;
+    "gesso-group": GessoGroupProps;
+    "gesso-image": GessoImageProps;
+    "gesso-paragraph": GessoParagraphProps;
   }
 }

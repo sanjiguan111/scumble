@@ -14,7 +14,7 @@ import {
 import type { CanvasProps } from "./types";
 
 /**
- * Root canvas — renders the native `<skity-canvas>` (GPU: Android OpenGL ES /
+ * Root canvas — renders the native `<gesso-canvas>` (GPU: Android OpenGL ES /
  * Vulkan, iOS Metal). Size comes from `style` like any Lynx view, and children
  * are positioned in that physical space by default.
  *
@@ -26,7 +26,7 @@ import type { CanvasProps } from "./types";
  * While mounted, the canvas is the transport for animation playback control
  * (`createAnimation().controller` dispatches `animateControl` through this
  * root's `invoke` lane — ANIMATION_CONTROL_DESIGN.md D6) and demuxes the
- * `skityanimationfinish` events the native side emits here.
+ * `gessoanimationfinish` events the native side emits here.
  *
  * @example
  * // 1:1 physical pixels
@@ -62,7 +62,7 @@ export function Canvas({ children, style, viewPort, animate }: CanvasProps) {
     return () => unregisterControlHost(host);
   }, []);
   return (
-    <skity-canvas
+    <gesso-canvas
       ref={canvasRef}
       style={style}
       viewportX={viewPort?.x}
@@ -71,11 +71,11 @@ export function Canvas({ children, style, viewPort, animate }: CanvasProps) {
       viewportHeight={viewPort?.height}
       animationData={resolveAnimation(animate)}
       animationHandle={animationHandleOf(animate)}
-      bindskityanimationfinish={(e: { params?: { handle?: string } }) =>
+      bindgessoanimationfinish={(e: { params?: { handle?: string } }) =>
         fireAnimationFinish(e?.params?.handle)
       }
     >
       {children}
-    </skity-canvas>
+    </gesso-canvas>
   );
 }

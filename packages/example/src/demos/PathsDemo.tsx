@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { Path, Path2D } from "@lynx-skity/react";
+import { Path, Path2D } from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 

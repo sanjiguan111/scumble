@@ -16,7 +16,7 @@ import type { RectProps } from "../types";
  */
 export function Rect({ x, y, width, height, animate, transform, children, ...rest }: RectProps) {
   return (
-    <skity-rect
+    <gesso-rect
       x={x ?? 0}
       y={y ?? 0}
       width={width}

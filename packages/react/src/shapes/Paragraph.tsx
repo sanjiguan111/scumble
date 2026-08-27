@@ -1,8 +1,8 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { buildSpanList, bytesToBase64 } from "@lynx-skity/graphics";
-import type { SpanSpec } from "@lynx-skity/graphics";
+import { buildSpanList, bytesToBase64 } from "@gesso/graphics";
+import type { SpanSpec } from "@gesso/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
 import { resolveAnimation } from "../internal/animation";
@@ -57,7 +57,7 @@ export function resolveSpanText(props: TextSpanProps): string {
 
 /**
  * Normalize {@link ParagraphProps} + span children into the flat props
- * `<skity-paragraph>` consumes: spans serialize to base64 SpanList bytes with
+ * `<gesso-paragraph>` consumes: spans serialize to base64 SpanList bytes with
  * the paragraph-level defaults merged in (span fields win), alignment maps to
  * its byte, and x/y default to 0. Pure — unit-testable without JSX.
  */
@@ -150,7 +150,7 @@ export function Paragraph({ children, onLayout, animate, transform, ...rest }: P
     ...(fillMaskFilter !== undefined ? { fillMaskFilter } : {}),
   };
   return (
-    <skity-paragraph
+    <gesso-paragraph
       spans={n.spans}
       textAlign={n.textAlign}
       direction={n.direction}

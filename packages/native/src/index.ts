@@ -1,4 +1,4 @@
-// Declarative skity elements (rendered natively via the skity-canvas behavior
+// Declarative skity elements (rendered natively via the gesso-canvas behavior
 // + virtual shape elements registered in SkityBehavior.kt).
 export * from "./elements";
 

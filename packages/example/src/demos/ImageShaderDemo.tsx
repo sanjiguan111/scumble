@@ -3,7 +3,7 @@
 // same platform loader + ImageStore as <Image>, so a shader-filled shape
 // stays blank until its pixels land.
 
-import { Circle, Group, ImageShader, Line, Path, Rect, useImage } from "@lynx-skity/react";
+import { Circle, Group, ImageShader, Line, Path, Rect, useImage } from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 
@@ -12,7 +12,7 @@ import { DemoSection } from "../components/DemoSection";
 const QUADRANT_PNG =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAcElEQVR42u3QMQEAIAwDsApDIsIQgZchowc5YiCZZJpyygQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgIAPArJmN81NlQABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIEPBBwAP+Bc3Swt5TugAAAABJRU5ErkJggg==";
 
-const REMOTE_URL = "https://picsum.photos/seed/lynx-skity/300/200";
+const REMOTE_URL = "https://picsum.photos/seed/gesso/300/200";
 
 export function ImageShaderDemo() {
   const local = useImage(QUADRANT_PNG);

@@ -5,7 +5,7 @@
  * Transform normalization for the React layer — see {@link resolveTransform}.
  */
 
-import { bytesToBase64, parseTransform } from "@lynx-skity/graphics";
+import { bytesToBase64, parseTransform } from "@gesso/graphics";
 
 import type { Matrix4, RotateProps, Transform, TransformProp } from "../types";
 
@@ -33,11 +33,11 @@ function opToCss(t: Transform): string {
  * `{scaleX,scaleY}` / `{rotate,…}` object (rotate in degrees), a 4×4
  * column-major `number[16]` matrix, or an array of ops composed
  * left-to-right — into a base64-encoded `TransformOpList` for the native
- * `transform` prop (every `skity-*` node accepts it; nested transforms
+ * `transform` prop (every `gesso-*` node accepts it; nested transforms
  * cascade in the renderer).
  *
  * The value is first turned into a CSS `transform` string, then
- * `@lynx-skity/graphics`'s `parseTransform` serializes it to nested FlatBuffer
+ * `@gesso/graphics`'s `parseTransform` serializes it to nested FlatBuffer
  * bytes, which are base64-encoded for Lynx's string-only prop channel (Lynx
  * won't marshal raw bytes); the native side decodes + memcpys. Returns
  * `undefined` when there is no transform, so the prop can be omitted entirely.

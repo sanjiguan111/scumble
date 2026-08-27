@@ -1,5 +1,5 @@
 import { useEffect, useState } from "@lynx-js/react";
-import { Canvas, Circle, Group, Path, Path2D, Rect } from "@lynx-skity/react";
+import { Canvas, Circle, Group, Path, Path2D, Rect } from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 

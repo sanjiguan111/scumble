@@ -2,21 +2,21 @@
 // LICENSE file in the root directory of this source tree.
 
 /**
- * @lynx-skity/react — the React component layer for lynx-skity.
+ * @gesso/react — the React component layer for gesso.
  *
  * A declarative canvas API on top of the
- * native skity intrinsic tags (`<skity-canvas>`, `<skity-rect>`, …). Components
+ * native skity intrinsic tags (`<gesso-canvas>`, `<gesso-rect>`, …). Components
  * accept friendly values — CSS color strings, paint enums, transform objects,
  * SVG path `d` strings (or a {@link Path2D}) — and normalize them into the
  * numeric / base64-byte props the native tags consume. All string parsing is
- * delegated to `@lynx-skity/graphics`; the native side never parses strings.
+ * delegated to `@gesso/graphics`; the native side never parses strings.
  *
- * The intrinsic tags are registered by the `@lynx-skity/native` library — importing
- * `@lynx-skity/native/elements` once augments the JSX `IntrinsicElements` so the tags
+ * The intrinsic tags are registered by the `@gesso/native` library — importing
+ * `@gesso/native/elements` once augments the JSX `IntrinsicElements` so the tags
  * type-check.
  *
  * @example
- * import { Canvas, Circle, Rect, Path, Group } from "@lynx-skity/react";
+ * import { Canvas, Circle, Rect, Path, Group } from "@gesso/react";
  *
  * <Canvas style={{ width: 200, height: 200 }}>
  *   <Rect x={0} y={0} width={100} height={100} color="#ff0000" />
@@ -27,10 +27,10 @@
  * </Canvas>
  */
 
-// Importing @lynx-skity/native/elements augments @lynx-js/types IntrinsicElements with
-// the <skity-*> tags this package renders. Consumers transitively get the types
+// Importing @gesso/native/elements augments @lynx-js/types IntrinsicElements with
+// the <gesso-*> tags this package renders. Consumers transitively get the types
 // via @lynx-js/types once this side-effect import is in the program.
-import "@lynx-skity/native/elements";
+import "@gesso/native/elements";
 
 // ---- containers ----
 export { Canvas } from "./Canvas";
@@ -57,11 +57,11 @@ export { Path } from "./shapes/Path";
 export { Image } from "./shapes/Image";
 export { useImage, createImageHandle } from "./hooks/useImage";
 // Path2D (command-style path builder) is re-exported from the graphics core so
-// callers can import it from @lynx-skity/react alongside <Path>. Path2D.op
+// callers can import it from @gesso/react alongside <Path>. Path2D.op
 // builds lazy boolean compositions (Skia path ops) consumed by <Path>; the
 // PathOpName type names the four operations it accepts.
-export { Path2D } from "@lynx-skity/graphics";
-export type { PathOpName } from "@lynx-skity/graphics";
+export { Path2D } from "@gesso/graphics";
+export type { PathOpName } from "@gesso/graphics";
 // <Image> fit mode union + sampling option types.
 export type {
   Fit,
@@ -70,7 +70,7 @@ export type {
   ImageMipmapMode,
   ImageSamplingOptions,
   TileMode,
-} from "@lynx-skity/graphics";
+} from "@gesso/graphics";
 // ---- shaders & paints ----
 // Gradient shaders are declarative children of a shape: `<Rect><LinearGradient .../></Rect>`. vec() builds the {x,y} points
 // they take.

@@ -17,7 +17,7 @@ import { PATH_COMMAND_TYPE, type CmdOp } from "./binary";
  * — a hand-written, character-level state machine (whitespace/comma skipping,
  * optional sign, integer+fraction, exponent). Unlike that parser — which only
  * tokenizes and leaves geometric conversion to native skity — this one also
- * *normalizes*, because the lynx-skity FlatBuffer PathCommand schema is the
+ * *normalizes*, because the gesso FlatBuffer PathCommand schema is the
  * 6-command normalized form (MOVE_TO / LINE_TO / CUBIC_TO / QUAD_TO / ARC_TO /
  * CLOSE). So relative→absolute, H/V→LINE_TO, and S/T smooth-bezier reflection
  * are resolved here. The scanner is interleaved with the parser (rather than

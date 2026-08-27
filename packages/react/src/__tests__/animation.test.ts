@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 
-import { bytesToBase64, buildAnimationList } from "@lynx-skity/graphics";
+import { bytesToBase64, buildAnimationList } from "@gesso/graphics";
 
 import { resolveAnimation } from "../internal/animation";
 import {
@@ -19,7 +19,7 @@ import type { AnimationSpec } from "../types";
 
 // resolveAnimation returns a base64-encoded AnimationList (nested FlatBuffer
 // bytes for Lynx's string prop channel). Serialization itself is covered by
-// @lynx-skity/graphics' round-trip tests; here we assert the resolve
+// @gesso/graphics' round-trip tests; here we assert the resolve
 // semantics (undefined / filtering / clearing) against the same builder.
 function expectBytes(actual: string | undefined, expected: AnimationSpec[]) {
   expect(actual).toBe(bytesToBase64(buildAnimationList(expected)));

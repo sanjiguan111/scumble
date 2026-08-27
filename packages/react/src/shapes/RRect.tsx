@@ -39,7 +39,7 @@ export function RRect({
   ...rest
 }: RRectProps) {
   return (
-    <skity-rect
+    <gesso-rect
       x={x ?? 0}
       y={y ?? 0}
       width={width}

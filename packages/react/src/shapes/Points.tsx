@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { Path2D, bytesToBase64, parsePoints } from "@lynx-skity/graphics";
+import { Path2D, bytesToBase64, parsePoints } from "@gesso/graphics";
 
 import { resolveAnimation } from "../internal/animation";
 import { animationHandleOf } from "../internal/animation-control";
@@ -62,7 +62,7 @@ export function Points({
       ? { ...rest, strokeCap: "round" as const }
       : rest;
   return (
-    <skity-path
+    <gesso-path
       d={bytes ? bytesToBase64(bytes) : undefined}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}

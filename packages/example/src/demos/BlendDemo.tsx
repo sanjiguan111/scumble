@@ -1,5 +1,5 @@
-import { Circle, Group, Rect } from "@lynx-skity/react";
-import type { BlendMode } from "@lynx-skity/react";
+import { Circle, Group, Rect } from "@gesso/react";
+import type { BlendMode } from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 

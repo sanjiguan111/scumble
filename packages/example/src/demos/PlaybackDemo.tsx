@@ -3,7 +3,7 @@
 
 import { useState } from "@lynx-js/react";
 
-import { Canvas, Circle, Path, Rect, createAnimation } from "@lynx-skity/react";
+import { Canvas, Circle, Path, Rect, createAnimation } from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 

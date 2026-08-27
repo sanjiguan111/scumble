@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-import { parseFit, parseImageFilterMode, parseImageMipmapMode } from "@lynx-skity/graphics";
+import { parseFit, parseImageFilterMode, parseImageMipmapMode } from "@gesso/graphics";
 
 import { resolveAnimation } from "../internal/animation";
 import { animationHandleOf } from "../internal/animation-control";
@@ -9,7 +9,7 @@ import { resolvePaint } from "../internal/paint";
 import { resolveTransform } from "../internal/transform";
 import type { ImageProps } from "../types";
 
-/** What `<skity-image>` consumes after normalization. */
+/** What `<gesso-image>` consumes after normalization. */
 export interface NormalizedImageSource {
   /** Undefined = no source (the native prop clears the node). */
   uri: string | undefined;
@@ -25,7 +25,7 @@ export interface NormalizedImageSource {
 }
 
 /**
- * Normalize {@link ImageProps} into the flat numeric/uri props `<skity-image>`
+ * Normalize {@link ImageProps} into the flat numeric/uri props `<gesso-image>`
  * consumes: `rect` takes precedence over x/y/width/height (x/y default 0), a
  * bare string is accepted where a handle is, `fit` resolves to its
  * `skityrt.BoxFit` byte ("contain" default), `sampling` resolves to the
@@ -83,7 +83,7 @@ export function Image({ animate, transform, children, ...rest }: ImageProps) {
   if (n === null) return null;
   const { uri, ...geometry } = n;
   return (
-    <skity-image
+    <gesso-image
       image={uri}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}

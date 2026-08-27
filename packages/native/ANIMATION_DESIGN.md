@@ -150,7 +150,7 @@ keyframes[], cx, cy }`, `table AnimationList { tracks[] }`.
   union **at the tail** (13th member; union order is wire order);
   `table SetAnimation { node_id:int = -1; data:[ubyte]
 (nested_flatbuffer: "AnimationList"); }` (pattern of `SetClip`).
-- `pnpm --filter @lynx-skity/native generate-fbs` → C++/Java/TS stubs.
+- `pnpm --filter @gesso/native generate-fbs` → C++/Java/TS stubs.
 
 ### Phase B — shared C++ core (no platform code, zero regression surface)
 
@@ -174,7 +174,7 @@ keyframes[], cx, cy }`, `table AnimationList { tracks[] }`.
   (local style copy + explicitPaint bits when paint slots active),
   `DrawShape` geometry/trim reads go through overlay accessors.
 - Build registration: `android/CMakeLists.txt` source list +
-  `lynx-skity.podspec` source/public header files.
+  `gesso.podspec` source/public header files.
 - Tests: `tests/easing_test.cc`, `tests/animation_test.cc` (builder-made
   batch → Apply → synthetic timestamps → assert delay freeze, loop
   folding, autoReverse, fill none/forwards, command-conflict cancel,
@@ -256,9 +256,9 @@ break`); no `animate` prop → no `SetAnimation` command → driver never
 
 ## 7. Verification
 
-1. Unit: `pnpm --filter @lynx-skity/native test:native`;
-   `pnpm --filter @lynx-skity/graphics test`;
-   `pnpm --filter @lynx-skity/react test`.
+1. Unit: `pnpm --filter @gesso/native test:native`;
+   `pnpm --filter @gesso/graphics test`;
+   `pnpm --filter @gesso/react test`.
 2. Build: Android `./gradlew assembleDebug` (example); iOS workspace.
 3. Dynamic (both platforms, AnimationDemo): smooth animation with zero
    JS per-frame work (Lynx devtool shows no layout flush), driver stops

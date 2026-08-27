@@ -16,7 +16,7 @@ import {
   Path2D,
   Rect,
   RRect,
-} from "@lynx-skity/react";
+} from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 

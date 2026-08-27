@@ -33,23 +33,23 @@ class SkityBehavior : BehaviorBundle {
 
   override fun create(): List<Behavior> {
     return listOf(
-      object : Behavior("skity-canvas") {
+      object : Behavior("gesso-canvas") {
         override fun createUI(context: LynxContext?): LynxUI<*>? =
           context?.let { SkityCanvasUI(it) }
 
         override fun createShadowNode(): ShadowNode = SkityCanvasShadowNode()
       },
 
-      virtualBehavior("skity-rect", ::SkityRectShadowNode),
-      virtualBehavior("skity-circle", ::SkityCircleShadowNode),
-      virtualBehavior("skity-ellipse", ::SkityEllipseShadowNode),
-      virtualBehavior("skity-line", ::SkityLineShadowNode),
-      virtualBehavior("skity-path", ::SkityPathShadowNode),
-      virtualBehavior("skity-polyline", ::SkityPolylineShadowNode),
-      virtualBehavior("skity-polygon", ::SkityPolygonShadowNode),
-      virtualBehavior("skity-image", ::SkityImageShadowNode),
-      virtualBehavior("skity-group", ::SkityGroupShadowNode),
-      virtualBehavior("skity-paragraph", ::SkityParagraphShadowNode),
+      virtualBehavior("gesso-rect", ::SkityRectShadowNode),
+      virtualBehavior("gesso-circle", ::SkityCircleShadowNode),
+      virtualBehavior("gesso-ellipse", ::SkityEllipseShadowNode),
+      virtualBehavior("gesso-line", ::SkityLineShadowNode),
+      virtualBehavior("gesso-path", ::SkityPathShadowNode),
+      virtualBehavior("gesso-polyline", ::SkityPolylineShadowNode),
+      virtualBehavior("gesso-polygon", ::SkityPolygonShadowNode),
+      virtualBehavior("gesso-image", ::SkityImageShadowNode),
+      virtualBehavior("gesso-group", ::SkityGroupShadowNode),
+      virtualBehavior("gesso-paragraph", ::SkityParagraphShadowNode),
     )
   }
 

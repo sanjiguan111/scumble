@@ -1,16 +1,6 @@
 import { useEffect, useState } from "@lynx-js/react";
 
-import {
-  Circle,
-  Ellipse,
-  Line,
-  Points,
-  Polygon,
-  Polyline,
-  Rect,
-  RRect,
-  vec,
-} from "@lynx-skity/react";
+import { Circle, Ellipse, Line, Points, Polygon, Polyline, Rect, RRect, vec } from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 

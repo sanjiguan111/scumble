@@ -11,7 +11,7 @@ import type { PolygonProps } from "../types";
 /**
  * Closed polygon through the given vertices — a closing segment from the last
  * vertex back to the first is appended automatically (implied by the
- * `skity-polygon` tag natively). Filled by default (like the other closed
+ * `gesso-polygon` tag natively). Filled by default (like the other closed
  * shapes).
  *
  * @example
@@ -20,7 +20,7 @@ import type { PolygonProps } from "../types";
  */
 export function Polygon({ points, animate, transform, children, ...rest }: PolygonProps) {
   return (
-    <skity-polygon
+    <gesso-polygon
       points={pointsToVerticesProp(points)}
       transform={resolveTransform(transform)}
       animationData={resolveAnimation(animate)}

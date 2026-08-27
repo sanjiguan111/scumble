@@ -16,7 +16,7 @@ const handles = new Map<string, ImageHandle>();
 export function createImageHandle(uri: string): ImageHandle {
   let h = handles.get(uri);
   if (h === undefined) {
-    h = { __kind: "skity-image", uri };
+    h = { __kind: "gesso-image", uri };
     handles.set(uri, h);
   }
   return h;

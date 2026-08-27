@@ -7,7 +7,7 @@
 // bytes; a child gradient shader (<LinearGradient>/<RadialGradient>/
 // <SweepGradient>) is serialized to base64 Gradient bytes, and a child
 // <ImageShader> flattens to uri/fit/tx/ty/rect props. All
-// string/value resolution is delegated to @lynx-skity/graphics; the native side
+// string/value resolution is delegated to @gesso/graphics; the native side
 // never parses strings.
 
 import {
@@ -27,8 +27,8 @@ import {
   parseStrokeCap,
   parseStrokeJoin,
   parseTileMode,
-} from "@lynx-skity/graphics";
-import type { FilterSpec } from "@lynx-skity/graphics";
+} from "@gesso/graphics";
+import type { FilterSpec } from "@gesso/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
 import { Blur, ColorBlend, ColorMatrix, DropShadow, MaskBlur } from "../filters/filters";

@@ -3,7 +3,7 @@
 // Demos that need a custom viewport / interactive wrapper just don't use it.
 
 import type { ReactNode } from "@lynx-js/react";
-import { Canvas } from "@lynx-skity/react";
+import { Canvas } from "@gesso/react";
 
 interface DemoSectionProps {
   title: string;

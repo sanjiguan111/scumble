@@ -1,11 +1,11 @@
-# lynx-skity
+# gesso
 
 A 2D graphics library for [Lynx](https://lynxjs.org/), powered by the **skity** GPU
 backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a declarative drawing
 API — `<Canvas><Circle color="red"/></Canvas>`
 — to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer render tree.
 
-> 🌐 Landing page: <https://ruiwentang.github.io/lynx-skity> — served from
+> 🌐 Landing page: <https://ruiwentang.github.io/gesso> — served from
 > [`packages/website`](packages/website/index.html) via GitHub Actions (enable
 > _Settings → Pages → Source: GitHub Actions_ once on the repo).
 
@@ -38,44 +38,44 @@ cancel, onFinish}`.
 ## Architecture
 
 ```
-@lynx-skity/react   ─ framework wrapper (ergonomic components, friendly props)
+@gesso/react   ─ framework wrapper (ergonomic components, friendly props)
         │
-@lynx-skity/graphics ─ pure-JS core (parseColor / parsePath / Path2D / parseTransform)
+@gesso/graphics ─ pure-JS core (parseColor / parsePath / Path2D / parseTransform)
         │             produces primitive values (int / float / FlatBuffer bytes)
- @lynx-skity/native  ─ native tag contract (<skity-*>) + skityrt FlatBuffer schema
+ @gesso/native  ─ native tag contract (<gesso-*>) + skityrt FlatBuffer schema
         │             ─── skityrt::RenderTree FlatBuffer ───
    skity GPU backend ─ Android GLES/Vulkan · iOS Metal
 ```
 
-Dependency direction is a single DAG: `@lynx-skity/react` → `@lynx-skity/graphics` →
-`@lynx-skity/native`. The native side never does "string → structure" parsing — all of it lives
-in `@lynx-skity/graphics`; variable-length data (path / transform) travels as nested
+Dependency direction is a single DAG: `@gesso/react` → `@gesso/graphics` →
+`@gesso/native`. The native side never does "string → structure" parsing — all of it lives
+in `@gesso/graphics`; variable-length data (path / transform) travels as nested
 FlatBuffer bytes, base64-encoded over Lynx's string-only prop channel.
 
 Full design + roadmap: [`packages/native/RENDER_ARCHITECTURE.md`](packages/native/RENDER_ARCHITECTURE.md).
 
 ## Packages
 
-| Package                                     | What it is                                                                                                                         |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [`@lynx-skity/native`](packages/native)     | The native Lynx library — intrinsic `<skity-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `SkityRenderer`. |
-| [`@lynx-skity/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                               |
-| [`@lynx-skity/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                         |
-| [`example`](packages/example)               | rspeedy demo app consuming all of the above.                                                                                       |
-| [`website`](packages/website)               | Static landing page (GitHub Pages) — one zero-dependency HTML file, `pnpm --filter @lynx-skity/website dev` to preview.            |
+| Package                                | What it is                                                                                                                         |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [`@gesso/native`](packages/native)     | The native Lynx library — intrinsic `<gesso-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `SkityRenderer`. |
+| [`@gesso/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                               |
+| [`@gesso/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                         |
+| [`example`](packages/example)          | rspeedy demo app consuming all of the above.                                                                                       |
+| [`website`](packages/website)          | Static landing page (GitHub Pages) — one zero-dependency HTML file, `pnpm --filter @gesso/website dev` to preview.                 |
 
 ## Installation
 
-Consumers install all three packages explicitly — `@lynx-skity/react` declares
+Consumers install all three packages explicitly — `@gesso/react` declares
 the other two as **peerDependencies**, so they are not pulled transitively (the
 host owns the versions, no surprise nested copy):
 
 ```bash
-pnpm add @lynx-skity/react @lynx-skity/graphics @lynx-skity/native
+pnpm add @gesso/react @gesso/graphics @gesso/native
 ```
 
-> All packages are consumed through a bundler (rspeedy/rspack) — `@lynx-skity/react`
-> and `@lynx-skity/native` ship TS sources, and `@lynx-skity/graphics`' compiled
+> All packages are consumed through a bundler (rspeedy/rspack) — `@gesso/react`
+> and `@gesso/native` ship TS sources, and `@gesso/graphics`' compiled
 > `dist` uses extensionless relative imports resolvable by bundlers only. Plain
 > Node ESM imports are not a supported consumption mode.
 
@@ -112,14 +112,14 @@ them once after cloning (and after any `.fbs` change):
 
 ```bash
 tools/hab sync                                                   # fetches flatc
-pnpm --filter @lynx-skity/native generate-fbs
+pnpm --filter @gesso/native generate-fbs
 ```
 
 Run the example app on a booted simulator / connected device:
 
 ```bash
-pnpm --filter lynx-skity-example ios       # iOS simulator (scripts/run-ios.mjs)
-pnpm --filter lynx-skity-example android   # Android (scripts/run-android.mjs)
+pnpm --filter gesso-example ios       # iOS simulator (scripts/run-ios.mjs)
+pnpm --filter gesso-example android   # Android (scripts/run-android.mjs)
 ```
 
 Edit `packages/example/src/App.tsx` and reload to iterate.

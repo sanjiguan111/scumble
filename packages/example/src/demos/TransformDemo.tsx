@@ -1,4 +1,4 @@
-import { Circle, Group, Rect } from "@lynx-skity/react";
+import { Circle, Group, Rect } from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 

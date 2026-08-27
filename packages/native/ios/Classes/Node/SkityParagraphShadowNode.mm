@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-// <skity-paragraph> iOS layout backend: CoreText does everything (shaping,
+// <gesso-paragraph> iOS layout backend: CoreText does everything (shaping,
 // line breaking, kinsoku, font fallback); we walk the resulting CTRuns for
 // glyph IDs + positions and register the REAL post-fallback fonts with the
 // shared FontRegistry. Glyph IDs are CGGlyphs — the same space as skity's
@@ -121,9 +121,9 @@ CTParagraphStyleRef SkityParagraphStyle(uint8_t align, uint8_t direction, float 
 }
 
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("skity-paragraph")
+LYNX_LAZY_REGISTER_SHADOW_NODE("gesso-paragraph")
 #else
-LYNX_REGISTER_SHADOW_NODE("skity-paragraph")
+LYNX_REGISTER_SHADOW_NODE("gesso-paragraph")
 #endif
 
 - (std::shared_ptr<SkityParagraphResult>)lastResult {

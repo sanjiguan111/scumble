@@ -18,7 +18,7 @@ export function HomePage() {
           paddingBottom: "8px",
         }}
       >
-        <text style={{ fontSize: "28px", fontWeight: "700", color: "#111827" }}>lynx-skity</text>
+        <text style={{ fontSize: "28px", fontWeight: "700", color: "#111827" }}>gesso</text>
         <text style={{ fontSize: "14px", color: "#6b7280", marginTop: "4px" }}>
           GPU vector graphics for Lynx — tap a category
         </text>

@@ -13,12 +13,12 @@
 | Rect / RRect                                   | ✅     | RRect = rect + `rx`/`ry`                                                                                                                                                                                                                                |
 | Circle                                         | ✅     |                                                                                                                                                                                                                                                         |
 | Path (`d` string / Path2D)                     | ✅     | Full SVG command set M/L/H/V/C/S/Q/T/A/Z; + `start`/`end` trim                                                                                                                                                                                          |
-| **Ellipse**                                    | ✅     | `<Ellipse cx cy rx ry>` → `skity-ellipse` (native DrawShape `ellipse` branch)                                                                                                                                                                           |
-| **Line**                                       | ✅     | `<Line x1 y1 x2 y2>` → `skity-line`; stroke-only (defaults `style="stroke"`, explicit fill ignored natively)                                                                                                                                            |
+| **Ellipse**                                    | ✅     | `<Ellipse cx cy rx ry>` → `gesso-ellipse` (native DrawShape `ellipse` branch)                                                                                                                                                                           |
+| **Line**                                       | ✅     | `<Line x1 y1 x2 y2>` → `gesso-line`; stroke-only (defaults `style="stroke"`, explicit fill ignored natively)                                                                                                                                            |
 | **Polyline / Polygon**                         | ✅     | `<Polyline>`/`<Polygon>` render via the native points channel (`SetGeometry.points` float vector, incremental updates; commits `7eccd03`/`a80b2a1`). Polyline defaults `stroke`, Polygon defaults `fill`                                                |
 | **Points (`pointMode`: points/lines/polygon)** | ✅     | `<Points mode>` compiled to path commands at the react layer — `points`: zero-length segments + `strokeCap="round"` (diameter = `strokeWidth`, how Skia's `drawPoints` works too); `lines`: point pairs; `polygon`: polyline. Defaults `style="stroke"` |
 
-> `parsePoints` (SVG `points` string → `{x,y}` pairs) now lives in `@lynx-skity/graphics` alongside the other string parsers.
+> `parsePoints` (SVG `points` string → `{x,y}` pairs) now lives in `@gesso/graphics` alongside the other string parsers.
 
 ## B. Paint
 
@@ -241,7 +241,7 @@ Stage 2 are unaffected either way.
     drive custom props; a native Choreographer/CADisplayLink animator is
     the long-game option. Follow-ups:
     - **11a. Stage 1: invoke-driven animated values** (§G.2, §G.3 verified
-      PASS) — shared-value API in `@lynx-skity/react`; worklet lane where
+      PASS) — shared-value API in `@gesso/react`; worklet lane where
       available, `nodeRef.invoke` lane elsewhere. First step: smoke-test
       `main-thread:` on the Android public SDK (§G.4 risk).
     - **11b. Stage 2: native interpolation engine** (§G.2) — **done

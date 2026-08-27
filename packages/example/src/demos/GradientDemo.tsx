@@ -7,7 +7,7 @@ import {
   SweepGradient,
   TwoPointConicalGradient,
   vec,
-} from "@lynx-skity/react";
+} from "@gesso/react";
 
 import { DemoSection } from "../components/DemoSection";
 

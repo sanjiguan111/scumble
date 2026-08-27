@@ -15,7 +15,7 @@ import type { CircleProps } from "../types";
  */
 export function Circle({ cx, cy, radius, animate, transform, children, ...rest }: CircleProps) {
   return (
-    <skity-circle
+    <gesso-circle
       cx={cx ?? 0}
       cy={cy ?? 0}
       r={radius}

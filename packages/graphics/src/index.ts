@@ -2,7 +2,7 @@
 // LICENSE file in the root directory of this source tree.
 
 /**
- * @lynx-skity/graphics — framework-agnostic value parsers for lynx-skity.
+ * @gesso/graphics — framework-agnostic value parsers for gesso.
  *
  * Converts the values users like to write — CSS color strings, paint enums
  * (`"round"`, `"evenodd"`, …), CSS `transform` lists, SVG path `d` strings —
@@ -15,14 +15,14 @@
  * the same shape as the Web Canvas `Path2D`, for authoring paths imperatively
  * instead of via an SVG `d` string.
  *
- * Framework-agnostic: shared by `@lynx-skity/react` (and a future Vue layer).
+ * Framework-agnostic: shared by `@gesso/react` (and a future Vue layer).
  * It is a pure build-time utility with no native code, so it ships compiled
  * `dist/` (the vendored FlatBuffers runtime needs a `tsc` whole-program emit
  * to erase its type-only re-exports). See `RENDER_ARCHITECTURE.md` for the
  * end-to-end data-flow.
  *
  * @example
- * import { parseColor, parsePath, Path2D } from "@lynx-skity/graphics";
+ * import { parseColor, parsePath, Path2D } from "@gesso/graphics";
  *
  * parseColor("rebeccapurple");           // 0xff663399  (packed 0xAARRGGBB)
  * parseColor("rgb(100% 50% 25% / 50%)"); // 0x80ff8040

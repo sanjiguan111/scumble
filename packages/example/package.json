@@ -1,5 +1,5 @@
 {
-  "name": "lynx-skity-example",
+  "name": "gesso-example",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,9 +12,9 @@
     "@lynx-js/react": "^0.123.0",
     "@lynx-js/react-rsbuild-plugin": "0.18.0",
     "@lynx-js/rspeedy": "^0.16.2",
-    "@lynx-skity/graphics": "workspace:*",
-    "@lynx-skity/native": "workspace:*",
-    "@lynx-skity/react": "workspace:*",
+    "@gesso/graphics": "workspace:*",
+    "@gesso/native": "workspace:*",
+    "@gesso/react": "workspace:*",
     "react-router": "6"
   },
   "devDependencies": {

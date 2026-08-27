@@ -1,7 +1,7 @@
 {
-  "name": "@lynx-skity/react",
+  "name": "@gesso/react",
   "version": "0.1.0",
-  "description": "React component layer for lynx-skity \u2014 react-native-skity-style API (<Canvas>/<Circle color='red'/>) over the skity intrinsic tags.",
+  "description": "React component layer for gesso \u2014 react-native-skity-style API (<Canvas>/<Circle color='red'/>) over the skity intrinsic tags.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -15,8 +15,8 @@
     "test": "tsc --noEmit && vitest run"
   },
   "peerDependencies": {
-    "@lynx-skity/graphics": "workspace:^",
-    "@lynx-skity/native": "workspace:^",
+    "@gesso/graphics": "workspace:^",
+    "@gesso/native": "workspace:^",
     "@lynx-js/react": "*",
     "@lynx-js/types": "*"
   },
@@ -29,11 +29,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RuiwenTang/lynx-skity.git",
+    "url": "git+https://github.com/RuiwenTang/gesso.git",
     "directory": "packages/react"
   },
-  "homepage": "https://github.com/RuiwenTang/lynx-skity/tree/main/packages/react",
+  "homepage": "https://github.com/RuiwenTang/gesso/tree/main/packages/react",
   "bugs": {
-    "url": "https://github.com/RuiwenTang/lynx-skity/issues"
+    "url": "https://github.com/RuiwenTang/gesso/issues"
   }
 }
