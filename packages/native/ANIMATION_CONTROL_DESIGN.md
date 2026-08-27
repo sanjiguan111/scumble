@@ -387,18 +387,26 @@ invalidate alone repaints.
 - **Driver**: no timeline is running during pure gesture frames —
   repaints ride the setValue invalidations themselves; a hand-off
   `SetAnimation` wakes the driver as usual (applyCommands → wakeUp).
-- **Frequency / lanes**: touchmove fires ~60–120 Hz. v0 = the same
-  JS-thread RefProxy invoke lane as playback control (Android public
-  SDK safe). The worklet lane (§G.3 PASS on iOS; §G.4 risk on Android
-  public SDK) is the upgrade path for tighter budgets — the react API
-  must stay lane-agnostic (controller methods only).
+- **Frequency / lanes — input sources verified (2026-08-27, Lynx
+  source + typings)**: the raw layer is `bindtouchstart/move/end/
+cancel` (same binding mode as `bindtap`; full `touches` payloads
+  with element/page/client coordinates — `touch_event_handler.cc`).
+  Bind them on the view WRAPPING the canvas (InteractiveDemo's
+  pattern). Lynx also ships a full high-level gesture framework
+  (native arena model, `clay/ui/gesture_handler`: Pan/Fling/Tap/
+  LongPress/Rotation/Pinch + Composed) whose callbacks run as
+  WORKLETS — a natural fit for the upgraded lane. v0 = touchmove
+  (~60–120 Hz) → JS-thread RefProxy invoke (Android public SDK safe).
+  Upgrade = gesture worklet → worklet `element.invoke` (§G.3 PASS on
+  iOS; §G.4 risk on Android public SDK) — the react API must stay
+  lane-agnostic (controller methods only).
 - **Scale factor**: `scale` needs `value2` (sy); colors could ride the
   same channel later (`color` param) — start with the 14 scalar
   properties, skip FILL/STROKE colors in v0.
 
 ### 9.4 Verification sketch
 
-Demo: a draggable card — `bindpan`/touchmove feeds setValue (card
+Demo: a draggable card — `bindtouchmove` feeds setValue (card
 tracks the finger with zero React re-renders: verify via devtool that
 no patch/flush fires during the drag), release swaps in a spring
 track. Unit: setValue cancels a conflicting timeline track and writes
