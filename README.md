@@ -1,5 +1,6 @@
 # scumble
 
+[![npm](https://img.shields.io/npm/v/@scumble/react?label=%40scumble%2Freact)](https://www.npmjs.com/package/@scumble/react)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-5b8cff.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-2dd4bf.svg)](#architecture)
 [![Docs](https://img.shields.io/badge/docs-sanjiguan111.github.io%2Fscumble-7683b3.svg)](https://sanjiguan111.github.io/scumble)
