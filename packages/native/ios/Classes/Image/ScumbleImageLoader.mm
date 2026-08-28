@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-#import "SkityImageLoader.h"
+#import "ScumbleImageLoader.h"
 
 #import <CoreGraphics/CoreGraphics.h>
 #import <UIKit/UIKit.h>
@@ -12,19 +12,19 @@
 
 #include <skity/io/data.hpp>
 
-#include "SkityMetalContext.h"
-#include "SkityRenderSession.h"
+#include "ScumbleMetalContext.h"
+#include "ScumbleRenderSession.h"
 #include "image_store.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-#pragma mark - SkityImagePixels
+#pragma mark - ScumbleImagePixels
 
-@implementation SkityImagePixels
+@implementation ScumbleImagePixels
 @synthesize rgba = _rgba, width = _width, height = _height;
 
 + (instancetype)pixelsWithRGBA:(NSData *)rgba width:(uint32_t)width height:(uint32_t)height {
-  SkityImagePixels *p = [[SkityImagePixels alloc] init];
+  ScumbleImagePixels *p = [[ScumbleImagePixels alloc] init];
   p->_rgba = rgba;
   p->_width = width;
   p->_height = height;
@@ -38,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 // Decode image bytes into premultiplied RGBA (skity kRGBA byte layout).
 // 8bpc/32bpp + kCGBitmapByteOrder32Big + PremultipliedLast means the in-memory
 // byte order is R,G,B,A on every Apple target — the standard Skia-style combo.
-static SkityImagePixels *_Nullable SkityDecodeImageBytes(NSData *data) {
+static ScumbleImagePixels *_Nullable ScumbleDecodeImageBytes(NSData *data) {
   if (data.length == 0) return nil;
   UIImage *image = [UIImage imageWithData:data];
   if (image == nil) return nil;
@@ -66,15 +66,15 @@ static SkityImagePixels *_Nullable SkityDecodeImageBytes(NSData *data) {
   // v1).
   NSData *rgba = [NSData dataWithBytes:px length:(NSUInteger)w * h * 4];
   CGContextRelease(ctx);
-  return [SkityImagePixels pixelsWithRGBA:rgba width:w height:h];
+  return [ScumbleImagePixels pixelsWithRGBA:rgba width:w height:h];
 }
 
-@interface BuiltInSkityImageLoader : NSObject <SkityImageLoader>
+@interface BuiltInScumbleImageLoader : NSObject <ScumbleImageLoader>
 @end
 
-@implementation BuiltInSkityImageLoader
+@implementation BuiltInScumbleImageLoader
 
-- (void)loadImage:(NSString *)uri onComplete:(void (^)(SkityImagePixels *_Nullable))onComplete {
+- (void)loadImage:(NSString *)uri onComplete:(void (^)(ScumbleImagePixels *_Nullable))onComplete {
   if ([uri hasPrefix:@"data:"]) {
     NSRange marker = [uri rangeOfString:@"base64,"];
     if (marker.location == NSNotFound) {
@@ -85,7 +85,7 @@ static SkityImagePixels *_Nullable SkityDecodeImageBytes(NSData *data) {
     NSData *data =
         [[NSData alloc] initWithBase64EncodedString:b64
                                             options:NSDataBase64DecodingIgnoreUnknownCharacters];
-    onComplete(SkityDecodeImageBytes(data));
+    onComplete(ScumbleDecodeImageBytes(data));
     return;
   }
   if ([uri hasPrefix:@"http://"] || [uri hasPrefix:@"https://"]) {
@@ -110,7 +110,7 @@ static SkityImagePixels *_Nullable SkityDecodeImageBytes(NSData *data) {
             onComplete(nil);
             return;
           }
-          onComplete(SkityDecodeImageBytes(data));
+          onComplete(ScumbleDecodeImageBytes(data));
         }];
     [task resume];
     return;
@@ -132,13 +132,13 @@ static SkityImagePixels *_Nullable SkityDecodeImageBytes(NSData *data) {
 // before the dispatch. The block then only touches data it owns: `uri` is a
 // by-value capture and `px` is our malloc'd copy (handed to skity::Data
 // inside the block; freed by the release proc).
-static void SkityStoreImageBytes(std::string uri, const void *bytes, size_t len, uint32_t w,
+static void ScumbleStoreImageBytes(std::string uri, const void *bytes, size_t len, uint32_t w,
                                  uint32_t h, bool ok) {
   void *px = (ok && bytes != nullptr && len > 0) ? std::malloc(len) : nullptr;
   if (px != nullptr) {
     std::memcpy(px, bytes, len);
   }
-  dispatch_async([SkityMetalContext sharedInstance].renderQueue, ^{
+  dispatch_async([ScumbleMetalContext sharedInstance].renderQueue, ^{
     if (px != nullptr) {
       auto data = skity::Data::MakeWithProc(
           px, len, [](const void *ptr, void *) { std::free(const_cast<void *>(ptr)); }, nullptr);
@@ -147,51 +147,51 @@ static void SkityStoreImageBytes(std::string uri, const void *bytes, size_t len,
     } else {
       skityrt::ImageStore::Instance().MarkFailed(uri);
     }
-    for (SkityRenderSession *session in [SkityImageLoaderRegistry liveSessions]) {
+    for (ScumbleRenderSession *session in [ScumbleImageLoaderRegistry liveSessions]) {
       [session drawIfReady]; // already on the render queue
     }
   });
 }
 
-@implementation SkityImageLoaderRegistry {
-  id<SkityImageLoader> _loader;
+@implementation ScumbleImageLoaderRegistry {
+  id<ScumbleImageLoader> _loader;
   NSMutableSet<NSString *> *_pending;
   NSHashTable<id> *_sessions;
 }
 
 + (instancetype)shared {
-  static SkityImageLoaderRegistry *registry;
+  static ScumbleImageLoaderRegistry *registry;
   static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{ registry = [[SkityImageLoaderRegistry alloc] init]; });
+  dispatch_once(&onceToken, ^{ registry = [[ScumbleImageLoaderRegistry alloc] init]; });
   return registry;
 }
 
 - (instancetype)init {
   self = [super init];
   if (self) {
-    _loader = [[BuiltInSkityImageLoader alloc] init];
+    _loader = [[BuiltInScumbleImageLoader alloc] init];
     _pending = [NSMutableSet set];
     _sessions = [NSHashTable weakObjectsHashTable];
   }
   return self;
 }
 
-+ (void)setImageLoader:(nullable id<SkityImageLoader>)loader {
-  SkityImageLoaderRegistry *registry = [SkityImageLoaderRegistry shared];
++ (void)setImageLoader:(nullable id<ScumbleImageLoader>)loader {
+  ScumbleImageLoaderRegistry *registry = [ScumbleImageLoaderRegistry shared];
   @synchronized(registry) {
-    registry->_loader = loader ?: [[BuiltInSkityImageLoader alloc] init];
+    registry->_loader = loader ?: [[BuiltInScumbleImageLoader alloc] init];
   }
 }
 
 + (NSArray<id> *)liveSessions {
-  SkityImageLoaderRegistry *registry = [SkityImageLoaderRegistry shared];
+  ScumbleImageLoaderRegistry *registry = [ScumbleImageLoaderRegistry shared];
   @synchronized(registry) {
     return [registry->_sessions allObjects];
   }
 }
 
 + (void)addSession:(id)session {
-  SkityImageLoaderRegistry *registry = [SkityImageLoaderRegistry shared];
+  ScumbleImageLoaderRegistry *registry = [ScumbleImageLoaderRegistry shared];
   @synchronized(registry) {
     [registry->_sessions addObject:session];
   }
@@ -199,8 +199,8 @@ static void SkityStoreImageBytes(std::string uri, const void *bytes, size_t len,
 
 + (void)requestImage:(NSString *)uri {
   if (uri.length == 0) return;
-  SkityImageLoaderRegistry *registry = [SkityImageLoaderRegistry shared];
-  id<SkityImageLoader> loader;
+  ScumbleImageLoaderRegistry *registry = [ScumbleImageLoaderRegistry shared];
+  id<ScumbleImageLoader> loader;
   @synchronized(registry) {
     if ([registry->_pending containsObject:uri]) return;
     [registry->_pending addObject:uri];
@@ -208,12 +208,12 @@ static void SkityStoreImageBytes(std::string uri, const void *bytes, size_t len,
   }
   std::string key = std::string(uri.UTF8String);
   [loader loadImage:uri
-         onComplete:^(SkityImagePixels *_Nullable pixels) {
+         onComplete:^(ScumbleImagePixels *_Nullable pixels) {
            if (pixels != nil) {
-             SkityStoreImageBytes(key, pixels.rgba.bytes, pixels.rgba.length, pixels.width,
+             ScumbleStoreImageBytes(key, pixels.rgba.bytes, pixels.rgba.length, pixels.width,
                                   pixels.height, true);
            } else {
-             SkityStoreImageBytes(key, nullptr, 0, 0, 0, false);
+             ScumbleStoreImageBytes(key, nullptr, 0, 0, 0, false);
            }
            @synchronized(registry) {
              [registry->_pending removeObject:uri];

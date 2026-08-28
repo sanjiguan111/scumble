@@ -16,7 +16,7 @@
     "scripts",
     "harmony",
     "lynx.lib.json",
-    "lynx-skity.podspec",
+    "scumble.podspec",
     "README.md",
     "android/src/main/java",
     "android/src/main/cpp",

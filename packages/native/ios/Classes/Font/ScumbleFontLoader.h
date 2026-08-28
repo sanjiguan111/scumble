@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-// Host-injectable font loader for <skity-paragraph> custom fonts with schemed
+// Host-injectable font loader for <scumble-paragraph> custom fonts with schemed
 // URIs (http(s)://, file://, host schemes). Mirrors the image loader shape:
 // requests come from the TASM thread (paragraph layout saw a TypefaceCache
 // miss), results may arrive on any loader thread, and the registry then (1)
@@ -16,21 +16,21 @@ NS_ASSUME_NONNULL_BEGIN
 
 @class LynxUIContext;
 
-@protocol SkityFontLoader <NSObject>
+@protocol ScumbleFontLoader <NSObject>
 /// Raw ttf/otf bytes for the uri; `onComplete(nil)` = failure. May be called
 /// on any thread.
 - (void)loadFont:(NSString *)uri onComplete:(void (^)(NSData *_Nullable bytes))onComplete;
 @end
 
 /// Built-in loader: http(s) via the shared NSURLSession, file:// paths.
-/// Hosts swap it via [SkityFontLoaderRegistry setFontLoader:].
-@interface BuiltInSkityFontLoader : NSObject <SkityFontLoader>
+/// Hosts swap it via [ScumbleFontLoaderRegistry setFontLoader:].
+@interface BuiltInScumbleFontLoader : NSObject <ScumbleFontLoader>
 @end
 
-@interface SkityFontLoaderRegistry : NSObject
+@interface ScumbleFontLoaderRegistry : NSObject
 
 /// Replace the font loader (nil restores the built-in one).
-+ (void)setFontLoader:(nullable id<SkityFontLoader>)loader;
++ (void)setFontLoader:(nullable id<ScumbleFontLoader>)loader;
 
 /// TASM thread (paragraph layout): register a paragraph as waiting on the
 /// uri and start the load if none is in flight. On completion the registry

@@ -2,31 +2,31 @@
 // LICENSE file in the root directory of this source tree.
 //
 /// Virtual shape/group ShadowNodes. Each only declares its skity tag name; all
-/// geometry/paint props are inherited from SkityNodeBase. The container
-/// SkityCanvasShadowNode walks the child tree and serializes every node.
+/// geometry/paint props are inherited from ScumbleNodeBase. The container
+/// ScumbleCanvasShadowNode walks the child tree and serializes every node.
 ///
-/// iOS counterpart of android/.../node/SkityShapeNodes.kt.
-#import "SkityNodeBase.h"
+/// iOS counterpart of android/.../node/ScumbleShapeNodes.kt.
+#import "ScumbleNodeBase.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface SkityRectShadowNode : SkityNodeBase
+@interface ScumbleRectShadowNode : ScumbleNodeBase
 @end
-@interface SkityCircleShadowNode : SkityNodeBase
+@interface ScumbleCircleShadowNode : ScumbleNodeBase
 @end
-@interface SkityEllipseShadowNode : SkityNodeBase
+@interface ScumbleEllipseShadowNode : ScumbleNodeBase
 @end
-@interface SkityLineShadowNode : SkityNodeBase
+@interface ScumbleLineShadowNode : ScumbleNodeBase
 @end
-@interface SkityPathShadowNode : SkityNodeBase
+@interface ScumblePathShadowNode : ScumbleNodeBase
 @end
-@interface SkityPolylineShadowNode : SkityNodeBase
+@interface ScumblePolylineShadowNode : ScumbleNodeBase
 @end
-@interface SkityPolygonShadowNode : SkityNodeBase
+@interface ScumblePolygonShadowNode : ScumbleNodeBase
 @end
-@interface SkityImageShadowNode : SkityNodeBase
+@interface ScumbleImageShadowNode : ScumbleNodeBase
 @end
-@interface SkityGroupShadowNode : SkityNodeBase
+@interface ScumbleGroupShadowNode : ScumbleNodeBase
 @end
 
 NS_ASSUME_NONNULL_END

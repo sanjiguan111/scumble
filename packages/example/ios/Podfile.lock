@@ -1,9 +1,6 @@
 PODS:
   - Lynx (4.0.1):
     - Lynx/Framework (= 4.0.1)
-  - lynx-skity (0.0.1):
-    - Lynx
-    - skity (= 1.1.0-alpha.3)
   - Lynx/Framework (4.0.1):
     - Lynx/ReleaseResource
     - LynxBase/Framework
@@ -51,16 +48,19 @@ PODS:
     - PrimJS/quickjs
   - PrimJS/quickjs (4.0.0):
     - PrimJS/log
+  - scumble (0.0.1):
+    - Lynx
+    - skity (= 1.1.0-alpha.3)
   - skity (1.1.0-alpha.3)
 
 DEPENDENCIES:
-  - lynx-skity (from `/Users/bytedance/Workspace/github/scumble/packages/native`)
   - Lynx/Framework (= 4.0.1)
   - LynxLibraryRegistry (from `/Users/bytedance/Workspace/github/scumble/packages/example/ios/generated/lynx-library`)
   - LynxService/Http (= 4.0.1)
   - LynxService/Log (= 4.0.1)
   - PrimJS/napi (= 4.0.0)
   - PrimJS/quickjs (= 4.0.0)
+  - scumble (from `/Users/bytedance/Workspace/github/scumble/packages/native`)
 
 SPEC REPOS:
   trunk:
@@ -72,19 +72,19 @@ SPEC REPOS:
     - skity
 
 EXTERNAL SOURCES:
-  lynx-skity:
-    :path: "/Users/bytedance/Workspace/github/scumble/packages/native"
   LynxLibraryRegistry:
     :path: "/Users/bytedance/Workspace/github/scumble/packages/example/ios/generated/lynx-library"
+  scumble:
+    :path: "/Users/bytedance/Workspace/github/scumble/packages/native"
 
 SPEC CHECKSUMS:
   Lynx: 1a461f83f48104309f7e2031dabf3af84b181807
-  lynx-skity: a40c8833047068104da893698ac70c8e52d457aa
   LynxBase: 5ca5092517e6460e0df6ad9b49fca76396c058d8
   LynxLibraryRegistry: b2017f1b3dd04bcac00caacc69d28fddcd6c9043
   LynxService: f447c67687d3ea66eec94e10b7564996e67c06dc
   LynxServiceAPI: 67ae06f77e45c80f0ecaa6705d126ac3b4b8dff4
   PrimJS: f048efc0923e73cde312466a110516f56b70834d
+  scumble: a08f7b25ce664bf15e609837813a559cdbd91498
   skity: 388b5acefefe3ff3be3e3ef0c1641c16361a52f8
 
 PODFILE CHECKSUM: 391498fc23c0a2434093be5f0c84dba179d9d418

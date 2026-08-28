@@ -1,36 +1,36 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-#import "SkityRenderSession.h"
+#import "ScumbleRenderSession.h"
 
-#import "SkityAnimationDriver.h"
-#import "SkityImageLoader.h"
-#import "SkityMetalContext.h"
+#import "ScumbleAnimationDriver.h"
+#import "ScumbleImageLoader.h"
+#import "ScumbleMetalContext.h"
 #import <UIKit/UIScreen.h>
 
-@interface SkityRenderSession ()
-@property(nonatomic, strong) SkityMetalContext *context;
+@interface ScumbleRenderSession ()
+@property(nonatomic, strong) ScumbleMetalContext *context;
 @property(nonatomic, weak) CAMetalLayer *layer;
 @property(nonatomic, assign) BOOL surfaceReady;
-// Process-unique key into SkityMetalContext's retained-tree map. Allocated per
+// Process-unique key into ScumbleMetalContext's retained-tree map. Allocated per
 // session so a remounted canvas (new session) never reuses a prior canvas's
 // tree even if the CAMetalLayer pointer is recycled by malloc.
 @property(nonatomic, assign) NSInteger treeKey;
 @end
 
-@implementation SkityRenderSession
+@implementation ScumbleRenderSession
 
 - (instancetype)init {
   self = [super init];
   if (self) {
-    _context = [SkityMetalContext sharedInstance];
-    _treeKey = [SkityMetalContext nextTreeKey];
+    _context = [ScumbleMetalContext sharedInstance];
+    _treeKey = [ScumbleMetalContext nextTreeKey];
     // Register with the image registry so a late-arriving ImageStore bitmap can
     // redraw this session without a Lynx layout pass (weak table: removal is
     // automatic once the session deallocs).
-    [SkityImageLoaderRegistry addSession:self];
+    [ScumbleImageLoaderRegistry addSession:self];
     // Register for animation ticks (weak table, same cleanup story).
-    [SkityAnimationDriver registerSession:self];
+    [ScumbleAnimationDriver registerSession:self];
   }
   return self;
 }
@@ -64,7 +64,7 @@
     }
     [strongSelf drawIfReady];
     // The batch may have installed animations while the driver was idle.
-    [SkityAnimationDriver wakeUp];
+    [ScumbleAnimationDriver wakeUp];
   });
 }
 
@@ -84,7 +84,7 @@
     }
     [strongSelf drawIfReady];
     // The batch may have installed animations while the driver was idle.
-    [SkityAnimationDriver wakeUp];
+    [ScumbleAnimationDriver wakeUp];
   });
 }
 
@@ -107,7 +107,7 @@
 }
 
 // Finish events (D5): pull completed handles on THIS queue (render); hop to
-// the main queue before invoking the listener SkityCanvasView installed.
+// the main queue before invoking the listener ScumbleCanvasView installed.
 - (void)drainFinishedHandles {
   for (NSString *handle in [self.context takeFinishedHandles:self.treeKey]) {
     void (^listener)(NSString *) = self.onAnimationFinish;
@@ -132,7 +132,7 @@
                           onDone:^(BOOL ok) {
                             __strong __typeof__(weakSelf) strongSelf = weakSelf;
                             if (ok && strongSelf != nil) {
-                              if (action == 0 /* play */) [SkityAnimationDriver wakeUp];
+                              if (action == 0 /* play */) [ScumbleAnimationDriver wakeUp];
                               if (action == 2 /* seek */) {
                                 [strongSelf drawIfReady];
                                 [strongSelf drainFinishedHandles]; // seek-to-end completes inline

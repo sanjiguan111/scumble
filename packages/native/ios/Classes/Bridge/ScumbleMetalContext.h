@@ -4,7 +4,7 @@
 /// Process-wide shared Metal context for skity: a single MTLDevice +
 /// MTLCommandQueue + skity GPUContext (created via skity::MTLContextCreate),
 /// plus a serial dispatch queue that serializes all GPU work. All skity canvases
-/// share this. iOS counterpart of android's SharedGLContext + SkityRenderThread.
+/// share this. iOS counterpart of android's SharedGLContext + ScumbleRenderThread.
 ///
 /// All C++ (skity / FlatBuffer) is kept inside the .mm; this header is pure
 /// Obj-C so it can be included from .m files.
@@ -14,11 +14,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface SkityMetalContext : NSObject
+@interface ScumbleMetalContext : NSObject
 
 + (instancetype)sharedInstance;
 
-/// Shared MTLDevice backing the skity GPUContext. SkityCanvasView assigns this
+/// Shared MTLDevice backing the skity GPUContext. ScumbleCanvasView assigns this
 /// to its CAMetalLayer so nextDrawable shares the same device.
 @property(nonatomic, readonly) id<MTLDevice> device;
 
@@ -27,8 +27,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) dispatch_queue_t renderQueue;
 
 /// Apply a CommandBatch to this layer's retained tree and render one frame.
-/// The tree is decoded by the shared cross-platform SkityRenderer::Draw
-/// (shared/skity/SkityRenderer.cc) — the same C++ entry point Android reaches
+/// The tree is decoded by the shared cross-platform ScumbleRenderer::Draw
+/// (shared/skity/ScumbleRenderer.cc) — the same C++ entry point Android reaches
 /// via JNI. Must be called on renderQueue. Step 3b: no snapshot — commands are
 /// the only mutation path.
 /// Allocate a process-unique, monotonically-increasing key for a canvas's
@@ -65,7 +65,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Completed-animation handles since the last drain (D5). Render queue ONLY —
 /// the session drains right after a tick or a seeking control, on that queue;
-/// each handle becomes a `skityAnimationFinish` event on the main queue.
+/// each handle becomes a `scumbleAnimationFinish` event on the main queue.
 - (NSArray<NSString *> *)takeFinishedHandles:(NSInteger)treeKey;
 
 - (void)drawLayer:(CAMetalLayer *)layer

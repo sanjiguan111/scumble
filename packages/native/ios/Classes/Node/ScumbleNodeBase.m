@@ -1,9 +1,9 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-#import "SkityNodeBase.h"
-#import "SkityCanvasShadowNode.h"
-#import "SkityImageLoader.h"
+#import "ScumbleNodeBase.h"
+#import "ScumbleCanvasShadowNode.h"
+#import "ScumbleImageLoader.h"
 
 #import <Lynx/LynxPropsProcessor.h>
 
@@ -11,20 +11,20 @@
 // the 4-number array the encoder turns into the SetPaint rect vector. An
 // empty/malformed string yields nil (identity — 1:1 tiling at the bitmap's
 // intrinsic size).
-static NSArray<NSNumber *> *SkityParseRectString(NSString *s) {
+static NSArray<NSNumber *> *ScumbleParseRectString(NSString *s) {
   if (s.length == 0) return nil;
   float v[4];
   if (sscanf(s.UTF8String, "%f,%f,%f,%f", &v[0], &v[1], &v[2], &v[3]) != 4) return nil;
   return @[ @(v[0]), @(v[1]), @(v[2]), @(v[3]) ];
 }
 
-@implementation SkityNodeBase
+@implementation ScumbleNodeBase
 
-// Declares the prop→setter map for this class. Subclasses (SkityRectShadowNode
+// Declares the prop→setter map for this class. Subclasses (ScumbleRectShadowNode
 // …) inherit both the declarations and the setters below, mirroring how
-// android SkityNodeBase.kt exposes all @LynxProp setters to its subclasses.
+// android ScumbleNodeBase.kt exposes all @LynxProp setters to its subclasses.
 // Variable-length fields (transform/d) arrive as NSData* (nested FlatBuffer
-// bytes built by @lynx-skity/parsers); enums arrive as numbers already mapped
+// bytes built by @scumble/graphics); enums arrive as numbers already mapped
 // to skityrt bytes — the native side does no string parsing.
 LYNX_PROPS_GROUP_DECLARE(
     // geometry
@@ -109,7 +109,7 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("lineHeight", setLineHeight:, NSNumber *),
     LYNX_PROP_DECLARE("maxLines", setMaxLines:, NSNumber *))
 
-- (NSString *)skityTagName {
+- (NSString *)scumbleTagName {
   return @"";
 }
 
@@ -142,78 +142,78 @@ LYNX_PROPS_GROUP_DECLARE(
 
 LYNX_PROP_SETTER("x", setX, NSNumber *) {
   _x = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomX;
+  _dirtyGeometryMask |= kScumbleGeomX;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y", setY, NSNumber *) {
   _y = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomY;
+  _dirtyGeometryMask |= kScumbleGeomY;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("width", setWidth, NSNumber *) {
   _width = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomWidth;
+  _dirtyGeometryMask |= kScumbleGeomWidth;
   _dirtyParagraph = YES; // the paragraph layout width constraint changed
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("height", setHeight, NSNumber *) {
   _height = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomHeight;
+  _dirtyGeometryMask |= kScumbleGeomHeight;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("cx", setCx, NSNumber *) {
   _cx = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomCX;
+  _dirtyGeometryMask |= kScumbleGeomCX;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("cy", setCy, NSNumber *) {
   _cy = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomCY;
+  _dirtyGeometryMask |= kScumbleGeomCY;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("r", setR, NSNumber *) {
   _r = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomR;
+  _dirtyGeometryMask |= kScumbleGeomR;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("rx", setRx, NSNumber *) {
   _rx = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomRX;
+  _dirtyGeometryMask |= kScumbleGeomRX;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("ry", setRy, NSNumber *) {
   _ry = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomRY;
+  _dirtyGeometryMask |= kScumbleGeomRY;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("x1", setX1, NSNumber *) {
   _x1 = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomX1;
+  _dirtyGeometryMask |= kScumbleGeomX1;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y1", setY1, NSNumber *) {
   _y1 = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomY1;
+  _dirtyGeometryMask |= kScumbleGeomY1;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("x2", setX2, NSNumber *) {
   _x2 = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomX2;
+  _dirtyGeometryMask |= kScumbleGeomX2;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("y2", setY2, NSNumber *) {
   _y2 = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomY2;
+  _dirtyGeometryMask |= kScumbleGeomY2;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("pathStart", setPathStart, NSNumber *) {
   _pathStart = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomPathStart;
+  _dirtyGeometryMask |= kScumbleGeomPathStart;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("pathEnd", setPathEnd, NSNumber *) {
   _pathEnd = value.floatValue;
-  _dirtyGeometryMask |= kSkityGeomPathEnd;
+  _dirtyGeometryMask |= kScumbleGeomPathEnd;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("points", setPoints, NSString *) {
@@ -221,7 +221,7 @@ LYNX_PROP_SETTER("points", setPoints, NSString *) {
       [[NSData alloc] initWithBase64EncodedString:value
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _pointsData = decoded.length >= 4 ? decoded : nil;
-  _dirtyGeometryMask |= kSkityGeomPoints;
+  _dirtyGeometryMask |= kScumbleGeomPoints;
   [self setNeedsLayout];
 }
 
@@ -229,38 +229,38 @@ LYNX_PROP_SETTER("points", setPoints, NSString *) {
 
 LYNX_PROP_SETTER("color", setColor, NSNumber *) {
   _fillColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
-  _dirtyPaintMask |= kSkityPaintFieldFill;
+  _dirtyPaintMask |= kScumblePaintFieldFill;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fill", setFill, NSNumber *) {
   _fillColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
-  _dirtyPaintMask |= kSkityPaintFieldFill;
+  _dirtyPaintMask |= kScumblePaintFieldFill;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("stroke", setStroke, NSNumber *) {
   _strokeColor = @(value.unsignedLongLongValue & 0xFFFFFFFFULL);
-  _dirtyPaintMask |= kSkityPaintFieldStroke;
+  _dirtyPaintMask |= kScumblePaintFieldStroke;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeWidth", setStrokeWidth, NSNumber *) {
   _strokeWidth = value.floatValue;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeWidth;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeWidth;
   [self setNeedsLayout];
 }
 // Enums arrive as numbers already mapped to skityrt bytes (parsers layer).
 LYNX_PROP_SETTER("strokeCap", setStrokeCap, NSNumber *) {
   _strokeCap = (uint8_t)value.intValue;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeCap;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeCap;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeJoin", setStrokeJoin, NSNumber *) {
   _strokeJoin = (uint8_t)value.intValue;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeJoin;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeJoin;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeMiter", setStrokeMiter, NSNumber *) {
   _strokeMiter = value.floatValue;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeMiter;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeMiter;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeDash", setStrokeDash, NSString *) {
@@ -268,27 +268,27 @@ LYNX_PROP_SETTER("strokeDash", setStrokeDash, NSString *) {
       [[NSData alloc] initWithBase64EncodedString:value
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _strokeDashData = decoded.length >= 4 ? decoded : nil;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeDash;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeDash;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeDashOffset", setStrokeDashOffset, NSNumber *) {
   _strokeDashOffset = value.floatValue;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeDash;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeDash;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fillRule", setFillRule, NSNumber *) {
   _fillRule = (uint8_t)value.intValue;
-  _dirtyPaintMask |= kSkityPaintFieldFillRule;
+  _dirtyPaintMask |= kScumblePaintFieldFillRule;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("blendMode", setBlendMode, NSNumber *) {
   _blendMode = (uint8_t)value.intValue;
-  _dirtyPaintMask |= kSkityPaintFieldBlendMode;
+  _dirtyPaintMask |= kScumblePaintFieldBlendMode;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("opacity", setOpacity, NSNumber *) {
   _opacity = value.floatValue;
-  _dirtyPaintMask |= kSkityPaintFieldOpacity;
+  _dirtyPaintMask |= kScumblePaintFieldOpacity;
   [self setNeedsLayout];
 }
 
@@ -323,7 +323,7 @@ LYNX_PROP_SETTER("fillGradient", setFillGradient, NSString *) {
       [[NSData alloc] initWithBase64EncodedString:value
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _fillGradientData = decoded.length > 0 ? decoded : nil;
-  _dirtyPaintMask |= kSkityPaintFieldFillGradient;
+  _dirtyPaintMask |= kScumblePaintFieldFillGradient;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeGradient", setStrokeGradient, NSString *) {
@@ -331,7 +331,7 @@ LYNX_PROP_SETTER("strokeGradient", setStrokeGradient, NSString *) {
       [[NSData alloc] initWithBase64EncodedString:value
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _strokeGradientData = decoded.length > 0 ? decoded : nil;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeGradient;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeGradient;
   [self setNeedsLayout];
 }
 // Image shader slots. The uri doubles as the ImageStore key AND the platform
@@ -340,58 +340,58 @@ LYNX_PROP_SETTER("strokeGradient", setStrokeGradient, NSString *) {
 // node's image prop). An empty string clears the slot.
 LYNX_PROP_SETTER("fillImageUri", setFillImageUri, NSString *) {
   _fillImageUri = value.length > 0 ? [value copy] : nil;
-  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  _dirtyPaintMask |= kScumblePaintFieldFillImageShader;
   [self setNeedsLayout];
   if (_fillImageUri != nil) {
-    [SkityImageLoaderRegistry requestImage:_fillImageUri];
+    [ScumbleImageLoaderRegistry requestImage:_fillImageUri];
   }
 }
 LYNX_PROP_SETTER("fillImageFit", setFillImageFit, NSNumber *) {
   _fillImageFit = (uint8_t)value.unsignedCharValue;
-  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  _dirtyPaintMask |= kScumblePaintFieldFillImageShader;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fillImageTx", setFillImageTx, NSNumber *) {
   _fillImageTx = (uint8_t)value.unsignedCharValue;
-  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  _dirtyPaintMask |= kScumblePaintFieldFillImageShader;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fillImageTy", setFillImageTy, NSNumber *) {
   _fillImageTy = (uint8_t)value.unsignedCharValue;
-  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  _dirtyPaintMask |= kScumblePaintFieldFillImageShader;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("fillImageRect", setFillImageRect, NSString *) {
-  _fillImageRect = SkityParseRectString(value);
-  _dirtyPaintMask |= kSkityPaintFieldFillImageShader;
+  _fillImageRect = ScumbleParseRectString(value);
+  _dirtyPaintMask |= kScumblePaintFieldFillImageShader;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeImageUri", setStrokeImageUri, NSString *) {
   _strokeImageUri = value.length > 0 ? [value copy] : nil;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeImageShader;
   [self setNeedsLayout];
   if (_strokeImageUri != nil) {
-    [SkityImageLoaderRegistry requestImage:_strokeImageUri];
+    [ScumbleImageLoaderRegistry requestImage:_strokeImageUri];
   }
 }
 LYNX_PROP_SETTER("strokeImageFit", setStrokeImageFit, NSNumber *) {
   _strokeImageFit = (uint8_t)value.unsignedCharValue;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeImageShader;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeImageTx", setStrokeImageTx, NSNumber *) {
   _strokeImageTx = (uint8_t)value.unsignedCharValue;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeImageShader;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeImageTy", setStrokeImageTy, NSNumber *) {
   _strokeImageTy = (uint8_t)value.unsignedCharValue;
-  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  _dirtyPaintMask |= kScumblePaintFieldStrokeImageShader;
   [self setNeedsLayout];
 }
 LYNX_PROP_SETTER("strokeImageRect", setStrokeImageRect, NSString *) {
-  _strokeImageRect = SkityParseRectString(value);
-  _dirtyPaintMask |= kSkityPaintFieldStrokeImageShader;
+  _strokeImageRect = ScumbleParseRectString(value);
+  _dirtyPaintMask |= kScumblePaintFieldStrokeImageShader;
   [self setNeedsLayout];
 }
 // Paint filter slots — one dirty bit per (paint × filter kind) slot.
@@ -401,7 +401,7 @@ LYNX_PROP_SETTER("strokeImageRect", setStrokeImageRect, NSString *) {
         [[NSData alloc] initWithBase64EncodedString:value                                          \
                                             options:NSDataBase64DecodingIgnoreUnknownCharacters];  \
     ivar = decoded.length > 0 ? decoded : nil;                                                     \
-    _dirtyFilterMask |= kSkityFilter##field;                                                       \
+    _dirtyFilterMask |= kScumbleFilter##field;                                                       \
     [self setNeedsLayout];                                                                         \
   }
 SKITY_FILTER_SETTER("fillColorFilter", setFillColorFilter, FillColor, _fillColorFilterData)
@@ -445,7 +445,7 @@ LYNX_PROP_SETTER("image", setImage, NSString *) {
   // Fire (or join) the platform load here on the TASM thread — the load then
   // runs in parallel with the command batch that carries this uri.
   if (_imageUri != nil) {
-    [SkityImageLoaderRegistry requestImage:_imageUri];
+    [ScumbleImageLoaderRegistry requestImage:_imageUri];
   }
 }
 
@@ -511,11 +511,11 @@ LYNX_PROP_SETTER("maxLines", setMaxLines, NSNumber *) {
 
 #pragma mark - Phase 2 Step 2: structural hooks
 
-- (SkityCanvasShadowNode *)findCanvasOwner {
+- (ScumbleCanvasShadowNode *)findCanvasOwner {
   LynxShadowNode *n = self;
   while (n != nil) {
-    if ([n isKindOfClass:[SkityCanvasShadowNode class]]) {
-      return (SkityCanvasShadowNode *)n;
+    if ([n isKindOfClass:[ScumbleCanvasShadowNode class]]) {
+      return (ScumbleCanvasShadowNode *)n;
     }
     n = [n parent];
   }
@@ -524,7 +524,7 @@ LYNX_PROP_SETTER("maxLines", setMaxLines, NSNumber *) {
 
 - (int32_t)ensureNativeId {
   if (_nativeId != 0) return _nativeId;
-  SkityCanvasShadowNode *canvas = [self findCanvasOwner];
+  ScumbleCanvasShadowNode *canvas = [self findCanvasOwner];
   if (canvas == nil) return 0;
   _nativeId = [canvas takeNextNodeId];
   return _nativeId;
@@ -532,9 +532,9 @@ LYNX_PROP_SETTER("maxLines", setMaxLines, NSNumber *) {
 
 - (void)didAddSubComponent:(LynxShadowNode *)subComponent {
   [super didAddSubComponent:subComponent];
-  if (![subComponent isKindOfClass:[SkityNodeBase class]]) return;
-  SkityNodeBase *child = (SkityNodeBase *)subComponent;
-  SkityCanvasShadowNode *canvas = [self findCanvasOwner];
+  if (![subComponent isKindOfClass:[ScumbleNodeBase class]]) return;
+  ScumbleNodeBase *child = (ScumbleNodeBase *)subComponent;
+  ScumbleCanvasShadowNode *canvas = [self findCanvasOwner];
   if (canvas == nil) return;
   int32_t childId = [child ensureNativeId];
   int32_t parentId = [self ensureNativeId];
@@ -544,15 +544,15 @@ LYNX_PROP_SETTER("maxLines", setMaxLines, NSNumber *) {
   [canvas enqueueStructuralInsert:childId
                          parentId:parentId
                             index:(uint32_t)idx
-                              tag:child.skityTagName];
+                              tag:child.scumbleTagName];
 }
 
 - (void)willRemoveComponent:(LynxShadowNode *)subComponent {
   [super willRemoveComponent:subComponent];
-  if (![subComponent isKindOfClass:[SkityNodeBase class]]) return;
-  SkityNodeBase *child = (SkityNodeBase *)subComponent;
+  if (![subComponent isKindOfClass:[ScumbleNodeBase class]]) return;
+  ScumbleNodeBase *child = (ScumbleNodeBase *)subComponent;
   if (child.nativeId == 0) return;
-  SkityCanvasShadowNode *canvas = [self findCanvasOwner];
+  ScumbleCanvasShadowNode *canvas = [self findCanvasOwner];
   if (canvas == nil) return;
   [canvas enqueueStructuralRemove:child.nativeId];
 }

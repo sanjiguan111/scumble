@@ -1,16 +1,16 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-/// Per-canvas Metal render state, driven on the shared SkityMetalContext render
-/// queue. Each SkityCanvasView owns one session. iOS counterpart of android's
-/// SkityGLRenderSession. A CommandBatch pushed before the surface is ready is
+/// Per-canvas Metal render state, driven on the shared ScumbleMetalContext render
+/// queue. Each ScumbleCanvasView owns one session. iOS counterpart of android's
+/// ScumbleGLRenderSession. A CommandBatch pushed before the surface is ready is
 /// NOT lost — it's held as pending and applied once attachSurface completes.
 #import <Foundation/Foundation.h>
 #import <QuartzCore/CAMetalLayer.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface SkityRenderSession : NSObject
+@interface ScumbleRenderSession : NSObject
 
 /// Called when the backing CAMetalLayer is ready to render into.
 - (void)attachSurfaceWithLayer:(CAMetalLayer *)layer;
@@ -29,11 +29,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)applyPayloadWithBatch:(nullable NSData *)batch paragraphRuns:(nullable NSData *)runs;
 
 /// Draw now if the surface is ready. Render-queue only — callers already on
-/// SkityMetalContext.renderQueue (e.g. the ImageStore write path in
-/// SkityImageLoader.mm) invoke this directly; others go through postDraw.
+/// ScumbleMetalContext.renderQueue (e.g. the ImageStore write path in
+/// ScumbleImageLoader.mm) invoke this directly; others go through postDraw.
 - (void)drawIfReady;
 
-/// Native animation tick — render-queue only (SkityAnimationDriver dispatches
+/// Native animation tick — render-queue only (ScumbleAnimationDriver dispatches
 /// there before calling). Redraws this frame when live; reports liveness so
 /// the driver can stop when every canvas goes idle.
 - (BOOL)tickAnimations:(uint64_t)nowNs;
@@ -48,8 +48,8 @@ NS_ASSUME_NONNULL_BEGIN
                   onDone:(void (^)(BOOL ok))onDone;
 
 /// Finish-event sink (D5): fires on the MAIN queue whenever a tracked
-/// animation completes; SkityCanvasView installs it and forwards to the
-/// dispatcher SkityCanvasUI set (which emits `skityAnimationFinish`).
+/// animation completes; ScumbleCanvasView installs it and forwards to the
+/// dispatcher ScumbleCanvasUI set (which emits `scumbleAnimationFinish`).
 /// nil = nobody listening (the drain is a no-op then).
 @property(nonatomic, copy, nullable) void (^onAnimationFinish)(NSString *handle);
 

@@ -1,16 +1,16 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-#import "SkityCanvasView.h"
+#import "ScumbleCanvasView.h"
 
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
-#import "SkityMetalContext.h"
-#import "SkityRenderSession.h"
+#import "ScumbleMetalContext.h"
+#import "ScumbleRenderSession.h"
 
-@implementation SkityCanvasView {
-  SkityRenderSession *_session;
+@implementation ScumbleCanvasView {
+  ScumbleRenderSession *_session;
   BOOL _layerReady;
 }
 
@@ -21,9 +21,9 @@
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
   if (self) {
-    _session = [[SkityRenderSession alloc] init];
+    _session = [[ScumbleRenderSession alloc] init];
     // Finish events (D5): the session hops to the main queue; forward to the
-    // dispatcher SkityCanvasUI installed (emits `skityAnimationFinish`).
+    // dispatcher ScumbleCanvasUI installed (emits `scumbleAnimationFinish`).
     __weak __typeof__(self) weakSelf = self;
     _session.onAnimationFinish = ^(NSString *handle) {
       void (^dispatcher)(NSString *) = weakSelf.animationFinishDispatcher;
@@ -31,7 +31,7 @@
     };
 
     CAMetalLayer *ml = (CAMetalLayer *)self.layer;
-    ml.device = [SkityMetalContext sharedInstance].device;
+    ml.device = [ScumbleMetalContext sharedInstance].device;
     // Transparent background: where skity draws nothing, let the Lynx view
     // behind show through instead of an opaque black layer.
     ml.opaque = NO;

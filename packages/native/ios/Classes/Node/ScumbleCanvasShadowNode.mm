@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-#import "SkityCanvasShadowNode.h"
+#import "ScumbleCanvasShadowNode.h"
 
 #import <Lynx/LynxComponentRegistry.h>
 #import <Lynx/LynxCustomMeasureDelegate.h>
@@ -13,17 +13,17 @@
 #include "flatbuffers/flatbuffers.h"
 #include "paragraph_runs_generated.h"
 
-#import "SkityParagraphShadowNode.h"
+#import "ScumbleParagraphShadowNode.h"
 
 #include <cstring>
 
 using namespace skityrt;
 using namespace flatbuffers;
 
-// Phase 2 Step 2 structural op (enqueued by SkityNodeBase hooks, drained in
+// Phase 2 Step 2 structural op (enqueued by ScumbleNodeBase hooks, drained in
 // measure into the CommandBatch). parentId doubles as MoveNode's new_parent_id.
 namespace {
-struct SkityStructuralOp {
+struct ScumbleStructuralOp {
   enum Kind { kInsert, kRemove, kMove } kind;
   int32_t nodeId;
   int32_t parentId;
@@ -35,26 +35,26 @@ struct SkityStructuralOp {
 #pragma mark - CommandBatch (Step 1b paint/path/transform + Step 2 structural)
 
 // Drain pending structural ops into the CommandBatch (Insert → Move → Remove).
-static void SkityDrainStructural(flatbuffers::FlatBufferBuilder &fbb,
-                                 std::vector<SkityStructuralOp> &pending,
+static void ScumbleDrainStructural(flatbuffers::FlatBufferBuilder &fbb,
+                                 std::vector<ScumbleStructuralOp> &pending,
                                  std::vector<flatbuffers::Offset<void>> &offsets,
                                  std::vector<uint8_t> &types) {
   if (pending.empty()) return;
   for (const auto &op : pending)
-    if (op.kind == SkityStructuralOp::kInsert) {
+    if (op.kind == ScumbleStructuralOp::kInsert) {
       auto tagOff = fbb.CreateString(op.tag);
       auto off = skityrt::CreateInsertNode(fbb, op.nodeId, op.parentId, op.index, tagOff);
       offsets.push_back(off.Union());
       types.push_back(skityrt::Command_InsertNode);
     }
   for (const auto &op : pending)
-    if (op.kind == SkityStructuralOp::kMove) {
+    if (op.kind == ScumbleStructuralOp::kMove) {
       auto off = skityrt::CreateMoveNode(fbb, op.nodeId, op.parentId, op.index);
       offsets.push_back(off.Union());
       types.push_back(skityrt::Command_MoveNode);
     }
   for (const auto &op : pending)
-    if (op.kind == SkityStructuralOp::kRemove) {
+    if (op.kind == ScumbleStructuralOp::kRemove) {
       auto off = skityrt::CreateRemoveNode(fbb, op.nodeId);
       offsets.push_back(off.Union());
       types.push_back(skityrt::Command_RemoveNode);
@@ -65,7 +65,7 @@ static void SkityDrainStructural(flatbuffers::FlatBufferBuilder &fbb,
 // Drain dirty paint/path/transform across the shadow tree into a CommandBatch
 // FlatBuffer. Clears the dirty flags. Built on the TASM thread in measure() and
 // piggybacked on the render bundle to the render thread alongside the snapshot.
-static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeBase *node,
+static void ScumbleCollectCommands(flatbuffers::FlatBufferBuilder &fbb, ScumbleNodeBase *node,
                                  std::vector<flatbuffers::Offset<void>> &offsets,
                                  std::vector<uint8_t> &types) {
   if (node.dirtyPaintMask != 0) {
@@ -174,17 +174,17 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
       skityrt::FilterSlot kind;
     };
     const FilterSlotDesc descs[] = {
-        {kSkityFilterFillColor, node.fillColorFilterData, skityrt::PaintSlot_FILL,
+        {kScumbleFilterFillColor, node.fillColorFilterData, skityrt::PaintSlot_FILL,
          skityrt::FilterSlot_COLOR},
-        {kSkityFilterStrokeColor, node.strokeColorFilterData, skityrt::PaintSlot_STROKE,
+        {kScumbleFilterStrokeColor, node.strokeColorFilterData, skityrt::PaintSlot_STROKE,
          skityrt::FilterSlot_COLOR},
-        {kSkityFilterFillImage, node.fillImageFilterData, skityrt::PaintSlot_FILL,
+        {kScumbleFilterFillImage, node.fillImageFilterData, skityrt::PaintSlot_FILL,
          skityrt::FilterSlot_IMAGE},
-        {kSkityFilterStrokeImage, node.strokeImageFilterData, skityrt::PaintSlot_STROKE,
+        {kScumbleFilterStrokeImage, node.strokeImageFilterData, skityrt::PaintSlot_STROKE,
          skityrt::FilterSlot_IMAGE},
-        {kSkityFilterFillMask, node.fillMaskFilterData, skityrt::PaintSlot_FILL,
+        {kScumbleFilterFillMask, node.fillMaskFilterData, skityrt::PaintSlot_FILL,
          skityrt::FilterSlot_MASK},
-        {kSkityFilterStrokeMask, node.strokeMaskFilterData, skityrt::PaintSlot_STROKE,
+        {kScumbleFilterStrokeMask, node.strokeMaskFilterData, skityrt::PaintSlot_STROKE,
          skityrt::FilterSlot_MASK},
     };
     for (const auto &d : descs) {
@@ -260,15 +260,15 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
     node.dirtyGeometryMask = 0;
   }
   for (LynxShadowNode *child in node.children) {
-    if ([child isKindOfClass:[SkityNodeBase class]]) {
-      SkityCollectCommands(fbb, (SkityNodeBase *)child, offsets, types);
+    if ([child isKindOfClass:[ScumbleNodeBase class]]) {
+      ScumbleCollectCommands(fbb, (ScumbleNodeBase *)child, offsets, types);
     }
   }
 }
 
 #pragma mark -
 
-@interface SkityCanvasShadowNode ()
+@interface ScumbleCanvasShadowNode ()
 // Canvas logical viewport (SVG viewBox). When width/height > 0, child geometry
 // authored in these logical pixels is scaled by the renderer to fit the canvas.
 @property(nonatomic, assign) float viewportX;
@@ -282,26 +282,26 @@ static void SkityCollectCommands(flatbuffers::FlatBufferBuilder &fbb, SkityNodeB
 @property(nonatomic, assign) uint32_t nextCommandVersion;
 @end
 
-@implementation SkityCanvasShadowNode {
-  std::vector<SkityStructuralOp> _pendingStructural;
+@implementation ScumbleCanvasShadowNode {
+  std::vector<ScumbleStructuralOp> _pendingStructural;
   BOOL _canvasInserted;
   BOOL _dirtyViewport; // Step 3a: a SetViewport command is pending.
 }
 
 #if LYNX_LAZY_LOAD
-LYNX_LAZY_REGISTER_SHADOW_NODE("skity-canvas")
+LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-canvas")
 #else
-LYNX_REGISTER_SHADOW_NODE("skity-canvas")
+LYNX_REGISTER_SHADOW_NODE("scumble-canvas")
 #endif
 
 // Canvas-only props (inherited geometry/paint/transform/d props come from
-// SkityNodeBase's group). preserveAspectRatio is fixed at X_MID/MEET for now.
+// ScumbleNodeBase's group). preserveAspectRatio is fixed at X_MID/MEET for now.
 LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber *),
                          LYNX_PROP_DECLARE("viewportY", setViewportY:, NSNumber *),
                          LYNX_PROP_DECLARE("viewportWidth", setViewportWidth:, NSNumber *),
                          LYNX_PROP_DECLARE("viewportHeight", setViewportHeight:, NSNumber *))
 
-- (NSString *)skityTagName {
+- (NSString *)scumbleTagName {
   return @"canvas";
 }
 
@@ -332,15 +332,15 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
                             tag:(NSString *)tag {
   // Move merge: a pending Remove for nodeId in this batch => convert to Move.
   for (auto &op : _pendingStructural) {
-    if (op.kind == SkityStructuralOp::kRemove && op.nodeId == nodeId) {
-      op.kind = SkityStructuralOp::kMove;
+    if (op.kind == ScumbleStructuralOp::kRemove && op.nodeId == nodeId) {
+      op.kind = ScumbleStructuralOp::kMove;
       op.parentId = parentId;
       op.index = index;
       return;
     }
   }
-  SkityStructuralOp op;
-  op.kind = SkityStructuralOp::kInsert;
+  ScumbleStructuralOp op;
+  op.kind = ScumbleStructuralOp::kInsert;
   op.nodeId = nodeId;
   op.parentId = parentId;
   op.index = index;
@@ -349,22 +349,22 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
 }
 
 - (void)enqueueStructuralRemove:(int32_t)nodeId {
-  SkityStructuralOp op;
-  op.kind = SkityStructuralOp::kRemove;
+  ScumbleStructuralOp op;
+  op.kind = ScumbleStructuralOp::kRemove;
   op.nodeId = nodeId;
   _pendingStructural.push_back(op);
 }
 
-// TASM-thread paragraph layout walk: lay out every dirty <skity-paragraph>
+// TASM-thread paragraph layout walk: lay out every dirty <scumble-paragraph>
 // under `node` (CoreText) and append EVERY live paragraph's current layout
 // (dirty ones re-laid, clean ones from cache) to `offs` — the runs channel is
 // a full snapshot, not a delta.
 static void
-SkityLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fbb,
+ScumbleLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fbb,
                       std::vector<flatbuffers::Offset<skityrt::ParagraphLayout>> &offs) {
   for (LynxShadowNode *child in node.children) {
-    if ([child isKindOfClass:[SkityParagraphShadowNode class]]) {
-      SkityParagraphShadowNode *p = (SkityParagraphShadowNode *)child;
+    if ([child isKindOfClass:[ScumbleParagraphShadowNode class]]) {
+      ScumbleParagraphShadowNode *p = (ScumbleParagraphShadowNode *)child;
       auto result = [p layoutIfNeeded];
       if (result == nullptr) continue;
       std::vector<flatbuffers::Offset<skityrt::ParagraphGlyphRun>> runOffsets;
@@ -379,19 +379,19 @@ SkityLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fbb,
       offs.push_back(skityrt::CreateParagraphLayout(fbb, p.nativeId, result->height,
                                                     result->lineCount, runsOff));
     }
-    SkityLayoutParagraphs(child, fbb, offs);
+    ScumbleLayoutParagraphs(child, fbb, offs);
   }
 }
 
 // TASM-thread paragraph layout pass. Serializes the FULL runs snapshot of all
-// <skity-paragraph> descendants on EVERY measure flush — individual extra-
+// <scumble-paragraph> descendants on EVERY measure flush — individual extra-
 // bundle deliveries are best-effort (a flush may be dropped before the UI is
 // attached), so the runs ride as an idempotent, overwrite-applied snapshot:
 // whichever flush lands last carries every paragraph's current layout.
 - (void)layoutParagraphChildren {
   flatbuffers::FlatBufferBuilder fbb(256);
   std::vector<flatbuffers::Offset<skityrt::ParagraphLayout>> layoutOffsets;
-  SkityLayoutParagraphs(self, fbb, layoutOffsets);
+  ScumbleLayoutParagraphs(self, fbb, layoutOffsets);
   if (layoutOffsets.empty()) {
     self.pendingParagraphRuns = nil;
     return;
@@ -407,7 +407,7 @@ SkityLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fbb,
   flatbuffers::FlatBufferBuilder fbb(256);
   std::vector<flatbuffers::Offset<void>> offsets;
   std::vector<uint8_t> types;
-  SkityDrainStructural(fbb, _pendingStructural, offsets, types);
+  ScumbleDrainStructural(fbb, _pendingStructural, offsets, types);
   // Step 3a: canvas-level viewport (targets the tree viewport, not a node).
   if (_dirtyViewport) {
     auto off = skityrt::CreateSetViewport(fbb, self.nativeId, _viewportX, _viewportY,
@@ -416,7 +416,7 @@ SkityLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fbb,
     types.push_back(skityrt::Command_SetViewport);
     _dirtyViewport = NO;
   }
-  SkityCollectCommands(fbb, self, offsets, types);
+  ScumbleCollectCommands(fbb, self, offsets, types);
   if (offsets.empty()) return nil;
   auto typesVec = fbb.CreateVector<uint8_t>(types);
   auto cmdsVec = fbb.CreateVector<flatbuffers::Offset<void>>(offsets);
@@ -428,7 +428,7 @@ SkityLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fbb,
 #pragma mark - Viewport setters
 
 // setNeedsLayout on every setter so a prop change forces a layout pass →
-// measure re-serializes the tree → repaint. Mirrors SkityNodeBase.m.
+// measure re-serializes the tree → repaint. Mirrors ScumbleNodeBase.m.
 LYNX_PROP_SETTER("viewportX", setViewportX, NSNumber *) {
   _viewportX = value.floatValue;
   _dirtyViewport = YES;
@@ -459,12 +459,12 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
   if (!_canvasInserted) {
     int32_t cid = [self ensureNativeId];
     if (cid != 0) {
-      SkityStructuralOp op;
-      op.kind = SkityStructuralOp::kInsert;
+      ScumbleStructuralOp op;
+      op.kind = ScumbleStructuralOp::kInsert;
       op.nodeId = cid;
       op.parentId = -1;
       op.index = 0;
-      op.tag = std::string([self.skityTagName UTF8String] ?: "");
+      op.tag = std::string([self.scumbleTagName UTF8String] ?: "");
       _pendingStructural.insert(_pendingStructural.begin(), op);
       _canvasInserted = YES;
     }
@@ -513,7 +513,7 @@ LYNX_PROP_SETTER("viewportHeight", setViewportHeight, NSNumber *) {
   self.pendingParagraphRuns = nil;
   if (runs == nil) return c;
   // Multi-key payload: the command batch + the paragraph glyph runs produced
-  // by <skity-paragraph> measure-side layout. Same flush, applied on the
+  // by <scumble-paragraph> measure-side layout. Same flush, applied on the
   // render queue in one block (batch first — runs reference inserted nodes).
   return @{@"batch" : c ?: [NSData data], @"runs" : runs};
 }

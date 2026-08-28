@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-/// <skity-paragraph> ShadowNode: rich text laid out with CoreText on the TASM
+/// <scumble-paragraph> ShadowNode: rich text laid out with CoreText on the TASM
 /// thread (inside the owning canvas's measure pass) and drawn as glyph runs
 /// through the skity pipeline (TEXT_PARAGRAPH_DESIGN.md §3.1, iOS backend).
 ///
@@ -11,7 +11,7 @@
 /// space as skity's CoreText typefaces) handed to the owning canvas for the
 /// extra-bundle runs channel, plus an async "layout" LynxDetailEvent carrying
 /// {height, lineCount} to JS.
-#import "SkityNodeBase.h"
+#import "ScumbleNodeBase.h"
 
 #include <memory>
 #include <vector>
@@ -19,7 +19,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /// One laid-out glyph run: a single DrawGlyphs call's worth of data.
-struct SkityParagraphRun {
+struct ScumbleParagraphRun {
   std::vector<uint16_t> glyphs;
   std::vector<float> posX;
   std::vector<float> posY;
@@ -29,31 +29,31 @@ struct SkityParagraphRun {
 
 /// Layout result handed to the owning canvas (which serializes the runs of
 /// all paragraph children into one ParagraphRunList per flush).
-struct SkityParagraphResult {
+struct ScumbleParagraphResult {
   float height = 0.f;
   int lineCount = 0;
-  std::vector<SkityParagraphRun> runs;
+  std::vector<ScumbleParagraphRun> runs;
 };
 
-@interface SkityParagraphShadowNode : SkityNodeBase
+@interface ScumbleParagraphShadowNode : ScumbleNodeBase
 
 /// The node's latest layout result (nil before the first layout). Kept so the
 /// owning canvas can re-serialize the FULL runs snapshot every flush — the
 /// extra-bundle delivery of individual flushes is best-effort, so runs ride
 /// as an idempotent, overwrite-applied snapshot rather than one-shot payloads.
-@property(nonatomic, readonly, nullable) std::shared_ptr<SkityParagraphResult> lastResult;
+@property(nonatomic, readonly, nullable) std::shared_ptr<ScumbleParagraphResult> lastResult;
 
 /// Run the CoreText layout if dirty (spans/width/style changed) and return the
 /// current result (cached when not dirty; nullptr before the first layout or
 /// when there is nothing to lay out). Runs on the TASM thread (called from
 /// the canvas's measure pass); a re-layout also dispatches the "layout" event
 /// when JS bound it.
-- (std::shared_ptr<SkityParagraphResult>)layoutIfNeeded;
+- (std::shared_ptr<ScumbleParagraphResult>)layoutIfNeeded;
 
 /// Layout outcome for a paragraph with no content — a 0-height/0-run entry
 /// (NOT a nil result): an entry clears the retained node's previous runs,
 /// a missing entry would keep the last layout alive.
-- (std::shared_ptr<SkityParagraphResult>)emptyResult;
+- (std::shared_ptr<ScumbleParagraphResult>)emptyResult;
 
 @end
 

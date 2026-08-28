@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 
-#import "SkityMetalContext.h"
+#import "ScumbleMetalContext.h"
 
 #import <Metal/Metal.h>
 
@@ -13,10 +13,10 @@
 #include <skity/gpu/gpu_surface.hpp>
 #include <skity/skity.hpp>
 
-#include "SkityRenderer.h"        // shared/skity — cross-platform renderer
+#include "ScumbleRenderer.h"        // shared/skity — cross-platform renderer
 #include "retained_render_tree.h" // skityrt::RetainedRenderTree (per-layer)
 
-@implementation SkityMetalContext {
+@implementation ScumbleMetalContext {
   id<MTLDevice> _device;
   id<MTLCommandQueue> _queue;
   std::unique_ptr<skity::GPUContext> _gpuContext;
@@ -29,9 +29,9 @@
 }
 
 + (instancetype)sharedInstance {
-  static SkityMetalContext *instance;
+  static ScumbleMetalContext *instance;
   static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{ instance = [[SkityMetalContext alloc] init]; });
+  dispatch_once(&onceToken, ^{ instance = [[ScumbleMetalContext alloc] init]; });
   return instance;
 }
 
@@ -40,10 +40,10 @@
   if (self) {
     _device = MTLCreateSystemDefaultDevice();
     _queue = [_device newCommandQueue];
-    _queue.label = @"Skity GPU Queue";
+    _queue.label = @"Scumble GPU Queue";
     // One process-wide context: MTLContextCreate(device, queue).
     _gpuContext = skity::MTLContextCreate(_device, _queue);
-    _renderQueue = dispatch_queue_create("com.skity.lynx.queue", DISPATCH_QUEUE_SERIAL);
+    _renderQueue = dispatch_queue_create("com.scumble.lynx.queue", DISPATCH_QUEUE_SERIAL);
   }
   return self;
 }
@@ -150,7 +150,7 @@
     // w/h are the Metal drawable size in physical pixels (viewportW/viewportH).
     // The Metal context is passed so image nodes can materialize ImageStore
     // bitmaps on this backend (Image::MakeImage needs a live context).
-    skityrt::SkityRenderer::Draw(slot.get(), canvas, density, static_cast<float>(w),
+    skityrt::ScumbleRenderer::Draw(slot.get(), canvas, density, static_cast<float>(w),
                                  static_cast<float>(h), _gpuContext.get());
 
     canvas->Flush();

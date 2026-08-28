@@ -8,10 +8,10 @@
 // CoreText typefaces (scaler_context_darwin casts them verbatim), so the
 // runs feed skity's DrawGlyphs unchanged.
 
-#import "SkityParagraphShadowNode.h"
-#import "SkityCanvasShadowNode.h"
+#import "ScumbleParagraphShadowNode.h"
+#import "ScumbleCanvasShadowNode.h"
 
-#import "../Font/SkityFontLoader.h"
+#import "../Font/ScumbleFontLoader.h"
 
 #import <Lynx/LynxComponentRegistry.h>
 
@@ -36,7 +36,7 @@ using skityrt::FontRegistry;
 // 0xAARRGGBB). CTRun attributes are uniform per run, so the run walk reads it
 // straight back — no offset bookkeeping between UTF-8 (the SpanList) and
 // UTF-16 (the NSAttributedString).
-static NSString *const kSkitySpanColorKey = @"skitySpanColor";
+static NSString *const kScumbleSpanColorKey = @"scumbleSpanColor";
 
 // Map a span's family/weight/slant to a CTFont. Family empty → the system
 // font; a `data:` URI → the custom-font cache decoded synchronously; any
@@ -46,7 +46,7 @@ static NSString *const kSkitySpanColorKey = @"skitySpanColor";
 // layout once the bytes land). The typeface is bridged back to CoreText —
 // same typeface object the run extraction will re-wrap, so glyph ids match
 // DrawGlyphs; weight ≥ 600 or italic → symbolic traits on a copy.
-CTFontRef SkitySpanFont(NSString *family, float size, int weight, bool italic,
+CTFontRef ScumbleSpanFont(NSString *family, float size, int weight, bool italic,
                         NSMutableSet<NSString *> *missedFontUris) {
   CTFontRef base = nullptr;
   const std::string fam(family.UTF8String != nullptr ? family.UTF8String : "");
@@ -93,7 +93,7 @@ CTFontRef SkitySpanFont(NSString *family, float size, int weight, bool italic,
   return styled != nullptr ? styled : nullptr;
 }
 
-CTParagraphStyleRef SkityParagraphStyle(uint8_t align, uint8_t direction, float lineHeight) {
+CTParagraphStyleRef ScumbleParagraphStyle(uint8_t align, uint8_t direction, float lineHeight) {
   // Physical alignment: left/center/right are screen edges, so align 0 must be
   // kCTTextAlignmentLeft explicitly — kCTTextAlignmentNatural would flip with
   // the writing direction below and turn "left" into right under RTL.
@@ -116,8 +116,8 @@ CTParagraphStyleRef SkityParagraphStyle(uint8_t align, uint8_t direction, float 
 
 } // namespace
 
-@implementation SkityParagraphShadowNode {
-  std::shared_ptr<SkityParagraphResult> _lastResult;
+@implementation ScumbleParagraphShadowNode {
+  std::shared_ptr<ScumbleParagraphResult> _lastResult;
 }
 
 #if LYNX_LAZY_LOAD
@@ -126,11 +126,11 @@ LYNX_LAZY_REGISTER_SHADOW_NODE("scumble-paragraph")
 LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
 #endif
 
-- (std::shared_ptr<SkityParagraphResult>)lastResult {
+- (std::shared_ptr<ScumbleParagraphResult>)lastResult {
   return _lastResult;
 }
 
-- (NSString *)skityTagName {
+- (NSString *)scumbleTagName {
   return @"paragraph";
 }
 
@@ -139,7 +139,7 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
   return YES;
 }
 
-- (std::shared_ptr<SkityParagraphResult>)layoutIfNeeded {
+- (std::shared_ptr<ScumbleParagraphResult>)layoutIfNeeded {
   if (!self.dirtyParagraph) return _lastResult;
   if (self.paragraphSpansData == nil || !(self.width > 0.f)) return _lastResult;
   self.dirtyParagraph = NO;
@@ -154,7 +154,7 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
   // color as a custom attribute, letter spacing as kern, paragraph style).
   NSMutableAttributedString *text = [NSMutableAttributedString new];
   CTParagraphStyleRef paraStyle =
-      SkityParagraphStyle(self.paragraphAlign, self.paragraphDirection, self.paragraphLineHeight);
+      ScumbleParagraphStyle(self.paragraphAlign, self.paragraphDirection, self.paragraphLineHeight);
   // Schemed custom-font URIs this layout found missing — handed to the font
   // registry after the span walk; when the bytes land it re-triggers layout.
   NSMutableSet<NSString *> *missedFonts = [NSMutableSet set];
@@ -162,14 +162,14 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
     const skityrt::Span *span = spans->Get(i);
     NSString *str =
         span->text() != nullptr ? [NSString stringWithUTF8String:span->text()->c_str()] : @"";
-    CTFontRef font = SkitySpanFont(
+    CTFontRef font = ScumbleSpanFont(
         span->fontFamily() != nullptr ? [NSString stringWithUTF8String:span->fontFamily()->c_str()]
                                       : @"",
         span->fontSize(), span->fontWeight(), span->italic(), missedFonts);
     if (font == nullptr) continue;
     NSMutableDictionary *attrs = [NSMutableDictionary dictionary];
     attrs[(NSString *)kCTFontAttributeName] = (__bridge id)font;
-    attrs[kSkitySpanColorKey] = @(span->color());
+    attrs[kScumbleSpanColorKey] = @(span->color());
     if (span->letterSpacing() != 0.f) {
       const CGFloat kern = (CGFloat)span->letterSpacing();
       attrs[(NSString *)kCTKernAttributeName] = @(kern);
@@ -184,7 +184,7 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
   if (missedFonts.count > 0 && self.uiOwner != nil) {
     LynxUIContext *uiContext = self.uiOwner.uiContext;
     for (NSString *uri in missedFonts) {
-      [SkityFontLoaderRegistry requestFont:uri sign:self.sign uiContext:uiContext];
+      [ScumbleFontLoaderRegistry requestFont:uri sign:self.sign uiContext:uiContext];
     }
   }
   if (text.length == 0) return [self emptyResult];
@@ -198,7 +198,7 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
   CGPathRef path = CGPathCreateWithRect(CGRectMake(0, -100000.f, width, 100000.f), nullptr);
   CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), path, nullptr);
 
-  auto result = std::make_shared<SkityParagraphResult>();
+  auto result = std::make_shared<ScumbleParagraphResult>();
   CFArrayRef lines = CTFrameGetLines(frame);
   const CFIndex lineCount = lines != nullptr ? CFArrayGetCount(lines) : 0;
   const CFIndex maxLines = self.paragraphMaxLines > 0 ? (CFIndex)self.paragraphMaxLines : lineCount;
@@ -256,7 +256,7 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
       if (glyphCount == 0) continue;
       CFDictionaryRef attrs = CTRunGetAttributes(run);
       NSNumber *colorAttr = attrs != nullptr ? CFBridgingRelease(CFDictionaryGetValue(
-                                                   attrs, (__bridge CFStringRef)kSkitySpanColorKey))
+                                                   attrs, (__bridge CFStringRef)kScumbleSpanColorKey))
                                              : nil;
       const uint32_t runColor =
           colorAttr != nil ? (uint32_t)colorAttr.unsignedIntValue : 0xFF000000u;
@@ -275,7 +275,7 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
       CTRunGetGlyphs(run, CFRangeMake(0, 0), glyphs.data());
       CTRunGetPositions(run, CFRangeMake(0, 0), positions.data());
 
-      SkityParagraphRun out;
+      ScumbleParagraphRun out;
       out.fontId = fontId;
       out.color = runColor;
       out.glyphs.reserve((size_t)glyphCount);
@@ -314,8 +314,8 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
 // text is empty). Emitting a 0-height/0-run ENTRY — instead of no entry —
 // lets the retained tree clear the previous runs: a missing entry is not a
 // clear, the node would keep drawing its last layout.
-- (std::shared_ptr<SkityParagraphResult>)emptyResult {
-  auto result = std::make_shared<SkityParagraphResult>();
+- (std::shared_ptr<ScumbleParagraphResult>)emptyResult {
+  auto result = std::make_shared<ScumbleParagraphResult>();
   [self dispatchLayoutEventWithHeight:result->height lineCount:result->lineCount];
   _lastResult = result;
   return result;

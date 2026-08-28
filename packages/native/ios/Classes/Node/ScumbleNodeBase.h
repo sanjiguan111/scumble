@@ -4,77 +4,77 @@
 /// Base ShadowNode for every skity element (canvas + shapes + group). Collects
 /// numeric render props — geometry, paint colors, stroke style, opacity — plus
 /// the JS-built nested FlatBuffer bytes for path/transform, so the container
-/// node (SkityCanvasShadowNode) can serialize them directly into the skityrt
+/// node (ScumbleCanvasShadowNode) can serialize them directly into the skityrt
 /// FlatBuffer render tree without any string parsing on the native side.
 ///
 /// Variable-length fields (path d, transform) and enum props arrive already
-/// resolved by @lynx-skity/parsers in JS: bytes for path/transform, numbers for
-/// enums. iOS counterpart of android/.../node/SkityNodeBase.kt. Shape / group
+/// resolved by @scumble/graphics in JS: bytes for path/transform, numbers for
+/// enums. iOS counterpart of android/.../node/ScumbleNodeBase.kt. Shape / group
 /// nodes are virtual (isVirtual = YES); the canvas node overrides to NO.
 #import <Foundation/Foundation.h>
 #import <Lynx/LynxShadowNode.h>
 
-@class SkityCanvasShadowNode;
+@class ScumbleCanvasShadowNode;
 
 NS_ASSUME_NONNULL_BEGIN
 
 // PaintField bitmask (mirrors skityrt::PaintField in command_batch.fbs). Obj-C
-// compatible (no C++) so SkityNodeBase.m setters OR bits directly.
-enum SkityPaintField {
-  kSkityPaintFieldNone = 0,
-  kSkityPaintFieldFill = 1,
-  kSkityPaintFieldStroke = 2,
-  kSkityPaintFieldStrokeWidth = 4,
-  kSkityPaintFieldStrokeCap = 8,
-  kSkityPaintFieldStrokeJoin = 16,
-  kSkityPaintFieldStrokeMiter = 32,
-  kSkityPaintFieldFillRule = 64,
-  kSkityPaintFieldOpacity = 128,
-  kSkityPaintFieldFillGradient = 256,
-  kSkityPaintFieldStrokeGradient = 512,
-  kSkityPaintFieldStrokeDash = 1024,
-  kSkityPaintFieldBlendMode = 2048,
-  kSkityPaintFieldFillImageShader = 4096,
-  kSkityPaintFieldStrokeImageShader = 8192,
+// compatible (no C++) so ScumbleNodeBase.m setters OR bits directly.
+enum ScumblePaintField {
+  kScumblePaintFieldNone = 0,
+  kScumblePaintFieldFill = 1,
+  kScumblePaintFieldStroke = 2,
+  kScumblePaintFieldStrokeWidth = 4,
+  kScumblePaintFieldStrokeCap = 8,
+  kScumblePaintFieldStrokeJoin = 16,
+  kScumblePaintFieldStrokeMiter = 32,
+  kScumblePaintFieldFillRule = 64,
+  kScumblePaintFieldOpacity = 128,
+  kScumblePaintFieldFillGradient = 256,
+  kScumblePaintFieldStrokeGradient = 512,
+  kScumblePaintFieldStrokeDash = 1024,
+  kScumblePaintFieldBlendMode = 2048,
+  kScumblePaintFieldFillImageShader = 4096,
+  kScumblePaintFieldStrokeImageShader = 8192,
 };
 
 // GeometryField bitmask (mirrors skityrt::GeometryField in command_batch.fbs).
-// Obj-C compatible (no C++) so SkityNodeBase.m setters OR bits directly.
-enum SkityGeometryField {
-  kSkityGeomNone = 0,
-  kSkityGeomX = 1,
-  kSkityGeomY = 2,
-  kSkityGeomWidth = 4,
-  kSkityGeomHeight = 8,
-  kSkityGeomCX = 16,
-  kSkityGeomCY = 32,
-  kSkityGeomR = 64,
-  kSkityGeomRX = 128,
-  kSkityGeomRY = 256,
-  kSkityGeomX1 = 512,
-  kSkityGeomY1 = 1024,
-  kSkityGeomX2 = 2048,
-  kSkityGeomY2 = 4096,
-  kSkityGeomPathStart = 8192,
-  kSkityGeomPathEnd = 16384,
-  kSkityGeomPoints = 32768,
+// Obj-C compatible (no C++) so ScumbleNodeBase.m setters OR bits directly.
+enum ScumbleGeometryField {
+  kScumbleGeomNone = 0,
+  kScumbleGeomX = 1,
+  kScumbleGeomY = 2,
+  kScumbleGeomWidth = 4,
+  kScumbleGeomHeight = 8,
+  kScumbleGeomCX = 16,
+  kScumbleGeomCY = 32,
+  kScumbleGeomR = 64,
+  kScumbleGeomRX = 128,
+  kScumbleGeomRY = 256,
+  kScumbleGeomX1 = 512,
+  kScumbleGeomY1 = 1024,
+  kScumbleGeomX2 = 2048,
+  kScumbleGeomY2 = 4096,
+  kScumbleGeomPathStart = 8192,
+  kScumbleGeomPathEnd = 16384,
+  kScumbleGeomPoints = 32768,
 };
 
 // Paint filter slot bitmask (which of the six *FilterData slots is dirty).
-enum SkityPaintFilterField {
-  kSkityFilterFillColor = 1,
-  kSkityFilterStrokeColor = 2,
-  kSkityFilterFillImage = 4,
-  kSkityFilterStrokeImage = 8,
-  kSkityFilterFillMask = 16,
-  kSkityFilterStrokeMask = 32,
+enum ScumblePaintFilterField {
+  kScumbleFilterFillColor = 1,
+  kScumbleFilterStrokeColor = 2,
+  kScumbleFilterFillImage = 4,
+  kScumbleFilterStrokeImage = 8,
+  kScumbleFilterFillMask = 16,
+  kScumbleFilterStrokeMask = 32,
 };
 
-@interface SkityNodeBase : LynxShadowNode
+@interface ScumbleNodeBase : LynxShadowNode
 
 /// The skity tag name (e.g. "rect", "circle", "canvas", "g"). Subclasses must
-/// override. Must match render_tree.fbs tag_name consumed by SkityRenderer.
-@property(nonatomic, readonly) NSString *skityTagName;
+/// override. Must match render_tree.fbs tag_name consumed by ScumbleRenderer.
+@property(nonatomic, readonly) NSString *scumbleTagName;
 
 // ---- geometry (logical px within the canvas viewport) ----
 @property(nonatomic, assign) float x;
@@ -125,7 +125,7 @@ enum SkityPaintFilterField {
 @property(nonatomic, strong, nullable) NSData *strokeGradientData;
 /// Image shader slots (an image as the paint's texture). The uri doubles as
 /// the ImageStore key AND the platform loader request (the setter fires it,
-/// like skity-image's image prop); nil/empty = no image shader. fit is a
+/// like scumble-image's image prop); nil/empty = no image shader. fit is a
 /// BoxFit byte, tx/ty are TileMode bytes (command_batch.fbs value order);
 /// rect is 4 floats (x, y, w, h; nil = identity — 1:1 tiling at the bitmap's
 /// intrinsic size).
@@ -184,7 +184,7 @@ enum SkityPaintFilterField {
 @property(nonatomic, assign) int32_t nativeId;
 
 // Phase 2: dirty flags for the incremental command channel. Paint accumulates
-// as a SkityPaintField bitmask; geometry as a SkityGeometryField bitmask
+// as a ScumblePaintField bitmask; geometry as a ScumbleGeometryField bitmask
 // (Step 3a); path/transform are booleans. The canvas ShadowNode drains these
 // into a CommandBatch in measure() and clears.
 @property(nonatomic, assign) uint32_t dirtyPaintMask;
@@ -199,7 +199,7 @@ enum SkityPaintFilterField {
 
 // Phase 2 Step 2: structural hooks. Lynx has no "move" primitive — a move is a
 // remove + insert, which the canvas merges into a MoveNode (same id, same batch).
-- (nullable SkityCanvasShadowNode *)findCanvasOwner;
+- (nullable ScumbleCanvasShadowNode *)findCanvasOwner;
 - (int32_t)ensureNativeId; // 0 if not yet under a canvas
 
 @end

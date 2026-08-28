@@ -1,14 +1,14 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-/// UIView backing <skity-canvas>. Its backing layer is a CAMetalLayer (rendered
-/// to by skity Metal on the shared SkityMetalContext render queue). The layer
+/// UIView backing <scumble-canvas>. Its backing layer is a CAMetalLayer (rendered
+/// to by skity Metal on the shared ScumbleMetalContext render queue). The layer
 /// setup follows the same approach as the skity iOS example.
 #import <UIKit/UIKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface SkityCanvasView : UIView
+@interface ScumbleCanvasView : UIView
 
 /// Forward CommandBatch bytes to the render session (Step 3b: no snapshot
 /// bundle). The session posts apply + draw; an early command before the
@@ -27,12 +27,12 @@ NS_ASSUME_NONNULL_BEGIN
                   timeMs:(double)timeMs
                   onDone:(void (^)(BOOL ok))onDone;
 
-/// Finish-event dispatcher (D5), installed by SkityCanvasUI: invoked on the
+/// Finish-event dispatcher (D5), installed by ScumbleCanvasUI: invoked on the
 /// MAIN queue with the completed animation's handle. Emits
-/// `skityAnimationFinish` through the Lynx event emitter.
+/// `scumbleAnimationFinish` through the Lynx event emitter.
 @property(nonatomic, copy, nullable) void (^animationFinishDispatcher)(NSString *handle);
 
-/// Release the render session. Called from SkityCanvasUI.detachView.
+/// Release the render session. Called from ScumbleCanvasUI.detachView.
 - (void)destroySession;
 
 @end
