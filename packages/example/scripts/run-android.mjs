@@ -44,18 +44,36 @@ function run(cmd, args, opts = {}) {
   }
 }
 
-function isDevServerUp() {
+// Probe result: "up" (HTTP 200), "refused" (nothing listening), or
+// "no-response" (port held but no HTTP answer — stale server or mid-compile).
+function probeDevServer(timeoutMs = 2000) {
   return new Promise((resolve) => {
-    const req = http.get(BUNDLE_URL, { timeout: 2000 }, (res) => {
+    const req = http.get(BUNDLE_URL, { timeout: timeoutMs }, (res) => {
       res.resume();
-      resolve(res.statusCode === 200);
+      resolve(res.statusCode === 200 ? "up" : "no-response");
     });
-    req.on("error", () => resolve(false));
+    req.on("error", (e) =>
+      resolve(e.code === "ECONNREFUSED" || e.code === "ENOTFOUND" ? "refused" : "no-response"),
+    );
     req.on("timeout", () => {
       req.destroy();
-      resolve(false);
+      resolve("no-response");
     });
   });
+}
+
+async function isDevServerUp() {
+  return (await probeDevServer()) === "up";
+}
+
+// PID of whatever holds the port, or null (lsof is present on macOS/linux).
+function portListenerPid(port) {
+  const r = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  const pid = r.stdout?.trim().split("\n")[0];
+  return pid || null;
 }
 
 async function waitForBundle(timeoutMs = 120000) {
@@ -69,7 +87,11 @@ async function waitForBundle(timeoutMs = 120000) {
     process.stdout.write(".");
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error(`\ndev server did not become ready at ${BUNDLE_URL}`);
+  throw new Error(
+    `\ndev server did not become ready at ${BUNDLE_URL}\n` +
+      `  check the dev-server terminal for errors, and whether a stale process holds the port:\n` +
+      `  lsof -nP -iTCP:3000 -sTCP:LISTEN`,
+  );
 }
 
 // Open `pnpm dev` in a new terminal window (mac/win/linux). Falls back to a
@@ -97,7 +119,30 @@ function openDevServerInNewTerminal() {
 }
 
 // 1) dev server: reuse if running, otherwise open it in a new terminal window
-if (!(await isDevServerUp())) {
+const initial = await probeDevServer();
+if (initial === "up") {
+  console.log("✓ dev server already up (reusing it)");
+} else if (initial === "no-response") {
+  // Someone holds the port but never answers: usually a stale dev server.
+  // (A freshly started one still compiling recovers within a minute.)
+  const pid = portListenerPid(3000);
+  console.log(
+    `⚠ port 3000 is held${pid ? ` by PID ${pid}` : ""} but not answering` +
+      ` — waiting up to 60s in case it is still compiling…`,
+  );
+  try {
+    await waitForBundle(60000);
+  } catch {
+    console.error(`✗ dev server at ${BUNDLE_URL} never answered.`);
+    if (pid) {
+      console.error(`  PID ${pid} holds port 3000 without responding — likely a stale dev server.`);
+      console.error(`  Kill it and re-run:  kill ${pid}`);
+    } else {
+      console.error("  Inspect the port:  lsof -nP -iTCP:3000 -sTCP:LISTEN");
+    }
+    process.exit(1);
+  }
+} else {
   try {
     openDevServerInNewTerminal();
   } catch (e) {
@@ -111,8 +156,6 @@ if (!(await isDevServerUp())) {
     console.error(e.message);
     process.exit(1);
   }
-} else {
-  console.log("✓ dev server already up (reusing it)");
 }
 
 // 2) adb reverse so the device's localhost:3000/3001 reach the host dev server
