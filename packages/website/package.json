@@ -2,8 +2,13 @@
   "name": "@scumble/website",
   "version": "0.0.0",
   "private": true,
-  "description": "Static landing page for scumble, deployed to GitHub Pages from packages/website (zero dependencies, one HTML file).",
+  "description": "Documentation site for scumble, built with VitePress and deployed to GitHub Pages from packages/website/dist.",
   "scripts": {
-    "dev": "node serve.mjs"
+    "dev": "vitepress dev docs",
+    "build": "vitepress build docs",
+    "preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
   }
 }

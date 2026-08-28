@@ -5,6 +5,7 @@ node_modules/
 dist/
 **/build/
 **/.turbo/
+**/.vitepress/cache/
 
 # CMake-generated third-party headers (shared/CMakeLists.txt copies them here)
 **/shared/third_party/

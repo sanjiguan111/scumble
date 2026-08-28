@@ -1,13 +1,34 @@
 # scumble
 
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-5b8cff.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-2dd4bf.svg)](#architecture)
+[![Docs](https://img.shields.io/badge/docs-sanjiguan111.github.io%2Fscumble-7683b3.svg)](https://sanjiguan111.github.io/scumble)
+[![Deploy website](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml/badge.svg)](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml)
+
 A 2D graphics library for [Lynx](https://lynxjs.org/), powered by the **skity** GPU
 backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a declarative drawing
-API — `<Canvas><Circle color="red"/></Canvas>`
-— to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer render tree.
+API to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer
+render tree:
 
-> 🌐 Landing page: <https://ruiwentang.github.io/scumble> — served from
-> [`packages/website`](packages/website/index.html) via GitHub Actions (enable
-> _Settings → Pages → Source: GitHub Actions_ once on the repo).
+```tsx
+import { Canvas, Rect, createAnimation } from "@scumble/react";
+
+const spin = createAnimation({
+  property: "rotate",
+  from: 0,
+  to: 360,
+  duration: 3000,
+  iterations: Infinity, // interpolated on the render thread — zero JS per frame
+});
+
+<Canvas style={{ width: "100%", height: 200 }}>
+  <Rect x={60} y={60} width={80} height={80} color="#f59e0b" animate={spin} />
+</Canvas>;
+```
+
+> 🌐 Documentation: <https://sanjiguan111.github.io/scumble> — guides, API
+> reference, and architecture notes, built with VitePress from
+> [`packages/website`](packages/website).
 
 ## Features
 
@@ -56,13 +77,13 @@ Full design + roadmap: [`packages/native/RENDER_ARCHITECTURE.md`](packages/nativ
 
 ## Packages
 
-| Package                                  | What it is                                                                                                                           |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Package                                  | What it is                                                                                                                             |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | [`@scumble/native`](packages/native)     | The native Lynx library — intrinsic `<scumble-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `ScumbleRenderer`. |
-| [`@scumble/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                                 |
-| [`@scumble/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                           |
-| [`example`](packages/example)            | rspeedy demo app consuming all of the above.                                                                                         |
-| [`website`](packages/website)            | Static landing page (GitHub Pages) — one zero-dependency HTML file, `pnpm --filter @scumble/website dev` to preview.                 |
+| [`@scumble/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                                   |
+| [`@scumble/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                             |
+| [`example`](packages/example)            | rspeedy demo app consuming all of the above.                                                                                           |
+| [`website`](packages/website)            | VitePress documentation site (GitHub Pages) — `pnpm --filter @scumble/website dev` to preview, `build` to build.                       |
 
 ## Installation
 
