@@ -18,7 +18,7 @@
             NSMutableDictionary *details = [NSMutableDictionary new];
             NSString *errorMsg = [NSString stringWithFormat:@"data from %@ is nil!", url];
             [details setObject:errorMsg forKey:NSLocalizedDescriptionKey];
-            NSError *dataError = [NSError errorWithDomain:@"com.skity.example"
+            NSError *dataError = [NSError errorWithDomain:@"com.scumble.example"
                                                      code:200
                                                  userInfo:details];
             callback(nil, dataError);
