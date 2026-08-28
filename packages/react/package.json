@@ -29,11 +29,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RuiwenTang/scumble.git",
+    "url": "git+https://github.com/sanjiguan111/scumble.git",
     "directory": "packages/react"
   },
-  "homepage": "https://github.com/RuiwenTang/scumble/tree/main/packages/react",
+  "homepage": "https://github.com/sanjiguan111/scumble/tree/develop/packages/react",
   "bugs": {
-    "url": "https://github.com/RuiwenTang/scumble/issues"
+    "url": "https://github.com/sanjiguan111/scumble/issues"
   }
 }

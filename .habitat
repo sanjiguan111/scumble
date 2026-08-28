@@ -1,5 +1,5 @@
 solutions = [{
     'name': '.',
     'deps_file': 'DEPS.py',
-    'url': 'git@github.com:RuiwenTang/scumble.git'
+    'url': 'git@github.com:sanjiguan111/scumble.git'
 }]

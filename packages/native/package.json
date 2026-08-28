@@ -57,11 +57,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RuiwenTang/scumble.git",
+    "url": "git+https://github.com/sanjiguan111/scumble.git",
     "directory": "packages/native"
   },
-  "homepage": "https://ruiwentang.github.io/scumble",
+  "homepage": "https://sanjiguan111.github.io/scumble",
   "bugs": {
-    "url": "https://github.com/RuiwenTang/scumble/issues"
+    "url": "https://github.com/sanjiguan111/scumble/issues"
   }
 }
