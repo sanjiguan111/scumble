@@ -24,7 +24,7 @@
   EXTERN_C_END
 #endif
 
-NAPI_USE(LynxSkityModule)
+NAPI_USE(ScumbleModule)
 
 #if defined(USE_WEAK_SUFFIX_NAPI)
 #if __has_include(<LynxWeakNodeAPI/headers/weak_napi_undefs.h>)

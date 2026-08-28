@@ -165,7 +165,7 @@ napi_value CreateShaderCallback(napi_env env, napi_callback_info info) {
   return CreateShader(Napi::CallbackInfo(env, info));
 }
 
-void BindLynxSkityModule(napi_env env, napi_value exports) {
+void BindScumbleModule(napi_env env, napi_value exports) {
   SetFunction(env, exports, "setValue", SetValueCallback);
   SetFunction(env, exports, "getValue", GetValueCallback);
   SetFunction(env, exports, "setArray", SetArrayCallback);
@@ -175,18 +175,18 @@ void BindLynxSkityModule(napi_env env, napi_value exports) {
   SetFunction(env, exports, "createShader", CreateShaderCallback);
 }
 
-static napi_value CreateLynxSkityModule(napi_env env, napi_value exports) {
-  BindLynxSkityModule(env, exports);
+static napi_value CreateScumbleModule(napi_env env, napi_value exports) {
+  BindScumbleModule(env, exports);
   return exports;
 }
 
 } // namespace
 
-extern "C" napi_value LynxAutolinkCreateLynxSkityModule(napi_env env, napi_value exports,
+extern "C" napi_value LynxAutolinkCreateScumbleModule(napi_env env, napi_value exports,
                                                         const char *module_name, void *opaque) {
   (void)module_name;
   (void)opaque;
-  return CreateLynxSkityModule(env, exports);
+  return CreateScumbleModule(env, exports);
 }
 
 // Standard Node-API addon entry point. The host's NAPI addon loader
@@ -195,11 +195,11 @@ extern "C" napi_value LynxAutolinkCreateLynxSkityModule(napi_env env, napi_value
 // NAPI path the NAPI_MODULE macro below is used instead; both coexist.
 extern "C" __attribute__((visibility("default"))) napi_value
 napi_register_module_v1(napi_env env, napi_value exports) {
-  return CreateLynxSkityModule(env, exports);
+  return CreateScumbleModule(env, exports);
 }
 
 #ifdef LYNX_LIBRARY_USE_PRIMJS_NAPI_MODULE
-NAPI_MODULE(LynxSkityModule, CreateLynxSkityModule)
+NAPI_MODULE(ScumbleModule, CreateScumbleModule)
 #endif
 
 #ifdef USE_WEAK_SUFFIX_NAPI

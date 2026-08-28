@@ -1,19 +1,19 @@
 {
   "platforms": {
     "android": {
-      "packageName": "com.skity.graphics",
+      "packageName": "com.scumble.graphics",
       "sourceDir": "android",
       "nodeApiAddons": [
         {
-          "name": "LynxSkityModule",
-          "libraryName": "LynxSkityModule",
+          "name": "ScumbleModule",
+          "libraryName": "ScumbleModule",
           "jniLibsDir": "android/src/main/jniLibs",
           "required": false
         }
       ]
     },
     "ios": {
-      "podspecPath": "lynx-skity.podspec"
+      "podspecPath": "scumble.podspec"
     },
     "harmony": {
       "packageDir": "harmony"

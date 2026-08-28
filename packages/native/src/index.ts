@@ -3,4 +3,4 @@
 export * from "./elements";
 
 // NAPI addon facade — removed in Phase 5 once the skity render path is live.
-export { LynxSkityModule } from "../generated/LynxSkityModule";
+export { ScumbleModule } from "../generated/ScumbleModule";
