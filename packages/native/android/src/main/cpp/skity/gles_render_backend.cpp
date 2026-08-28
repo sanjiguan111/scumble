@@ -7,7 +7,7 @@
 #include <skity/gpu/gpu_context_gl.hpp>
 #include <skity/gpu/gpu_surface.hpp>
 
-#include "ScumbleRenderer.h" // lynx-skity cross-platform renderer (RetainedRenderTree)
+#include "ScumbleRenderer.h" // scumble cross-platform renderer (RetainedRenderTree)
 #include "shared_gl_context.hpp"
 
 namespace scumble {
@@ -63,7 +63,7 @@ void GLESRenderBackend::DestroySurface() {
     eglDestroySurface(shared_->display, egl_surface_);
   }
   egl_surface_ = EGL_NO_SURFACE;
-  // shared_ (display/context/skity_context) is owned by SkityRenderThread,
+  // shared_ (display/context/skity_context) is owned by ScumbleRenderThread,
   // not destroyed here.
 }
 

@@ -1,6 +1,6 @@
 // render_tree.fbs
 // Render tree structure: the output of the skity ShadowNode layer, consumed by
-// the cross-platform C++ SkityRenderer. Derived from lynx-native-svg's schema
+// the cross-platform C++ ScumbleRenderer. Derived from lynx-native-svg's schema
 // (Apache-2.0), trimmed to the MVP.
 //
 // See RENDER_ARCHITECTURE.md for the logical-pixel / viewport contract.

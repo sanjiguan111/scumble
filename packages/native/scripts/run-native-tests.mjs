@@ -6,7 +6,7 @@
 // tests/CMakeLists.txt — the framework itself comes from habitat,
 // DEPS.py → shared/third_party/googletest, so `tools/hab sync` must have run
 // once). Plain cmake configure → build → ctest, out-of-tree under tmp. Run:
-// `pnpm --filter @lynx-skity/native test:native`.
+// `pnpm --filter @scumble/native test:native`.
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -15,11 +15,11 @@ import { fileURLToPath } from "node:url";
 
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const testsDir = resolve(pkgRoot, "tests");
-const buildDir = resolve(tmpdir(), "lynx-skity-native-tests");
+const buildDir = resolve(tmpdir(), "scumble-native-tests");
 mkdirSync(buildDir, { recursive: true });
 
 function run(cmd, args) {
-  console.log(`[lynx-skity] ${cmd} ${args.join(" ")}`);
+  console.log(`[scumble] ${cmd} ${args.join(" ")}`);
   return spawnSync(cmd, args, { cwd: pkgRoot, stdio: "inherit" }).status === 0;
 }
 

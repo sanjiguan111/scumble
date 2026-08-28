@@ -50,7 +50,7 @@ deps = {
     },
     # SheenBidi — UAX #9 bidirectional algorithm, Android-only <Paragraph>
     # backend (iOS uses CoreText's built-in UAX #9). Pure C, zero deps, data
-    # tables compiled in. Statically linked into libskityrender.so (same
+    # tables compiled in. Statically linked into libscumblerender.so (same
     # pattern as the HarfBuzz static prefab — no runtime .so); the podspec
     # never globs third_party.
     'packages/native/shared/third_party/sheenbidi': {

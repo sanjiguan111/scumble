@@ -8,7 +8,7 @@
 #include <skity/gpu/gpu_presenter.hpp>
 #include <skity/render/canvas.hpp>
 
-#include "ScumbleRenderer.h" // lynx-skity cross-platform renderer (RetainedRenderTree)
+#include "ScumbleRenderer.h" // scumble cross-platform renderer (RetainedRenderTree)
 
 namespace scumble {
 

@@ -78,7 +78,7 @@ export function parseTransform(s: string): ArrayBuffer | null {
         // Canvas::Rotate's degree/radian + matrix-concat convention, which moved
         // the subtree off-screen for any non-zero angle (rotate(0) was the
         // identity, so only it rendered). A matrix is unambiguous — native just
-        // Concats it (SkityRenderer ApplyTransform MATRIX).
+        // Concats it (ScumbleRenderer ApplyTransform MATRIX).
         const deg = a[0] ?? 0;
         const cx = a[1] ?? 0;
         const cy = a[2] ?? 0;

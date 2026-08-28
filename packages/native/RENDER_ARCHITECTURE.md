@@ -100,7 +100,7 @@ Why nested flatbuffer over a custom wire format: the native side is fully free o
 A front-end `width={100}` is a **logical pixel**; `scumble-canvas` declares the logical coordinate system via the `viewPort` prop (`{x,y,width,height}`, forwarded to native as four scalar props) with a fixed `preserveAspectRatio` (xMidYMid meet), and the renderer maps it to physical pixels.
 
 - Child coordinates stay as **logical-pixel values** in the FlatBuffer; the transform is applied once at the root canvas → front-end parsers and binary data are uniformly in logical pixels, clean and consistent.
-- **The viewport transform is applied by the renderer `SkityRenderer::Draw`** (scale/translate on the skity Canvas before drawing), not on the front end, because physical size / density are only known after layout — the front end doesn't have them at render time. This neatly sidesteps the layout-timing problem that "front end builds the whole tree bytes" would run into.
+- **The viewport transform is applied by the renderer `ScumbleRenderer::Draw`** (scale/translate on the skity Canvas before drawing), not on the front end, because physical size / density are only known after layout — the front end doesn't have them at render time. This neatly sidesteps the layout-timing problem that "front end builds the whole tree bytes" would run into.
 - The renderer already does a `density` scale; extending it to `viewport` + `preserveAspectRatio` is straightforward.
 
 ## 7. Native-side changes
@@ -126,7 +126,7 @@ Dependency-ordered; each step is independently reviewable:
 ## 9. Cleanup backlog
 
 - `shared/elements/` (`x-scumble` C++ `LynxNativeView`): autolink default scaffold, unrelated to the graphics pipeline; clean up later.
-- `polyline` / `polygon`: the renderer `SkityRenderer.cc` already dispatches by tag_name, but no tag is registered natively, no TS type exists, and the `points` prop is currently unused — wire these up together when they land.
+- `polyline` / `polygon`: the renderer `ScumbleRenderer.cc` already dispatches by tag_name, but no tag is registered natively, no TS type exists, and the `points` prop is currently unused — wire these up together when they land.
 
 ## 10. Key file index
 
@@ -139,7 +139,7 @@ Dependency-ordered; each step is independently reviewable:
 - prop setters: Android `android/.../graphics/node/SkityNodeBase.kt`; iOS `ios/Classes/Node/SkityNodeBase.m`
 - parser: **deleted** in Task 3 (was `node/SkityPropParser.kt` / `Node/SkityPropParser.m` — string parsing now lives in `@scumble/graphics`)
 - serialization: Android `android/.../graphics/node/SkityCanvasShadowNode.kt` (measure/buildRenderNode/buildStyle/buildPaint); iOS `ios/Classes/Node/SkityCanvasShadowNode.mm`
-- renderer: `packages/native/shared/skity/SkityRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density,W,H)` + viewport)
+- renderer: `packages/native/shared/skity/ScumbleRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density,W,H)` + viewport)
 - backends: Android `android/src/main/cpp/skity/{gles,vulkan}_render_backend.cpp`; iOS `ios/Classes/Render/`
 
 ---
@@ -403,11 +403,11 @@ reuses them unchanged.
 
 **Mechanism (per platform):**
 
-- Android (`SkityRenderThread.kt`): a process-wide `HandlerThread` + a `Handler`
-  bound to its `Looper`. Any thread holding `SkityRenderThread.handler` calls
+- Android (`ScumbleRenderThread.kt`): a process-wide `HandlerThread` + a `Handler`
+  bound to its `Looper`. Any thread holding `ScumbleRenderThread.handler` calls
   `handler.post { … }` to enqueue work on the render thread.
 - iOS (`SkityMetalContext.mm`): a shared _serial_ GCD queue
-  (`dispatch_queue_create("com.skity.lynx.queue", DISPATCH_QUEUE_SERIAL)`). Any
+  (`dispatch_queue_create("com.scumble.lynx.queue", DISPATCH_QUEUE_SERIAL)`). Any
   thread holding the queue calls `dispatch_async(queue, ^{ … })`.
 
 **Key fact — single-threaded ownership already holds.** Every native call
@@ -494,7 +494,7 @@ as a description and the renderer evaluates it.
   (`op(a, op(b,c))`, e.g. `(A−B)∪(C−D)`) can't flatten, so that operand carries
   a sub-`PathOpList` in its `nested` field. `PathOpKind` value order ==
   `skity::PathOp::Op` (== Skia SkPathOp; skity has no ReverseDifference).
-- **Renderer**: `BuildOpPath` (`SkityRenderer.cc`) resolves each operand
+- **Renderer**: `BuildOpPath` (`ScumbleRenderer.cc`) resolves each operand
   (nested sub-tree recursively, else `BuildPathFromBytes`) and left-folds with
   `skity::PathOp::Execute`; an operand whose `Execute` **fails is skipped**
   (degenerate input degrades gracefully — the counterpart of RN-Skia returning
@@ -529,7 +529,7 @@ as shaders).
   `skity::BlurStyle` (kNormal=1..kInner=4) — NOT Skia's 0-based order;
   `ColorBlend`'s mode reuses the skityrt BlendMode bytes.
 - **Renderer**: `BuildImageFilter/BuildColorFilter/BuildMaskFilter`
-  (`SkityRenderer.cc`) turn the bytes into skity filter objects at paint
+  (`ScumbleRenderer.cc`) turn the bytes into skity filter objects at paint
   construction (`ApplyPaintFilters`, called from MakeFillPaint /
   MakeStrokePaint on every successful path). Filters never flip the
   "does this paint draw" decision — a paint still needs color or gradient.
@@ -567,7 +567,7 @@ fired from the TASM setter.
   (v1: no retry, no LRU eviction — TODO).
 - **GPU context rule**: `Image::MakeImage(pixmap, ctx)` **requires the live
   backend context** — `MakeImage(pixmap, nullptr)` produces an undrawable
-  image (verified on Metal in the pre-implementation spike). `SkityRenderer::
+  image (verified on Metal in the pre-implementation spike). `ScumbleRenderer::
 Draw` therefore takes a trailing `gpu_context` param, supplied by each
   backend at its existing call site (iOS `_gpuContext.get()`, GL
   `shared_->skity_context.get()`, Vulkan `context_.get()`).
@@ -590,7 +590,7 @@ setImageLoader:]` (iOS). Unknown schemes → host loader only.
   opacity + blendMode + the fill slot's filters; fill color/gradient are
   ignored (the bitmap supplies color — the modulate color is white at the
   effective opacity).
-- **Fit math**: `ApplyBoxFit` in SkityRenderer.cc is a port of Flutter's
+- **Fit math**: `ApplyBoxFit` in ScumbleRenderer.cc is a port of Flutter's
   `applyBoxFit` + inscribe (cover center-crops the source; none is 1:1 center
   crop; scaleDown = contain-but-never-upscale).
 - **Sampling** (2026-08-18): `sampling: { filter, mipmap, cubic: {B, C} }` rides
@@ -701,7 +701,7 @@ LineHeightMultiple`), alignment. Spans build a `CFAttributedString`
     in large-print paragraphs.)
   - HarfBuzz ships as the third-party static prefab
     `com.viliussutkus89.ndk.thirdparty:harfbuzz-ndk26-static:8.3.0-beta-4`
-    (`libharfbuzz.a` links into `libskityrender.so` — no new runtime `.so`,
+    (`libharfbuzz.a` links into `libscumblerender.so` — no new runtime `.so`,
     no pickFirst fallout; see `android/build.gradle.kts` / `CMakeLists.txt`).
 - **The glyph-run side channel** (the design's biggest deviation): runs ride
   the **extra bundle next to the CommandBatch**, not a node-id-keyed native
@@ -727,7 +727,7 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
   ids never reused. `Register` is idempotent per (typeface, size) — repeated
   layouts return the existing id (2026-08-20; iOS used to grow the registry
   by re-registering every CTRun on every layout).
-- **Drawing**: `SkityRenderer.cc` `tag == "paragraph"` — `Save` →
+- **Drawing**: `ScumbleRenderer.cc` `tag == "paragraph"` — `Save` →
   `Translate(x, y)` → one `DrawGlyphs` per run. The paint is built per run:
   the node-level fill (explicit or inherited) styles every run when present —
   a GRADIENT rides skity's glyph-atlas shader path (span colors survive only
@@ -784,7 +784,7 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
   - **Android** links [SheenBidi](https://github.com/Tehreer/SheenBidi) v3.0.0
     (Apache-2.0, pure C, data tables compiled in) — a habitat git dep
     (`DEPS.py → shared/third_party/sheenbidi`, `tools/hab sync`) statically
-    linked into `libskityrender.so` like HarfBuzz; the source ships in the
+    linked into `libscumblerender.so` like HarfBuzz; the source ships in the
     npm package (`files`) so consumers never sync it themselves. In the
     shaper: all spans concatenate into ONE UTF-32 array (newlines become
     spaces first — SB would end the paragraph at the first separator, while
@@ -902,13 +902,13 @@ finite+forwards, all with zero JS per frame.
 
 The per-frame cost audit found `Draw` rebuilding everything, every frame, on
 every canvas — on a MI 6 (Adreno 540) three animated canvases saturated one
-core of the shared `SkityRenderThread` (70–77%). §15 caches the BUILD
+core of the shared `ScumbleRenderThread` (70–77%). §15 caches the BUILD
 PRODUCTS, keyed for O(1) invalidation, animated-value-safe.
 
 **Model**: one `RenderCache` per retained tree, attached as the tree's
 type-erased `render_cache` blob (`retained_render_tree.h` stays skity-free;
 lifetime = tree lifetime; per-tree so node ids from different canvases can
-never collide). SkityRenderer reaches it via a frame-local thread_local set
+never collide). ScumbleRenderer reaches it via a frame-local thread_local set
 at `Draw` entry; null means disabled and every consumer falls back to the
 original uncached lane (kept verbatim as the rollback). `SetRenderCacheEnabled`
 is the global kill switch.

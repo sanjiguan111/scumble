@@ -4,7 +4,7 @@
 // Unit tests for the shared v1 line breaker (Task 16) — the Android layout
 // backend's break engine (iOS never uses it; CoreText breaks by itself).
 // Host-side GoogleTest binary, built by scripts/tests/CMakeLists.txt and run
-// via `pnpm --filter @lynx-skity/native test:native`.
+// via `pnpm --filter @scumble/native test:native`.
 
 #include "../shared/skity/line_breaker.h"
 

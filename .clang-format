@@ -1,7 +1,7 @@
 ---
 # C++ / Objective-C(++) formatting. Applied by `pnpm format` via the
 # clang-format npm package. Based on LLVM (2-space, attached braces), which
-# matches the existing SkityRenderer.cc / iOS .m/.mm style.
+# matches the existing ScumbleRenderer.cc / iOS .m/.mm style.
 BasedOnStyle: LLVM
 IndentWidth: 2
 TabWidth: 2

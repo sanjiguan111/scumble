@@ -57,7 +57,7 @@ Render thread  ApplyCommandBatch → parses tracks onto RetainedNode (C++ struct
 ```
 
 The engine lives **entirely on the render thread** (iOS:
-`com.skity.lynx.queue`; Android: `SkityRenderThread`/Vulkan twin), next
+`com.scumble.lynx.queue`; Android: `ScumbleRenderThread`/Vulkan twin), next
 to the retained tree it animates — single-threaded by contract, **zero
 locks** (same rationale as §11.12). The vsync source callback does
 nothing but one `dispatch_async`/`handler.post` forward.
@@ -69,7 +69,7 @@ nothing but one `dispatch_async`/`handler.post` forward.
 - Tick: `TickAnimations(now_ns)` walks active animations, interpolates,
   writes each node's `AnimationOverlay`; returns whether anything is
   still live (drives start/stop of the vsync source and the repaint).
-- Rejected lazy sampling inside `Draw`: `SkityRenderer::Draw` takes a
+- Rejected lazy sampling inside `Draw`: `ScumbleRenderer::Draw` takes a
   `const RetainedRenderTree*` and stays pure-read; stop-on-idle wants
   liveness and evaluation in the same pass; full repaint is the status
   quo so laziness saves nothing meaningful.
@@ -169,7 +169,7 @@ keyframes[], cx, cy }`, `table AnimationList { tracks[] }`.
   `animated_ids_` (ids, not pointers); `case Command_SetAnimation:`;
   conflict-cancel hooks at the end of `ApplySetPaint` /
   `ApplySetGeometry` / `SetTransform`; `EraseSubtree` removes subtree ids.
-- `SkityRenderer.cc` three read-only hooks: `ApplyTransform` (signature
+- `ScumbleRenderer.cc` three read-only hooks: `ApplyTransform` (signature
   takes the node; appends overlay components after base ops), `DrawNode`
   (local style copy + explicitPaint bits when paint slots active),
   `DrawShape` geometry/trim reads go through overlay accessors.

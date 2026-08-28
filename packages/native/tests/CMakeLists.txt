@@ -2,7 +2,7 @@
 # breaker, base64) — no skity, no platform SDKs, no device needed. GoogleTest
 # comes from habitat (DEPS.py → shared/third_party/googletest; run
 # `tools/hab sync` first). Configure/build/run everything via
-# `pnpm --filter @lynx-skity/native test:native` (cmake + ctest).
+# `pnpm --filter @scumble/native test:native` (cmake + ctest).
 cmake_minimum_required(VERSION 3.16)
 project(skityrt_tests CXX)
 

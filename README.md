@@ -33,7 +33,7 @@ cancel, onFinish}`.
 - **Friendly values, parsed in JS** — CSS color strings, paint enums, CSS `transform`
   lists, and SVG path `d` strings are all resolved in JS; **the native side never
   parses strings.**
-- **Cross-platform** — one C++ renderer (`SkityRenderer`) shared by Android and iOS.
+- **Cross-platform** — one C++ renderer (`ScumbleRenderer`) shared by Android and iOS.
 
 ## Architecture
 
@@ -58,7 +58,7 @@ Full design + roadmap: [`packages/native/RENDER_ARCHITECTURE.md`](packages/nativ
 
 | Package                                  | What it is                                                                                                                           |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| [`@scumble/native`](packages/native)     | The native Lynx library — intrinsic `<scumble-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `SkityRenderer`. |
+| [`@scumble/native`](packages/native)     | The native Lynx library — intrinsic `<scumble-*>` tags, the `skityrt` FlatBuffer schema, and the cross-platform C++ `ScumbleRenderer`. |
 | [`@scumble/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                                 |
 | [`@scumble/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                           |
 | [`example`](packages/example)            | rspeedy demo app consuming all of the above.                                                                                         |
