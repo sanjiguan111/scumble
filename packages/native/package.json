@@ -1,7 +1,7 @@
 {
   "name": "@scumble/native",
   "version": "0.1.0",
-  "description": "A native Lynx library",
+  "description": "The native Lynx library for scumble — intrinsic <scumble-*> tags, the skityrt FlatBuffer schema, and the cross-platform C++ ScumbleRenderer shared by Android and iOS.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./src/index.ts",

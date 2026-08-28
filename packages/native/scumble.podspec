@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name = 'scumble'
-  s.version = '0.0.1'
+  s.version = '0.1.0'
   s.summary = 'Scumble GPU rendering for Lynx (iOS)'
   s.homepage = 'https://github.com/sanjiguan111/scumble'
   s.license = { :type => 'Apache-2.0' }
