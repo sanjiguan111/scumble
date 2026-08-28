@@ -16,7 +16,7 @@ constexpr int kBackendVulkan = 2;
 
 AppRenderer::AppRenderer(int backend_type, int64_t shared_gl_handle, float density)
     : density_(density) {
-  // GLES reuses the SkityRenderThread-owned SharedGLContext; Vulkan manages
+  // GLES reuses the ScumbleRenderThread-owned SharedGLContext; Vulkan manages
   // its own context.
   if (backend_type == kBackendVulkan) {
     backend_ = CreateVulkanRenderBackend();

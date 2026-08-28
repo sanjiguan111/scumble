@@ -11,7 +11,7 @@
 namespace scumble {
 
 // Shared EGL display/context/config + skity GPUContext for the GL backend.
-// Owned by the Kotlin SkityRenderThread as a jlong handle (created/destroyed
+// Owned by the Kotlin ScumbleRenderThread as a jlong handle (created/destroyed
 // via JNI). All GLESRenderBackends running on that thread reuse one of these,
 // avoiding both per-view EGL context creation and the thread_local slot limit.
 class SharedGLContext {

@@ -21,7 +21,7 @@ deviations from this doc:
 - The finish drain rides the existing tick lane (pull after
   `TickAnimations`/seeking `ControlAnimation`; `nativeTakeFinishedHandles` /
   `takeFinishedHandles:`), not a push callback — zero cross-thread C++
-  callbacks (D5's SkityImageController-style post became: render thread →
+  callbacks (D5's ScumbleImageController-style post became: render thread →
   view/UI thread hop in the session, then `LynxEventEmitter.sendCustomEvent`).
 
 Origin: the API-parity review of the Stage 2 engine (ANIMATION_DESIGN.md)
@@ -69,7 +69,7 @@ framework channels, both already verified (§G.3, 2026-08-21):
 
 Our canvas already carries built-in UIMethods (`takeScreenshot`,
 `boundingClientRect`, …) via the kapt-generated
-`SkityCanvasUI$$MethodInvoker` — the dispatch chain to our UI class is
+`ScumbleCanvasUI$$MethodInvoker` — the dispatch chain to our UI class is
 live today; we are only adding a method of our own.
 
 ## 3. Goal / non-goals
@@ -110,8 +110,8 @@ JS (React)      onAnimationFinish → matched back to the node by handle
 ### D1 — Addressing: a JS-assigned animation handle (native `node_id` is unusable)
 
 The retained-tree `node_id` is allocated by a native monotonic counter
-(iOS: `SkityCanvasShadowNode.nextNodeId` /
-`assignNativeIdsRecursive:`, `SkityCanvasShadowNode.mm:273-322`; Android
+(iOS: `ScumbleCanvasShadowNode.nextNodeId` /
+`assignNativeIdsRecursive:`, `ScumbleCanvasShadowNode.mm:273-322`; Android
 mirrors it) — **JS never sees it**, and SelectorQuery can only address
 host elements (the canvas root), never the render-tree nodes inside.
 So the invoke command carries a **handle minted on the JS side**:
@@ -145,10 +145,10 @@ same philosophy as every other id in the command stream.
   high-frequency seek / gesture scrub. The react handle hides the lane;
   swapping it later is invisible to user code.
 - **Native signatures** follow the built-in methods' pattern exactly:
-  - Android (`SkityCanvasUI.kt`, `@LynxUIMethod` — **kapt**, not
+  - Android (`ScumbleCanvasUI.kt`, `@LynxUIMethod` — **kapt**, not
     annotationProcessor, per project memory):
     `fun animateControl(params: ReadableMap, callback: Callback)`.
-  - iOS (`SkityCanvasUI.m`): `LYNX_UI_METHOD(animateControl)` →
+  - iOS (`ScumbleCanvasUI.m`): `LYNX_UI_METHOD(animateControl)` →
     `-(void)animateControl:(NSDictionary*)params
 withResult:(LynxUIMethodCallbackBlock)callback`
     (`LynxUIMethodProcessor.h:18` registers it automatically).
@@ -206,7 +206,7 @@ to "any track unfinished **and unpaused**". Consequences:
 data))` (precedent: the layout-change event, `LynxBaseUI.java:2631`);
   iOS `-[LynxUI dispatchEvent:LynxEventDetail*]` (`LynxUI.h:228`). The
   cross-thread post mirrors the existing image-arrival path
-  (`SkityImageController`) — no new threading pattern.
+  (`ScumbleImageController`) — no new threading pattern.
 - **React side**: `onAnimationFinish` on any shape/`Group`; the react
   layer matches the event's handle back to the mounting component. This
   is the library's first component event — the JS binding follows the
@@ -217,7 +217,7 @@ data))` (precedent: the layout-change event, `LynxBaseUI.java:2631`);
 ### D6 — React API: a ref handle, not hooks
 
 ```tsx
-const anim = useRef<SkityAnimationHandle>(null);
+const anim = useRef<ScumbleAnimationHandle>(null);
 
 <Path
   ref={anim}
@@ -230,7 +230,7 @@ const anim = useRef<SkityAnimationHandle>(null);
 <Button onClick={() => anim.current?.seekTo(1500)} />
 ```
 
-- `SkityAnimationHandle` holds `{ canvasSelector, handle }`; its methods
+- `ScumbleAnimationHandle` holds `{ canvasSelector, handle }`; its methods
   are one-line invoke wrappers (`pause() / play() / seekTo(ms) /
 cancel() / state()`), so the lane swap in D2 stays internal.
 - `state()` uses the invoke `Callback` (pull model):
@@ -258,11 +258,11 @@ cancel() / state()`), so the lane swap in D2 stays internal.
 
 ### Phase B — both platforms' UI method
 
-- Android `SkityCanvasUI.kt`: `@LynxUIMethod animateControl` → forward
+- Android `ScumbleCanvasUI.kt`: `@LynxUIMethod animateControl` → forward
   to the render session (pattern of the `nativeApplyCommands` JNI hop).
   Verify the kapt `$$MethodInvoker` picks it up.
-- iOS `SkityCanvasUI.m`: `LYNX_UI_METHOD(animateControl)`; same forward
-  via `SkityMetalContext`. `pod install` after touching the pod
+- iOS `ScumbleCanvasUI.m`: `LYNX_UI_METHOD(animateControl)`; same forward
+  via `ScumbleMetalContext`. `pod install` after touching the pod
   sources (project memory).
 
 ### Phase C — the finish event
@@ -276,7 +276,7 @@ cancel() / state()`), so the lane swap in D2 stays internal.
 - Handle minting (react-layer module counter) + `handle` riding
   `buildAnimationList`'s caller (`resolveAnimation` passes it through;
   the graphics builder signature grows an optional handle).
-- `SkityAnimationHandle` + SelectorQuery invoke wrapper
+- `ScumbleAnimationHandle` + SelectorQuery invoke wrapper
   (`@lynx-js/react` SelectorQuery; the canvas root gets a stable
   `uid` for selection).
 

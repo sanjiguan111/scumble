@@ -8,7 +8,7 @@
  * compile-time autocomplete on `strokeCap="round"` etc. The parse* functions do
  * the runtime mapping to skityrt FlatBuffer enum bytes (LineCap / LineJoin /
  * FillRule); they take a loose `string | number` so they tolerate any case and
- * pass numbers through, like the native SkityPropParser they replace.
+ * pass numbers through, like the native ScumblePropParser they replace.
  */
 
 /**

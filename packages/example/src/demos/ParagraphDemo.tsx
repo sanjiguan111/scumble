@@ -132,7 +132,7 @@ export function ParagraphDemo() {
           <TextSpan text={clearText ? "" : "点按钮把这段文字切空 —— 段落应整体消失。"} />
         </Paragraph>
       </DemoSection>
-      {/* 按钮是 Lynx 原生 view,必须在 canvas 外(SkityCanvasUI 不是
+      {/* 按钮是 Lynx 原生 view,必须在 canvas 外(ScumbleCanvasUI 不是
           UIGroup,原生元素进 canvas 在 iOS 被静默吞掉、Android 直接报错)。 */}
       <view style={{ display: "flex", paddingLeft: "16px", marginBottom: "24px" }}>
         <view
@@ -155,7 +155,7 @@ export function ParagraphDemo() {
         </Paragraph>
       </DemoSection>
       {/* Lynx <text> 是非 virtual 元素（有真实 UI），不能放进 scumble-canvas
-          （SkityCanvasUI 不是 UIGroup，Android 直接报错）——结果文本放 canvas 外。 */}
+          （ScumbleCanvasUI 不是 UIGroup，Android 直接报错）——结果文本放 canvas 外。 */}
       <text
         style={{ fontSize: "12px", color: "#6b7280", paddingLeft: "16px", marginBottom: "24px" }}
       >

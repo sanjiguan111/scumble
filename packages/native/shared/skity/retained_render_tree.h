@@ -245,7 +245,7 @@ struct RetainedViewport {
 };
 
 // The retained tree. Owned by the render thread and touched only there
-// (Android AppRenderer / iOS SkityMetalContext per-layer map). Single-threaded.
+// (Android AppRenderer / iOS ScumbleMetalContext per-layer map). Single-threaded.
 class RetainedRenderTree {
 public:
   RetainedRenderTree() = default;

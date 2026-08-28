@@ -119,7 +119,7 @@ at all.
 ### F.4 Lynx composition-model limits
 
 - BackdropFilter — the canvas can't see compositor layers beneath it.
-- MaskedView-style native-view/canvas blending — SkityCanvasUI is not a
+- MaskedView-style native-view/canvas blending — ScumbleCanvasUI is not a
   UIGroup (native elements can't live inside the canvas).
 
 ### F.5 What we have that RN-Skia doesn't

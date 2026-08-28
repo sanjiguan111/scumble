@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-// <skity-paragraph> Android layout backend: skity's FontManager resolves
+// <scumble-paragraph> Android layout backend: skity's FontManager resolves
 // fonts (system fonts.xml + per-character fallback via
 // MatchFamilyStyleCharacter — the same walk TextBlobBuilder does), HarfBuzz
 // shapes each fallback- and bidi-homogeneous segment against the VERY SAME
@@ -38,7 +38,7 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
 
 // Drain the schemed font URIs the last ShapeParagraph for this node found
 // missing in the TypefaceCache (recorded during layout; the JNI layer hands
-// them to the Kotlin SkityFontController, which loads and re-triggers
+// them to the Kotlin ScumbleFontController, which loads and re-triggers
 // layout). Same-thread drain, per call.
 std::vector<std::string> TakeMissedFontUris(uint32_t node_id);
 

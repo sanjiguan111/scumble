@@ -108,7 +108,7 @@ First-batch properties (17): `opacity`, `translateX`, `translateY`,
 ### D4 — Frame driver: one singleton per platform, forward-only callbacks, stop on idle
 
 - Weak-reference session registry (mirrors the image-arrival precedent:
-  `SkityImageController` / `SkityImageLoaderRegistry`) distributes ticks
+  `ScumbleImageController` / `ScumbleImageLoaderRegistry`) distributes ticks
   to every live canvas.
 - Android: `Choreographer.postFrameCallback` → one `renderHandler.post`;
   iOS: `CADisplayLink` on the main runloop → one `dispatch_async` onto
@@ -182,29 +182,29 @@ keyframes[], cx, cy }`, `table AnimationList { tracks[] }`.
 
 ### Phase C — TASM wiring both platforms (base64 prop → command)
 
-- iOS: `SkityNodeBase.h/.m` `animation` prop (pattern of `setClip:` —
+- iOS: `ScumbleNodeBase.h/.m` `animation` prop (pattern of `setClip:` —
   base64 → NSData, dirty flag, `setNeedsLayout`);
-  `SkityCanvasShadowNode.mm` `SkityCollectCommands` branch (pattern of
+  `ScumbleCanvasShadowNode.mm` `ScumbleCollectCommands` branch (pattern of
   the dirtyClip branch).
-- Android: `SkityNodeBase.kt` `@LynxProp(name = "animation")` setter
-  (pattern of `setTransform`); `SkityCanvasShadowNode.kt`
+- Android: `ScumbleNodeBase.kt` `@LynxProp(name = "animation")` setter
+  (pattern of `setTransform`); `ScumbleCanvasShadowNode.kt`
   `collectCommands` branch.
 
 ### Phase D — frame drivers
 
-- Android: new `render/SkityAnimationDriver.kt` (singleton; weak session
+- Android: new `render/ScumbleAnimationDriver.kt` (singleton; weak session
   list; Choreographer forward; wakeUp/doFrame/stop-on-idle);
-  `SkityRenderSession` interface gains `tickAnimations(nowNanos):
+  `ScumbleRenderSession` interface gains `tickAnimations(nowNanos):
 Boolean`; GL + Vulkan sessions implement via new
-  `SkityNative.nativeTickAnimations(handle, now)` (JNI in `skity_jni.cpp`,
+  `ScumbleNative.nativeTickAnimations(handle, now)` (JNI in `skity_jni.cpp`,
   pattern of `nativeApplyCommands`) + `drawIfReady()` when live;
-  `applyCommands` ends with `driver.wakeUp()`; `SkityCanvasView`
+  `applyCommands` ends with `driver.wakeUp()`; `ScumbleCanvasView`
   registers its session; `AppRenderer::TickAnimations` forwards to the
   tree.
-- iOS: new `Render/SkityAnimationDriver.{h,mm}` (singleton; `NSHashTable`
+- iOS: new `Render/ScumbleAnimationDriver.{h,mm}` (singleton; `NSHashTable`
   weak sessions; CADisplayLink on main runloop forwarding to the render
-  queue); `SkityMetalContext` gains `tickAnimations:treeKey:`;
-  `SkityRenderSession` gains `tickAnimations:` + registers + wakeUp after
+  queue); `ScumbleMetalContext` gains `tickAnimations:treeKey:`;
+  `ScumbleRenderSession` gains `tickAnimations:` + registers + wakeUp after
   apply.
 
 ### Phase E — JS builder + React API
@@ -219,7 +219,7 @@ Boolean`; GL + Vulkan sessions implement via new
   (pattern of `internal/transform.ts`) → base64 string.
 - One-line hookup in `shapes/*.tsx` (11 files) + `Group.tsx` +
   `Canvas.tsx`.
-- `packages/native/src/elements.ts`: `SkityPaintProps.animation?: string`
+- `packages/native/src/elements.ts`: `ScumblePaintProps.animation?: string`
   (all 11 intrinsic tags inherit it).
 
 ### Phase F — demo + tests + as-built docs

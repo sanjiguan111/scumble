@@ -92,7 +92,7 @@ class ScumbleCanvasView(context: Context) : FrameLayout(context) {
     session.applyCommands(commands)
   }
 
-  /** Forward <skity-paragraph> glyph-run snapshots — one serialized
+  /** Forward <scumble-paragraph> glyph-run snapshots — one serialized
    * ParagraphRunList entry per paragraph, applied per node id (idempotent
    * overwrite). Same flush as the batch that precedes it. */
   fun consumeParagraphRuns(runs: List<ByteArray>) {

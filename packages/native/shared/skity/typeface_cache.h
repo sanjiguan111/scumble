@@ -9,7 +9,7 @@
 //     StoreBytes() from any thread; until then lookups report kMiss and the
 //     layout falls back to the default font (fonts are a layout INPUT, so a
 //     late byte arrival must also trigger a re-layout — the platform
-//     controller's job, see SkityFontController / SkityFontLoaderRegistry).
+//     controller's job, see ScumbleFontController / ScumbleFontLoaderRegistry).
 //
 // Failures are sticky per URI (a nullptr entry): a broken payload or a
 // loader failure resolves once and never re-requests. Same threading stance

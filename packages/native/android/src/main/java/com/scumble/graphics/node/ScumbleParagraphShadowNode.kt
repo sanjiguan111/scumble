@@ -11,7 +11,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Virtual ShadowNode for `<skity-paragraph>`. The Android layout backend:
+ * Virtual ShadowNode for `<scumble-paragraph>`. The Android layout backend:
  * when the owning canvas's measure walk reaches a dirty paragraph, it lays
  * out (HarfBuzz shaping against skity FontManager-resolved typefaces on this
  * TASM thread, via [ScumbleNative.nativeShapeParagraph]) and caches the result

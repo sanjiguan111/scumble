@@ -18,7 +18,7 @@ namespace scumble {
 // the host TextureView's ANativeWindow, and renders the retained tree via the
 // presenter (AcquireNextSurface → LockCanvas → ScumbleRenderer → Present). All
 // Vulkan state is thread-local, so this backend must be driven from a single
-// render thread (SkityVulkanRenderThread, separate from the GL thread).
+// render thread (ScumbleVulkanRenderThread, separate from the GL thread).
 //
 // MVP defaults: no validation, FIFO present mode, double-buffer. Mirrors
 // Skity-Android's VulkanRenderBackend minus the demo/diagnostics surface.

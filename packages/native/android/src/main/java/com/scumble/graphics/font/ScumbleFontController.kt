@@ -9,7 +9,7 @@ import com.scumble.graphics.node.ScumbleNodeBase
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Drives asynchronous custom-font loads for `<skity-paragraph>`: the shaper
+ * Drives asynchronous custom-font loads for `<scumble-paragraph>`: the shaper
  * reports a missed font URI during layout (TASM thread), the controller
  * dedups the request, delivers the bytes to the native TypefaceCache, and —
  * the font-is-a-layout-input part — re-triggers layout on every waiting

@@ -8,8 +8,8 @@ TabWidth: 2
 UseTab: Never
 ColumnLimit: 100
 
-# Keep short lambdas/closures on one line (used in SkityCanvasShadowNode.mm
-# flatbuffers serialization, SkityPropParser flush blocks).
+# Keep short lambdas/closures on one line (used in ScumbleCanvasShadowNode.mm
+# flatbuffers serialization, ScumblePropParser flush blocks).
 AllowShortLambdasOnASingleLine: All
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: WithoutElse

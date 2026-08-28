@@ -263,7 +263,7 @@ JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeStoreFontBy
 }
 
 // ImageStore entry points. Called on the active backend's render thread only
-// (SkityImageController posts them there); the store itself is render-thread
+// (ScumbleImageController posts them there); the store itself is render-thread
 // only. Pixels are premultiplied RGBA (ARGB_8888 Bitmap.copyPixelsToBuffer on
 // the Kotlin side).
 JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeStoreImage(

@@ -16,7 +16,7 @@ namespace {
 
 // Process-wide shared Vulkan GPUContext — mirrors the GL side's
 // SharedGLContext, as a refcounted C++ singleton instead of a Kotlin-held
-// handle. Every Vulkan session runs on the single SkityVulkanRenderThread,
+// handle. Every Vulkan session runs on the single ScumbleVulkanRenderThread,
 // so create/teardown stay single-threaded: first use builds the instance +
 // logical device, the last released backend tears it down. One device for
 // the whole process instead of one per canvas (per-canvas devices multiply

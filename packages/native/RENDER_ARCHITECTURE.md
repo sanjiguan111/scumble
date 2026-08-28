@@ -105,9 +105,9 @@ A front-end `width={100}` is a **logical pixel**; `scumble-canvas` declares the 
 
 ## 7. Native-side changes
 
-- **Delete** the semantic parsing in `SkityPropParser` (Android `.kt` / iOS `.m`).
+- **Delete** the semantic parsing in `ScumblePropParser` (Android `.kt` / iOS `.m`).
 - Variable-length field setters take a **base64 string** (Lynx props don't marshal `byte[]` / `NSData`); the setter decodes and mechanically copies the bytes into the FlatBuffer vector. Enum setters take a **number** (parsers already mapped the friendly string → skityrt byte in JS).
-- `SkityCanvasShadowNode.measure()` is **kept** (compute layout + collect scalars + ferry bytes + build the `ViewBox` / `PreserveAspectRatio`); the renderer applies the viewport transform.
+- `ScumbleCanvasShadowNode.measure()` is **kept** (compute layout + collect scalars + ferry bytes + build the `ViewBox` / `PreserveAspectRatio`); the renderer applies the viewport transform.
 - The packed-int color prop is unchanged.
 
 ## 8. Work breakdown
@@ -116,7 +116,7 @@ Dependency-ordered; each step is independently reviewable:
 
 1. **schema extension** (viewport + nested_flatbuffer fields) → regenerate stubs. Backward compatible; consumers untouched for now. **✓ done**
 2. **`@scumble/graphics`** (pure-JS shared layer): color→int, enum→byte, path d→nested FlatBuffer, transform→nested FlatBuffer (full SVG command set incl. H/V/S/T/A + relative). Vitest round-trip tests. **✓ done**
-3. **native slim-down**: delete `SkityPropParser`; variable-length setters take a base64 string → decode → memcpy (Lynx props don't marshal binary); enum setters take a number; renderer applies the viewport transform and consumes `path_data` / `transform_data` via `nested_root` (+ MATRIX/SKEW). **✓ done**
+3. **native slim-down**: delete `ScumblePropParser`; variable-length setters take a base64 string → decode → memcpy (Lynx props don't marshal binary); enum setters take a number; renderer applies the viewport transform and consumes `path_data` / `transform_data` via `nested_root` (+ MATRIX/SKEW). **✓ done**
 4. **`@scumble/react`**: thin wrapper components `<Circle>` that normalize then render `<scumble-circle>`; reuse parsers. **✓ MVP done** — full SVG path + matrix/skew now flow through after Task 3; Paint/gradient/clip/`forwardRef`/animation still TBD.
 5. **example** switches to the React component layer + a viewport demo. **✓ done**
 6. **`@scumble/vue`** (later): same wrapping; the base tags are framework-agnostic, so this works naturally.
@@ -135,10 +135,10 @@ Dependency-ordered; each step is independently reviewable:
 - Front-end tag types: `packages/native/src/elements.ts` (`declare module` augments `IntrinsicElements`)
 - Parsers: `packages/graphics/` (`@scumble/graphics`)
 - Front-end usage: `packages/example/src/App.tsx`
-- Native registration: Android `android/.../graphics/SkityBehavior.kt` + `SkityInit.kt`; iOS `ios/Classes/Node/SkityCanvasShadowNode.mm` + `SkityNodeBase.m`
-- prop setters: Android `android/.../graphics/node/SkityNodeBase.kt`; iOS `ios/Classes/Node/SkityNodeBase.m`
-- parser: **deleted** in Task 3 (was `node/SkityPropParser.kt` / `Node/SkityPropParser.m` — string parsing now lives in `@scumble/graphics`)
-- serialization: Android `android/.../graphics/node/SkityCanvasShadowNode.kt` (measure/buildRenderNode/buildStyle/buildPaint); iOS `ios/Classes/Node/SkityCanvasShadowNode.mm`
+- Native registration: Android `android/.../graphics/ScumbleBehavior.kt` + `ScumbleInit.kt`; iOS `ios/Classes/Node/ScumbleCanvasShadowNode.mm` + `ScumbleNodeBase.m`
+- prop setters: Android `android/.../graphics/node/ScumbleNodeBase.kt`; iOS `ios/Classes/Node/ScumbleNodeBase.m`
+- parser: **deleted** in Task 3 (was `node/ScumblePropParser.kt` / `Node/ScumblePropParser.m` — string parsing now lives in `@scumble/graphics`)
+- serialization: Android `android/.../graphics/node/ScumbleCanvasShadowNode.kt` (measure/buildRenderNode/buildStyle/buildPaint); iOS `ios/Classes/Node/ScumbleCanvasShadowNode.mm`
 - renderer: `packages/native/shared/skity/ScumbleRenderer.cc` (cross-platform C++, `Draw(tree,canvas,density,W,H)` + viewport)
 - backends: Android `android/src/main/cpp/skity/{gles,vulkan}_render_backend.cpp`; iOS `ios/Classes/Render/`
 
@@ -334,7 +334,7 @@ couples "compute size" with "serialize the whole tree":
 | Compute canvas size                                                                | **Deleted** — Lynx layout via `style`                                                                             |
 | Build the `RenderTree` FlatBuffer (leaf→root)                                      | **Deleted** — command stream                                                                                      |
 | `buildRenderNode` / `buildStyle` / `buildPaint`                                    | **Deleted**                                                                                                       |
-| `SkityRenderBundle` + `getExtraBundle` + `updateExtraData` + `consumeRenderBundle` | **Deleted**                                                                                                       |
+| `ScumbleRenderBundle` + `getExtraBundle` + `updateExtraData` + `consumeRenderBundle` | **Deleted**                                                                                                       |
 | `setCustomMeasureFunc` (Android) / `customMeasureDelegate` (iOS)                   | **Kept registered** (Step 3b: only the snapshot _body_ is deleted; the registration is the flush trigger — §11.7) |
 | `density` capture in measure                                                       | Render thread reads it locally (it already is the single source of truth in `Draw`)                               |
 | Canvas physical size in bundle                                                     | `onSurfaceTextureSizeChanged` / `onSizeChanged` → `session.updateSize` (already exists)                           |
@@ -354,7 +354,7 @@ removing the view). Shape/group nodes stay virtual.
    render-thread tree is the source of truth for topology. Snapshot demoted to a
    field-value refresh (SyncFromSnapshot no longer rebuilds topology).
 3. **Geometry + viewport via commands.** `SetGeometry`/`SetViewport`; delete
-   `measure`, `buildRenderNode`, `extraBundle`, `SkityRenderBundle`. Lynx layout
+   `measure`, `buildRenderNode`, `extraBundle`, `ScumbleRenderBundle`. Lynx layout
    owns canvas size end-to-end.
    - **3a ✓ done.** `SetGeometry`/`SetViewport` added to the schema; geometry +
      viewport setters mark dirty (`dirtyGeometry` bitmask / `dirtyViewport`) and
@@ -365,7 +365,7 @@ removing the view). Shape/group nodes stay virtual.
      the coexisting snapshot).
    - **3b ✓ done (plan A — mirrors lynx-native-svg).** Retired the snapshot
      channel: deleted `buildRenderNode`/`buildStyle`/`buildPaint`/`extraBundle`/
-     `SkityRenderBundle` + `SyncFromSnapshot` + `nativeSetRenderTree`; `measure`'s
+     `ScumbleRenderBundle` + `SyncFromSnapshot` + `nativeSetRenderTree`; `measure`'s
      body now only drains the CommandBatch (the sole extra-bundle payload) +
      returns size; the render thread's retained tree is the single source of
      truth. **`measure` registration + `markDirty`/`setNeedsLayout` are kept** as
@@ -406,7 +406,7 @@ reuses them unchanged.
 - Android (`ScumbleRenderThread.kt`): a process-wide `HandlerThread` + a `Handler`
   bound to its `Looper`. Any thread holding `ScumbleRenderThread.handler` calls
   `handler.post { … }` to enqueue work on the render thread.
-- iOS (`SkityMetalContext.mm`): a shared _serial_ GCD queue
+- iOS (`ScumbleMetalContext.mm`): a shared _serial_ GCD queue
   (`dispatch_queue_create("com.scumble.lynx.queue", DISPATCH_QUEUE_SERIAL)`). Any
   thread holding the queue calls `dispatch_async(queue, ^{ … })`.
 
@@ -429,7 +429,7 @@ and one piece of wiring:**
 
 **The one new piece of wiring** is how a TASM-side shadow node reaches the
 render-thread dispatch port. Today the `handler` / `renderQueue` reference lives
-on the UI side (`SkityCanvasView` → session → handler); the shadow node cannot
+on the UI side (`ScumbleCanvasView` → session → handler); the shadow node cannot
 see it. Two landing options:
 
 - **(a) Native registry.** A `canvasSign → rendererHandle` map, registered at
@@ -559,8 +559,8 @@ fired from the TASM setter.
   store and silently skips the node while pending/failed.
 - **ImageStore** (`shared/skity/image_store.{h,cc}`): uri-keyed, **render
   thread only** (Android `nativeStoreImage` is posted to the active backend's
-  render handler; iOS `SkityStoreImageBytes` dispatches onto
-  SkityMetalContext.renderQueue — no locks anywhere). Entries hold CPU pixels
+  render handler; iOS `ScumbleStoreImageBytes` dispatches onto
+  ScumbleMetalContext.renderQueue — no locks anywhere). Entries hold CPU pixels
   (`skity::Pixmap`, premultiplied RGBA) plus a **per-GPUContext weak_ptr
   cache** of `skity::Image` (GL: one process context; Vulkan: one per
   renderer — each gets its own entry automatically). Failures are permanent
@@ -584,7 +584,7 @@ Draw` therefore takes a trailing `gpu_context` param, supplied by each
   `dispatch_async` was an EXC_BAD_ACCESS in the wild (2026-08-17).
 - **Built-in loaders**: `data:` URIs + `http(s)` on both platforms
   (HttpURLConnection / NSURLSession, zero third-party deps). Hosts inject
-  their own: `SkityInit.imageLoader` (Android), `[SkityImageLoaderRegistry
+  their own: `ScumbleInit.imageLoader` (Android), `[ScumbleImageLoaderRegistry
 setImageLoader:]` (iOS). Unknown schemes → host loader only.
 - **Paint**: `MakeImagePaint` applies the inherited (or node-authored)
   opacity + blendMode + the fill slot's filters; fill color/gradient are
@@ -619,7 +619,7 @@ setImageLoader:]` (iOS). Unknown schemes → host loader only.
   (uri empty on a set bit → back to `0=NONE`, i.e. cleared); the inheritance
   resolver treats the new bits like the gradient bits.
   - **Load trigger**: the `fillImageUri`/`strokeImageUri` setters call the
-    same `SkityImageLoaderRegistry requestImage:` / `SkityImageController
+    same `ScumbleImageLoaderRegistry requestImage:` / `ScumbleImageController
 .request` as the image node's `image` prop — the uri is the ImageStore
     key, so loads dedupe globally and a shader shares pixels with an `<Image>`
     of the same uri. `ApplyImageShader` returns false (inactive paint → shape
@@ -665,7 +665,7 @@ Paragraph.tsx`) serializes spans to a base64 `SpanList` FlatBuffer on the
   the only flush point — §11.6/§11.7). The layout width is the node's own
   `width` prop, not the measure param.
 - **The two layout backends fork at the core, by design**:
-  - **iOS** (`SkityParagraphShadowNode.mm`): CoreText does everything —
+  - **iOS** (`ScumbleParagraphShadowNode.mm`): CoreText does everything —
     shaping, breaking, kinsoku, line height (`kCTParagraphStyleSpecifier
 LineHeightMultiple`), alignment. Spans build a `CFAttributedString`
     (weight ≥ 600 → symbolic traits, letterSpacing via `kCTKern`, the span
@@ -713,7 +713,7 @@ LineHeightMultiple`), alignment. Spans build a `CFAttributedString`
   differ: iOS serializes ALL paragraphs into one `ParagraphRunList` FlatBuffer
   (`NSData` under `runs`); Android ships `List<ByteArray>`, one
   single-entry `ParagraphRunList` per paragraph straight out of the shaper.
-  UI side: `SkityCanvasUI.onReceiveUIOperation` / `updateExtraData` dispatch
+  UI side: `ScumbleCanvasUI.onReceiveUIOperation` / `updateExtraData` dispatch
   to the render session, which applies batch → runs → redraw in one
   render-queue block, then `RetainedRenderTree::ApplyParagraphRuns`:
   per-entry `Find(node_id)` (missing node → entry skipped), `has_paragraph =
@@ -754,8 +754,8 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
     platform-layer base64) into a `Typeface::MakeFromData` typeface;
   - any other schemed URI (`http(s)`, `file`, host schemes) — loaded
     ASYNCHRONOUSLY by a platform font pipeline mirroring the image loader:
-    host-injectable loaders (`SkityInit.fontLoader` on Android,
-    `[SkityFontLoaderRegistry setFontLoader:]` on iOS; built-ins cover
+    host-injectable loaders (`ScumbleInit.fontLoader` on Android,
+    `[ScumbleFontLoaderRegistry setFontLoader:]` on iOS; built-ins cover
     http/file), bytes delivered to `TypefaceCache::StoreBytes` (any thread,
     mutex-guarded), with a three-state lookup (`kMiss/kReady/kFailed`).
     A miss falls back to the default font for THAT layout; when bytes land,
@@ -764,7 +764,7 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
     inline-image paths use) — fonts are a layout INPUT, unlike images'
     render-time consumption. Android's shaper reports missed URIs through
     `TakeMissedFontUris` drained per shape; iOS collects them in
-    `SkitySpanFont`'s out-param.
+    `ScumbleSpanFont`'s out-param.
     iOS bridges a custom typeface back to CoreText for layout
     (`CTFontFromTypeface` is a BORROWED pointer — copy out an owned span-sized
     CTFont, never release the bridge result) while the run walk re-wraps the
@@ -863,15 +863,15 @@ prop — named `animationData`, NOT `animation`: Lynx's StandardProps reserves
 **Frame driver (stop-on-idle)**: vsync clock on the platform layer, tick body
 on each render thread (never off it):
 
-- Android (`render/SkityAnimationDriver.kt`): `Choreographer.postFrameCallback`
+- Android (`render/ScumbleAnimationDriver.kt`): `Choreographer.postFrameCallback`
   on the main thread forwards to EACH session's render handler — GL and Vulkan
   sessions live on different threads, so the driver fans `scheduleTick(now,
 onDone)` out and funnels the results; one frame in flight; a frame where no
   session reports live ends the loop. Sessions call
-  `SkityNative.nativeTickAnimations(handle, nowNs)` (JNI → `AppRenderer::
+  `ScumbleNative.nativeTickAnimations(handle, nowNs)` (JNI → `AppRenderer::
 TickAnimations`) and redraw when live.
-- iOS (`Render/SkityAnimationDriver.{h,mm}`): CADisplayLink on the main runloop
-  forwards to the single `SkityMetalContext.renderQueue`; every session ticks
+- iOS (`Render/ScumbleAnimationDriver.{h,mm}`): CADisplayLink on the main runloop
+  forwards to the single `ScumbleMetalContext.renderQueue`; every session ticks
   (`tickAnimations:treeKey:`); a fully idle frame invalidates the link.
   `inFlight` drops frames while a tick block is still queued.
 - Arming: `applyCommands` ends with `driver.wakeUp()` — a batch may install

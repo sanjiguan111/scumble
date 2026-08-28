@@ -42,7 +42,7 @@ object ScumbleInit {
   var imageLoader: ScumbleImageLoader = BuiltInScumbleImageLoader()
 
   /**
-   * Font loader for `<skity-paragraph>` custom fonts with schemed URIs
+   * Font loader for `<scumble-paragraph>` custom fonts with schemed URIs
    * (http(s)/file; `data:` URIs never reach a loader). Hosts with their own
    * pipeline reassign it; loaded bytes land in the native TypefaceCache and
    * trigger a re-layout of the waiting paragraphs.

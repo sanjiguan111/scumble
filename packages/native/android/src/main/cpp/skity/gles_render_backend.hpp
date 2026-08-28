@@ -14,7 +14,7 @@ namespace scumble {
 class SharedGLContext; // forward declare; defined in shared_gl_context.hpp
 
 // GLES backend. Reuses a thread-shared [SharedGLContext] (EGL display/context
-// + skity GPUContext, owned by the Kotlin SkityRenderThread); each backend owns
+// + skity GPUContext, owned by the Kotlin ScumbleRenderThread); each backend owns
 // only its own EGL window surface (one per TextureView) and makes the shared
 // context current on it before drawing.
 class GLESRenderBackend : public RenderBackend {
@@ -32,7 +32,7 @@ private:
   bool InitSurface();
   void DestroySurface();
 
-  SharedGLContext *shared_ = nullptr; // not owned (SkityRenderThread owns)
+  SharedGLContext *shared_ = nullptr; // not owned (ScumbleRenderThread owns)
   ANativeWindow *native_window_ = nullptr;
   EGLSurface egl_surface_ = EGL_NO_SURFACE; // per-view window surface
   int width_ = 0;
@@ -40,7 +40,7 @@ private:
 };
 
 // `shared` may be null (then InitSurface fails); the caller (app_renderer)
-// passes the SkityRenderThread-owned SharedGLContext.
+// passes the ScumbleRenderThread-owned SharedGLContext.
 std::unique_ptr<RenderBackend> CreateGLESRenderBackend(SharedGLContext *shared);
 
 } // namespace scumble

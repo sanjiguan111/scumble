@@ -39,7 +39,7 @@ interface ScumbleRenderSession {
   var onAnimationFinish: ((String) -> Unit)?
 
   /**
-   * Push <skity-paragraph> glyph-run snapshots (one ParagraphRunList entry
+   * Push <scumble-paragraph> glyph-run snapshots (one ParagraphRunList entry
    * each, node-id keyed — applied individually, overwrite semantics). Called
    * from the UI thread right after the batch of the same flush.
    */

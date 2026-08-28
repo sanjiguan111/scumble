@@ -10,7 +10,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
- * Host-injectable font loader for `<skity-paragraph>` custom fonts. The
+ * Host-injectable font loader for `<scumble-paragraph>` custom fonts. The
  * built-in [BuiltInScumbleFontLoader] covers `http(s)://` URLs and `file://`
  * paths; hosts with their own pipeline (cache/CDN/bundled assets) swap it
  * via [com.scumble.graphics.ScumbleInit.setFontLoader].

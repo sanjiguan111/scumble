@@ -35,7 +35,7 @@ namespace {
 
 // Frame-local build cache (per-tree, attached by Draw below). Render-thread
 // only, and Draw is never re-entrant on that thread (Android's shared
-// SkityRenderThread serializes every canvas; iOS serializes on the render
+// ScumbleRenderThread serializes every canvas; iOS serializes on the render
 // queue), so a thread-local beats threading a parameter through the whole
 // DrawNode/DrawShape/MakePaint call graph. Null = cache disabled (kill
 // switch or allocation failure) — every consumer falls back to the uncached

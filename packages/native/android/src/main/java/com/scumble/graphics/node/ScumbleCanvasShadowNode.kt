@@ -111,7 +111,7 @@ class ScumbleCanvasShadowNode : ScumbleNodeBase(), CustomMeasureFunc {
   // now — snapshot retired). Drained in measure(), consumed in getExtraBundle().
   private var pendingCommandBatch: ByteArray? = null
 
-  // <skity-paragraph>: the FULL glyph-run snapshot of every live paragraph,
+  // <scumble-paragraph>: the FULL glyph-run snapshot of every live paragraph,
   // serialized on each measure flush (dirty ones re-laid inside the walk,
   // clean ones from cache). One entry's bytes per paragraph; the renderer's
   // ApplyParagraphRuns overwrites per node id, so the entries are applied
@@ -152,7 +152,7 @@ class ScumbleCanvasShadowNode : ScumbleNodeBase(), CustomMeasureFunc {
     // for getExtraBundle; null when nothing is dirty.
     pendingCommandBatch = buildCommandBatchIfNeeded(this)
 
-    // <skity-paragraph> TASM-thread layout walk: lay out every dirty
+    // <scumble-paragraph> TASM-thread layout walk: lay out every dirty
     // paragraph under this canvas and snapshot ALL live paragraphs' current
     // runs (HarfBuzz + the shared breaker, on this thread).
     pendingParagraphRuns = collectParagraphRuns(this)
@@ -234,7 +234,7 @@ class ScumbleCanvasShadowNode : ScumbleNodeBase(), CustomMeasureFunc {
     return fbb.sizedByteArray()
   }
 
-  /** Walk the shadow tree and snapshot every <skity-paragraph> descendant's
+  /** Walk the shadow tree and snapshot every <scumble-paragraph> descendant's
    * current layout (one serialized ParagraphRunList entry each, node-id
    * keyed). Null when the canvas has no paragraphs at all. */
   private fun collectParagraphRuns(root: ScumbleNodeBase): List<ByteArray>? {

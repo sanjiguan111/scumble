@@ -8,7 +8,7 @@
 // Threading discipline: the store logically belongs to the render thread.
 // StorePixels/MarkFailed are only ever invoked ON the render thread — Android
 // via nativeStoreImage (posted to the render handler), iOS via
-// SkityStoreImageBytes (dispatched onto SkityMetalContext.renderQueue). No
+// ScumbleStoreImageBytes (dispatched onto ScumbleMetalContext.renderQueue). No
 // locks anywhere; violating this is a data race.
 //
 // Lifecycle of one entry: the TASM setter sees a uri and asks the platform

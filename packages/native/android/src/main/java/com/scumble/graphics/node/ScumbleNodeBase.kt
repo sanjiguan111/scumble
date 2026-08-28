@@ -122,7 +122,7 @@ abstract class ScumbleNodeBase : ShadowNode() {
   @JvmField var imageCubicB: Float = 0f
   @JvmField var imageCubicC: Float = 0f
 
-  // ---- <skity-paragraph> input (paragraph_runs.fbs SpanList bytes) + style.
+  // ---- <scumble-paragraph> input (paragraph_runs.fbs SpanList bytes) + style.
   // Only meaningful on ScumbleParagraphShadowNode, but kept on the base (mirrors
   // iOS) so the setters live next to every other prop setter; the canvas walk
   // only reads them on paragraph nodes.
@@ -564,7 +564,7 @@ abstract class ScumbleNodeBase : ShadowNode() {
     markDirty()
   }
 
-  // ---- <skity-paragraph> props (mirrors the iOS base node setters) ----
+  // ---- <scumble-paragraph> props (mirrors the iOS base node setters) ----
   // Spans arrive as base64-encoded SpanList FlatBuffer bytes (the same string
   // channel as d/transform/gradients). An empty payload clears the paragraph.
   @LynxProp(name = "spans") fun setSpans(v: String) {

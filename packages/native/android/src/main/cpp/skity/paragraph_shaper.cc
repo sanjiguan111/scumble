@@ -271,7 +271,7 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     // Custom fonts: `data:` URIs decode synchronously; schemed URIs
     // (http/file/host) come back from the TypefaceCache when the platform
     // font loader has delivered them — a miss falls back to the default font
-    // for THIS layout (recorded for SkityFontController, which re-triggers
+    // for THIS layout (recorded for ScumbleFontController, which re-triggers
     // layout once the bytes land). One file = one style; broken payloads are
     // sticky failures, never dropped spans.
     std::shared_ptr<Typeface> base;

@@ -44,7 +44,7 @@ typefaces).
 ```
 <Paragraph> + <TextSpan> children            react (declarative only)
   ↓ text + span styles as scalar props (no bytes: strings/numbers)
-skity-paragraph ShadowNode                     TASM thread
+scumble-paragraph ShadowNode                     TASM thread
   ↓ measure(width) → PlatformLayoutBackend (per-OS)
   iOS:   CTFramesetter → CTRun walk → glyph ids + positions + height
   Android: HarfBuzz shape (per span) + shared line breaker → glyph runs + height
@@ -183,7 +183,7 @@ sendCustomEvent:event]; })` — template: `LynxTextShadowNode.m:568-600`
      hops to the UI thread itself, callable from the TASM thread. Template:
      `AbsInlineImageShadowNode.java`.
    - JS: custom elements receive events via `bind`-prefixed props —
-     `<skity-paragraph bindlayout={cb}/>`; our `Paragraph.tsx` maps an
+     `<scumble-paragraph bindlayout={cb}/>`; our `Paragraph.tsx` maps an
      `onLayout` prop to `bindlayout` for the RN-Skia-shaped API. Payload:
      use `detail` (cross-platform; `params` is Android-only in places).
      Bonus: `bindlayoutchange` is a built-in frame event on every element —
