@@ -6,7 +6,7 @@
 
 #include "gl_proc_resolver.hpp"
 
-namespace lynxskity {
+namespace scumble {
 
 bool SharedGLContext::Init() {
   if (display != EGL_NO_DISPLAY) {
@@ -66,4 +66,4 @@ SharedGLContext::~SharedGLContext() {
   eglTerminate(display);
 }
 
-} // namespace lynxskity
+} // namespace scumble

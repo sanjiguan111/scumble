@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace lynxskity {
+namespace scumble {
 
 class SharedGLContext; // forward declare; defined in shared_gl_context.hpp
 
@@ -43,4 +43,4 @@ private:
 // passes the SkityRenderThread-owned SharedGLContext.
 std::unique_ptr<RenderBackend> CreateGLESRenderBackend(SharedGLContext *shared);
 
-} // namespace lynxskity
+} // namespace scumble

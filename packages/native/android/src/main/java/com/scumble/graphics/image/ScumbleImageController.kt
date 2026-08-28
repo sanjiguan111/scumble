@@ -1,13 +1,13 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.image
+package com.scumble.graphics.image
 
 import android.os.Handler
-import com.skity.graphics.SkityInit
-import com.skity.graphics.SkityNative
-import com.skity.graphics.render.SkityRenderThread
-import com.skity.graphics.render.SkityRenderSession
-import com.skity.graphics.render.SkityVulkanRenderThread
+import com.scumble.graphics.ScumbleInit
+import com.scumble.graphics.ScumbleNative
+import com.scumble.graphics.render.ScumbleRenderThread
+import com.scumble.graphics.render.ScumbleRenderSession
+import com.scumble.graphics.render.ScumbleVulkanRenderThread
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 
@@ -23,22 +23,22 @@ import java.util.concurrent.ConcurrentHashMap
  * Pending dedup lives here: one in-flight request per uri; failures are
  * terminal (no retry — the node stays blank).
  */
-object SkityImageController {
+object ScumbleImageController {
 
   private val pending = ConcurrentHashMap.newKeySet<String>()
-  private val sessions = ArrayList<WeakReference<SkityRenderSession>>()
+  private val sessions = ArrayList<WeakReference<ScumbleRenderSession>>()
 
   /** Render-thread port of the active backend, fixed at first use. */
   private val renderHandler: Handler by lazy {
-    if (SkityInit.backend == SkityNative.BACKEND_VULKAN) {
-      SkityVulkanRenderThread.handler
+    if (ScumbleInit.backend == ScumbleNative.BACKEND_VULKAN) {
+      ScumbleVulkanRenderThread.handler
     } else {
-      SkityRenderThread.handler
+      ScumbleRenderThread.handler
     }
   }
 
   /** Register a session for late-bitmap redraws; weak — no unregister needed. */
-  fun registerSession(session: SkityRenderSession) {
+  fun registerSession(session: ScumbleRenderSession) {
     synchronized(sessions) {
       sessions.removeAll { it.get() === null }
       sessions.add(WeakReference(session))
@@ -48,14 +48,14 @@ object SkityImageController {
   /** Fire (or join) the load for [uri]. No-op while a request is in flight. */
   fun request(uri: String) {
     if (uri.isEmpty() || !pending.add(uri)) return
-    val loader = SkityInit.imageLoader
+    val loader = ScumbleInit.imageLoader
     loader.loadImage(uri) { pixels ->
       val p = pixels
       renderHandler.post {
         if (p != null) {
-          SkityNative.nativeStoreImage(uri, p.rgba, p.width, p.height)
+          ScumbleNative.nativeStoreImage(uri, p.rgba, p.width, p.height)
         } else {
-          SkityNative.nativeMarkImageFailed(uri)
+          ScumbleNative.nativeMarkImageFailed(uri)
         }
         notifyRedraw()
       }
@@ -65,7 +65,7 @@ object SkityImageController {
 
   /** Render-thread only: ping every live session. */
   private fun notifyRedraw() {
-    val snapshot: List<SkityRenderSession>
+    val snapshot: List<ScumbleRenderSession>
     synchronized(sessions) {
       snapshot = sessions.mapNotNull { it.get() }
     }

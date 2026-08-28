@@ -1,22 +1,22 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.render
+package com.scumble.graphics.render
 
 import android.os.Handler
 import android.os.HandlerThread
-import com.skity.graphics.SkityNative
+import com.scumble.graphics.ScumbleNative
 
 
 /**
- * Process-wide shared skity render thread. All [SkityCanvasView] instances post
+ * Process-wide shared skity render thread. All [ScumbleCanvasView] instances post
  * their EGL/skity work onto this single thread. Each view keeps its own native
  * renderer + EGL context (created and made-current here); EGL/skity GL state is
  * thread-local, so concentrating everything on one thread keeps it consistent
  * while letting multiple canvases share the render thread instead of spawning
  * one per view.
  */
-object SkityRenderThread {
-  private val thread = HandlerThread("SkityRenderThread").apply { start() }
+object ScumbleRenderThread {
+  private val thread = HandlerThread("ScumbleRenderThread").apply { start() }
 
   /** Handler for posting render work onto the shared thread. */
   val handler: Handler = Handler(thread.looper)
@@ -28,6 +28,6 @@ object SkityRenderThread {
    * thread_local slot limit by holding the pointer explicitly.
    */
   val sharedGLContextHandle: Long by lazy {
-    SkityNative.nativeCreateSharedGLContext()
+    ScumbleNative.nativeCreateSharedGLContext()
   }
 }

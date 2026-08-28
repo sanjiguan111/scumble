@@ -1,15 +1,15 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.render
+package com.scumble.graphics.render
 
 import android.view.Surface
 
 /**
- * Backend-agnostic render session surface. [SkityGLRenderSession] and
- * [SkityVulkanRenderSession] implement it; [com.skity.graphics.ui.SkityCanvasView]
- * holds one of them based on the active backend ([com.skity.graphics.SkityInit]).
+ * Backend-agnostic render session surface. [ScumbleGLRenderSession] and
+ * [ScumbleVulkanRenderSession] implement it; [com.scumble.graphics.ui.ScumbleCanvasView]
+ * holds one of them based on the active backend ([com.scumble.graphics.ScumbleInit]).
  */
-interface SkityRenderSession {
+interface ScumbleRenderSession {
   fun attachSurface(surface: Surface, width: Int, height: Int)
   fun updateSize(width: Int, height: Int)
   fun applyCommands(commands: ByteArray)
@@ -33,7 +33,7 @@ interface SkityRenderSession {
 
   /**
    * Finish-event sink (D5): invoked ON THE RENDER THREAD whenever a tracked
-   * animation completes; the owner (SkityCanvasView) hops to the Lynx UI
+   * animation completes; the owner (ScumbleCanvasView) hops to the Lynx UI
    * thread before emitting `skityAnimationFinish`. null = nobody listening.
    */
   var onAnimationFinish: ((String) -> Unit)?

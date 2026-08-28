@@ -1,10 +1,10 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.node
+package com.scumble.graphics.node
 
 import com.lynx.tasm.behavior.LynxProp
 import com.lynx.tasm.behavior.shadow.ShadowNode
-import com.skity.graphics.image.SkityImageController
+import com.scumble.graphics.image.ScumbleImageController
 import kotlin.jvm.JvmField
 
 /**
@@ -15,7 +15,7 @@ import kotlin.jvm.JvmField
  * without any string parsing on the native side.
  *
  * Variable-length fields (path d, transform) arrive as pre-serialized FlatBuffer
- * bytes (PathCommandList / TransformOpList) from @lynx-skity/parsers and are
+ * bytes (PathCommandList / TransformOpList) from @scumble/parsers and are
  * memcpy'd verbatim into the render tree. Enum props (cap/join/fillRule) arrive
  * as numbers already mapped to skityrt bytes. See RENDER_ARCHITECTURE.md §5.
  *
@@ -28,7 +28,7 @@ import kotlin.jvm.JvmField
  * channel. Step 3a: geometry setters also set a dirty bitmask (dirtyGeometry),
  * drained the same way; viewport setters mark dirtyViewport on the canvas node.
  */
-abstract class SkityNodeBase : ShadowNode() {
+abstract class ScumbleNodeBase : ShadowNode() {
 
   abstract val skityTagName: String
 
@@ -123,7 +123,7 @@ abstract class SkityNodeBase : ShadowNode() {
   @JvmField var imageCubicC: Float = 0f
 
   // ---- <skity-paragraph> input (paragraph_runs.fbs SpanList bytes) + style.
-  // Only meaningful on SkityParagraphShadowNode, but kept on the base (mirrors
+  // Only meaningful on ScumbleParagraphShadowNode, but kept on the base (mirrors
   // iOS) so the setters live next to every other prop setter; the canvas walk
   // only reads them on paragraph nodes.
   @JvmField var paragraphSpansData: ByteArray? = null
@@ -416,7 +416,7 @@ abstract class SkityNodeBase : ShadowNode() {
     fillImageUri = if (v.isNotEmpty()) v else null
     dirtyPaint = dirtyPaint or PaintField.FILL_IMAGE_SHADER
     markDirty()
-    if (fillImageUri != null) SkityImageController.request(fillImageUri!!)
+    if (fillImageUri != null) ScumbleImageController.request(fillImageUri!!)
   }
   @LynxProp(name = "fillImageFit") fun setFillImageFit(v: Int) {
     fillImageFit = v.toByte()
@@ -442,7 +442,7 @@ abstract class SkityNodeBase : ShadowNode() {
     strokeImageUri = if (v.isNotEmpty()) v else null
     dirtyPaint = dirtyPaint or PaintField.STROKE_IMAGE_SHADER
     markDirty()
-    if (strokeImageUri != null) SkityImageController.request(strokeImageUri!!)
+    if (strokeImageUri != null) ScumbleImageController.request(strokeImageUri!!)
   }
   @LynxProp(name = "strokeImageFit") fun setStrokeImageFit(v: Int) {
     strokeImageFit = v.toByte()
@@ -553,7 +553,7 @@ abstract class SkityNodeBase : ShadowNode() {
     dirtyImage = true
     markDirty()
     if (imageUri != null) {
-      SkityImageController.request(imageUri!!)
+      ScumbleImageController.request(imageUri!!)
     }
   }
 
@@ -624,12 +624,12 @@ abstract class SkityNodeBase : ShadowNode() {
   // Lynx ShadowNode has no "move" primitive — a move is remove + insert, which
   // the canvas's enqueueStructural merges into a MoveNode (same id, same batch).
 
-  /** Walk parents to the owning SkityCanvasShadowNode (owns the retained-tree
+  /** Walk parents to the owning ScumbleCanvasShadowNode (owns the retained-tree
    * id allocator + pending structural queue). */
-  fun findCanvasOwner(): SkityCanvasShadowNode? {
+  fun findCanvasOwner(): ScumbleCanvasShadowNode? {
     var n: ShadowNode? = this
     while (n != null) {
-      if (n is SkityCanvasShadowNode) return n
+      if (n is ScumbleCanvasShadowNode) return n
       n = n.parent
     }
     return null
@@ -646,7 +646,7 @@ abstract class SkityNodeBase : ShadowNode() {
 
   override fun addChildAt(child: ShadowNode, i: Int) {
     super.addChildAt(child, i)
-    if (child is SkityNodeBase) {
+    if (child is ScumbleNodeBase) {
       val canvas = findCanvasOwner() ?: return
       val childId = child.ensureNativeId()
       val parentId = ensureNativeId()
@@ -659,7 +659,7 @@ abstract class SkityNodeBase : ShadowNode() {
   override fun removeChildAt(i: Int): ShadowNode {
     val child = getChildAt(i) // capture before super removes (getChildAt is final)
     val removed = super.removeChildAt(i)
-    if (child is SkityNodeBase && child.nativeId != 0) {
+    if (child is ScumbleNodeBase && child.nativeId != 0) {
       findCanvasOwner()?.enqueueStructural(StructuralOp.Remove(child.nativeId))
     }
     return removed

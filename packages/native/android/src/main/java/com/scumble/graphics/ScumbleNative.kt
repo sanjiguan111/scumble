@@ -1,22 +1,22 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics
+package com.scumble.graphics
 
 import android.view.Surface
 
 /**
- * JNI bindings to libskityrender.so (app_renderer + GLES/Vulkan backends +
- * SkityRenderer). Handle-based, mirroring Skity-Android's SkityNative. The
+ * JNI bindings to libscumblerender.so (app_renderer + GLES/Vulkan backends +
+ * ScumbleRenderer). Handle-based, mirroring Skity-Android's ScumbleNative. The
  * render tree is driven solely by [nativeApplyCommands] (Step 3b retired the
  * snapshot channel — no nativeSetRenderTree).
  *
  * All functions are @JvmStatic, so the JNI side receives `jclass` (not the
  * object instance) as the 2nd parameter.
  */
-object SkityNative {
+object ScumbleNative {
 
   init {
-    System.loadLibrary("skityrender")
+    System.loadLibrary("scumblerender")
   }
 
   const val BACKEND_GLES = 1
@@ -104,7 +104,7 @@ object SkityNative {
   /**
    * Font URIs the last [nativeShapeParagraph] for this node found missing in
    * the TypefaceCache (drained per call — the shaper records them during
-   * layout). The paragraph node hands each to SkityFontController.
+   * layout). The paragraph node hands each to ScumbleFontController.
    */
   @JvmStatic
   external fun nativeTakeMissedFontUris(nodeId: Int): Array<String>
@@ -119,7 +119,7 @@ object SkityNative {
   /**
    * Store decoded pixels for a uri in the process-wide ImageStore. MUST be
    * called on the active backend's render thread (the store is render-thread
-   * only); [com.skity.graphics.image.SkityImageController] dispatches there.
+   * only); [com.scumble.graphics.image.ScumbleImageController] dispatches there.
    * No renderer handle — the store is shared by every canvas.
    */
   @JvmStatic

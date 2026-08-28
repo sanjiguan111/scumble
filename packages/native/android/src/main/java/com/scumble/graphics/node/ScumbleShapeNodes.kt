@@ -1,48 +1,48 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.node
+package com.scumble.graphics.node
 
 /**
  * Virtual shape/group ShadowNodes. Each only declares its skity tag name; all
- * geometry/paint props are inherited from [SkityNodeBase]. The container
- * [SkityCanvasShadowNode] walks the child tree and serializes every node.
+ * geometry/paint props are inherited from [ScumbleNodeBase]. The container
+ * [ScumbleCanvasShadowNode] walks the child tree and serializes every node.
  *
  * Mirrors lynx-native-svg's leaf ShadowNodes (RectShadowNode, CircleShadowNode,
  * …) which likewise just set `svgTagName` plus a few geometry setters.
  */
 
-class SkityRectShadowNode : SkityNodeBase() {
+class ScumbleRectShadowNode : ScumbleNodeBase() {
   override val skityTagName = "rect"
 }
 
-class SkityCircleShadowNode : SkityNodeBase() {
+class ScumbleCircleShadowNode : ScumbleNodeBase() {
   override val skityTagName = "circle"
 }
 
-class SkityEllipseShadowNode : SkityNodeBase() {
+class ScumbleEllipseShadowNode : ScumbleNodeBase() {
   override val skityTagName = "ellipse"
 }
 
-class SkityLineShadowNode : SkityNodeBase() {
+class ScumbleLineShadowNode : ScumbleNodeBase() {
   override val skityTagName = "line"
 }
 
-class SkityPathShadowNode : SkityNodeBase() {
+class ScumblePathShadowNode : ScumbleNodeBase() {
   override val skityTagName = "path"
 }
 
-class SkityPolylineShadowNode : SkityNodeBase() {
+class ScumblePolylineShadowNode : ScumbleNodeBase() {
   override val skityTagName = "polyline"
 }
 
-class SkityPolygonShadowNode : SkityNodeBase() {
+class ScumblePolygonShadowNode : ScumbleNodeBase() {
   override val skityTagName = "polygon"
 }
 
-class SkityImageShadowNode : SkityNodeBase() {
+class ScumbleImageShadowNode : ScumbleNodeBase() {
   override val skityTagName = "image"
 }
 
-class SkityGroupShadowNode : SkityNodeBase() {
+class ScumbleGroupShadowNode : ScumbleNodeBase() {
   override val skityTagName = "g"
 }

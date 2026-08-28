@@ -1,11 +1,11 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.font
+package com.scumble.graphics.font
 
 import com.lynx.tasm.behavior.LynxContext
-import com.skity.graphics.SkityInit
-import com.skity.graphics.SkityNative
-import com.skity.graphics.node.SkityNodeBase
+import com.scumble.graphics.ScumbleInit
+import com.scumble.graphics.ScumbleNative
+import com.scumble.graphics.node.ScumbleNodeBase
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  * the layout thread); the strong LynxContext reference is safe, nodes are
  * only touched inside the task.
  */
-object SkityFontController {
+object ScumbleFontController {
 
   private class Waiter(val context: LynxContext, val sign: Int)
 
@@ -37,15 +37,15 @@ object SkityFontController {
   fun request(uri: String, context: LynxContext, sign: Int) {
     waiting.computeIfAbsent(uri) { ConcurrentHashMap.newKeySet() }.add(Waiter(context, sign))
     if (!pending.add(uri)) return // already loading
-    SkityInit.fontLoader.loadFont(uri) { bytes ->
+    ScumbleInit.fontLoader.loadFont(uri) { bytes ->
       // Any thread (the loader's executor). StoreBytes is mutex-guarded
       // natively; null bytes record a sticky failure for the URI.
-      SkityNative.nativeStoreFontBytes(uri, bytes)
+      ScumbleNative.nativeStoreFontBytes(uri, bytes)
       pending.remove(uri)
       val waiters = waiting.remove(uri) ?: return@loadFont
       for (w in waiters) {
         w.context.findShadowNodeAndRunTask(w.sign) { node ->
-          (node as? SkityNodeBase)?.dirtyParagraph = true
+          (node as? ScumbleNodeBase)?.dirtyParagraph = true
           node.markDirty() // virtual node — bubbles to the canvas's measure
         }
       }

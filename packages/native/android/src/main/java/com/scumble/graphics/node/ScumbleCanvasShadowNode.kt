@@ -1,6 +1,6 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.node
+package com.scumble.graphics.node
 
 import com.google.flatbuffers.FlatBufferBuilder
 import com.lynx.tasm.behavior.LynxProp
@@ -11,24 +11,24 @@ import com.lynx.tasm.behavior.shadow.MeasureContext
 import com.lynx.tasm.behavior.shadow.MeasureMode
 import com.lynx.tasm.behavior.shadow.MeasureParam
 import com.lynx.tasm.behavior.shadow.MeasureResult
-import com.skity.graphics.skityrt.Command
-import com.skity.graphics.skityrt.CommandBatch
-import com.skity.graphics.skityrt.InsertNode
-import com.skity.graphics.skityrt.MoveNode
-import com.skity.graphics.skityrt.RemoveNode
-import com.skity.graphics.skityrt.SetAnimation
-import com.skity.graphics.skityrt.SetClip
-import com.skity.graphics.skityrt.SetGeometry
-import com.skity.graphics.skityrt.SetPaint
-import com.skity.graphics.skityrt.SetPathData
-import com.skity.graphics.skityrt.SetPathOpData
-import com.skity.graphics.skityrt.SetPaintFilter
-import com.skity.graphics.skityrt.SetImageSource
-import com.skity.graphics.skityrt.SetTransform
-import com.skity.graphics.skityrt.SetViewport
+import com.scumble.graphics.skityrt.Command
+import com.scumble.graphics.skityrt.CommandBatch
+import com.scumble.graphics.skityrt.InsertNode
+import com.scumble.graphics.skityrt.MoveNode
+import com.scumble.graphics.skityrt.RemoveNode
+import com.scumble.graphics.skityrt.SetAnimation
+import com.scumble.graphics.skityrt.SetClip
+import com.scumble.graphics.skityrt.SetGeometry
+import com.scumble.graphics.skityrt.SetPaint
+import com.scumble.graphics.skityrt.SetPathData
+import com.scumble.graphics.skityrt.SetPathOpData
+import com.scumble.graphics.skityrt.SetPaintFilter
+import com.scumble.graphics.skityrt.SetImageSource
+import com.scumble.graphics.skityrt.SetTransform
+import com.scumble.graphics.skityrt.SetViewport
 
 /**
- * Phase 2 Step 2 structural operations enqueued by SkityNodeBase's addChildAt/
+ * Phase 2 Step 2 structural operations enqueued by ScumbleNodeBase's addChildAt/
  * removeChildAt hooks and drained into a CommandBatch in measure(). A Remove +
  * Insert of the same id in one batch is merged into a Move by enqueueStructural.
  */
@@ -39,7 +39,7 @@ sealed class StructuralOp {
 }
 
 /**
- * Container ShadowNode for `<skity-canvas>`. Implements [CustomMeasureFunc] so
+ * Container ShadowNode for `<scumble-canvas>`. Implements [CustomMeasureFunc] so
  * Lynx keeps calling `measure()` each layout pass — but measure no longer
  * serializes a snapshot: it only drains dirty props into a CommandBatch
  * (structural + paint/path/transform/geometry/viewport) and exposes it via
@@ -49,10 +49,10 @@ sealed class StructuralOp {
  * layout pass remains the only coalescing point (mirrors lynx-native-svg).
  *
  * All string parsing (color/path/transform/enum) happens in front-end JS
- * (@lynx-skity/parsers); this node only ferries scalars and memcpy's the JS-built
+ * (@scumble/parsers); this node only ferries scalars and memcpy's the JS-built
  * nested FlatBuffer bytes into commands.
  */
-class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
+class ScumbleCanvasShadowNode : ScumbleNodeBase(), CustomMeasureFunc {
 
   override val skityTagName = "canvas"
 
@@ -75,13 +75,13 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   private var nextCommandVersion = 0L
 
   // Phase 2 Step 2: pending structural ops (Insert/Remove/Move) enqueued by the
-  // SkityNodeBase hooks; drained into the CommandBatch at the top of measure().
+  // ScumbleNodeBase hooks; drained into the CommandBatch at the top of measure().
   private val pendingStructural: MutableList<StructuralOp> = mutableListOf()
   // The canvas has no skity parent, so addChildAt never fires for it — measure
   // synthesizes its root InsertNode once.
   private var canvasInserted = false
 
-  /** Allocate a fresh stable node id (called at hook time by SkityNodeBase). */
+  /** Allocate a fresh stable node id (called at hook time by ScumbleNodeBase). */
   fun takeNextNodeId(): Int = nextNodeId++
 
   /** Enqueue a structural op. A Remove + later Insert of the same id in the same
@@ -101,7 +101,7 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   }
 
   // Each setter calls markDirty() to force a layout pass → measure → repaint,
-  // mirroring SkityNodeBase's per-setter trigger.
+  // mirroring ScumbleNodeBase's per-setter trigger.
   @LynxProp(name = "viewportX") fun setViewportX(v: Float) { viewportX = v; dirtyViewport = true; markDirty() }
   @LynxProp(name = "viewportY") fun setViewportY(v: Float) { viewportY = v; dirtyViewport = true; markDirty() }
   @LynxProp(name = "viewportWidth") fun setViewportWidth(v: Float) { viewportWidth = v; dirtyViewport = true; markDirty() }
@@ -218,7 +218,7 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
 
   /** Drain dirty paint/path/transform props across the shadow tree into a
    * CommandBatch FlatBuffer (or null if nothing is dirty). Clears the flags. */
-  private fun buildCommandBatchIfNeeded(root: SkityNodeBase): ByteArray? {
+  private fun buildCommandBatchIfNeeded(root: ScumbleNodeBase): ByteArray? {
     val fbb = FlatBufferBuilder(256)
     val offsets = mutableListOf<Int>()
     val types = mutableListOf<Byte>()
@@ -237,34 +237,34 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
   /** Walk the shadow tree and snapshot every <skity-paragraph> descendant's
    * current layout (one serialized ParagraphRunList entry each, node-id
    * keyed). Null when the canvas has no paragraphs at all. */
-  private fun collectParagraphRuns(root: SkityNodeBase): List<ByteArray>? {
+  private fun collectParagraphRuns(root: ScumbleNodeBase): List<ByteArray>? {
     if (!hasParagraphDescendant(root)) return null
     val out = mutableListOf<ByteArray>()
     walkParagraphs(root, out)
     return out
   }
 
-  private fun hasParagraphDescendant(node: SkityNodeBase): Boolean {
-    if (node is SkityParagraphShadowNode) return true
+  private fun hasParagraphDescendant(node: ScumbleNodeBase): Boolean {
+    if (node is ScumbleParagraphShadowNode) return true
     for (i in 0 until node.childCount) {
       val child = node.getChildAt(i)
-      if (child is SkityNodeBase && hasParagraphDescendant(child)) return true
+      if (child is ScumbleNodeBase && hasParagraphDescendant(child)) return true
     }
     return false
   }
 
-  private fun walkParagraphs(node: SkityNodeBase, out: MutableList<ByteArray>) {
-    if (node is SkityParagraphShadowNode) {
+  private fun walkParagraphs(node: ScumbleNodeBase, out: MutableList<ByteArray>) {
+    if (node is ScumbleParagraphShadowNode) {
       node.layoutIfNeeded()?.let { out.add(it.runsBytes) }
     }
     for (i in 0 until node.childCount) {
       val child = node.getChildAt(i)
-      if (child is SkityNodeBase) walkParagraphs(child, out)
+      if (child is ScumbleNodeBase) walkParagraphs(child, out)
     }
   }
 
   private fun collectCommands(
-    fbb: FlatBufferBuilder, node: SkityNodeBase,
+    fbb: FlatBufferBuilder, node: ScumbleNodeBase,
     offsets: MutableList<Int>, types: MutableList<Byte>,
   ) {
     if (node.dirtyPaint != 0) {
@@ -335,7 +335,7 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     if (node.dirtyFilter != 0) {
       // One SetPaintFilter per dirty slot (fill/stroke × color/image/mask) —
       // the JS-built Filter bytes ride as opaque [ubyte] vectors.
-      val f = SkityNodeBase.PaintFilterField
+      val f = ScumbleNodeBase.PaintFilterField
       val slots = listOf(
         f.FILL_COLOR to (node.fillColorFilterData to intArrayOf(0, 0)),
         f.STROKE_COLOR to (node.strokeColorFilterData to intArrayOf(1, 0)),
@@ -398,7 +398,7 @@ class SkityCanvasShadowNode : SkityNodeBase(), CustomMeasureFunc {
     val count = node.childCount
     for (i in 0 until count) {
       val child = node.getChildAt(i)
-      if (child is SkityNodeBase) collectCommands(fbb, child, offsets, types)
+      if (child is ScumbleNodeBase) collectCommands(fbb, child, offsets, types)
     }
   }
 

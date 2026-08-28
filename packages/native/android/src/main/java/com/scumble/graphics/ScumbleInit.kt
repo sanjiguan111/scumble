@@ -1,16 +1,16 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics
+package com.scumble.graphics
 
 import com.lynx.tasm.LynxEnv
-import com.skity.graphics.font.BuiltInSkityFontLoader
-import com.skity.graphics.font.SkityFontLoader
-import com.skity.graphics.image.BuiltInSkityImageLoader
-import com.skity.graphics.image.SkityImageLoader
+import com.scumble.graphics.font.BuiltInScumbleFontLoader
+import com.scumble.graphics.font.ScumbleFontLoader
+import com.scumble.graphics.image.BuiltInScumbleImageLoader
+import com.scumble.graphics.image.ScumbleImageLoader
 
 /**
- * Single entry point for initializing lynx-skity in a host app. Registers the
- * skity element behaviors (skity-canvas + virtual shapes) globally with the
+ * Single entry point for initializing scumble in a host app. Registers the
+ * skity element behaviors (scumble-canvas + virtual shapes) globally with the
  * given [LynxEnv], so every LynxView can use them. Future global setup (GPU
  * backend defaults, services, etc.) goes here too.
  *
@@ -19,27 +19,27 @@ import com.skity.graphics.image.SkityImageLoader
  *
  * ```
  * LynxEnv.inst().init(this, ...)
- * SkityInit.init(LynxEnv.inst())
+ * ScumbleInit.init(LynxEnv.inst())
  * ```
  */
-object SkityInit {
+object ScumbleInit {
 
   /**
    * Active GPU backend (GLES by default). Set via [init] before any
-   * `<skity-canvas>` is laid out. GLES = [SkityNative.BACKEND_GLES],
-   * Vulkan = [SkityNative.BACKEND_VULKAN].
+   * `<scumble-canvas>` is laid out. GLES = [ScumbleNative.BACKEND_GLES],
+   * Vulkan = [ScumbleNative.BACKEND_VULKAN].
    */
   @Volatile
-  var backend: Int = SkityNative.BACKEND_GLES
+  var backend: Int = ScumbleNative.BACKEND_GLES
 
   /**
    * Image loader for `<skity-image>` sources (http(s) URL / data URI). Hosts
-   * with their own pipeline reassign it (`SkityInit.imageLoader = mine`); the
+   * with their own pipeline reassign it (`ScumbleInit.imageLoader = mine`); the
    * built-in one covers data URIs + http(s). Runs off-thread and reports
-   * through SkityImageController.
+   * through ScumbleImageController.
    */
   @Volatile
-  var imageLoader: SkityImageLoader = BuiltInSkityImageLoader()
+  var imageLoader: ScumbleImageLoader = BuiltInScumbleImageLoader()
 
   /**
    * Font loader for `<skity-paragraph>` custom fonts with schemed URIs
@@ -48,23 +48,23 @@ object SkityInit {
    * trigger a re-layout of the waiting paragraphs.
    */
   @Volatile
-  var fontLoader: SkityFontLoader = BuiltInSkityFontLoader()
+  var fontLoader: ScumbleFontLoader = BuiltInScumbleFontLoader()
 
   @JvmStatic
   @JvmOverloads
-  fun init(env: LynxEnv, backend: Int = SkityNative.BACKEND_GLES) {
+  fun init(env: LynxEnv, backend: Int = ScumbleNative.BACKEND_GLES) {
     // Fall back to GLES if Vulkan was requested but isn't usable on this device
     // (old API level, no Vulkan loader, or context creation fails).
     this.backend =
-      if (backend == SkityNative.BACKEND_VULKAN && !SkityNative.nativeProbeVulkan()) {
-        SkityNative.BACKEND_GLES
+      if (backend == ScumbleNative.BACKEND_VULKAN && !ScumbleNative.nativeProbeVulkan()) {
+        ScumbleNative.BACKEND_GLES
       } else {
         backend
       }
-    // Register skity elements globally (skity-canvas container + virtual
+    // Register skity elements globally (scumble-canvas container + virtual
     // shape/group elements). BehaviorBundle isn't auto-registered by autolink,
     // so the host must add it explicitly.
-    env.addBehaviors(SkityBehavior().create())
+    env.addBehaviors(ScumbleBehavior().create())
 
     // TODO: future global skity init — e.g. GPU backend selection, default
     // density/MSAA, skity service registration.

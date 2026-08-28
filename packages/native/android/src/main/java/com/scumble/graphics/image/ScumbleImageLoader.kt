@@ -1,6 +1,6 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.image
+package com.scumble.graphics.image
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -16,17 +16,17 @@ import java.util.concurrent.Executors
  * Bitmap.copyPixelsToBuffer order on Android is R,G,B,A — skity's kRGBA
  * layout) + dimensions.
  */
-class SkityImagePixels(val rgba: ByteArray, val width: Int, val height: Int)
+class ScumbleImagePixels(val rgba: ByteArray, val width: Int, val height: Int)
 
 /**
  * Host-injectable image loader for `<skity-image>`. The built-in
- * [BuiltInSkityImageLoader] covers `data:` URIs and `http(s)://` URLs; hosts
+ * [BuiltInScumbleImageLoader] covers `data:` URIs and `http(s)://` URLs; hosts
  * with their own pipeline (cache/CDN) swap it via
- * [com.skity.graphics.SkityInit.setImageLoader].
+ * [com.scumble.graphics.ScumbleInit.setImageLoader].
  */
-fun interface SkityImageLoader {
+fun interface ScumbleImageLoader {
   /** `onResult(null)` = failure. May be called on any thread. */
-  fun loadImage(uri: String, onResult: (SkityImagePixels?) -> Unit)
+  fun loadImage(uri: String, onResult: (ScumbleImagePixels?) -> Unit)
 }
 
 /**
@@ -35,9 +35,9 @@ fun interface SkityImageLoader {
  * executor; results surface on the same executor thread (the controller
  * re-dispatches to the render thread).
  */
-class BuiltInSkityImageLoader : SkityImageLoader {
+class BuiltInScumbleImageLoader : ScumbleImageLoader {
 
-  override fun loadImage(uri: String, onResult: (SkityImagePixels?) -> Unit) {
+  override fun loadImage(uri: String, onResult: (ScumbleImagePixels?) -> Unit) {
     EXECUTOR.execute {
       onResult(
         try {
@@ -53,14 +53,14 @@ class BuiltInSkityImageLoader : SkityImageLoader {
     }
   }
 
-  private fun decodeDataUri(uri: String): SkityImagePixels? {
+  private fun decodeDataUri(uri: String): ScumbleImagePixels? {
     val marker = uri.indexOf("base64,")
     if (marker < 0) return null
     val data = Base64.decode(uri.substring(marker + "base64,".length), Base64.DEFAULT)
     return decodeBytes(data)
   }
 
-  private fun decodeUrl(uri: String): SkityImagePixels? {
+  private fun decodeUrl(uri: String): ScumbleImagePixels? {
     val conn = URL(uri).openConnection() as HttpURLConnection
     conn.connectTimeout = 15_000
     conn.readTimeout = 15_000
@@ -78,7 +78,7 @@ class BuiltInSkityImageLoader : SkityImageLoader {
     }
   }
 
-  private fun decodeBytes(data: ByteArray): SkityImagePixels? {
+  private fun decodeBytes(data: ByteArray): ScumbleImagePixels? {
     val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
     val bmp = BitmapFactory.decodeByteArray(data, 0, data.size, opts) ?: return null
     val w = bmp.width
@@ -89,7 +89,7 @@ class BuiltInSkityImageLoader : SkityImageLoader {
     val buffer = ByteArray(w * h * 4)
     bmp.copyPixelsToBuffer(java.nio.ByteBuffer.wrap(buffer))
     bmp.recycle()
-    return SkityImagePixels(buffer, w, h)
+    return ScumbleImagePixels(buffer, w, h)
   }
 
   companion object {

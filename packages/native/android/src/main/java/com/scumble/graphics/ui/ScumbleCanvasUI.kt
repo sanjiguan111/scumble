@@ -1,6 +1,6 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.ui
+package com.scumble.graphics.ui
 
 import android.content.Context
 import com.lynx.react.bridge.Callback
@@ -9,7 +9,7 @@ import com.lynx.tasm.behavior.LynxContext
 import com.lynx.tasm.behavior.LynxUIMethod
 import com.lynx.tasm.behavior.ui.LynxUI
 import com.lynx.tasm.event.LynxCustomEvent
-import com.skity.graphics.render.SkityRenderSession
+import com.scumble.graphics.render.ScumbleRenderSession
 
 /**
  * LynxUI for `<scumble-canvas>`. Receives the CommandBatch bytes from the
@@ -20,10 +20,10 @@ import com.skity.graphics.render.SkityRenderSession
  * difference is the backing view renders with skity on a GL surface instead of
  * android.graphics.Canvas.
  */
-class SkityCanvasUI(context: LynxContext) : LynxUI<SkityCanvasView>(context) {
+class ScumbleCanvasUI(context: LynxContext) : LynxUI<ScumbleCanvasView>(context) {
 
-  override fun createView(context: Context?): SkityCanvasView? {
-    val view = context?.let { SkityCanvasView(it) }
+  override fun createView(context: Context?): ScumbleCanvasView? {
+    val view = context?.let { ScumbleCanvasView(it) }
     // Finish events (D5): the view hops to the Lynx UI thread; emit through
     // the event emitter (pattern of LynxBaseUI.sendLayoutChangeEvent).
     view?.animationFinishDispatcher = { handle -> sendAnimationFinishEvent(handle) }
@@ -85,10 +85,10 @@ class SkityCanvasUI(context: LynxContext) : LynxUI<SkityCanvasView>(context) {
       return
     }
     val action = when (actionName) {
-      "play" -> SkityRenderSession.ACTION_PLAY
-      "pause" -> SkityRenderSession.ACTION_PAUSE
-      "seek" -> SkityRenderSession.ACTION_SEEK
-      "cancel" -> SkityRenderSession.ACTION_CANCEL
+      "play" -> ScumbleRenderSession.ACTION_PLAY
+      "pause" -> ScumbleRenderSession.ACTION_PAUSE
+      "seek" -> ScumbleRenderSession.ACTION_SEEK
+      "cancel" -> ScumbleRenderSession.ACTION_CANCEL
       else -> {
         callback.invoke(ERR_PARAM_INVALID)
         return

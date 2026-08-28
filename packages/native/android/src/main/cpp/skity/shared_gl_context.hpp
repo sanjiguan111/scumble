@@ -8,7 +8,7 @@
 
 #include <skity/gpu/gpu_context_gl.hpp>
 
-namespace lynxskity {
+namespace scumble {
 
 // Shared EGL display/context/config + skity GPUContext for the GL backend.
 // Owned by the Kotlin SkityRenderThread as a jlong handle (created/destroyed
@@ -28,4 +28,4 @@ public:
   ~SharedGLContext();
 };
 
-} // namespace lynxskity
+} // namespace scumble

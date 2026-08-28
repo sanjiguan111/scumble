@@ -1,12 +1,12 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.node
+package com.scumble.graphics.node
 
 import com.lynx.tasm.event.EventsListener
 import com.lynx.tasm.event.LynxDetailEvent
-import com.skity.graphics.SkityNative
-import com.skity.graphics.font.SkityFontController
-import com.skity.graphics.skityrt.ParagraphRunList
+import com.scumble.graphics.ScumbleNative
+import com.scumble.graphics.font.ScumbleFontController
+import com.scumble.graphics.skityrt.ParagraphRunList
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -14,16 +14,16 @@ import java.nio.ByteOrder
  * Virtual ShadowNode for `<skity-paragraph>`. The Android layout backend:
  * when the owning canvas's measure walk reaches a dirty paragraph, it lays
  * out (HarfBuzz shaping against skity FontManager-resolved typefaces on this
- * TASM thread, via [SkityNative.nativeShapeParagraph]) and caches the result
+ * TASM thread, via [ScumbleNative.nativeShapeParagraph]) and caches the result
  * as a single-entry ParagraphRunList keyed by the node's retained-tree id.
  *
  * The runs channel is a FULL snapshot: the canvas serializes every live
  * paragraph's current result on each measure flush (dirty ones re-laid,
  * clean ones from cache), because individual extra-bundle deliveries are
  * best-effort — whichever flush lands last must carry every paragraph's
- * layout. Mirrors the iOS backend's SkityParagraphShadowNode.mm.
+ * layout. Mirrors the iOS backend's ScumbleParagraphShadowNode.mm.
  */
-class SkityParagraphShadowNode : SkityNodeBase() {
+class ScumbleParagraphShadowNode : ScumbleNodeBase() {
 
   override val skityTagName = "paragraph"
 
@@ -53,15 +53,15 @@ class SkityParagraphShadowNode : SkityNodeBase() {
     val id = ensureNativeId()
     if (id == 0) return lastResult
 
-    val bytes = SkityNative.nativeShapeParagraph(
+    val bytes = ScumbleNative.nativeShapeParagraph(
       spans, id, width, paragraphAlign, paragraphDirection, paragraphLineHeight, paragraphMaxLines)
     // Custom fonts the shaper found missing (schemed URIs): request them —
     // this layout already fell back to the default font; when the bytes land
     // the controller re-triggers layout (fonts are a layout input).
     val context = context
     if (context != null) {
-      for (uri in SkityNative.nativeTakeMissedFontUris(id)) {
-        SkityFontController.request(uri, context, signature)
+      for (uri in ScumbleNative.nativeTakeMissedFontUris(id)) {
+        ScumbleFontController.request(uri, context, signature)
       }
     }
     if (bytes == null) {

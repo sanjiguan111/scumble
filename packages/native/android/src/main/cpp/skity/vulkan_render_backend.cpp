@@ -8,9 +8,9 @@
 #include <skity/gpu/gpu_presenter.hpp>
 #include <skity/render/canvas.hpp>
 
-#include "SkityRenderer.h" // lynx-skity cross-platform renderer (RetainedRenderTree)
+#include "ScumbleRenderer.h" // lynx-skity cross-platform renderer (RetainedRenderTree)
 
-namespace lynxskity {
+namespace scumble {
 
 namespace {
 
@@ -141,7 +141,7 @@ void VulkanRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, flo
     return;
   }
 
-  skityrt::SkityRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
+  skityrt::ScumbleRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
                                static_cast<float>(height_), context_.get());
 
   canvas->Flush();
@@ -153,4 +153,4 @@ void VulkanRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, flo
   }
 }
 
-} // namespace lynxskity
+} // namespace scumble

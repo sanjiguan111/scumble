@@ -21,11 +21,11 @@ val extractPrimjsNativeLibraries by tasks.registering(Sync::class) {
 
 
 android {
-  namespace = "com.skity.graphics"
+  namespace = "com.scumble.graphics"
   compileSdk = 35
 
   // skity-native ships as a prefab-packaged AAR; enabling prefab lets the CMake
-  // project consume it via find_package(skity) (added alongside SkityRenderer).
+  // project consume it via find_package(skity) (added alongside ScumbleRenderer).
   buildFeatures {
     prefab = true
   }
@@ -62,7 +62,7 @@ android {
   }
   sourceSets {
     getByName("main") {
-      // FlatBuffers-generated Java stubs (package com.skity.graphics.skityrt),
+      // FlatBuffers-generated Java stubs (package com.scumble.graphics.skityrt),
       // produced by `npm run generate-fbs` from packages/native/schema/*.fbs.
       java.srcDir("src/main/fbs-gen")
       // FlatBuffers Java runtime (com.google.flatbuffers.*), vendored by habitat
@@ -89,11 +89,11 @@ dependencies {
   primjsNativeAar("org.lynxsdk.lynx:primjs:$lynxPrimjsVersion@aar")
 
   // skity rendering engine (prefab). Consumed in CMake via find_package(skity);
-  // see packages/native/shared/skity/SkityRenderer.
+  // see packages/native/shared/skity/ScumbleRenderer.
   implementation("org.lynxsdk.lynx:skity-native:1.1.0-alpha.3")
 
   // HarfBuzz text shaping for <Paragraph> (Android layout backend). Static
-  // prefab AAR: libharfbuzz.a links into libskityrender.so — no runtime .so
+  // prefab AAR: libharfbuzz.a links into libscumblerender.so — no runtime .so
   // reaches the APK, so hosts need no extra packaging pickFirsts. Prefab
   // module `harfbuzz` declares stl c++_shared, matching ANDROID_STL below;
   // ndk26 build is the closest variant to this project's default NDK (r27).

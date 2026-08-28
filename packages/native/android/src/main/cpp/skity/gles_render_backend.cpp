@@ -7,10 +7,10 @@
 #include <skity/gpu/gpu_context_gl.hpp>
 #include <skity/gpu/gpu_surface.hpp>
 
-#include "SkityRenderer.h" // lynx-skity cross-platform renderer (RetainedRenderTree)
+#include "ScumbleRenderer.h" // lynx-skity cross-platform renderer (RetainedRenderTree)
 #include "shared_gl_context.hpp"
 
-namespace lynxskity {
+namespace scumble {
 
 std::unique_ptr<RenderBackend> CreateGLESRenderBackend(SharedGLContext *shared) {
   return std::make_unique<GLESRenderBackend>(shared);
@@ -117,7 +117,7 @@ void GLESRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, float
 
   // The shared GL context is passed so image nodes can materialize ImageStore
   // bitmaps on this backend (Image::MakeImage needs a live context).
-  skityrt::SkityRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
+  skityrt::ScumbleRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
                                static_cast<float>(height_), shared_->skity_context.get());
 
   canvas->Flush();
@@ -127,4 +127,4 @@ void GLESRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, float
   eglSwapBuffers(shared_->display, egl_surface_);
 }
 
-} // namespace lynxskity
+} // namespace scumble

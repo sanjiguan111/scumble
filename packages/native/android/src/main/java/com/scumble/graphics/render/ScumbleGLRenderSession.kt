@@ -1,13 +1,13 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.render
+package com.scumble.graphics.render
 
 import android.view.Surface
-import com.skity.graphics.SkityNative
+import com.scumble.graphics.ScumbleNative
 
 /**
- * Per-canvas GLES renderer state, driven on the shared [SkityRenderThread].
- * Each SkityCanvasView owns one session (its own native AppRenderer + EGL
+ * Per-canvas GLES renderer state, driven on the shared [ScumbleRenderThread].
+ * Each ScumbleCanvasView owns one session (its own native AppRenderer + EGL
  * context/surface); all sessions post to the same render thread so multiple
  * canvases share it.
  *
@@ -16,14 +16,14 @@ import com.skity.graphics.SkityNative
  * available (early consumeRenderBundle) is NOT lost — it's held as pending and
  * drawn once [attachSurface] completes.
  */
-class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
+class ScumbleGLRenderSession(private val density: Float) : ScumbleRenderSession {
 
-  // Shared process-wide render thread (see SkityRenderThread).
-  private val renderHandler = SkityRenderThread.handler
+  // Shared process-wide render thread (see ScumbleRenderThread).
+  private val renderHandler = ScumbleRenderThread.handler
 
   private var rendererHandle: Long = 0L
 
-  /** Finish-event sink (D5): set by SkityCanvasView; invoked on this render thread. */
+  /** Finish-event sink (D5): set by ScumbleCanvasView; invoked on this render thread. */
   override var onAnimationFinish: ((String) -> Unit)? = null
 
   @Volatile
@@ -31,8 +31,8 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
 
   private fun ensureRenderer() {
     if (rendererHandle == 0L) {
-      rendererHandle = SkityNative.nativeCreateRenderer(
-        SkityNative.BACKEND_GLES, SkityRenderThread.sharedGLContextHandle, density)
+      rendererHandle = ScumbleNative.nativeCreateRenderer(
+        ScumbleNative.BACKEND_GLES, ScumbleRenderThread.sharedGLContextHandle, density)
     }
   }
 
@@ -40,10 +40,10 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
   override fun attachSurface(surface: Surface, width: Int, height: Int) {
     renderHandler.post {
       ensureRenderer()
-      SkityNative.nativeSetSurface(rendererHandle, surface)
-      SkityNative.nativeOnSurfaceCreated(rendererHandle)
+      ScumbleNative.nativeSetSurface(rendererHandle, surface)
+      ScumbleNative.nativeOnSurfaceCreated(rendererHandle)
       if (width > 0 && height > 0) {
-        SkityNative.nativeOnSurfaceChanged(rendererHandle, width, height)
+        ScumbleNative.nativeOnSurfaceChanged(rendererHandle, width, height)
       }
       surfaceReady = true
       // Draw any RenderTree that arrived before the surface was ready.
@@ -54,7 +54,7 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
   override fun updateSize(width: Int, height: Int) {
     renderHandler.post {
       if (rendererHandle != 0L) {
-        SkityNative.nativeOnSurfaceChanged(rendererHandle, width, height)
+        ScumbleNative.nativeOnSurfaceChanged(rendererHandle, width, height)
         drawIfReady() // size changed → redraw the retained tree at the new size
       }
     }
@@ -75,11 +75,11 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
     renderHandler.post {
       ensureRenderer()
       if (rendererHandle != 0L) {
-        SkityNative.nativeApplyCommands(rendererHandle, commands)
+        ScumbleNative.nativeApplyCommands(rendererHandle, commands)
       }
       drawIfReady()
       // The batch may have installed animations while the driver was idle.
-      SkityAnimationDriver.wakeUp()
+      ScumbleAnimationDriver.wakeUp()
     }
   }
 
@@ -90,7 +90,7 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
       ensureRenderer()
       if (rendererHandle != 0L) {
         for (entry in runs) {
-          SkityNative.nativeApplyParagraphRuns(rendererHandle, entry)
+          ScumbleNative.nativeApplyParagraphRuns(rendererHandle, entry)
         }
       }
       drawIfReady()
@@ -101,7 +101,7 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
     if (!surfaceReady || rendererHandle == 0L) return
     // Draw only — commands are applied in applyCommands (or already in the tree
     // when the surface attaches).
-    SkityNative.nativeDrawFrame(rendererHandle)
+    ScumbleNative.nativeDrawFrame(rendererHandle)
   }
 
   override fun postRedraw() {
@@ -111,7 +111,7 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
   override fun scheduleTick(nowNanos: Long, onDone: (Boolean) -> Unit) {
     renderHandler.post {
       val live =
-          rendererHandle != 0L && SkityNative.nativeTickAnimations(rendererHandle, nowNanos)
+          rendererHandle != 0L && ScumbleNative.nativeTickAnimations(rendererHandle, nowNanos)
       if (live) drawIfReady()
       drainFinishedHandles()
       onDone(live)
@@ -119,10 +119,10 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
   }
 
   /** Finish events (D5): pull completed handles and notify on THIS thread;
-   * the listener (SkityCanvasView) hops to the Lynx UI thread itself. */
+   * the listener (ScumbleCanvasView) hops to the Lynx UI thread itself. */
   private fun drainFinishedHandles() {
     if (rendererHandle == 0L) return
-    val finished = SkityNative.nativeTakeFinishedHandles(rendererHandle) ?: return
+    val finished = ScumbleNative.nativeTakeFinishedHandles(rendererHandle) ?: return
     for (h in finished) onAnimationFinish?.invoke(h)
   }
 
@@ -130,12 +130,12 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
     renderHandler.post {
       val ok =
           rendererHandle != 0L &&
-              SkityNative.nativeControlAnimation(rendererHandle, handle, action, timeMs)
+              ScumbleNative.nativeControlAnimation(rendererHandle, handle, action, timeMs)
       if (ok) {
         // Resume/restart needs the driver back; seek already re-evaluated the
         // overlay synchronously — paint it without waiting a vsync (D3/D4).
-        if (action == SkityRenderSession.ACTION_PLAY) SkityAnimationDriver.wakeUp()
-        if (action == SkityRenderSession.ACTION_SEEK) {
+        if (action == ScumbleRenderSession.ACTION_PLAY) ScumbleAnimationDriver.wakeUp()
+        if (action == ScumbleRenderSession.ACTION_SEEK) {
           drawIfReady()
           drainFinishedHandles() // a seek to/past the end completes inline
         }
@@ -148,8 +148,8 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
     surfaceReady = false
     renderHandler.post {
       if (rendererHandle != 0L) {
-        SkityNative.nativeOnSurfaceDestroyed(rendererHandle)
-        SkityNative.nativeSetSurface(rendererHandle, null)
+        ScumbleNative.nativeOnSurfaceDestroyed(rendererHandle)
+        ScumbleNative.nativeSetSurface(rendererHandle, null)
       }
     }
   }
@@ -159,10 +159,10 @@ class SkityGLRenderSession(private val density: Float) : SkityRenderSession {
     detachSurface()
     renderHandler.post {
       if (rendererHandle != 0L) {
-        SkityNative.nativeDestroyRenderer(rendererHandle)
+        ScumbleNative.nativeDestroyRenderer(rendererHandle)
         rendererHandle = 0L
       }
     }
-    // SkityRenderThread is shared across views, so it's not quit here.
+    // ScumbleRenderThread is shared across views, so it's not quit here.
   }
 }

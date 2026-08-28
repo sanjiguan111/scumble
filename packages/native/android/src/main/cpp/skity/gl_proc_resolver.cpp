@@ -5,7 +5,7 @@
 #include <EGL/egl.h>
 #include <dlfcn.h>
 
-namespace lynxskity {
+namespace scumble {
 
 void *ResolveGLProcAddress(const char *name) {
   if (name == nullptr) {
@@ -31,4 +31,4 @@ void *ResolveGLProcAddress(const char *name) {
   return gles2 != nullptr ? dlsym(gles2, name) : nullptr;
 }
 
-} // namespace lynxskity
+} // namespace scumble

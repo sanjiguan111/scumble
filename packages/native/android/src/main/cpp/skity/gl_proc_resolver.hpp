@@ -2,11 +2,11 @@
 // LICENSE file in the root directory of this source tree.
 #pragma once
 
-namespace lynxskity {
+namespace scumble {
 
 // Resolves a GL function pointer for skity's GLES backend: EGL first, then the
 // global symbol table, then libGLESv3/libGLESv2. Mirrors Skity-Android's
 // gl_proc_resolver.
 void *ResolveGLProcAddress(const char *name);
 
-} // namespace lynxskity
+} // namespace scumble

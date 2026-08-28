@@ -1,45 +1,45 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.ui
+package com.scumble.graphics.ui
 
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.view.Surface
 import android.view.TextureView
 import android.widget.FrameLayout
-import com.skity.graphics.SkityInit
-import com.skity.graphics.SkityNative
-import com.skity.graphics.image.SkityImageController
-import com.skity.graphics.render.SkityAnimationDriver
-import com.skity.graphics.render.SkityGLRenderSession
-import com.skity.graphics.render.SkityRenderSession
-import com.skity.graphics.render.SkityVulkanRenderSession
+import com.scumble.graphics.ScumbleInit
+import com.scumble.graphics.ScumbleNative
+import com.scumble.graphics.image.ScumbleImageController
+import com.scumble.graphics.render.ScumbleAnimationDriver
+import com.scumble.graphics.render.ScumbleGLRenderSession
+import com.scumble.graphics.render.ScumbleRenderSession
+import com.scumble.graphics.render.ScumbleVulkanRenderSession
 
 /**
- * ViewGroup backing `<skity-canvas>`. Contains a [TextureView] (which renders
+ * ViewGroup backing `<scumble-canvas>`. Contains a [TextureView] (which renders
  * to a GPU texture, so it can be laid out / transformed / nested like a normal
  * view, unlike GLSurfaceView) and drives skity rendering on a dedicated
- * [SkityGLRenderSession] render thread.
+ * [ScumbleGLRenderSession] render thread.
  *
  * consumeCommands forwards CommandBatch bytes straight to the render session
  * (Step 3b: no snapshot bundle; the session posts apply + draw to the render
  * thread, and an early command before the SurfaceTexture is ready is held
  * pending by the session).
  */
-class SkityCanvasView(context: Context) : FrameLayout(context) {
+class ScumbleCanvasView(context: Context) : FrameLayout(context) {
 
-  // Backend chosen globally via SkityInit.init(env, backend). GLES and Vulkan
+  // Backend chosen globally via ScumbleInit.init(env, backend). GLES and Vulkan
   // run on separate shared render threads (EGL/Vulkan queue are thread-local).
-  private val session: SkityRenderSession =
-    if (SkityInit.backend == SkityNative.BACKEND_VULKAN) {
-      SkityVulkanRenderSession(context.resources.displayMetrics.density)
+  private val session: ScumbleRenderSession =
+    if (ScumbleInit.backend == ScumbleNative.BACKEND_VULKAN) {
+      ScumbleVulkanRenderSession(context.resources.displayMetrics.density)
     } else {
-      SkityGLRenderSession(context.resources.displayMetrics.density)
+      ScumbleGLRenderSession(context.resources.displayMetrics.density)
     }
   private val textureView = TextureView(context)
 
   /**
-   * Finish-event dispatcher (D5), installed by SkityCanvasUI: invoked on THIS
+   * Finish-event dispatcher (D5), installed by ScumbleCanvasUI: invoked on THIS
    * view's thread with the completed animation's handle. Emits
    * `skityAnimationFinish` through the Lynx event emitter.
    */
@@ -48,13 +48,13 @@ class SkityCanvasView(context: Context) : FrameLayout(context) {
   init {
     // Register for late-bitmap redraws (an ImageStore write pings every live
     // session; weak reference, cleaned up automatically on destroy).
-    SkityImageController.registerSession(session)
+    ScumbleImageController.registerSession(session)
     // Register for animation ticks (each session receives the vsync timestamp
     // on ITS render thread; weak reference, same cleanup story).
-    SkityAnimationDriver.registerSession(session)
+    ScumbleAnimationDriver.registerSession(session)
     // Finish events (D5): the session notifies on the render thread — hop to
     // this view's thread (the Lynx UI thread) before invoking the dispatcher
-    // SkityCanvasUI installed (it emits `skityAnimationFinish`).
+    // ScumbleCanvasUI installed (it emits `skityAnimationFinish`).
     session.onAnimationFinish = { handle -> post { animationFinishDispatcher?.invoke(handle) } }
     addView(
       textureView,

@@ -6,10 +6,10 @@
 #include "shared_gl_context.hpp"
 #include "vulkan_render_backend.hpp"
 
-namespace lynxskity {
+namespace scumble {
 
 namespace {
-// Backend type ids (match SkityNative.kt).
+// Backend type ids (match ScumbleNative.kt).
 constexpr int kBackendGles = 1;
 constexpr int kBackendVulkan = 2;
 } // namespace
@@ -88,4 +88,4 @@ std::vector<std::string> AppRenderer::TakeFinishedHandles() {
   return retained_tree_.TakeFinishedHandles();
 }
 
-} // namespace lynxskity
+} // namespace scumble

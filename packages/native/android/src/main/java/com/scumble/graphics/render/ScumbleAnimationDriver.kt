@@ -1,6 +1,6 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
-package com.skity.graphics.render
+package com.scumble.graphics.render
 
 import android.os.Handler
 import android.os.Looper
@@ -23,9 +23,9 @@ import java.lang.ref.WeakReference
  * animations while stopped re-arms it via [wakeUp] (called from the sessions'
  * applyCommands).
  */
-object SkityAnimationDriver {
+object ScumbleAnimationDriver {
 
-  private val sessions = ArrayList<WeakReference<SkityRenderSession>>()
+  private val sessions = ArrayList<WeakReference<ScumbleRenderSession>>()
   private val mainHandler = Handler(Looper.getMainLooper())
 
   @Volatile private var running = false
@@ -35,7 +35,7 @@ object SkityAnimationDriver {
   private var anyLive = false
 
   /** Register a session for animation ticks; weak — no unregister needed. */
-  fun registerSession(session: SkityRenderSession) {
+  fun registerSession(session: ScumbleRenderSession) {
     synchronized(sessions) {
       sessions.removeAll { it.get() === null }
       sessions.add(WeakReference(session))
@@ -57,7 +57,7 @@ object SkityAnimationDriver {
 
   private val frameCallback = object : Choreographer.FrameCallback {
     override fun doFrame(frameTimeNanos: Long) {
-      val snapshot: List<SkityRenderSession>
+      val snapshot: List<ScumbleRenderSession>
       synchronized(sessions) {
         sessions.removeAll { it.get() === null }
         snapshot = sessions.mapNotNull { it.get() }
@@ -66,7 +66,7 @@ object SkityAnimationDriver {
         running = false
         return
       }
-      synchronized(this@SkityAnimationDriver) {
+      synchronized(this@ScumbleAnimationDriver) {
         pendingReports = snapshot.size
         anyLive = false
       }

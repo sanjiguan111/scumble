@@ -1,7 +1,7 @@
 // Licensed under the Apache License Version 2.0 that can be found in the
 // LICENSE file in the root directory of this source tree.
 //
-// JNI bridge between SkityNative.kt and lynxskity::AppRenderer. Handle-based,
+// JNI bridge between ScumbleNative.kt and scumble::AppRenderer. Handle-based,
 // mirroring Skity-Android's native_bridge.cpp. The render tree is driven solely
 // by nativeApplyCommands (Step 3b retired the snapshot channel).
 #include <jni.h>
@@ -26,23 +26,23 @@
 
 namespace {
 
-lynxskity::AppRenderer *FromHandle(jlong handle) {
-  return reinterpret_cast<lynxskity::AppRenderer *>(handle);
+scumble::AppRenderer *FromHandle(jlong handle) {
+  return reinterpret_cast<scumble::AppRenderer *>(handle);
 }
 
 } // namespace
 
 extern "C" {
 
-JNIEXPORT jlong JNICALL Java_com_skity_graphics_SkityNative_nativeCreateRenderer(
+JNIEXPORT jlong JNICALL Java_com_scumble_graphics_ScumbleNative_nativeCreateRenderer(
     JNIEnv * /*env*/, jclass /*clazz*/, jint backend_type, jlong shared_gl_handle, jfloat density) {
   return reinterpret_cast<jlong>(
-      new lynxskity::AppRenderer(backend_type, shared_gl_handle, density));
+      new scumble::AppRenderer(backend_type, shared_gl_handle, density));
 }
 
-JNIEXPORT jlong JNICALL Java_com_skity_graphics_SkityNative_nativeCreateSharedGLContext(
+JNIEXPORT jlong JNICALL Java_com_scumble_graphics_ScumbleNative_nativeCreateSharedGLContext(
     JNIEnv * /*env*/, jclass /*clazz*/) {
-  auto *ctx = new lynxskity::SharedGLContext();
+  auto *ctx = new scumble::SharedGLContext();
   if (!ctx->Init()) {
     delete ctx;
     return 0;
@@ -50,12 +50,12 @@ JNIEXPORT jlong JNICALL Java_com_skity_graphics_SkityNative_nativeCreateSharedGL
   return reinterpret_cast<jlong>(ctx);
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeDestroySharedGLContext(
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeDestroySharedGLContext(
     JNIEnv * /*env*/, jclass /*clazz*/, jlong handle) {
-  delete reinterpret_cast<lynxskity::SharedGLContext *>(handle);
+  delete reinterpret_cast<scumble::SharedGLContext *>(handle);
 }
 
-JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeProbeVulkan(JNIEnv * /*env*/,
+JNIEXPORT jboolean JNICALL Java_com_scumble_graphics_ScumbleNative_nativeProbeVulkan(JNIEnv * /*env*/,
                                                                                  jclass /*clazz*/) {
   // Create a throwaway Vulkan GPU context to check whether Vulkan is usable on
   // this device (loader present, instance/device creation succeeds). The
@@ -70,13 +70,13 @@ JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeProbeVulkan
   return ctx != nullptr ? JNI_TRUE : JNI_FALSE;
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeDestroyRenderer(JNIEnv * /*env*/,
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeDestroyRenderer(JNIEnv * /*env*/,
                                                                                  jclass /*clazz*/,
                                                                                  jlong handle) {
   delete FromHandle(handle);
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeSetSurface(JNIEnv *env,
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeSetSurface(JNIEnv *env,
                                                                             jclass /*clazz*/,
                                                                             jlong handle,
                                                                             jobject surface) {
@@ -94,29 +94,29 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeSetSurface(JNIE
   renderer->SetNativeWindow(native_window);
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeOnSurfaceCreated(JNIEnv * /*env*/,
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeOnSurfaceCreated(JNIEnv * /*env*/,
                                                                                   jclass /*clazz*/,
                                                                                   jlong handle) {
   if (auto *r = FromHandle(handle)) r->OnSurfaceCreated();
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeOnSurfaceChanged(
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeOnSurfaceChanged(
     JNIEnv * /*env*/, jclass /*clazz*/, jlong handle, jint width, jint height) {
   if (auto *r = FromHandle(handle)) r->OnSurfaceChanged(width, height);
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeOnSurfaceDestroyed(
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeOnSurfaceDestroyed(
     JNIEnv * /*env*/, jclass /*clazz*/, jlong handle) {
   if (auto *r = FromHandle(handle)) r->OnSurfaceDestroyed();
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeDrawFrame(JNIEnv * /*env*/,
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeDrawFrame(JNIEnv * /*env*/,
                                                                            jclass /*clazz*/,
                                                                            jlong handle) {
   if (auto *r = FromHandle(handle)) r->DrawFrame();
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyCommands(
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeApplyCommands(
     JNIEnv *env, jclass /*clazz*/, jlong handle, jbyteArray commands) {
   auto *renderer = FromHandle(handle);
   if (renderer == nullptr || commands == nullptr) {
@@ -135,7 +135,7 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyCommands(
 // Native animation tick — render thread only (the tree is single-threaded by
 // contract). Returns whether any track is still live (the driver redraws on
 // true and stops the Choreographer loop when every session goes idle).
-JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeTickAnimations(
+JNIEXPORT jboolean JNICALL Java_com_scumble_graphics_ScumbleNative_nativeTickAnimations(
     JNIEnv * /*env*/, jclass /*clazz*/, jlong handle, jlong now_nanos) {
   auto *renderer = FromHandle(handle);
   return renderer != nullptr && renderer->TickAnimations(static_cast<uint64_t>(now_nanos))
@@ -146,7 +146,7 @@ JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeTickAnimati
 // Playback control (invoke lane; ANIMATION_CONTROL_DESIGN.md D3). Posted onto
 // the render thread by the session — tree writes never happen off it. `action`
 // is the AnimControlAction enum value (0=play 1=pause 2=seek 3=cancel).
-JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeControlAnimation(
+JNIEXPORT jboolean JNICALL Java_com_scumble_graphics_ScumbleNative_nativeControlAnimation(
     JNIEnv *env, jclass /*clazz*/, jlong handle, jstring anim_handle, jint action,
     jdouble time_ms) {
   auto *renderer = FromHandle(handle);
@@ -161,7 +161,7 @@ JNIEXPORT jboolean JNICALL Java_com_skity_graphics_SkityNative_nativeControlAnim
 // Completed-animation handles (D5): drained by the session right after a tick
 // or a seeking control, on the render thread. Each becomes a
 // `skityAnimationFinish` event posted to the Lynx UI thread.
-JNIEXPORT jobjectArray JNICALL Java_com_skity_graphics_SkityNative_nativeTakeFinishedHandles(
+JNIEXPORT jobjectArray JNICALL Java_com_scumble_graphics_ScumbleNative_nativeTakeFinishedHandles(
     JNIEnv *env, jclass /*clazz*/, jlong handle) {
   auto *renderer = FromHandle(handle);
   jclass string_cls = env->FindClass("java/lang/String");
@@ -179,7 +179,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_skity_graphics_SkityNative_nativeTakeFin
 
 // <Paragraph> glyph-run snapshot — applied on the render thread right after
 // the batch of the same flush (the runs reference nodes the batch inserts).
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyParagraphRuns(
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeApplyParagraphRuns(
     JNIEnv *env, jclass /*clazz*/, jlong handle, jbyteArray runs) {
   auto *renderer = FromHandle(handle);
   if (renderer == nullptr || runs == nullptr) {
@@ -198,7 +198,7 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeApplyParagraphR
 // <Paragraph> layout: shape + wrap the SpanList on the calling (TASM) thread,
 // registering fonts with the shared FontRegistry. Returns a one-entry
 // ParagraphRunList (height/line_count inside) or null for empty content.
-JNIEXPORT jbyteArray JNICALL Java_com_skity_graphics_SkityNative_nativeShapeParagraph(
+JNIEXPORT jbyteArray JNICALL Java_com_scumble_graphics_ScumbleNative_nativeShapeParagraph(
     JNIEnv *env, jclass /*clazz*/, jbyteArray spans, jint nodeId, jfloat width, jbyte align,
     jbyte direction, jfloat lineHeight, jint maxLines) {
   if (spans == nullptr) {
@@ -228,7 +228,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_skity_graphics_SkityNative_nativeShapePara
 // Custom-font plumbing: schemed font URIs the shaper found missing during
 // layout (drained per shape on the same TASM thread), and loader bytes
 // arriving from any thread.
-JNIEXPORT jobjectArray JNICALL Java_com_skity_graphics_SkityNative_nativeTakeMissedFontUris(
+JNIEXPORT jobjectArray JNICALL Java_com_scumble_graphics_ScumbleNative_nativeTakeMissedFontUris(
     JNIEnv *env, jclass /*clazz*/, jint nodeId) {
   std::vector<std::string> uris = skityrt::TakeMissedFontUris((uint32_t)nodeId);
   jclass stringCls = env->FindClass("java/lang/String");
@@ -240,7 +240,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_skity_graphics_SkityNative_nativeTakeMis
   return out;
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeStoreFontBytes(JNIEnv *env,
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeStoreFontBytes(JNIEnv *env,
                                                                                 jclass /*clazz*/,
                                                                                 jstring uri,
                                                                                 jbyteArray bytes) {
@@ -266,7 +266,7 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeStoreFontBytes(
 // (SkityImageController posts them there); the store itself is render-thread
 // only. Pixels are premultiplied RGBA (ARGB_8888 Bitmap.copyPixelsToBuffer on
 // the Kotlin side).
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeStoreImage(
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeStoreImage(
     JNIEnv *env, jclass /*clazz*/, jstring uri, jbyteArray rgba, jint width, jint height) {
   const char *uri_chars = env->GetStringUTFChars(uri, nullptr);
   if (uri_chars == nullptr || width <= 0 || height <= 0) {
@@ -299,7 +299,7 @@ JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeStoreImage(
                                               /*premultiplied=*/true);
 }
 
-JNIEXPORT void JNICALL Java_com_skity_graphics_SkityNative_nativeMarkImageFailed(JNIEnv *env,
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeMarkImageFailed(JNIEnv *env,
                                                                                  jclass /*clazz*/,
                                                                                  jstring uri) {
   const char *uri_chars = env->GetStringUTFChars(uri, nullptr);

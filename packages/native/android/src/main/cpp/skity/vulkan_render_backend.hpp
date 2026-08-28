@@ -12,11 +12,11 @@
 #include <skity/gpu/gpu_context_vk.hpp>
 #include <skity/gpu/gpu_presenter.hpp>
 
-namespace lynxskity {
+namespace scumble {
 
 // Vulkan backend: creates a skity GPUContextVK + a GPUNativeWindowVK bound to
 // the host TextureView's ANativeWindow, and renders the retained tree via the
-// presenter (AcquireNextSurface → LockCanvas → SkityRenderer → Present). All
+// presenter (AcquireNextSurface → LockCanvas → ScumbleRenderer → Present). All
 // Vulkan state is thread-local, so this backend must be driven from a single
 // render thread (SkityVulkanRenderThread, separate from the GL thread).
 //
@@ -52,4 +52,4 @@ private:
 
 std::unique_ptr<RenderBackend> CreateVulkanRenderBackend();
 
-} // namespace lynxskity
+} // namespace scumble

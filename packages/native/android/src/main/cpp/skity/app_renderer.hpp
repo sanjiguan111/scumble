@@ -10,7 +10,7 @@
 
 #include "retained_render_tree.h" // skityrt::RetainedRenderTree
 
-namespace lynxskity {
+namespace scumble {
 
 class RenderBackend;
 
@@ -62,4 +62,4 @@ private:
   float density_ = 1.f;
 };
 
-} // namespace lynxskity
+} // namespace scumble

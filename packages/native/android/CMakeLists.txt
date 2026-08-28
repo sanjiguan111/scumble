@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18.1)
 
-project(LynxSkityAddonAndroid LANGUAGES C CXX)
+project(ScumbleAddonAndroid LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,25 +38,25 @@ add_subdirectory(
   "${CMAKE_CURRENT_BINARY_DIR}/shared"
 )
 
-add_library(LynxSkityAddon SHARED
+add_library(ScumbleAddon SHARED
   $<TARGET_OBJECTS:${LYNX_LIBRARY_NAPI_NATIVE_MODULE_TARGET}>
 )
 
-target_link_libraries(LynxSkityAddon PRIVATE
+target_link_libraries(ScumbleAddon PRIVATE
   lynx_primjs_napi_adapter
   lynx_primjs_napi
 )
 
-set_target_properties(LynxSkityAddon PROPERTIES
-  OUTPUT_NAME "LynxSkityModule"
+set_target_properties(ScumbleAddon PROPERTIES
+  OUTPUT_NAME "ScumbleModule"
 )
 
 # ---------------------------------------------------------------------------
-# skity render library (libskityrender.so)
+# skity render library (libscumblerender.so)
 #
 # Consumes the skity-native prefab (find_package(skity)) and hosts the GLES
-# backend + JNI bridge + cross-platform SkityRenderer. Loaded via
-# SkityNative.kt (System.loadLibrary("skityrender")). Mirrors Skity-Android's
+# backend + JNI bridge + cross-platform ScumbleRenderer. Loaded via
+# ScumbleNative.kt (System.loadLibrary("scumblerender")). Mirrors Skity-Android's
 # app CMakeLists. Vulkan backend sources are added once VulkanRenderBackend lands.
 # ---------------------------------------------------------------------------
 find_package(skity-native CONFIG REQUIRED)
@@ -64,7 +64,7 @@ find_package(skity-native CONFIG REQUIRED)
 # HarfBuzz text shaping (static prefab, MavenCentral) — <Paragraph> Android
 # layout backend. The core `harfbuzz` module is self-contained (cairo/glib
 # only serve the harfbuzz-cairo variant); libharfbuzz.a links statically into
-# libskityrender.so, no runtime .so reaches the APK.
+# libscumblerender.so, no runtime .so reaches the APK.
 find_package(harfbuzz CONFIG REQUIRED)
 
 # SheenBidi — UAX #9 bidirectional algorithm for the <Paragraph> Android
@@ -83,7 +83,7 @@ target_include_directories(sheenbidi PUBLIC "${SHEENBIDI_ROOT}/Headers")
 target_include_directories(sheenbidi PRIVATE "${SHEENBIDI_ROOT}/Source")
 target_compile_options(sheenbidi PRIVATE -w) # third-party C, silence warnings
 
-add_library(skityrender SHARED
+add_library(scumblerender SHARED
   src/main/cpp/skity/app_renderer.cpp
   src/main/cpp/skity/shared_gl_context.cpp
   src/main/cpp/skity/gles_render_backend.cpp
@@ -93,8 +93,8 @@ add_library(skityrender SHARED
   # per-character fallback, HarfBuzz shaping against the same Typeface, and
   # the shared CJK-aware line breaker (Task 16).
   src/main/cpp/skity/paragraph_shaper.cc
-  src/main/cpp/jni/skity_jni.cpp
-  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/SkityRenderer.cc"
+  src/main/cpp/jni/scumble_jni.cpp
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/ScumbleRenderer.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/retained_render_tree.cc"
   # Native animation engine (ANIMATION_DESIGN.md): easing curves + track
   # parsing/evaluation/tick; the tree-side state lives on RetainedNode.
@@ -116,7 +116,7 @@ add_library(skityrender SHARED
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/base64.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/typeface_cache.cc")
 
-target_include_directories(skityrender PRIVATE
+target_include_directories(scumblerender PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/skity"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity"
@@ -129,7 +129,7 @@ target_include_directories(skityrender PRIVATE
   # #include <flatbuffers/flatbuffers.h>.
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/third_party/flatbuffers/include")
 
-target_link_libraries(skityrender PRIVATE
+target_link_libraries(scumblerender PRIVATE
   skity-native::skity
   harfbuzz::harfbuzz
   sheenbidi

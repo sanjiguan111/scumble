@@ -6,7 +6,7 @@
 // using the flatc binary fetched by habitat (DEPS.py → shared/third_party/flatc).
 //
 // Run manually: after cloning this repo (see README Getting started) and
-// after editing the .fbs — `pnpm --filter @lynx-skity/native generate-fbs`.
+// after editing the .fbs — `pnpm --filter @scumble/native generate-fbs`.
 // Also runs at publish time (prepublishOnly) so the gitignored stubs ship in
 // the tarball. It is deliberately NOT a postinstall: consumers install from
 // a published tarball that already carries the stubs, and their machines
@@ -33,9 +33,9 @@ const flatc = resolve(pkgRoot, "shared/third_party/flatc/flatc");
 const schemaDir = resolve(pkgRoot, "schema");
 
 if (!existsSync(flatc)) {
-  console.warn("[lynx-skity] flatc not found at", flatc);
+  console.warn("[scumble] flatc not found at", flatc);
   console.warn(
-    "[lynx-skity] Run `tools/hab sync` first, then `pnpm --filter @lynx-skity/native generate-fbs`.",
+    "[scumble] Run `tools/hab sync` first, then `pnpm --filter @scumble/native generate-fbs`.",
   );
   // Non-fatal: an install must not break just because habitat hasn't synced yet.
   process.exit(0);
@@ -57,18 +57,18 @@ mkdirSync(javaOut, { recursive: true });
 // flatc args shared by both backends (no --gen-all; see file header).
 const flatcArgs = (lang, out) => [lang, "-o", out, "-I", schemaDir, ...fbsFiles];
 
-console.log("[lynx-skity] generating C++ FlatBuffers stubs →", cppOut);
+console.log("[scumble] generating C++ FlatBuffers stubs →", cppOut);
 execFileSync(flatc, flatcArgs("--cpp", cppOut), { stdio: "inherit" });
 
-console.log("[lynx-skity] generating Java FlatBuffers stubs →", javaOut);
+console.log("[scumble] generating Java FlatBuffers stubs →", javaOut);
 // --java-package-prefix aligns the generated package with the rest of the
-// Android code (com.skity.graphics.*); C++ stubs stay in namespace `skityrt`.
+// Android code (com.scumble.graphics.*); C++ stubs stay in namespace `skityrt`.
 execFileSync(
   flatc,
   [
     "--java",
     "--java-package-prefix",
-    "com.skity.graphics",
+    "com.scumble.graphics",
     "-o",
     javaOut,
     "-I",
@@ -103,7 +103,7 @@ for (const f of readdirSync(fbTsSrc)) {
 }
 
 // 2) generate the skityrt stubs.
-console.log("[lynx-skity] generating TypeScript FlatBuffers stubs →", tsOut);
+console.log("[scumble] generating TypeScript FlatBuffers stubs →", tsOut);
 execFileSync(flatc, flatcArgs("--ts", tsOut), { stdio: "inherit" });
 
 // 3) re-point stub imports from the "flatbuffers" package to the vendored runtime.
@@ -118,4 +118,4 @@ for (const f of readdirSync(stubDir)) {
   writeFileSync(p, rewritten);
 }
 
-console.log("[lynx-skity] FlatBuffers stubs generated.");
+console.log("[scumble] FlatBuffers stubs generated.");
