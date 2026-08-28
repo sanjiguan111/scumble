@@ -4,6 +4,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "build": "turbo build",
+    "bump": "node scripts/bump-version.mjs",
     "dev": "turbo dev --filter=scumble-example",
     "dev:website": "pnpm --filter @scumble/website dev",
     "example:ios": "pnpm --filter scumble-example ios",
