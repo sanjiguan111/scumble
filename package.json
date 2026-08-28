@@ -4,8 +4,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
+    "dev": "turbo dev --filter=scumble-example",
     "test": "turbo test",
     "codegen": "pnpm --filter @scumble/native codegen",
     "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md}\" && node scripts/format-native.mjs",
