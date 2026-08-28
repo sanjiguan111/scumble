@@ -36,7 +36,10 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      # Scope the install to the website dependency chain only — a full
+      # workspace install would also pull the example app, whose
+      # @lynx-js/lynxtron postinstall downloads a linux binary that 404s.
+      - run: pnpm install --frozen-lockfile --filter @scumble/website...
 
       - run: pnpm --filter @scumble/website build
 
