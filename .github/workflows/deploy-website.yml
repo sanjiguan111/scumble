@@ -5,14 +5,12 @@ name: Deploy website
 #   Settings → Pages → Source: GitHub Actions
 
 on:
-  # Disabled while the repo is private — GitHub Pages on private repos needs a
-  # paid plan. Restore the push trigger below once the repo goes public.
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "packages/website/**"
-  #     - "pnpm-lock.yaml"
-  #     - "package.json"
+  push:
+    branches: [develop]
+    paths:
+      - "packages/website/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
   workflow_dispatch:
 
 permissions:
