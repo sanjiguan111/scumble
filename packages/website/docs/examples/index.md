@@ -1,17 +1,17 @@
 # Examples
 
-The repo ships a demo app ([`packages/example`](https://github.com/sanjiguan111/scumble/tree/main/packages/example))
+The repo ships a demo app ([`packages/example`](https://github.com/sanjiguan111/scumble/tree/develop/packages/example))
 with 17 live scenes covering the whole API surface. Run them on a device or
 simulator:
 
 ```bash
 git clone https://github.com/sanjiguan111/scumble && cd scumble
 pnpm install
-pnpm --filter scumble-example ios      # or: android
+pnpm example:ios      # or: android
 ```
 
 Every demo is a single self-contained component under
-[`packages/example/src/demos/`](https://github.com/sanjiguan111/scumble/tree/main/packages/example/src/demos) —
+[`packages/example/src/demos/`](https://github.com/sanjiguan111/scumble/tree/develop/packages/example/src/demos) —
 the table below links each one to its source and to the guide page that
 explains the topic.
 

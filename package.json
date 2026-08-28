@@ -5,6 +5,9 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev --filter=scumble-example",
+    "dev:website": "pnpm --filter @scumble/website dev",
+    "example:ios": "pnpm --filter scumble-example ios",
+    "example:android": "pnpm --filter scumble-example android",
     "test": "turbo test",
     "codegen": "pnpm --filter @scumble/native codegen",
     "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md}\" && node scripts/format-native.mjs",

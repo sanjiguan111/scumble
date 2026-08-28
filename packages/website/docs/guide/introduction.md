@@ -1,8 +1,8 @@
 # Introduction
 
 scumble is a 2D graphics library for [Lynx](https://lynxjs.org/), powered by the
-**skity** GPU backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a
-declarative drawing API to Lynx:
+**[skity](https://github.com/lynx-family/skity)** GPU backend (Android OpenGL ES /
+Vulkan, iOS Metal). It brings a declarative drawing API to Lynx:
 
 ```tsx
 <Canvas style={{ width: "100%", height: 200 }}>

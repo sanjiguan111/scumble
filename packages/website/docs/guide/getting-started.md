@@ -80,5 +80,5 @@ Or run them on a device:
 ```bash
 git clone https://github.com/sanjiguan111/scumble && cd scumble
 pnpm install
-pnpm --filter scumble-example ios      # or: android
+pnpm example:ios      # or: android
 ```

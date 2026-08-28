@@ -5,7 +5,8 @@
 [![Docs](https://img.shields.io/badge/docs-sanjiguan111.github.io%2Fscumble-7683b3.svg)](https://sanjiguan111.github.io/scumble)
 [![Deploy website](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml/badge.svg)](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml)
 
-A 2D graphics library for [Lynx](https://lynxjs.org/), powered by the **skity** GPU
+A 2D graphics library for [Lynx](https://lynxjs.org/), powered by the
+**[skity](https://github.com/lynx-family/skity)** GPU
 backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a declarative drawing
 API to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer
 render tree:
@@ -83,7 +84,7 @@ Full design + roadmap: [`packages/native/RENDER_ARCHITECTURE.md`](packages/nativ
 | [`@scumble/graphics`](packages/graphics) | Framework-agnostic pure-JS core: color / enum / path / transform parsers + `Path2D`.                                                   |
 | [`@scumble/react`](packages/react)       | React component layer (`<Canvas>`, shapes, `Group`) — the user-facing API.                                                             |
 | [`example`](packages/example)            | rspeedy demo app consuming all of the above.                                                                                           |
-| [`website`](packages/website)            | VitePress documentation site (GitHub Pages) — `pnpm --filter @scumble/website dev` to preview, `build` to build.                       |
+| [`website`](packages/website)            | VitePress documentation site (GitHub Pages) — `pnpm dev:website` to preview, `build` to build.                                         |
 
 ## Installation
 
@@ -139,8 +140,8 @@ pnpm --filter @scumble/native generate-fbs
 Run the example app on a booted simulator / connected device:
 
 ```bash
-pnpm --filter scumble-example ios       # iOS simulator (scripts/run-ios.mjs)
-pnpm --filter scumble-example android   # Android (scripts/run-android.mjs)
+pnpm example:ios       # iOS simulator (scripts/run-ios.mjs)
+pnpm example:android   # Android (scripts/run-android.mjs)
 ```
 
 Edit `packages/example/src/App.tsx` and reload to iterate.

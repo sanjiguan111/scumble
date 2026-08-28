@@ -169,8 +169,8 @@ pnpm --filter @scumble/graphics build        # graphics dist (tsc)
 Then run the example app against a booted simulator or connected device:
 
 ```bash
-pnpm --filter scumble-example ios       # scripts/run-ios.mjs
-pnpm --filter scumble-example android   # scripts/run-android.mjs
+pnpm example:ios       # scripts/run-ios.mjs
+pnpm example:android   # scripts/run-android.mjs
 ```
 
 Platform notes:

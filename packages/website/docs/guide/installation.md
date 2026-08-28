@@ -59,7 +59,7 @@ That means the host project must satisfy the
   `org.lynxsdk.lynx.*` on Android).
 
 With that in place, the only scumble-specific parts are the two snippets
-below, taken from the [example app](https://github.com/sanjiguan111/scumble/tree/main/packages/example).
+below, taken from the [example app](https://github.com/sanjiguan111/scumble/tree/develop/packages/example).
 
 ### iOS
 
@@ -150,6 +150,6 @@ pnpm --filter @scumble/native generate-fbs    # generates C++/Java/TS stubs
 Then run the example app on a booted simulator / connected device:
 
 ```bash
-pnpm --filter scumble-example ios       # iOS simulator
-pnpm --filter scumble-example android   # Android
+pnpm example:ios       # iOS simulator
+pnpm example:android   # Android
 ```
