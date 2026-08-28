@@ -2,9 +2,9 @@ Pod::Spec.new do |s|
   s.name = 'scumble'
   s.version = '0.0.1'
   s.summary = 'Scumble GPU rendering for Lynx (iOS)'
-  s.homepage = 'https://github.com/lynx-family/lynx'
+  s.homepage = 'https://github.com/RuiwenTang/scumble'
   s.license = { :type => 'Apache-2.0' }
-  s.author = 'Lynx'
+  s.author = 'RuiwenTang'
   s.source = { :path => '.' }
 
   s.ios.deployment_target = '13.0'
