@@ -8,7 +8,7 @@
 // FlatBuffer snapshot per frame. skity uses PascalCase method names + Skia-style
 // k-prefixed enum values.
 
-#include "SkityRenderer.h"
+#include "ScumbleRenderer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1315,7 +1315,7 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
 
 } // namespace
 
-void SkityRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float density,
+void ScumbleRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float density,
                          float canvasWidth, float canvasHeight, ::skity::GPUContext *gpu_context) {
   if (tree == nullptr || canvas == nullptr) return;
   const RetainedNode *root = tree->root();

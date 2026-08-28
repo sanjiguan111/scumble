@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18.1)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-  project(LynxSkityAddonShared LANGUAGES C CXX)
+  project(ScumbleAddonShared LANGUAGES C CXX)
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -239,7 +239,7 @@ set(LYNX_SHARED_TARGETS)
 
 if(LYNX_SHARED_BUILD_NATIVE_MODULES AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/modules/CMakeLists.txt")
   add_subdirectory(modules)
-  list(APPEND LYNX_SHARED_TARGETS LynxSkityAddonNativeModules)
+  list(APPEND LYNX_SHARED_TARGETS ScumbleAddonNativeModules)
 endif()
 
 if(LYNX_SHARED_BUILD_NATIVE_MODULES AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/nativeModule/CMakeLists.txt")
@@ -249,7 +249,7 @@ endif()
 
 if(LYNX_SHARED_BUILD_ELEMENTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/elements/CMakeLists.txt")
   add_subdirectory(elements)
-  list(APPEND LYNX_SHARED_TARGETS LynxSkityAddonElements)
+  list(APPEND LYNX_SHARED_TARGETS ScumbleAddonElements)
 endif()
 
 if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)

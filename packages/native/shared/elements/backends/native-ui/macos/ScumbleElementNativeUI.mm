@@ -1,4 +1,4 @@
-#include "shared/elements/LynxSkityElement.h"
+#include "shared/elements/ScumbleElement.h"
 
 #import <Cocoa/Cocoa.h>
 
@@ -9,16 +9,16 @@ NSString *NSStringFromStdString(const std::string &value) {
   return result != nil ? result : @"";
 }
 
-class LynxSkityElementNativeUIView : public LynxSkityElementView {
+class ScumbleElementNativeUIView : public ScumbleElementView {
 public:
-  explicit LynxSkityElementNativeUIView(void *opaque) : LynxSkityElementView(opaque) {
+  explicit ScumbleElementNativeUIView(void *opaque) : ScumbleElementView(opaque) {
     RunOnMainThreadSync(^{
       label_ = [NSTextField labelWithString:NSStringFromStdString(value())];
       label_.textColor = [NSColor blackColor];
     });
   }
 
-  ~LynxSkityElementNativeUIView() override {
+  ~ScumbleElementNativeUIView() override {
     RunOnMainThreadSync(^{
       [label_ removeFromSuperview];
       label_ = nil;
@@ -97,7 +97,7 @@ private:
 
 } // namespace
 
-lynx_native_view_t *CreateLynxSkityElementNativeUINativeView(void *opaque) {
-  auto *view = new LynxSkityElementNativeUIView(opaque);
+lynx_native_view_t *CreateScumbleElementNativeUINativeView(void *opaque) {
+  auto *view = new ScumbleElementNativeUIView(opaque);
   return view->native_view();
 }

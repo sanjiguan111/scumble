@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 
-bool DrawLynxSkityElementTextureSurface(lynx_surface_handle_t *handle, int width_px, int height_px,
+bool DrawScumbleElementTextureSurface(lynx_surface_handle_t *handle, int width_px, int height_px,
                                         const char *text) {
   if (handle == nullptr || width_px <= 0 || height_px <= 0) {
     return false;

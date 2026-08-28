@@ -1,4 +1,4 @@
-#include "shared/elements/LynxSkityElement.h"
+#include "shared/elements/ScumbleElement.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -14,7 +14,7 @@
 
 namespace {
 
-constexpr wchar_t kHostClassName[] = L"LynxSkityElementNativeUIHost";
+constexpr wchar_t kHostClassName[] = L"ScumbleElementNativeUIHost";
 
 std::wstring Utf8ToWide(const char *value) {
   if (value == nullptr || value[0] == '\0') {
@@ -71,11 +71,11 @@ HWND FindMainWindow() {
   return search.hwnd != nullptr ? search.hwnd : GetActiveWindow();
 }
 
-class LynxSkityElementNativeUIView : public LynxSkityElementView {
+class ScumbleElementNativeUIView : public ScumbleElementView {
 public:
-  explicit LynxSkityElementNativeUIView(void *opaque) : LynxSkityElementView(opaque) {}
+  explicit ScumbleElementNativeUIView(void *opaque) : ScumbleElementView(opaque) {}
 
-  ~LynxSkityElementNativeUIView() override {
+  ~ScumbleElementNativeUIView() override {
     if (label_ != nullptr) {
       DestroyWindow(label_);
       label_ = nullptr;
@@ -144,7 +144,7 @@ private:
 
 } // namespace
 
-lynx_native_view_t *CreateLynxSkityElementNativeUINativeView(void *opaque) {
-  auto *view = new LynxSkityElementNativeUIView(opaque);
+lynx_native_view_t *CreateScumbleElementNativeUINativeView(void *opaque) {
+  auto *view = new ScumbleElementNativeUIView(opaque);
   return view->native_view();
 }

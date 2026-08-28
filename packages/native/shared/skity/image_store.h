@@ -43,7 +43,7 @@ public:
   // Render thread only. Permanent failure — FindImage keeps returning nullptr.
   void MarkFailed(const std::string &uri);
 
-  // Render thread only (called from SkityRenderer::DrawShape). Returns nullptr
+  // Render thread only (called from ScumbleRenderer::DrawShape). Returns nullptr
   // while pending, after failure, or for an unknown uri — callers skip the
   // node. `ctx` MUST be the live GPU context of the calling backend:
   // Image::MakeImage(pixmap, nullptr) produces an undrawable image (verified

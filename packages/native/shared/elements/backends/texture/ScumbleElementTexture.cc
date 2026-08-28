@@ -1,19 +1,19 @@
-#include "shared/elements/LynxSkityElement.h"
+#include "shared/elements/ScumbleElement.h"
 
 #include <algorithm>
 #include <cmath>
 
 // This shared texture backend depends on LynxNativeView C API surface handles.
-bool DrawLynxSkityElementTextureSurface(lynx_surface_handle_t *handle, int width_px, int height_px,
+bool DrawScumbleElementTextureSurface(lynx_surface_handle_t *handle, int width_px, int height_px,
                                         const char *text);
 
 namespace {
 
 constexpr float kYFlipTransform[3 * 3] = {1, 0, 0, 0, -1, 1, 0, 0, 1};
 
-class LynxSkityElementTextureView : public LynxSkityElementView {
+class ScumbleElementTextureView : public ScumbleElementView {
 public:
-  explicit LynxSkityElementTextureView(void *opaque) : LynxSkityElementView(opaque) {}
+  explicit ScumbleElementTextureView(void *opaque) : ScumbleElementView(opaque) {}
 
   bool IsSurfaceEnabled() override { return true; }
   lynx_surface_buffer_mode_t SurfaceBufferMode() override { return kTripleBuffer; }
@@ -51,7 +51,7 @@ private:
       return;
     }
 
-    if (DrawLynxSkityElementTextureSurface(surface, width_px_, height_px_, value().c_str())) {
+    if (DrawScumbleElementTextureSurface(surface, width_px_, height_px_, value().c_str())) {
       PresentSurface(width_px_, height_px_, kYFlipTransform, surface);
     }
   }
@@ -63,7 +63,7 @@ private:
 
 } // namespace
 
-lynx_native_view_t *CreateLynxSkityElementTextureNativeView(void *opaque) {
-  auto *view = new LynxSkityElementTextureView(opaque);
+lynx_native_view_t *CreateScumbleElementTextureNativeView(void *opaque) {
+  auto *view = new ScumbleElementTextureView(opaque);
   return view->native_view();
 }

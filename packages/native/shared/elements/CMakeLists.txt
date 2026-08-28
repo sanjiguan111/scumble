@@ -35,17 +35,17 @@ endif()
 
 list(APPEND LYNX_ELEMENT_BACKEND_SOURCES ${LYNX_ELEMENT_PLATFORM_SOURCES})
 
-add_library(LynxSkityAddonElements OBJECT
+add_library(ScumbleAddonElements OBJECT
   ${LYNX_ELEMENT_SOURCES}
   ${LYNX_ELEMENT_BACKEND_SOURCES}
 )
 
-target_include_directories(LynxSkityAddonElements PRIVATE
+target_include_directories(ScumbleAddonElements PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../.."
   "${LYNX_EXTENSION_HEADERS_DIR}/include"
 )
 
-target_compile_definitions(LynxSkityAddonElements PRIVATE
+target_compile_definitions(ScumbleAddonElements PRIVATE
   LYNX_NATIVE_ELEMENT_BACKEND_TEXTURE=${LYNX_NATIVE_ELEMENT_BACKEND_TEXTURE}
 )
 

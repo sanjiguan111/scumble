@@ -11,9 +11,9 @@
 
 #include <lynx_native_view.h>
 
-class LynxSkityElementView : public lynx::pub::LynxNativeView {
+class ScumbleElementView : public lynx::pub::LynxNativeView {
 public:
-  explicit LynxSkityElementView(void *opaque) : lynx_view_(static_cast<lynx_view_t *>(opaque)) {}
+  explicit ScumbleElementView(void *opaque) : lynx_view_(static_cast<lynx_view_t *>(opaque)) {}
 
   void OnPropertiesChanged(const lynx::pub::LynxValue &attrs,
                            const lynx::pub::LynxValue &events) override {
@@ -52,7 +52,7 @@ private:
   }
 
   lynx_view_t *lynx_view_ = nullptr;
-  std::string value_ = "x-lynx-skity";
+  std::string value_ = "x-scumble";
 };
 
-lynx_native_view_t *CreateLynxSkityElementNativeView(void *opaque);
+lynx_native_view_t *CreateScumbleElementNativeView(void *opaque);
