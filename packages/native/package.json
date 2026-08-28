@@ -57,11 +57,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RuiwenTang/lynx-skity.git",
+    "url": "git+https://github.com/RuiwenTang/scumble.git",
     "directory": "packages/native"
   },
-  "homepage": "https://ruiwentang.github.io/lynx-skity",
+  "homepage": "https://ruiwentang.github.io/scumble",
   "bugs": {
-    "url": "https://github.com/RuiwenTang/lynx-skity/issues"
+    "url": "https://github.com/RuiwenTang/scumble/issues"
   }
 }

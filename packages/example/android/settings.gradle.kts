@@ -23,5 +23,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LynxSkityDemo"
+rootProject.name = "ScumbleDemo"
 include(":app")

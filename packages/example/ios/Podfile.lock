@@ -54,9 +54,9 @@ PODS:
   - skity (1.1.0-alpha.3)
 
 DEPENDENCIES:
-  - lynx-skity (from `/Users/bytedance/Workspace/github/lynx-skity/packages/native`)
+  - lynx-skity (from `/Users/bytedance/Workspace/github/scumble/packages/native`)
   - Lynx/Framework (= 4.0.1)
-  - LynxLibraryRegistry (from `/Users/bytedance/Workspace/github/lynx-skity/packages/example/ios/generated/lynx-library`)
+  - LynxLibraryRegistry (from `/Users/bytedance/Workspace/github/scumble/packages/example/ios/generated/lynx-library`)
   - LynxService/Http (= 4.0.1)
   - LynxService/Log (= 4.0.1)
   - PrimJS/napi (= 4.0.0)
@@ -73,9 +73,9 @@ SPEC REPOS:
 
 EXTERNAL SOURCES:
   lynx-skity:
-    :path: "/Users/bytedance/Workspace/github/lynx-skity/packages/native"
+    :path: "/Users/bytedance/Workspace/github/scumble/packages/native"
   LynxLibraryRegistry:
-    :path: "/Users/bytedance/Workspace/github/lynx-skity/packages/example/ios/generated/lynx-library"
+    :path: "/Users/bytedance/Workspace/github/scumble/packages/example/ios/generated/lynx-library"
 
 SPEC CHECKSUMS:
   Lynx: 1a461f83f48104309f7e2031dabf3af84b181807
@@ -87,6 +87,6 @@ SPEC CHECKSUMS:
   PrimJS: f048efc0923e73cde312466a110516f56b70834d
   skity: 388b5acefefe3ff3be3e3ef0c1641c16361a52f8
 
-PODFILE CHECKSUM: 619fa7fc17527c446e43cab7ada193e76449aa1b
+PODFILE CHECKSUM: 391498fc23c0a2434093be5f0c84dba179d9d418
 
 COCOAPODS: 1.17.0

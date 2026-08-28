@@ -6,7 +6,7 @@
 # FlatBuffers toolchain (flatc binary + header-only runtime) is managed here via
 # the Lynx ecosystem's habitat tool, mirroring lynx-native-svg's DEPS.py. Targets
 # live under packages/native/shared/third_party so schema + generated stubs +
-# the flatbuffers runtime stay centralized in the lynx-skity package.
+# the flatbuffers runtime stay centralized in the scumble package.
 #
 # skity (the rendering engine) is provided separately by the maintainer and will
 # be added here once its source/binary location is confirmed.
@@ -40,7 +40,7 @@ deps = {
     },
     # GoogleTest — the C++ unit-test framework for the host-side tests of the
     # pure-std shared layer (line breaker etc.); consumed via
-    # tests/CMakeLists.txt, run by `pnpm --filter @lynx-skity/native
+    # tests/CMakeLists.txt, run by `pnpm --filter @scumble/native
     # test:native`. Test-only: never compiled into any shipping library.
     'packages/native/shared/third_party/googletest': {
         "type": "git",

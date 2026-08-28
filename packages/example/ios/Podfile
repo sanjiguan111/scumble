@@ -2,9 +2,9 @@ platform :ios, '13.0'
 
 plugin 'cocoapods-lynx-library'
 
-project 'LynxSkityDemo.xcodeproj'
+project 'ScumbleDemo.xcodeproj'
 
-target 'LynxSkityDemo' do
+target 'ScumbleDemo' do
   use_frameworks! :linkage => :static
 
   pod 'Lynx', '4.0.1', :subspecs => ['Framework']

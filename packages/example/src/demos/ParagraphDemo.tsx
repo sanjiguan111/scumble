@@ -123,7 +123,7 @@ export function ParagraphDemo() {
 
       <DemoSection title="maxLines 截断" caption="3 行截断 + 省略号" height={90}>
         <Paragraph x={10} y={10} width={330} fontSize={14} maxLines={3}>
-          <TextSpan text="这是一段很长的文本用来验证 maxLines 截断与省略号行为。 Lynx-skity renders text through skity's glyph pipeline with CoreText laying out the paragraph on iOS. 这段文本超过三行时应该被截断并显示省略号。" />
+          <TextSpan text="这是一段很长的文本用来验证 maxLines 截断与省略号行为。 Scumble renders text through skity's glyph pipeline with CoreText laying out the paragraph on iOS. 这段文本超过三行时应该被截断并显示省略号。" />
         </Paragraph>
       </DemoSection>
 

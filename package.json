@@ -1,5 +1,5 @@
 {
-  "name": "lynx-skity-monorepo",
+  "name": "scumble-monorepo",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -7,7 +7,7 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
-    "codegen": "pnpm --filter @lynx-skity/native codegen",
+    "codegen": "pnpm --filter @scumble/native codegen",
     "format": "prettier --write \"**/*.{ts,tsx,js,cjs,mjs,json,md}\" && node scripts/format-native.mjs",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,mjs,json,md}\" && node scripts/format-native.mjs --check"
   },
