@@ -1,6 +1,28 @@
 # @scumble/native
 
-Native Lynx library.
+The native [Lynx](https://lynxjs.org/) library behind
+[scumble](https://github.com/sanjiguan111/scumble): the intrinsic
+`<scumble-*>` elements, the `skityrt` FlatBuffer schema, the NAPI renderer
+addon, and one cross-platform C++ renderer (`ScumbleRenderer`) driving the
+skity GPU backend — Android (OpenGL ES / Vulkan) and iOS (Metal).
+
+## Installation
+
+scumble ships as three peer-linked packages:
+
+```bash
+pnpm add @scumble/react @scumble/graphics @scumble/native
+```
+
+This package is discovered through `lynx.lib.json` by
+[Lynx autolink](https://lynxjs.org/guide/autolink.html) — the host app needs
+the standard Lynx autolink setup (Ruby gem `cocoapods-lynx-library` on iOS,
+`org.lynxsdk.lynx.*` Gradle plugins on Android). See the
+[installation guide](https://sanjiguan111.github.io/scumble/guide/installation)
+for the full requirements and the scumble-specific Gradle/CocoaPods bits.
+
+Documentation for the whole library lives at
+<https://sanjiguan111.github.io/scumble>.
 
 ## Development
 
@@ -33,3 +55,7 @@ Android source builds resolve `org.lynxsdk.lynx:primjs` using the Gradle
 property `lynx.primjs.version`, defaulting to `4.+`. Set the property from
 the host root build when the App needs to pin the same PrimJS runtime version
 used by other Lynx dependencies.
+
+## License
+
+[Apache License 2.0](https://github.com/sanjiguan111/scumble/blob/develop/LICENSE)
