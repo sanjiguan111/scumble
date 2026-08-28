@@ -22,6 +22,60 @@ resolvable by bundlers only. Plain Node ESM imports are not a supported
 consumption mode.
 :::
 
+## Troubleshooting: a ~200 MB `lynxtron` download you didn't ask for
+
+Installing `@scumble/native` pulls in `@lynx-js/lynx-library-headers`
+(Lynx embedder headers + CMake helpers — genuinely needed at Android build
+time). Every published version of that package since 0.0.2 also lists
+[`@lynx-js/lynxtron`](https://www.npmjs.com/package/@lynx-js/lynxtron) —
+the **desktop** Lynx debugger — as a hard dependency, so it lands in your
+tree transitively:
+
+- its npm tarball alone is ~180 MB,
+- its postinstall downloads another ~22 MB desktop binary — which **404s on
+  Linux** (no linux release asset) and intermittently hangs on macOS.
+
+scumble never uses it: the only CMake code paths that touch lynxtron are
+no-ops unless the build target is `WIN32`, and scumble only builds for
+iOS/Android. This is an upstream packaging issue; until it is fixed, work
+around it on the host side.
+
+### The fix: one line, any package manager
+
+`@lynx-js/lynxtron@0.0.1` is the one published version without the
+downloader — a 194-byte empty shell (no `scripts`, no `dependencies`). Pin
+the whole tree to it via an override in your root `package.json`:
+
+```json
+{
+  "overrides": { "@lynx-js/lynxtron": "0.0.1" }
+}
+```
+
+```json
+{
+  "pnpm": {
+    "overrides": { "@lynx-js/lynxtron": "0.0.1" }
+  }
+}
+```
+
+Works on npm ≥ 8.3 and pnpm ≥ 8; both verified against
+`@lynx-js/lynx-library-headers@0.0.16`. (The scumble repo itself takes the
+fully offline variant of the same idea —
+[`tools/lynxtron-stub`](https://github.com/sanjiguan111/scumble/blob/develop/tools/lynxtron-stub)
+linked via `pnpm.overrides` — which you don't need: the version pin is one
+line and zero extra files.)
+
+### Alternatives
+
+- pnpm hosts who can't touch `overrides` can at least skip the postinstall
+  with `neverBuiltDependencies: ["@lynx-js/lynxtron"]` — the download and
+  the Linux 404 go away, but the ~180 MB tarball still lands in the store.
+- npm hosts on npm < 8.3 can install with `--ignore-scripts`, which skips
+  **all** lifecycle scripts — only viable if nothing else in your install
+  relies on them.
+
 ## Host app integration
 
 `@scumble/native` is not a plain JavaScript package — it is a **Lynx native

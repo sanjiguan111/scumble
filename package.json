@@ -19,5 +19,13 @@
     "prettier": "^3.3.0",
     "turbo": "^2.5.3",
     "typescript": "~5.9.3"
+  },
+  "pnpm": {
+    "neverBuiltDependencies": [
+      "@lynx-js/lynxtron"
+    ],
+    "overrides": {
+      "@lynx-js/lynxtron": "link:tools/lynxtron-stub"
+    }
   }
 }

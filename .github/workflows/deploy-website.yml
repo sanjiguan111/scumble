@@ -36,10 +36,11 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      # Scope the install to the website dependency chain only — a full
-      # workspace install would also pull the example app, whose
-      # @lynx-js/lynxtron postinstall downloads a linux binary that 404s.
-      - run: pnpm install --frozen-lockfile --filter @scumble/website...
+      # Full workspace install — @lynx-js/lynxtron (pulled in transitively by
+      # @lynx-js/lynx-library-headers) is replaced with an empty stub via
+      # pnpm.overrides in the root package.json, so its postinstall and
+      # ~200MB payload never run/land here.
+      - run: pnpm install --frozen-lockfile
 
       - run: pnpm --filter @scumble/website build
 

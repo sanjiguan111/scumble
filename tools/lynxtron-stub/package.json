@@ -1,0 +1,7 @@
+{
+  "name": "@lynx-js/lynxtron",
+  "version": "0.0.8",
+  "private": true,
+  "description": "Empty stub replacing @lynx-js/lynxtron via pnpm overrides. See README.md.",
+  "license": "MIT"
+}
