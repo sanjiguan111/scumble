@@ -1,3 +1,3 @@
 export { LynxLibraryProviderImpl } from './src/main/ets/LynxLibraryProviderImpl';
-export { LynxSkityElement } from './src/main/ets/LynxSkityElement';
+export { ScumbleElement } from './src/main/ets/ScumbleElement';
 

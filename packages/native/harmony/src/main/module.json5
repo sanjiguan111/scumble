@@ -1,6 +1,6 @@
 {
   "module": {
-    "name": "lynx_skity",
+    "name": "scumble",
     "type": "har",
     "deviceTypes": [
       "default",

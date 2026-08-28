@@ -1,8 +1,8 @@
 import { Behavior, LynxLibraryProvider, LynxLibraryRegistry } from '@lynx/lynx';
-import { LynxSkityElement } from './LynxSkityElement';
+import { ScumbleElement } from './ScumbleElement';
 
 export class LynxLibraryProviderImpl implements LynxLibraryProvider {
   register(registry: LynxLibraryRegistry): void {
-    registry.registerBehavior("x-lynx-skity", new Behavior(LynxSkityElement));
+    registry.registerBehavior("x-scumble", new Behavior(ScumbleElement));
   }
 }

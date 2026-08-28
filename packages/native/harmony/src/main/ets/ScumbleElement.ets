@@ -1,6 +1,6 @@
 import { UIBase } from '@lynx/lynx';
 
-export class LynxSkityElement extends UIBase {
+export class ScumbleElement extends UIBase {
   layout(
     _x: number,
     _y: number,
