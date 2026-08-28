@@ -1,4 +1,4 @@
-package com.skity.example
+package com.scumble.example
 
 import android.app.Activity
 import android.os.Bundle
@@ -7,7 +7,7 @@ import android.os.Looper
 import com.lynx.jsbridge.RuntimeLifecycleListener
 import com.lynx.tasm.LynxView
 import com.lynx.tasm.LynxViewBuilder
-import com.skity.example.modules.LynxNodeAPIModule
+import com.scumble.example.modules.LynxNodeAPIModule
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit

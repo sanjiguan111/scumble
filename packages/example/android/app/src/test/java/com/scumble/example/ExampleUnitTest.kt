@@ -1,4 +1,4 @@
-package com.skity.example
+package com.scumble.example
 
 import org.junit.Assert
 import org.junit.Test

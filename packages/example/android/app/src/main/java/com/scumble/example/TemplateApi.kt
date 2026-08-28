@@ -1,4 +1,4 @@
-package com.skity.example
+package com.scumble.example
 
 import okhttp3.RequestBody
 import okhttp3.ResponseBody

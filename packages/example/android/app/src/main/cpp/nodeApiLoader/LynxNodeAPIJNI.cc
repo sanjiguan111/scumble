@@ -2,13 +2,13 @@
 // LICENSE file in the root directory of this source tree.
 //
 // Derived from LynxExplorer's explorer/cpp/LynxNodeAPIJNI.cc. JNI bridge for
-// com.skity.example.LynxNodeAPIModule#nativeRequireNodeAddon.
+// com.scumble.example.LynxNodeAPIModule#nativeRequireNodeAddon.
 #include <jni.h>
 #include <string>
 
 #include "LynxNodeAPI.h"
 
-extern "C" JNIEXPORT void JNICALL Java_com_skity_example_LynxNodeAPIModule_nativeRequireNodeAddon(
+extern "C" JNIEXPORT void JNICALL Java_com_scumble_example_LynxNodeAPIModule_nativeRequireNodeAddon(
     JNIEnv *env, jobject /*thiz*/, jlong napiEnv, jstring addonName) {
   if (napiEnv == 0 || addonName == nullptr) return;
 

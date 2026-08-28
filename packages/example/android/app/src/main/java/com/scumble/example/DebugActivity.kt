@@ -1,4 +1,4 @@
-package com.skity.example
+package com.scumble.example
 
 import android.app.Activity
 import android.os.Bundle

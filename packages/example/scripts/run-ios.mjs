@@ -20,7 +20,7 @@ const IOS_DIR = join(EXAMPLE_DIR, "ios");
 const WORKSPACE = "ScumbleDemo.xcworkspace";
 const SCHEME = "ScumbleDemo";
 const CONFIGURATION = "Debug";
-const BUNDLE_ID = "com.skity.example";
+const BUNDLE_ID = "com.scumble.example";
 const BUNDLE_URL = "http://localhost:3000/main.lynx.bundle";
 
 if (process.platform !== "darwin") {

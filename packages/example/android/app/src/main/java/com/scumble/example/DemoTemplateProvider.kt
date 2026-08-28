@@ -1,4 +1,4 @@
-package com.skity.example
+package com.scumble.example
 
 import android.content.Context
 import com.lynx.tasm.provider.AbsTemplateProvider

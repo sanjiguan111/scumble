@@ -7,7 +7,7 @@
 // "LynxNodeAPI"; JS calls requireNodeAddon("<addon>") to trigger the native
 // loader (liblynx_napi_addon_loader.so) which dlopen's the component's addon
 // and publishes its exports to globalThis.__lynx_node_addon_exports__.
-package com.skity.example.modules;
+package com.scumble.example.modules;
 
 import android.util.Log;
 import com.lynx.jsbridge.LynxContextModule;

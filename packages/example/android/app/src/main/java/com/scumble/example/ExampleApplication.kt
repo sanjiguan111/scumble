@@ -1,4 +1,4 @@
-package com.skity.example
+package com.scumble.example
 
 import android.app.Application
 import android.content.Intent
@@ -15,10 +15,10 @@ import com.lynx.service.image.LynxImageService
 import com.lynx.service.log.LynxLogService
 import com.lynx.tasm.LynxEnv
 import com.lynx.tasm.service.LynxServiceCenter
-import com.skity.example.modules.LynxNodeAPIModule
-import com.skity.example.modules.SimpleModule
-import com.skity.graphics.SkityInit
-import com.skity.graphics.SkityNative
+import com.scumble.example.modules.LynxNodeAPIModule
+import com.scumble.example.modules.SimpleModule
+import com.scumble.graphics.ScumbleInit
+import com.scumble.graphics.ScumbleNative
 
 class ExampleApplication : Application() {
     override fun onCreate() {
@@ -66,9 +66,9 @@ class ExampleApplication : Application() {
         // global skity init, in one place. Backend flip for A/B smoothness
         // testing: GLES (default) vs VULKAN (falls back to GLES when the
         // device can't probe a usable Vulkan context).
-        SkityInit.init(LynxEnv.inst(), SkityNative.BACKEND_VULKAN)
-        // SkityInit.init(LynxEnv.inst()) // GLES
-        // Vulkan preferred per user request 2026-08-25; SkityInit falls back
+        ScumbleInit.init(LynxEnv.inst(), ScumbleNative.BACKEND_VULKAN)
+        // ScumbleInit.init(LynxEnv.inst()) // GLES
+        // Vulkan preferred per user request 2026-08-25; ScumbleInit falls back
         // to GLES when the device can't probe a usable Vulkan context (this
         // MI 6 logs image-alloc failures under Vulkan but runs).
         // Dev-mode switches — OFF for smoothness A/B (debug bridge, devtool

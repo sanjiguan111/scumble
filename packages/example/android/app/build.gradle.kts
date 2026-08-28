@@ -18,11 +18,11 @@ val extractPrimjsNativeLibraries by tasks.registering(Sync::class) {
 }
 
 android {
-    namespace = "com.skity.example"
+    namespace = "com.scumble.example"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.skity.example"
+        applicationId = "com.scumble.example"
         minSdk = 29
         targetSdk = 36
         versionCode = 1

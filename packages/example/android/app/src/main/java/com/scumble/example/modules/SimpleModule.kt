@@ -1,4 +1,4 @@
-package com.skity.example.modules
+package com.scumble.example.modules
 
 import android.content.Context
 import com.lynx.jsbridge.LynxMethod

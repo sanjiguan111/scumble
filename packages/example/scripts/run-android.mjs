@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXAMPLE_DIR = join(__dirname, "..");
 const ANDROID_DIR = join(EXAMPLE_DIR, "android");
-const APP_COMPONENT = "com.skity.example/com.skity.example.MainActivity";
+const APP_COMPONENT = "com.scumble.example/com.scumble.example.MainActivity";
 const BUNDLE_URL = "http://localhost:3000/main.lynx.bundle";
 const PORTS = [3000, 3001];
 const IS_WIN = process.platform === "win32";
