@@ -119,7 +119,7 @@ below, taken from the [example app](https://github.com/sanjiguan111/scumble/tree
 
 Install the `cocoapods-lynx-library` gem, then declare it in the Podfile.
 The example's `Podfile` (see
-[`packages/example/ios/Podfile`](https://github.com/sanjiguan111/scumble/blob/main/packages/example/ios/Podfile)):
+[`packages/example/ios/Podfile`](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/ios/Podfile)):
 
 ```ruby
 platform :ios, '13.0'
@@ -186,7 +186,7 @@ android {
 (`libc++_shared.so` and the primjs `.so` files may need the same treatment if
 the host doesn't configure them already — those duplicates come from the Lynx
 toolchain, not from skity. The example app shows a
-[full build file](https://github.com/sanjiguan111/scumble/blob/main/packages/example/android/app/build.gradle.kts)
+[full build file](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/android/app/build.gradle.kts)
 including the primjs AAR extraction and CMake arguments the Lynx toolchain
 expects.)
 

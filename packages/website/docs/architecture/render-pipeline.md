@@ -160,10 +160,10 @@ Tables are LRU-capped; overflow degrades to the uncached path, never errors.
 
 ## Further reading
 
-- [RENDER_ARCHITECTURE.md §1–6](https://github.com/sanjiguan111/scumble/blob/main/packages/native/RENDER_ARCHITECTURE.md)
+- [RENDER_ARCHITECTURE.md §1–6](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/RENDER_ARCHITECTURE.md)
   — target architecture, responsibility split, binary serialization, viewport
   semantics
-- [RENDER_ARCHITECTURE.md §11–15](https://github.com/sanjiguan111/scumble/blob/main/packages/native/RENDER_ARCHITECTURE.md)
+- [RENDER_ARCHITECTURE.md §11–15](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/RENDER_ARCHITECTURE.md)
   — retained tree, command stream, cross-thread dispatch, render build cache
 - [Canvas & viewPort](/guide/canvas) — the user-facing viewport API
 - [Animation engine](/architecture/animation-engine) — how ticks avoid

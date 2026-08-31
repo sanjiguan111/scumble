@@ -71,7 +71,7 @@ for scene-wide entrance effects. The spec is the same as on any shape, see
 
 ## Further reading
 
-- [ViewportDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/ViewportDemo.tsx)
+- [ViewportDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/ViewportDemo.tsx)
   — the three-viewport comparison, live
 - [Getting started](/guide/getting-started) — your first animated canvas
 - [Examples](/examples/) — all demo scenes

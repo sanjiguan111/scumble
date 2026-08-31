@@ -10,7 +10,7 @@ export default defineConfig({
   lang: "en-US",
   title: "scumble",
   description:
-    "A declarative 2D graphics library for Lynx, powered by the skity GPU backend (Android OpenGL ES / Vulkan, iOS Metal). Native animation engine with zero JS per frame.",
+    "Declarative GPU drawing for Lynx with a react-native-skia-style component API, powered by the skity GPU backend (Android OpenGL ES / Vulkan, iOS Metal). Native animation engine with zero JS per frame.",
   base: "/scumble/",
   // Relative to docs/ → packages/website/dist, matching turbo's dist/** outputs.
   outDir: "../dist",
@@ -27,7 +27,7 @@ export default defineConfig({
       {
         property: "og:description",
         content:
-          "A declarative 2D graphics library for Lynx, powered by the skity GPU backend. Native animation engine with zero JS per frame.",
+          "Declarative GPU drawing for Lynx with a react-native-skia-style component API, on the skity GPU backend. Native animation engine with zero JS per frame.",
       },
     ],
     [

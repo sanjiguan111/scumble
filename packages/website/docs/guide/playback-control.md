@@ -133,6 +133,6 @@ behavior), and the first controlled entry's handle steers the node.
 
 ## Further reading
 
-- [PlaybackDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/PlaybackDemo.tsx)
+- [PlaybackDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/PlaybackDemo.tsx)
   — pause/seek/cancel buttons, the finish badge, and cancel-to-base, live
 - [Animation](/guide/animation) — the track spec, keyframes, and easing

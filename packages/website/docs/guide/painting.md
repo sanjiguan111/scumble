@@ -165,9 +165,9 @@ a `Group` like the other paint attributes:
 
 ## Further reading
 
-- [PaintDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/PaintDemo.tsx)
+- [PaintDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/PaintDemo.tsx)
   and
-  [BlendDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/BlendDemo.tsx)
+  [BlendDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/BlendDemo.tsx)
   — cap/join/dash/fillRule and the blend-mode gallery, live
 - [Gradients](/guide/gradients) — shader children as fill or stroke
 - [Filters](/guide/filters) — blur, shadows, and color filters per paint

@@ -119,9 +119,9 @@ subtree.
 
 ## Further reading
 
-- [TransformDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/TransformDemo.tsx)
+- [TransformDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/TransformDemo.tsx)
   and
-  [ClipDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/ClipDemo.tsx)
+  [ClipDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/ClipDemo.tsx)
   — every transform form and the clip gallery, live
 - [Painting](/guide/painting) — what `Group` inherits into its subtree
 - [Path2D](/guide/path2d) — building clip paths command-style

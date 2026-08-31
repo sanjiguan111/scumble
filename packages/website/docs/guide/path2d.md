@@ -146,8 +146,8 @@ pipeline as any path:
 
 ## Further reading
 
-- [PathOpsDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/PathOpsDemo.tsx)
+- [PathOpsDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/PathOpsDemo.tsx)
   — the four ops, chains, right nesting, trimmed strokes, live
-- [PathsDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/PathsDemo.tsx)
+- [PathsDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/PathsDemo.tsx)
   — Path2D building next to equivalent `d` strings
 - [Shapes](/guide/shapes) — the `d` string command set and path trimming

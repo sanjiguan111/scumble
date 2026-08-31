@@ -187,11 +187,11 @@ Known limitations: spring easing and animating variable-length data (the
 
 ## Further reading
 
-- [ANIMATION_DESIGN.md](https://github.com/sanjiguan111/scumble/blob/main/packages/native/ANIMATION_DESIGN.md)
+- [ANIMATION_DESIGN.md](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/ANIMATION_DESIGN.md)
   — the engine design: overlay model, conflict semantics, frame driver
-- [ANIMATION_CONTROL_DESIGN.md](https://github.com/sanjiguan111/scumble/blob/main/packages/native/ANIMATION_CONTROL_DESIGN.md)
+- [ANIMATION_CONTROL_DESIGN.md](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/ANIMATION_CONTROL_DESIGN.md)
   — playback control: handle addressing, the invoke lane, WAAPI semantics
-- [RENDER_ARCHITECTURE.md §14](https://github.com/sanjiguan111/scumble/blob/main/packages/native/RENDER_ARCHITECTURE.md)
+- [RENDER_ARCHITECTURE.md §14](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/RENDER_ARCHITECTURE.md)
   — as-built notes for the animation command, overlay, and drivers
 - [Animation](/guide/animation) — the `animate` prop from the user side
 - [Playback control](/guide/playback-control) — controllers from the user side

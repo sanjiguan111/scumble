@@ -152,10 +152,10 @@ engine later is a backend-level change, not an API change.
 
 ## Further reading
 
-- [TEXT_PARAGRAPH_DESIGN.md](https://github.com/sanjiguan111/scumble/blob/main/TEXT_PARAGRAPH_DESIGN.md)
+- [TEXT_PARAGRAPH_DESIGN.md](https://github.com/sanjiguan111/scumble/blob/develop/TEXT_PARAGRAPH_DESIGN.md)
   — the pre-implementation design: constraints, layered design, backend
   rationale, the replacement seam
-- [RENDER_ARCHITECTURE.md §13](https://github.com/sanjiguan111/scumble/blob/main/packages/native/RENDER_ARCHITECTURE.md)
+- [RENDER_ARCHITECTURE.md §13](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/RENDER_ARCHITECTURE.md)
   — as-built notes: layout timing, glyph-run channel, custom fonts, BiDi
 - [Text](/guide/text) — the `<Paragraph>` API from the user side
 - [Paragraph & Text API](/api/paragraph-and-text) — props reference

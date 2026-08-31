@@ -1,8 +1,11 @@
 # Introduction
 
-scumble is a 2D graphics library for [Lynx](https://lynxjs.org/), powered by the
+scumble brings [react-native-skia](https://github.com/Shopify/react-native-skia)-style
+drawing to the [Lynx](https://lynxjs.org/) ecosystem: the declarative component
+model of RN-Skia — `<Canvas>`, shapes, `<Paint>` / gradient / filter children,
+`Path2D`, images, paragraphs — rebuilt for Lynx and powered by the
 **[skity](https://github.com/lynx-family/skity)** GPU backend (Android OpenGL ES /
-Vulkan, iOS Metal). It brings a declarative drawing API to Lynx:
+Vulkan, iOS Metal):
 
 ```tsx
 <Canvas style={{ width: "100%", height: 200 }}>
@@ -17,6 +20,17 @@ renderer draws it on the GPU.
 
 ## Why scumble
 
+- **react-native-skia's API, natively on Lynx** — the component names, props and
+  paint semantics track [@shopify/react-native-skia](https://github.com/Shopify/react-native-skia)
+  (baseline 2.11.0); see [FEATURE_PARITY.md](https://github.com/sanjiguan111/scumble/blob/develop/FEATURE_PARITY.md)
+  for the feature-by-feature comparison.
+- **Lean: a tenth of the code, ~95% of the surface** — skity is a purpose-built
+  GPU 2D library: ~90K lines of C++, roughly a tenth of Skia's million-line
+  codebase, with none of its extraneous surfaces (PDF/SVG backends, image
+  codecs, JSI bindings). Release builds of scumble's entire native side strip
+  to ~12 MB across the four Android ABIs — ~3.1 MB on an arm64 device — against
+  the [41.3 MB APK increase (~4 MB per device) react-native-skia documents](https://shopify.github.io/react-native-skia/docs/getting-started/bundle-size/) —
+  while the parity matrix stands at 90–95%.
 - **Declarative React API** — 11 shape components (`Circle`, `Rect`, `RRect`,
   `Ellipse`, `Line`, `Polyline`, `Polygon`, `Points`, `Path`, `Image`,
   `Paragraph`) plus `Group` with paint inheritance and declarative clips.
@@ -41,6 +55,39 @@ renderer draws it on the GPU.
 - **Cross-platform** — one C++ renderer (`ScumbleRenderer`) shared by Android
   and iOS.
 
+## Coming from react-native-skia
+
+If you have drawn with RN-Skia in React Native, you already know scumble's
+surface API. An RN-Skia scene ports to Lynx mostly by changing the import:
+same `<Canvas>` root, same shape components, same declarative
+`<Paint>`/gradient/filter children, same Canvas-style `Path2D` (including lazy
+`Path2D.op` boolean ops), same `<Image>`/`useImage` and
+`<Paragraph>`/`<TextSpan>` vocabulary. Coverage against the RN-Skia 2.11.0
+baseline: geometry ~95%, paint ~90%, text ~85% — the full matrix lives in
+[FEATURE_PARITY.md](https://github.com/sanjiguan111/scumble/blob/develop/FEATURE_PARITY.md).
+
+The differences that matter, all rooted in the platform:
+
+- **skity, not Skia — and much the smaller for it.** Rendering rides the Lynx
+  family's own GPU library — Android OpenGL ES / Vulkan, iOS Metal — a
+  purpose-built 2D backend at roughly a tenth of Skia's codebase, so the whole
+  package stays far lighter than an RN-Skia integration at ~95% geometry
+  parity. Consequence of the leaner backend: no SkSL
+  `RuntimeEffect`/procedural shaders, no `Vertices`/mesh drawing, no
+  `BackdropFilter` (the canvas is a standalone surface in Lynx's composition
+  model).
+- **No JSI imperative surface.** The public Lynx Android SDK ships with NAPI
+  compiled off, so there is no `Skia.Image.MakeFromEncoded`-style object API.
+  Everything declarative travels as a FlatBuffer command stream; everything
+  else (`Path2D` geometry, boolean ops) is evaluated natively at render time.
+- **Animation is built in.** No reanimated pairing — `createAnimation()`
+  tracks ride the command stream once and the render thread interpolates per
+  vsync (`controller.{pause, seekTo, onFinish, …}` for playback). See
+  [Animation](/guide/animation).
+- **Small semantic deltas.** `useImage` returns the handle immediately (no
+  null-while-loading phase); `Canvas viewPort` gives you an SVG `viewBox`
+  logical space RN-Skia doesn't offer.
+
 ## Packages
 
 | Package             | What it is                                                                                                                             |
@@ -61,7 +108,7 @@ Rendering, text, gradients/filters, and the animation engine (including
 playback control) are implemented and verified on both platforms — host-side
 unit tests (native C++ / graphics / react) plus on-device demos. Known
 architecture limits and the remaining roadmap live in
-[`FEATURE_PARITY.md`](https://github.com/sanjiguan111/scumble/blob/main/FEATURE_PARITY.md)
+[`FEATURE_PARITY.md`](https://github.com/sanjiguan111/scumble/blob/develop/FEATURE_PARITY.md)
 on GitHub.
 
 ## Next steps

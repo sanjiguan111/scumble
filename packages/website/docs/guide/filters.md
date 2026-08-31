@@ -107,7 +107,7 @@ other paint attributes.
 
 ## Further reading
 
-- [FiltersDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/FiltersDemo.tsx)
+- [FiltersDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/FiltersDemo.tsx)
   — every filter and the stroke-only variant, live
 - [Painting](/guide/painting) — the `<Paint>` override and inheritance
 - [Text](/guide/text) — a `ColorMatrix` over a whole paragraph

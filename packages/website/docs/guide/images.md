@@ -90,7 +90,7 @@ not — the pixels are the content.
 
 ## Further reading
 
-- [ImageDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/ImageDemo.tsx)
+- [ImageDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/ImageDemo.tsx)
   — data URI vs remote, the seven-value fit gallery, sampling comparison,
   animated destination, live
 - [Gradients](/guide/gradients) — `<ImageShader>` for bitmap fills on shapes

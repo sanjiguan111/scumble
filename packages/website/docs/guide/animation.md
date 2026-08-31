@@ -188,7 +188,7 @@ For imperative control — pause, seek, finish callbacks — see
 
 ## Further reading
 
-- [AnimationDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/AnimationDemo.tsx)
+- [AnimationDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/AnimationDemo.tsx)
   — trim loop, multi-track breathing circle, pivoted transforms, fill
   forwards, live
 - [Playback control](/guide/playback-control) — `createAnimation().controller`

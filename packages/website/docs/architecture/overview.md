@@ -148,7 +148,7 @@ so producer and consumer never overlap. The
 
 ## Further reading
 
-- [RENDER_ARCHITECTURE.md](https://github.com/sanjiguan111/scumble/blob/main/packages/native/RENDER_ARCHITECTURE.md)
+- [RENDER_ARCHITECTURE.md](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/RENDER_ARCHITECTURE.md)
   — the full internal design document (layering, serialization, retained tree,
   command stream)
 - [Render pipeline](/architecture/render-pipeline) — one prop change, end to end

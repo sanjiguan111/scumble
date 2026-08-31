@@ -139,7 +139,7 @@ place buttons outside the `<Canvas>`, as the demo app does.
 
 ## Further reading
 
-- [ParagraphDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/ParagraphDemo.tsx)
+- [ParagraphDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/ParagraphDemo.tsx)
   — spans, alignment, custom/remote fonts, truncation, `onLayout`, live
-- [BiDiDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/BiDiDemo.tsx)
+- [BiDiDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/BiDiDemo.tsx)
   — RTL, auto detection, mixed runs, direction × alignment

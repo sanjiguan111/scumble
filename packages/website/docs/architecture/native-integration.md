@@ -10,7 +10,7 @@ that.
 
 A Lynx library is an npm package that the host app's Lynx runtime discovers
 and integrates automatically (autolink). The manifest is
-[`lynx.lib.json`](https://github.com/sanjiguan111/scumble/blob/main/packages/native/lynx.lib.json),
+[`lynx.lib.json`](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/lynx.lib.json),
 which declares each platform:
 
 | Platform | Entry                                                     | What it points at                                                                                                                                                           |
@@ -119,7 +119,7 @@ Two schema conventions worth knowing when extending it:
 ## Habitat dependencies
 
 Native build dependencies are managed by
-[`DEPS.py`](https://github.com/sanjiguan111/scumble/blob/main/DEPS.py) with the
+[`DEPS.py`](https://github.com/sanjiguan111/scumble/blob/develop/DEPS.py) with the
 Lynx ecosystem's **habitat** tool (`tools/hab sync` on Unix, `tools/hab.ps1`
 on Windows). It fetches, into `packages/native/shared/third_party/`
 (git-ignored):
@@ -187,12 +187,12 @@ Platform notes:
 
 ## Further reading
 
-- [`packages/native/README.md`](https://github.com/sanjiguan111/scumble/blob/main/packages/native/README.md)
+- [`packages/native/README.md`](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/README.md)
   — the package's own contributor notes (codegen, NAPI module)
-- [`lynx.lib.json`](https://github.com/sanjiguan111/scumble/blob/main/packages/native/lynx.lib.json)
-  and [`DEPS.py`](https://github.com/sanjiguan111/scumble/blob/main/DEPS.py) —
+- [`lynx.lib.json`](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/lynx.lib.json)
+  and [`DEPS.py`](https://github.com/sanjiguan111/scumble/blob/develop/DEPS.py) —
   the autolink manifest and habitat dependency list
-- [RENDER_ARCHITECTURE.md](https://github.com/sanjiguan111/scumble/blob/main/packages/native/RENDER_ARCHITECTURE.md)
+- [RENDER_ARCHITECTURE.md](https://github.com/sanjiguan111/scumble/blob/develop/packages/native/RENDER_ARCHITECTURE.md)
   — key file index and the full design
 - [Architecture overview](/architecture/overview) — how the layers fit
   together

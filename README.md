@@ -1,16 +1,19 @@
 # scumble
 
 [![npm](https://img.shields.io/npm/v/@scumble/react?label=%40scumble%2Freact)](https://www.npmjs.com/package/@scumble/react)
+[![API style: react-native-skia](https://img.shields.io/badge/API_style-react--native--skia-f4801f.svg)](https://github.com/Shopify/react-native-skia)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-5b8cff.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-2dd4bf.svg)](#architecture)
 [![Docs](https://img.shields.io/badge/docs-sanjiguan111.github.io%2Fscumble-7683b3.svg)](https://sanjiguan111.github.io/scumble)
 [![Deploy website](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml/badge.svg)](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml)
 
-A 2D graphics library for [Lynx](https://lynxjs.org/), powered by the
-**[skity](https://github.com/lynx-family/skity)** GPU
-backend (Android OpenGL ES / Vulkan, iOS Metal). It brings a declarative drawing
-API to Lynx, with the native side reduced to a thin memcpy over a FlatBuffer
-render tree:
+**scumble brings [react-native-skia](https://github.com/Shopify/react-native-skia)-style
+drawing to the [Lynx](https://lynxjs.org/) ecosystem.** The component model you
+know from React Native — `<Canvas>`, declarative shapes, `<Paint>` / gradient /
+filter children, `Path2D`, image and paragraph components — rebuilt for Lynx on
+the **[skity](https://github.com/lynx-family/skity)** GPU backend (Android
+OpenGL ES / Vulkan, iOS Metal), with the native side reduced to a thin memcpy
+over a FlatBuffer render tree:
 
 ```tsx
 import { Canvas, Rect, createAnimation } from "@scumble/react";
@@ -34,6 +37,11 @@ const spin = createAnimation({
 
 ## Features
 
+The API tracks [@shopify/react-native-skia](https://github.com/Shopify/react-native-skia)
+(baseline 2.11.0): same component names, same props, same semantics where the
+backends agree. Feature-by-feature status lives in
+[`FEATURE_PARITY.md`](FEATURE_PARITY.md) — geometry ~95%, paint ~90%, text ~85%.
+
 - **Declarative React API** — 11 shape components (`Circle`, `Rect`, `RRect`, `Ellipse`,
   `Line`, `Polyline`, `Polygon`, `Points`, `Path`, `Image`, `Paragraph`) plus `Group`
   with paint inheritance and declarative clips.
@@ -53,6 +61,13 @@ cancel, onFinish}`.
   BiDi/RTL (`direction` prop, SheenBidi + fallback font runs).
 - **GPU rendering** — skity backend: Android (OpenGL ES + Vulkan) and iOS (Metal),
   driven by one shared C++ renderer over a retained tree + FlatBuffer command stream.
+- **Lean: a tenth of the code, ~95% of the surface** — skity is a purpose-built
+  GPU 2D library (~90K lines of C++, roughly a tenth of Skia's million-line
+  codebase; no PDF/SVG backends, no image codecs). Release builds of scumble's
+  entire native side strip to ~12 MB across the four Android ABIs — ~3.1 MB on
+  an arm64 device — against the
+  [41.3 MB APK increase (~4 MB per device) react-native-skia documents](https://shopify.github.io/react-native-skia/docs/getting-started/bundle-size/)
+  — while the parity matrix stands at 90–95%.
 - **Friendly values, parsed in JS** — CSS color strings, paint enums, CSS `transform`
   lists, and SVG path `d` strings are all resolved in JS; **the native side never
   parses strings.**

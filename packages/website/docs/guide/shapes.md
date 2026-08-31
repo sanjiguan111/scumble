@@ -140,9 +140,9 @@ path ops.
 
 ## Further reading
 
-- [ShapesDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/ShapesDemo.tsx)
+- [ShapesDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/ShapesDemo.tsx)
   and
-  [PathsDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/PathsDemo.tsx)
+  [PathsDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/PathsDemo.tsx)
   — the full galleries, live
 - [Painting](/guide/painting) — color, stroke attributes, dash, blend modes
 - [Path2D](/guide/path2d) — the imperative builder and boolean ops

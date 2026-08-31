@@ -135,12 +135,12 @@ const texture = useImage("data:image/png;base64,…");
 
 The shader follows the geometry: put one on a `Circle` or `Path` and the
 texture fills that shape. See
-[ImageShaderDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/ImageShaderDemo.tsx)
+[ImageShaderDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/ImageShaderDemo.tsx)
 for decal/cover, tiling, non-rect geometry, and textured strokes.
 
 ## Further reading
 
-- [GradientDemo.tsx](https://github.com/sanjiguan111/scumble/blob/main/packages/example/src/demos/GradientDemo.tsx)
+- [GradientDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/GradientDemo.tsx)
   — every gradient type, spread modes, and gradient strokes, live
 - [Painting](/guide/painting) — the `<Paint>` override and style routing
 - [Images](/guide/images) — `<Image>`, `useImage()`, fit and sampling
