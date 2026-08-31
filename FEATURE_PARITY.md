@@ -36,12 +36,12 @@
 
 ## C. Transform / clip / layering
 
-| Capability                                               | Status                                                                                                                                                                                                                                                                                                                                                                                                   |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| translate / scale / rotate / matrix / skew               | ✅                                                                                                                                                                                                                                                                                                                                                                                                       |
-| **Group clip (clipRect / clipPath / RRect)**             | ✅ RN-Skia-style declarative children `<ClipRect>`/`<ClipRRect>`/`<ClipPath>` (`op: intersect\|difference`, combined in order); transported as a base64 ClipList on a new `SetClip` command, applied after the group's transform. ClipRRect radii: uniform / per-axis only (no per-corner)                                                                                                               |
-| **Group paint inheritance** (color / opacity to subtree) | ✅ Render-time resolution via `RetainedComputedStyle.explicit_paint` (the SetPaint dirty bits): unset fields fall back to the nearest ancestor; opacity multiplies. Inherits fill/stroke paint (color + gradient), stroke attrs, dash, fillRule. NOT paint-inherited: geometry, display/visibility (transform is not a paint attribute, but its matrix composes geometrically down the tree — cascading) |
-| **Exact group opacity (saveLayer)**                      | ⚠️ Approximate — folded into each paint's color alpha; exact for leaves, lossy for overlapping groups                                                                                                                                                                                                                                                                                                    |
+| Capability                                               | Status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| translate / scale / rotate / matrix / skew               | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **Group clip (clipRect / clipPath / RRect)**             | ✅ RN-Skia-style declarative children `<ClipRect>`/`<ClipRRect>`/`<ClipPath>` (`op: intersect\|difference`, combined in order); transported as a base64 ClipList on a new `SetClip` command, applied after the group's transform. ClipRRect radii: uniform / per-axis only (no per-corner)                                                                                                                                                                                              |
+| **Group paint inheritance** (color / opacity to subtree) | ✅ Render-time resolution via `RetainedComputedStyle.explicit_paint` (the SetPaint dirty bits): unset fields fall back to the nearest ancestor; opacity multiplies. Inherits fill/stroke paint (color + gradient), stroke attrs, dash, fillRule. NOT paint-inherited: geometry, display/visibility (transform is not a paint attribute, but its matrix composes geometrically down the tree — cascading)                                                                                |
+| **Exact group opacity (saveLayer)**                      | ✅ A group whose own opacity < 1 composites its subtree through a skity `saveLayer` — children mix inside the offscreen layer first, then the whole layer fades in (RN-Skia/SVG semantics). Leaves still fold alpha into their paint (exact, zero cost). Layer bounds = device surface inverse-mapped into the group's local space, guarded against empty/non-finite/oversized extents (fallback = folded lane). Kill switch `SetExactGroupOpacityEnabled` (RENDER_ARCHITECTURE.md §16) |
 
 ## D. Path advanced
 
@@ -67,7 +67,7 @@
 
 ## F. Gap taxonomy vs RN-Skia (2026-08-21)
 
-Overall: geometry ~95%, paint ~90%, text ~85%. What remains falls into four
+Overall: geometry ~95%, paint ~95%, text ~85%. What remains falls into four
 buckets by ROOT CAUSE — the bucket decides whether a gap is schedulable work
 at all.
 
@@ -81,9 +81,13 @@ at all.
    inheritance attribute". The real gap was the React API surface — shapes
    had no `transform` prop and op arrays weren't accepted — both fixed
    2026-08-21 (`GraphicProps.transform`, `TransformProp` array composition).
-2. **Group opacity is approximate** — folded into each paint's color alpha
-   (exact for leaves, lossy where a group's children overlap); RN-Skia does a
-   saveLayer offscreen composite.
+2. ~~**Group opacity is approximate**~~ — **fixed (2026-08-31)**: a group
+   whose own opacity < 1 composites through a skity `saveLayer`
+   (`DrawNode` keeps the node's factor out of `eff`; it rides the layer
+   composite — every authored factor in a nesting chain is applied exactly
+   once). The old folding stays as the leaf fast path and the fallback when
+   layer bounds can't be computed (degenerate transform / oversized extents);
+   see RENDER_ARCHITECTURE.md §16.
 3. **Single paint slot** — blendMode/opacity are shared by the fill and
    stroke paints; RN-Skia keeps them independent, and multiple `<Paint>`
    children draw multiple passes (we have a fixed fill+stroke double pass).
@@ -270,8 +274,11 @@ Stage 2 are unaffected either way.
       track via the D2 hooks); hand-off to a spring is a fresh
       SetAnimation on the same handle. Rides the exact invoke plumbing
       11c built (handle map, UI method, threading).
-12. **Multi-`<Paint>` multi-pass + exact group opacity** (F.1.2/F.1.3) —
-    needs a saveLayer-equivalent; verify skity exposes one first.
+12. **Multi-`<Paint>` multi-pass** (F.1.3) — multiple `<Paint>` children
+    drawing multiple passes with independent fill/stroke paints. The exact
+    group-opacity half of the original item shipped 2026-08-31 via the
+    saveLayer lane (F.1.2, RENDER_ARCHITECTURE.md §16), which this can build
+    on.
 13. **Small-items bundle** (F.1.4 + justification) — per-corner radii,
     antiAlias toggle, DropShadow variants, paragraph justification.
 14. **Explicitly out of scope** — BackdropFilter, Vertices/Atlas/Patch,

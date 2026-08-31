@@ -11,6 +11,7 @@
 #include "ScumbleRenderer.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <string>
@@ -41,6 +42,10 @@ namespace {
 // switch or allocation failure) — every consumer falls back to the uncached
 // build path.
 thread_local RenderCache *t_frame_cache = nullptr;
+
+// Kill switch for the exact-group-opacity saveLayer lane (default ON). See
+// SetExactGroupOpacityEnabled at the bottom of this file.
+std::atomic<bool> g_exact_group_opacity{true};
 
 // Intern-or-build: lookup by content hash (collision-verified), call `build`
 // only on a miss and insert the product. Hits/misses feed the stats counters.
@@ -1221,13 +1226,56 @@ void ApplyClipIfAny(const RetainedNode *node, Canvas *canvas) {
   }
 }
 
+// ---- Exact group opacity: saveLayer lane (FEATURE_PARITY.md F.1.2) ----
+// skity's GenLayer silently degrades to a plain Save()+ClipRect when the
+// requested layer texture would be non-finite or exceed the backend's max
+// texture size. In the layer lane this node's opacity factor is already kept
+// OUT of the child paints, so a silent degrade would DROP group opacity
+// entirely (worse than the folded approximation) — pre-validate everything we
+// can here and fall back to the folded lane instead.
+constexpr float kMaxLayerExtentPx = 4096.f;
+
+// Layer bounds = the whole device surface inverse-mapped into the group's
+// local space (the current total matrix already carries this node's
+// transform). Every pixel a child can visibly reach lies inside it — the
+// surface bounds the device rect and MapRect's conservative bbox absorbs
+// rotation — so it can never cull visible content, only hand skity an
+// allocation target it then intersects with the live clip. Empty or infinite
+// rects are NEVER passed: skity's QuickReject path would blank the subtree.
+bool ComputeOpacityLayerBounds(Canvas *canvas, float canvasW, float canvasH, Rect *out) {
+  if (!(canvasW > 0.f) || !(canvasH > 0.f)) return false;
+  Matrix total = canvas->GetTotalMatrix();
+  Matrix inv;
+  if (!total.Invert(&inv)) return false; // degenerate transform → folded lane
+  Rect local = inv.MapRect(Rect::MakeXYWH(0.f, 0.f, canvasW, canvasH));
+  if (local.IsEmpty()) return false;
+  if (!std::isfinite(local.X()) || !std::isfinite(local.Y()) || !std::isfinite(local.Width()) ||
+      !std::isfinite(local.Height()))
+    return false;
+  // Upper bound on the layer texture GenLayer would size (it additionally
+  // intersects the live clip, which only shrinks it further).
+  Rect dev = total.MapRect(local);
+  if (!(dev.Width() <= kMaxLayerExtentPx) || !(dev.Height() <= kMaxLayerExtentPx)) return false;
+  *out = local;
+  return true;
+}
+
 // Draw a node with group→child paint inheritance. `inherited` carries the
 // merged ancestor style — its fill/stroke paints, stroke attrs and fill_rule
 // are the fallbacks for fields this node never authored (explicit_paint), and
 // its opacity is the accumulated product down the tree. Transform, geometry,
 // display and visibility are per-node (never inherited).
+//
+// Exact group opacity: a group whose OWN opacity contribution is < 1 opens a
+// skity saveLayer — the subtree composites inside the layer first, then the
+// whole layer fades in at `nodeOpacity` (RN-Skia/SVG semantics). In that lane
+// this node's factor is kept OUT of `eff` (it rides the layer composite);
+// ancestors' factors stay folded in `eff` — multiplication associates, and
+// every ancestor with a factor < 1 opened its own layer, so each factor in
+// the chain is applied exactly once. `canvasW`/`canvasH` (physical pixels)
+// feed the layer bounds computation.
 void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle &inherited,
-              skity::GPUContext *gpu_context) {
+              skity::GPUContext *gpu_context, float canvasW, float canvasH) {
   if (node == nullptr) return;
   const RetainedComputedStyle &style = node->style;
   if (style.display == Display_NONE) return;
@@ -1235,9 +1283,6 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
 
   canvas->Save();
   ApplyTransform(node, canvas);
-  // TODO(skity): precise group opacity via saveLayer; for now opacity is folded
-  // into each paint's color alpha (approximate — fine for leaves, lossy for
-  // groups with overlapping children).
 
   RetainedComputedStyle scratch; // eff storage when this node overrides anything
   const RetainedComputedStyle *eff = &inherited;
@@ -1249,6 +1294,35 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
   if (ov.mask & AnimationOverlay::kBitFillColor) explicitPaint |= PaintField_FILL;
   if (ov.mask & AnimationOverlay::kBitStrokeColor) explicitPaint |= PaintField_STROKE;
   if (ov.mask & AnimationOverlay::kBitOpacity) explicitPaint |= PaintField_OPACITY;
+
+  // This node's OWN opacity contribution (1 = never authored → inherits
+  // only). Hoisted so the fold below and the layer lane share one value and
+  // can never drift; NaN reads as opaque (lround(NaN·255) is UB), clamp [0,1].
+  float nodeOpacity = 1.f;
+  if (explicitPaint & PaintField_OPACITY) {
+    nodeOpacity = (ov.mask & AnimationOverlay::kBitOpacity) ? ov.opacity : style.opacity;
+    if (std::isnan(nodeOpacity))
+      nodeOpacity = 1.f;
+    else
+      nodeOpacity = std::clamp(nodeOpacity, 0.f, 1.f);
+  }
+
+  // Lane decision MUST precede the eff merge: in the layer lane the factor is
+  // kept out of `eff`, so merging first would leave no way back but division.
+  Rect layerBounds;
+  const bool isGroup = node->tag_name == "svg" || node->tag_name == "g" ||
+                       node->tag_name == "symbol" || node->tag_name == "canvas";
+  // Fully transparent group: the layer would composite to nothing — skip the
+  // subtree (and the layer) entirely. Leaves keep drawing: an alpha-0 paint
+  // with e.g. blendMode=CLEAR still clears its region (alpha-independent).
+  // Note the Restore — Save() already happened above.
+  if (isGroup && nodeOpacity <= 0.f) {
+    canvas->Restore();
+    return;
+  }
+  const bool layerLane = ExactGroupOpacityEnabled() && isGroup && !node->children.empty() &&
+                         nodeOpacity < 0.9999f &&
+                         ComputeOpacityLayerBounds(canvas, canvasW, canvasH, &layerBounds);
   if (explicitPaint != 0) {
     scratch = inherited;
     if (explicitPaint & (PaintField_FILL | PaintField_FILL_GRADIENT | PaintField_FILL_IMAGE_SHADER))
@@ -1283,9 +1357,10 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
     }
     if (explicitPaint & PaintField_FILL_RULE) scratch.fill_rule = style.fill_rule;
     if (explicitPaint & PaintField_BLEND_MODE) scratch.blend_mode = style.blend_mode;
-    // Opacity multiplies down the tree (only when explicitly authored).
-    if (explicitPaint & PaintField_OPACITY)
-      scratch.opacity *= (ov.mask & AnimationOverlay::kBitOpacity) ? ov.opacity : style.opacity;
+    // Opacity multiplies down the tree (only when explicitly authored) —
+    // EXCEPT in the layer lane, where this node's factor is applied by the
+    // layer composite; folding it too would double-count the alpha.
+    if ((explicitPaint & PaintField_OPACITY) && !layerLane) scratch.opacity *= nodeOpacity;
     // Animated colors override AFTER the inheritance merge: the base paint
     // (gradient bytes, filters) still comes from the node/inherited state,
     // only the color+type are animated.
@@ -1300,12 +1375,24 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
     eff = &scratch;
   }
 
-  const std::string &tag = node->tag_name;
-  if (tag == "svg" || tag == "g" || tag == "symbol" || tag == "canvas") {
+  if (isGroup) {
+    // Clip BEFORE SaveLayer: GenLayer sizes the layer texture by
+    // bounds ∩ live clip, so an ancestor clip shrinks the FBO; the clip stays
+    // active for the children inside the layer and the composite is clipped
+    // to a region the layer already covers — visually identical, cheaper.
     ApplyClipIfAny(node, canvas);
-    for (const RetainedNode *child : node->children) {
-      DrawNode(child, canvas, *eff, gpu_context);
+    if (layerLane) {
+      Paint layerPaint; // default kFill, no shader/filters — color + alpha only
+      // WHITE + alpha, never a bare SetAlphaF: Paint's default color is black
+      // (skity paint.hpp fill_color_ = Colors::kBlack); white is correct
+      // whether the composite consumes just the alpha or the full color.
+      layerPaint.SetColor(ColorFromARGB(0xFFFFFFFFu, nodeOpacity));
+      canvas->SaveLayer(layerBounds, layerPaint);
     }
+    for (const RetainedNode *child : node->children) {
+      DrawNode(child, canvas, *eff, gpu_context, canvasW, canvasH);
+    }
+    if (layerLane) canvas->Restore(); // composites the layer at nodeOpacity
     canvas->Restore();
     return;
   }
@@ -1316,7 +1403,8 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
 } // namespace
 
 void ScumbleRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float density,
-                         float canvasWidth, float canvasHeight, ::skity::GPUContext *gpu_context) {
+                           float canvasWidth, float canvasHeight,
+                           ::skity::GPUContext *gpu_context) {
   if (tree == nullptr || canvas == nullptr) return;
   const RetainedNode *root = tree->root();
   if (root == nullptr) return;
@@ -1331,9 +1419,19 @@ void ScumbleRenderer::Draw(const RetainedRenderTree *tree, Canvas *canvas, float
   ApplyViewport(tree->viewport(), canvas, canvasWidth, canvasHeight, density);
   // Root inherited style: all-default (no paint authored), opacity 1 — children
   // fall back to it for fields their ancestors never set.
-  DrawNode(root, canvas, RetainedComputedStyle{}, gpu_context);
+  DrawNode(root, canvas, RetainedComputedStyle{}, gpu_context, canvasWidth, canvasHeight);
   canvas->Restore();
   t_frame_cache = nullptr;
+}
+
+// Exact group opacity (saveLayer lane) kill switch — default ON. One-line
+// rollback if a backend's layer path misbehaves; mirrors the render-cache
+// switch precedent. Not wired to JS (same as SetRenderCacheEnabled).
+void SetExactGroupOpacityEnabled(bool enabled) {
+  g_exact_group_opacity.store(enabled, std::memory_order_relaxed);
+}
+bool ExactGroupOpacityEnabled() {
+  return g_exact_group_opacity.load(std::memory_order_relaxed);
 }
 
 } // namespace skityrt

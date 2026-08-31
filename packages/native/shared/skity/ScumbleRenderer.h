@@ -29,6 +29,14 @@ public:
                    ::skity::GPUContext *gpu_context = nullptr);
 };
 
+// Exact group opacity (saveLayer lane) kill switch — default ON. A group whose
+// own opacity contribution is < 1 composites its subtree through a skity
+// saveLayer instead of folding the factor into every child paint alpha. One-line
+// rollback if a backend's layer path misbehaves; mirrors SetRenderCacheEnabled
+// (not wired to JS).
+void SetExactGroupOpacityEnabled(bool enabled);
+bool ExactGroupOpacityEnabled();
+
 } // namespace skityrt
 
 #endif // SCUMBLE_RENDERER_H_

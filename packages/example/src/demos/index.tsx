@@ -8,6 +8,7 @@ import { BiDiDemo } from "./BiDiDemo";
 import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
+import { GroupOpacityDemo } from "./GroupOpacityDemo";
 import { ImageDemo } from "./ImageDemo";
 import { ImageShaderDemo } from "./ImageShaderDemo";
 import { ParagraphDemo } from "./ParagraphDemo";
@@ -43,6 +44,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "Linear · Radial · Sweep · Conical · stroke",
     accent: "#8b5cf6",
     render: () => <GradientDemo />,
+  },
+  {
+    key: "group-opacity",
+    title: "Group Opacity",
+    subtitle: "saveLayer 离屏合成 · 精确组透明度",
+    accent: "#ec4899",
+    render: () => <GroupOpacityDemo />,
   },
   {
     key: "paths",

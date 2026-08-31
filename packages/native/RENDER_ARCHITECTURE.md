@@ -329,15 +329,15 @@ collisions, child-order races — and needs dedicated round-trip tests.
 Removing the snapshot channel dissolves the `measure` function, which today
 couples "compute size" with "serialize the whole tree":
 
-| Today (in `measure` / Phase 1)                                                     | Phase 2 owner                                                                                                     |
-| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Compute canvas size                                                                | **Deleted** — Lynx layout via `style`                                                                             |
-| Build the `RenderTree` FlatBuffer (leaf→root)                                      | **Deleted** — command stream                                                                                      |
-| `buildRenderNode` / `buildStyle` / `buildPaint`                                    | **Deleted**                                                                                                       |
+| Today (in `measure` / Phase 1)                                                       | Phase 2 owner                                                                                                     |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Compute canvas size                                                                  | **Deleted** — Lynx layout via `style`                                                                             |
+| Build the `RenderTree` FlatBuffer (leaf→root)                                        | **Deleted** — command stream                                                                                      |
+| `buildRenderNode` / `buildStyle` / `buildPaint`                                      | **Deleted**                                                                                                       |
 | `ScumbleRenderBundle` + `getExtraBundle` + `updateExtraData` + `consumeRenderBundle` | **Deleted**                                                                                                       |
-| `setCustomMeasureFunc` (Android) / `customMeasureDelegate` (iOS)                   | **Kept registered** (Step 3b: only the snapshot _body_ is deleted; the registration is the flush trigger — §11.7) |
-| `density` capture in measure                                                       | Render thread reads it locally (it already is the single source of truth in `Draw`)                               |
-| Canvas physical size in bundle                                                     | `onSurfaceTextureSizeChanged` / `onSizeChanged` → `session.updateSize` (already exists)                           |
+| `setCustomMeasureFunc` (Android) / `customMeasureDelegate` (iOS)                     | **Kept registered** (Step 3b: only the snapshot _body_ is deleted; the registration is the flush trigger — §11.7) |
+| `density` capture in measure                                                         | Render thread reads it locally (it already is the single source of truth in `Draw`)                               |
+| Canvas physical size in bundle                                                       | `onSurfaceTextureSizeChanged` / `onSizeChanged` → `session.updateSize` (already exists)                           |
 
 **Kept:** `isVirtual = false` on the canvas (it still needs a platform view —
 `TextureView` / `MetalLayer` — to host the GPU surface; removing `measure` ≠
@@ -960,3 +960,62 @@ the shared render thread at ~50% median CPU after §15 vs 70–77% before
 (the uncached remainder is skity per-draw arena copies + GetSegment +
 rasterization driver cost; the TransformSpin section stopped dropping
 frames).
+
+## 16. Exact group opacity — saveLayer lane (2026-08-31)
+
+FEATURE_PARITY.md F.1.2. A group whose OWN opacity contribution is < 1
+composites its subtree through a skity `Canvas::SaveLayer` instead of folding
+the factor into every child paint alpha: the subtree mixes inside the
+offscreen layer first, then the whole layer fades in at the group's factor
+(RN-Skia/SVG semantics). The folded approximation was exact for leaves but
+lossy wherever a group's children overlap — two 50%-transparent shapes
+blended to 75% in the overlap (most visible during fade animations).
+
+**Factor-splitting invariant** (`DrawNode`): this node's factor stays OUT of
+`eff` and rides the layer composite; ancestors' factors stay folded in `eff`.
+Multiplication associates, and every ancestor with a factor < 1 opened its own
+layer, so each factor in the chain is applied exactly once — nesting is exact
+by construction. Leaves keep the folded fast path (exact, zero cost). The
+lane decision (`isGroup && children non-empty && nodeOpacity < 0.9999 &&
+bounds ok`) is made BEFORE the inheritance merge: once folded there is no way
+back but division.
+
+**Layer bounds** = the whole device surface `(0,0,canvasW,canvasH)`
+inverse-mapped into the group's local space via
+`GetTotalMatrix().Invert().MapRect()` (conservative bbox, rotation-safe).
+Every pixel a child can visibly reach lies inside it, so it can never cull
+visible content — it only hands skity an allocation target that GenLayer then
+intersects with the live clip. Empty/non-finite/>4096px extents NEVER reach
+skity: `QuickReject` on an empty rect blanks the subtree entirely, and
+GenLayer's silent degrade on oversized requests (plain Save+ClipRect) would
+drop group opacity altogether — worse than the folded approximation the lane
+replaces. Guard failures (and a degenerate transform) fall back to the folded
+lane. `canvasW/H` travel as explicit DrawNode parameters (physical pixels,
+same values Draw already receives).
+
+**Ordering**: `Save → ApplyTransform → lane decision → eff merge →
+ApplyClipIfAny → SaveLayer → children → Restore(layer composite) → Restore`.
+Clip is applied BEFORE SaveLayer so GenLayer's bounds∩clip shrinks the FBO;
+the clip stays active for the children inside the layer and the composite is
+clipped to a region the layer already covers — visually identical, cheaper.
+The layer paint is white + alpha, never a bare `SetAlphaF`: skity Paint's
+default color is black, and white is correct whether the composite consumes
+just the alpha or the full color.
+
+**Fully transparent groups** (`nodeOpacity <= 0`) skip their subtree and the
+layer entirely. Leaves keep drawing: an alpha-0 paint with e.g.
+blendMode=CLEAR still clears its region (CLEAR is alpha-independent).
+
+**Interaction with §15**: none to speak of — Paints are never cached and the
+canvas command sequence (now including SaveLayer) is replayed per frame;
+animated opacity already composes as a per-frame scalar on the fresh layer
+paint, and animation ticks bump no version.
+
+**Kill switch**: `SetExactGroupOpacityEnabled(bool)` (default ON), mirroring
+the render-cache switch precedent; not wired to JS.
+
+**Out of scope**: multi-`<Paint>` multi-pass and independent fill/stroke
+paints (F.1.3 — shares this saveLayer machinery but needs schema work),
+group-level blendMode / isolated groups, and skipping layers whose children
+are all invisible (a `HasDrawableDescendant` pre-scan costs O(depth·n) per
+frame for a rare shape; revisit if profiling ever shows it).
