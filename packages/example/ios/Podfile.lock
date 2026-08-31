@@ -48,7 +48,7 @@ PODS:
     - PrimJS/quickjs
   - PrimJS/quickjs (4.0.0):
     - PrimJS/log
-  - scumble (0.0.1):
+  - scumble (0.1.0):
     - Lynx
     - skity (= 1.1.0-alpha.3)
   - skity (1.1.0-alpha.3)
@@ -84,7 +84,7 @@ SPEC CHECKSUMS:
   LynxService: f447c67687d3ea66eec94e10b7564996e67c06dc
   LynxServiceAPI: 67ae06f77e45c80f0ecaa6705d126ac3b4b8dff4
   PrimJS: f048efc0923e73cde312466a110516f56b70834d
-  scumble: 96c6d657f21500e15b54905956a14973f7305a5b
+  scumble: 9e32cfa39b7c839e83533dad0cdffbfceae76ad0
   skity: 388b5acefefe3ff3be3e3ef0c1641c16361a52f8
 
 PODFILE CHECKSUM: 391498fc23c0a2434093be5f0c84dba179d9d418
