@@ -51,6 +51,16 @@ bool SharedGLContext::Init() {
   // Make current with no surface so skity can resolve/bind GL functions.
   eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context);
   skity_context = skity::GLContextCreate(reinterpret_cast<void *>(&ResolveGLProcAddress));
+  if (skity_context != nullptr) {
+    // Pool GPU resources (saveLayer FBOs, glyph atlases) across frames: the
+    // default cache limit (0) purges every resource on each Flush, forcing a
+    // per-frame layer-texture realloc for saveLayer/glyph paths. 64 MiB
+    // process-wide budget (shared by every canvas on this context).
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations" // SKITY_EXPERIMENTAL
+    skity_context->SetResourceCacheLimit(64ull << 20);
+#pragma clang diagnostic pop
+  }
   return skity_context != nullptr;
 }
 

@@ -59,6 +59,16 @@ bool VulkanRenderBackend::EnsureContext() {
     context_info.get_instance_proc_addr = vkGetInstanceProcAddr;
     context_info.enable_debug_runtime = false; // MVP: no validation
     shared = skity::CreateGPUContextVK(&context_info);
+    if (shared != nullptr) {
+      // Pool GPU resources (saveLayer FBOs, glyph atlases) across frames: the
+      // default cache limit (0) purges every resource on each Flush, forcing a
+      // per-frame layer-texture realloc for saveLayer/glyph paths. 64 MiB
+      // process-wide budget (shared by every canvas on this context).
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations" // SKITY_EXPERIMENTAL
+      shared->SetResourceCacheLimit(64ull << 20);
+#pragma clang diagnostic pop
+    }
   }
   // Adopt a reference; releasing the last backend releases the device.
   context_ = shared;

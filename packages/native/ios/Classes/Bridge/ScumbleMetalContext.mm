@@ -43,6 +43,16 @@
     _queue.label = @"Scumble GPU Queue";
     // One process-wide context: MTLContextCreate(device, queue).
     _gpuContext = skity::MTLContextCreate(_device, _queue);
+    // Pool GPU resources (saveLayer FBOs, glyph atlases) across frames:
+    // skity's default cache limit is 0, which purges every resource on each
+    // Flush — a saveLayer-driven fade would realloc its layer texture every
+    // frame otherwise. 64 MiB process-wide budget.
+    if (_gpuContext != nullptr) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations" // SKITY_EXPERIMENTAL
+      _gpuContext->SetResourceCacheLimit(64ull << 20);
+#pragma clang diagnostic pop
+    }
     _renderQueue = dispatch_queue_create("com.scumble.lynx.queue", DISPATCH_QUEUE_SERIAL);
   }
   return self;
