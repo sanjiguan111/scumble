@@ -121,8 +121,11 @@ slot shared by both paints — the last declaration wins.
 
 A `Group`'s paint attributes — `color`, `style`, `opacity`, the stroke
 attributes, and `dash` — apply to every descendant that does not set its own.
-`opacity` multiplies down the tree; a nested group can override for its own
-subtree:
+`opacity` composes with exact group semantics: a group whose own opacity is
+below 1 composites its subtree through an offscreen layer first, so
+overlapping children fade **as one unit** (no double-blending where they
+overlap — RN-Skia/SVG semantics), while a leaf folds the value into its
+paint's alpha; a nested group can override for its own subtree:
 
 ```tsx
 <Group color="#3b82f6" opacity={0.7}>
@@ -137,6 +140,9 @@ subtree:
 
 Geometry is never inherited — only paint. Gradients and `<Paint>` overrides
 placed directly under a group follow the same inheritance rules.
+
+The same offscreen lane powers group-level filter effects — see
+[Filters → the `layer` prop](/guide/filters#group-level-effects--the-layer-prop).
 
 ## blendMode
 
