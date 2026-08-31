@@ -105,9 +105,51 @@ paint only — the shape's fill draws unfiltered:
 Inherited filters also arrive through `Group` paint inheritance, like the
 other paint attributes.
 
+## Group-level effects — the `layer` prop
+
+Filters placed directly on a `Group` ride paint inheritance: **every
+descendant applies them to its own drawing**, so overlapping shapes stay
+separate. When you want the effects to run on the subtree **as a whole** —
+the classic gooey/liquid look — use the `layer` prop (RN-Skia semantics):
+
+```tsx
+// Gooey: blur → alpha threshold → soften, applied to the COMPOSITED subtree.
+// Overlaps fuse into a metaball; per-shape inheritance cannot do that.
+const GOOEY = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 18, -7];
+
+<Group
+  layer={
+    <Paint>
+      <Blur blur={12} />
+      <ColorMatrix matrix={GOOEY} />
+      <Blur blur={2} />
+    </Paint>
+  }
+>
+  <Circle cx={40} cy={60} radius={26} color="#ec4899" />
+  <Circle cx={84} cy={68} radius={26} color="#ec4899" />
+</Group>;
+```
+
+- `layer={true}` composites the subtree offscreen with **no** effects —
+  useful with the Group's own `opacity` (the exact group-opacity lane) or to
+  isolate a subtree. The `<Paint>`'s other props (`color`, `style`, stroke
+  attributes, shaders) are ignored; the layer's alpha is the Group's
+  `opacity`.
+- **Clearing**: set `layer={false}`. Simply removing the prop does nothing —
+  prop removal fires the setters with `null`, which is a no-op by design.
+- **Cost**: each layer-bearing group costs one offscreen buffer per frame
+  (clipped to its visible area). Prefer it for effect composition, not as a
+  default grouping wrapper.
+- Text and images rasterize into the layer like everything else — a group
+  blur softens glyphs together with the shapes around them.
+
 ## Further reading
 
 - [FiltersDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/FiltersDemo.tsx)
   — every filter and the stroke-only variant, live
+- [GooeyDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/GooeyDemo.tsx)
+  — the layer prop: gooey fusion vs per-shape inheritance, `layer={true}`,
+  text through a group blur
 - [Painting](/guide/painting) — the `<Paint>` override and inheritance
 - [Text](/guide/text) — a `ColorMatrix` over a whole paragraph

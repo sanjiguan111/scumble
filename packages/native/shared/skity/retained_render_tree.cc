@@ -372,6 +372,22 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       }
       break;
     }
+    case Command_SetLayerEffect: {
+      // Full-state: force + all three slots (absent vector = clear, via
+      // CloneBytes returning null). paint_version must bump — the layer bytes
+      // feed the render-thread filter interns (§15); the tree stays
+      // structurally identical, so geom_version is untouched.
+      const auto *le = static_cast<const SetLayerEffect *>(obj);
+      RetainedNode *node = Find(le->node_id());
+      if (node != nullptr) {
+        node->layer_force = le->force();
+        node->layer_color_filter_data = CloneBytes(le->color_filter());
+        node->layer_image_filter_data = CloneBytes(le->image_filter());
+        node->layer_mask_filter_data = CloneBytes(le->mask_filter());
+        node->paint_version++;
+      }
+      break;
+    }
     case Command_SetImageSource: {
       const auto *si = static_cast<const SetImageSource *>(obj);
       RetainedNode *node = Find(si->node_id());

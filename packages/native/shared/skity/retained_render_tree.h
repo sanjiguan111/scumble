@@ -129,6 +129,15 @@ struct RetainedNode {
   // applied after the node's transform, before its subtree.
   std::vector<uint8_t> clip_data;
 
+  // Group layer effect (SetLayerEffect; F.1.3b / roadmap #12). Group-only and
+  // NOT inherited — DrawNode reads it straight off the node (like clip_data),
+  // so the inheritance merge never sees it. Null bytes = no filter in that
+  // slot; force alone = offscreen composite with no effects.
+  bool layer_force = false;
+  BytesPtr layer_color_filter_data;
+  BytesPtr layer_image_filter_data;
+  BytesPtr layer_mask_filter_data;
+
   // Image node source. image_uri doubles as the ImageStore key and the
   // platform loader request (http(s) URL / data URI); the TASM setter fires
   // the load on first sight. Empty = no source (node draws nothing). The

@@ -37,6 +37,13 @@ public:
 void SetExactGroupOpacityEnabled(bool enabled);
 bool ExactGroupOpacityEnabled();
 
+// Group layer-effect lane (RN-Skia <Group layer>) kill switch — default ON.
+// Off = the layer effects (SetLayerEffect filters / force) are dropped at the
+// lane decision; independent of the opacity switch above (different blast
+// radius: layer effects have no old behavior to fall back to). Not wired to JS.
+void SetGroupLayerEnabled(bool enabled);
+bool GroupLayerEnabled();
+
 } // namespace skityrt
 
 #endif // SCUMBLE_RENDERER_H_

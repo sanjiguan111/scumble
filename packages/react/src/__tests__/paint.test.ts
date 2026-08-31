@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 
-import { resolvePaint } from "../internal/paint";
+import { buildColorFilter, buildImageFilter, bytesToBase64 } from "@scumble/graphics";
+import type { FilterSpec } from "@scumble/graphics";
+
+import { Blur, ColorMatrix } from "../filters/filters";
+import { Paint } from "../Paint";
+import { Circle } from "../shapes/Circle";
+import { resolveLayerEffect, resolvePaint } from "../internal/paint";
+import type { GroupLayer } from "../types";
 
 describe("resolvePaint", () => {
   it("parses a color string into fill by default (style=fill)", () => {
@@ -50,5 +57,56 @@ describe("resolvePaint", () => {
       fill: 0xffff0000,
       blendMode: 24,
     });
+  });
+});
+
+describe("resolveLayerEffect", () => {
+  // The resolvers consume {type, props} only — hand-built elements stand in
+  // for JSX without a renderer.
+  const el = (type: unknown, props: unknown) => ({ type, props }) as unknown as GroupLayer;
+  const GRAYSCALE = [
+    0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0, 0,
+    0, 1, 0,
+  ];
+
+  it("returns no props when layer is undefined (never set)", () => {
+    expect(resolveLayerEffect(undefined)).toEqual({});
+  });
+
+  it("true → force only (offscreen composite, no effects)", () => {
+    expect(resolveLayerEffect(true)).toEqual({ layerForce: true });
+  });
+
+  it("false → explicit full clear (force off + empty slots)", () => {
+    expect(resolveLayerEffect(false)).toEqual({
+      layerForce: false,
+      layerColorFilter: "",
+      layerImageFilter: "",
+      layerMaskFilter: "",
+    });
+  });
+
+  it("Paint with blur + colorMatrix → force + both layer slots", () => {
+    const specs: FilterSpec[] = [
+      { kind: "blur", blur: 8 },
+      { kind: "colorMatrix", matrix: GRAYSCALE },
+    ];
+    const layer = el(Paint, {
+      children: [el(Blur, { blur: 8 }), el(ColorMatrix, { matrix: GRAYSCALE })],
+    });
+    expect(resolveLayerEffect(layer)).toEqual({
+      layerForce: true,
+      layerImageFilter: bytesToBase64(buildImageFilter(specs)!),
+      layerColorFilter: bytesToBase64(buildColorFilter(specs)!),
+    });
+  });
+
+  it("Paint with no filter children → force only", () => {
+    const layer = el(Paint, { color: "red" });
+    expect(resolveLayerEffect(layer)).toEqual({ layerForce: true });
+  });
+
+  it("non-Paint element → ignored", () => {
+    expect(resolveLayerEffect(el(Circle, { cx: 0, cy: 0, radius: 1 }))).toEqual({});
   });
 });

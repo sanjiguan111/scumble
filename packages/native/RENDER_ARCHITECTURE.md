@@ -1019,3 +1019,57 @@ paints (F.1.3 — shares this saveLayer machinery but needs schema work),
 group-level blendMode / isolated groups, and skipping layers whose children
 are all invisible (a `HasDrawableDescendant` pre-scan costs O(depth·n) per
 frame for a rare shape; revisit if profiling ever shows it).
+
+## 17. Group layer effects — the `layer` prop (2026-08-31)
+
+FEATURE_PARITY.md F.1.3b / roadmap #12 — RN-Skia `<Group layer>` semantics.
+`layer` is the ONLY entrance to group-level effects: `layer={true}` composites
+the subtree offscreen with no effects; `layer={<Paint><Blur …/></Paint>}`
+additionally applies the Paint's FILTER children to that composite (the whole
+raster blurs/thresholds as one — gooey/liquid territory; overlapping children
+fuse). Filter children placed directly on the Group keep their per-shape
+inheritance semantics — different blast radius, both valid, documented
+distinction.
+
+**Transport** — full-state `SetLayerEffect` command (union member 14,
+appended additively): `force:bool` + three `[ubyte]` Filter slots (base64
+string props `layerForce`/`layer{Color,Image,Mask}Filter` on the group
+shadow node, one `dirtyLayer` flag covering all four so a partial prop update
+can't leave stale bytes — the lane predicate reads force OR any slot). The
+command is NOT SetPaintFilter with a LAYER slot: force has no slot to ride,
+three separate commands wouldn't be atomic within a flush, and layer state
+isn't paint state.
+
+**State lives on `RetainedNode`** (next to `clip_data`), not on
+`RetainedComputedStyle` — group-only and NOT inherited by construction: the
+inheritance merge reads the style, never the node, so there is no bit to
+forget excluding. `paint_version++` on apply feeds the §15 filter interns
+(the layer bytes are their input); `geom_version` is untouched.
+
+**Renderer**: the lane predicate opens for `wantLayer` (GroupLayerEnabled &&
+(force || any slot)) OR the §16 opacity trigger — the two kill switches are
+orthogonal (`SetGroupLayerEnabled` vs `SetExactGroupOpacityEnabled`; layer
+effects have no old behavior to fall back to, so their blast radius stays
+separate). The §16 factor-splitting invariant covers both sources: in the
+lane, nodeOpacity never folds into `eff`. The layer paint carries white ×
+nodeOpacity AND the three filters (built through the content-interned
+`Build{Color,Image,Mask}Filter` — alpha + filters coexist: skity's `GenLayer`
+takes `SetAlpha(GetAlphaF())` and routes the paint through
+`ConvertPaintToHWFilter` (mask→image→color) into an `HWFilterLayer`; bounds
+are NOT clip-shrunk when image/mask filters are present, leaving blur-halo
+room — verified from skity source).
+
+**Clearing**: `layer={false}` resolves to `layerForce:false` + three empty
+slots (explicit full clear). Removing the prop alone is a NO-OP — Lynx fires
+the setters with null on prop removal and the nullable contract treats null
+as "leave state alone" (mirrors `setAnimationData`).
+
+**Cost note**: every layer-bearing group costs one offscreen FBO per frame
+(≈ bounds ∩ clip, ≤ `kMaxLayerExtentPx` 4096) + one composite + the filter
+passes; the cross-frame texture pool (commit c2e3ab9) absorbs the alloc churn
+during animations.
+
+**Out of scope**: the `<Paint>`'s non-filter props on `layer` (style/color/
+stroke/dash/shaders are ignored — the layer alpha is the Group's own
+`opacity`), and a layer-composite blendMode (`layer_blend_mode` is an
+append-only schema field whenever needed).

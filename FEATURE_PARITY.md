@@ -42,6 +42,7 @@
 | **Group clip (clipRect / clipPath / RRect)**             | ✅ RN-Skia-style declarative children `<ClipRect>`/`<ClipRRect>`/`<ClipPath>` (`op: intersect\|difference`, combined in order); transported as a base64 ClipList on a new `SetClip` command, applied after the group's transform. ClipRRect radii: uniform / per-axis only (no per-corner)                                                                                                                                                                                              |
 | **Group paint inheritance** (color / opacity to subtree) | ✅ Render-time resolution via `RetainedComputedStyle.explicit_paint` (the SetPaint dirty bits): unset fields fall back to the nearest ancestor; opacity multiplies. Inherits fill/stroke paint (color + gradient), stroke attrs, dash, fillRule. NOT paint-inherited: geometry, display/visibility (transform is not a paint attribute, but its matrix composes geometrically down the tree — cascading)                                                                                |
 | **Exact group opacity (saveLayer)**                      | ✅ A group whose own opacity < 1 composites its subtree through a skity `saveLayer` — children mix inside the offscreen layer first, then the whole layer fades in (RN-Skia/SVG semantics). Leaves still fold alpha into their paint (exact, zero cost). Layer bounds = device surface inverse-mapped into the group's local space, guarded against empty/non-finite/oversized extents (fallback = folded lane). Kill switch `SetExactGroupOpacityEnabled` (RENDER_ARCHITECTURE.md §16) |
+| **Group `layer` prop (offscreen + layer-paint effects)** | ✅ `<Group layer>` (boolean, force offscreen) and `layer={<Paint><Blur …/></Paint>}` (offscreen + the Paint's filter children applied to the COMPOSITE — children fuse, gooey territory). Full-state `SetLayerEffect` command; `layer={false}` clears explicitly (prop removal is a no-op). Filter children placed directly on the Group keep their per-shape inheritance semantics (different, also valid). Kill switch `SetGroupLayerEnabled` (RENDER_ARCHITECTURE.md §17)            |
 
 ## D. Path advanced
 
@@ -91,6 +92,13 @@ at all.
 3. **Single paint slot** — blendMode/opacity are shared by the fill and
    stroke paints; RN-Skia keeps them independent, and multiple `<Paint>`
    children draw multiple passes (we have a fixed fill+stroke double pass).
+   3b. ~~**Group-level filters**~~ — **fixed (2026-08-31)**: `<Group layer>`
+   forces an offscreen composite and `layer={<Paint>…}</Paint>` applies the
+   Paint's filter children to that composite (`SetLayerEffect` full-state
+   command → the §16 saveLayer lane's layer paint). Filter children placed
+   directly on the Group keep their per-shape inheritance semantics — a
+   deliberate, documented distinction (different blast radius, not a
+   fallback). See RENDER_ARCHITECTURE.md §17.
 4. Minor: no per-corner ClipRRect radii; antiAlias hard-wired true;
    DropShadow has no `inner`/`shadowOnly`.
 
@@ -274,13 +282,24 @@ Stage 2 are unaffected either way.
       track via the D2 hooks); hand-off to a spring is a fresh
       SetAnimation on the same handle. Rides the exact invoke plumbing
       11c built (handle map, UI method, threading).
-12. **Multi-`<Paint>` multi-pass** (F.1.3) — multiple `<Paint>` children
+12. ~~**Group-level filters — the `layer` prop, aligned with RN-Skia**~~ —
+    **done (2026-08-31)**: `<Group layer>` (boolean → force offscreen) and
+    `layer={<Paint><Blur …/></Paint>}` (the Paint's filter children apply to
+    the COMPOSITE — children fuse; gooey/liquid territory). Transport is a
+    full-state `SetLayerEffect` command (force + three Filter slots) riding
+    the §16 saveLayer lane's layer paint; `layer={false}` clears explicitly.
+    The open API decision resolved to the conservative option: bare filter
+    children on a Group keep their per-shape inheritance semantics — `layer`
+    is the only group-semantics entrance (RN-Skia-isomorphic, zero surprise
+    for migrators). Kill switch `SetGroupLayerEnabled`; demo `GooeyDemo`;
+    as-built RENDER_ARCHITECTURE.md §17.
+13. **Multi-`<Paint>` multi-pass** (F.1.3) — multiple `<Paint>` children
     drawing multiple passes with independent fill/stroke paints. The exact
     group-opacity half of the original item shipped 2026-08-31 via the
     saveLayer lane (F.1.2, RENDER_ARCHITECTURE.md §16), which this can build
     on.
-13. **Small-items bundle** (F.1.4 + justification) — per-corner radii,
+14. **Small-items bundle** (F.1.4 + justification) — per-corner radii,
     antiAlias toggle, DropShadow variants, paragraph justification.
-14. **Explicitly out of scope** — BackdropFilter, Vertices/Atlas/Patch,
+15. **Explicitly out of scope** — BackdropFilter, Vertices/Atlas/Patch,
     SkSL/RuntimeEffect, imperative API (F.2–F.4: double-constrained by
     upstream and architecture; worst effort/return on this list).

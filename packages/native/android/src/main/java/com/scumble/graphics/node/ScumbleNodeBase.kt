@@ -103,6 +103,12 @@ abstract class ScumbleNodeBase : ShadowNode() {
   @JvmField var strokeMaskFilterData: ByteArray? = null
   // Group clip sequence (JS-built ClipList bytes; null = no clip).
   @JvmField var clipData: ByteArray? = null
+  // Group layer effect (SetLayerEffect command): force + the three filter
+  // slots of the layer composite. Full state — one dirty flag covers all four.
+  @JvmField var layerForce: Boolean = false
+  @JvmField var layerColorFilterData: ByteArray? = null
+  @JvmField var layerImageFilterData: ByteArray? = null
+  @JvmField var layerMaskFilterData: ByteArray? = null
   // Native animation tracks (JS-built AnimationList bytes; null/empty =
   // clear all animations on the node).
   @JvmField var animationData: ByteArray? = null
@@ -149,6 +155,7 @@ abstract class ScumbleNodeBase : ShadowNode() {
   @JvmField var dirtyFilter: Int = 0
   @JvmField var dirtyTransform: Boolean = false
   @JvmField var dirtyClip: Boolean = false
+  @JvmField var dirtyLayer: Boolean = false
   @JvmField var dirtyAnimation: Boolean = false
   @JvmField var dirtyImage: Boolean = false
 
@@ -521,6 +528,35 @@ abstract class ScumbleNodeBase : ShadowNode() {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     clipData = if (decoded.isNotEmpty()) decoded else null
     dirtyClip = true
+    markDirty()
+  }
+
+  // Group layer effect (RN-Skia <Group layer>): force + three base64 Filter
+  // slots riding the LAYER composite, not the per-shape paint inheritance.
+  // Nullable contract matches setAnimationData: null (mount/teardown) is a
+  // no-op — an explicit clear is layerForce=false + empty strings.
+  @LynxProp(name = "layerForce") fun setLayerForce(v: Boolean?) {
+    if (v == null) return
+    layerForce = v
+    dirtyLayer = true
+    markDirty()
+  }
+  @LynxProp(name = "layerColorFilter") fun setLayerColorFilter(v: String?) {
+    if (v == null) return
+    layerColorFilterData = decodeOrNull(v)
+    dirtyLayer = true
+    markDirty()
+  }
+  @LynxProp(name = "layerImageFilter") fun setLayerImageFilter(v: String?) {
+    if (v == null) return
+    layerImageFilterData = decodeOrNull(v)
+    dirtyLayer = true
+    markDirty()
+  }
+  @LynxProp(name = "layerMaskFilter") fun setLayerMaskFilter(v: String?) {
+    if (v == null) return
+    layerMaskFilterData = decodeOrNull(v)
+    dirtyLayer = true
     markDirty()
   }
 

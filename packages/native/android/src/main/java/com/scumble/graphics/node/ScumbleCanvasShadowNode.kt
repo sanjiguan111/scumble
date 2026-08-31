@@ -24,6 +24,7 @@ import com.scumble.graphics.skityrt.SetPathData
 import com.scumble.graphics.skityrt.SetPathOpData
 import com.scumble.graphics.skityrt.SetPaintFilter
 import com.scumble.graphics.skityrt.SetImageSource
+import com.scumble.graphics.skityrt.SetLayerEffect
 import com.scumble.graphics.skityrt.SetTransform
 import com.scumble.graphics.skityrt.SetViewport
 
@@ -360,6 +361,18 @@ class ScumbleCanvasShadowNode : ScumbleNodeBase(), CustomMeasureFunc {
       offsets += SetClip.createSetClip(fbb, node.nativeId, off)
       types += Command.SetClip
       node.dirtyClip = false
+    }
+    if (node.dirtyLayer) {
+      // Full-state command: force + all three slots (absent vectors clear).
+      val cf = node.layerColorFilterData
+      val cfOff = if (cf != null && cf.isNotEmpty()) SetLayerEffect.createColorFilterVector(fbb, cf) else 0
+      val imf = node.layerImageFilterData
+      val imfOff = if (imf != null && imf.isNotEmpty()) SetLayerEffect.createImageFilterVector(fbb, imf) else 0
+      val mf = node.layerMaskFilterData
+      val mfOff = if (mf != null && mf.isNotEmpty()) SetLayerEffect.createMaskFilterVector(fbb, mf) else 0
+      offsets += SetLayerEffect.createSetLayerEffect(fbb, node.nativeId, node.layerForce, cfOff, imfOff, mfOff)
+      types += Command.SetLayerEffect
+      node.dirtyLayer = false
     }
     if (node.dirtyAnimation) {
       // Empty/absent payload clears the node's animations on the render side.

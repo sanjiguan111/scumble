@@ -149,6 +149,13 @@ enum ScumblePaintFilterField {
 @property(nonatomic, strong, nullable) NSData *strokeMaskFilterData;
 /// Group clip sequence (JS-built ClipList bytes; nil = no clip).
 @property(nonatomic, strong, nullable) NSData *clipData;
+/// Group layer effect (SetLayerEffect; RN-Skia <Group layer>): force + the
+/// three filter slots of the LAYER composite (the saveLayer paint), not the
+/// per-shape paint inheritance. Full state — one dirty flag covers all four.
+@property(nonatomic, assign) BOOL layerForce;
+@property(nonatomic, strong, nullable) NSData *layerColorFilterData;
+@property(nonatomic, strong, nullable) NSData *layerImageFilterData;
+@property(nonatomic, strong, nullable) NSData *layerMaskFilterData;
 /// Native animation tracks (JS-built AnimationList bytes; nil/empty = clear
 /// all animations on the node). The render thread interpolates per vsync —
 /// the TASM side only forwards the description (ANIMATION_DESIGN.md).
@@ -194,6 +201,7 @@ enum ScumblePaintFilterField {
 @property(nonatomic, assign) uint32_t dirtyFilterMask;
 @property(nonatomic, assign) BOOL dirtyTransform;
 @property(nonatomic, assign) BOOL dirtyClip;
+@property(nonatomic, assign) BOOL dirtyLayer;
 @property(nonatomic, assign) BOOL dirtyImage;
 @property(nonatomic, assign) BOOL dirtyAnimation;
 

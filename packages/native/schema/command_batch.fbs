@@ -76,6 +76,7 @@ union Command {
   SetPaintFilter,// one paint-filter slot: nested Filter bytes (fill/stroke × color/image/mask)
   SetImageSource,// image node: source uri + fit (pixels arrive via the platform image loader)
   SetAnimation, // native animation tracks: nested AnimationList bytes (render-thread interpolation)
+  SetLayerEffect,// group layer composite: force flag + three nested Filter bytes (the saveLayer paint)
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; the paint is
@@ -266,6 +267,20 @@ table SetPaintFilter {
   slot:PaintSlot = FILL;
   kind:FilterSlot = COLOR;
   data:[ubyte] (nested_flatbuffer: "Filter");
+}
+
+// Group layer effect (FEATURE_PARITY F.1.3b / roadmap #12 — RN-Skia <Group layer>).
+// Group-only, FULL-STATE: one command carries the force flag + all three filter
+// slots of the LAYER COMPOSITE (the skity SaveLayer paint applied when the
+// subtree rasterizes offscreen). These are NOT the per-shape paint filters —
+// those ride SetPaintFilter + paint inheritance and are untouched. All vectors
+// empty/absent AND !force clears the layer.
+table SetLayerEffect {
+  node_id:int = -1;
+  force:bool = false; // layer={true} (or a <Paint> with no usable filters): offscreen, no effects
+  color_filter:[ubyte] (nested_flatbuffer: "Filter");
+  image_filter:[ubyte] (nested_flatbuffer: "Filter");
+  mask_filter:[ubyte] (nested_flatbuffer: "Filter");
 }
 
 // Image sampling (image nodes only). Value order matches skity's

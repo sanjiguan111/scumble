@@ -6,7 +6,7 @@ import { buildClipList, bytesToBase64 } from "@scumble/graphics";
 import { findClipSpecs } from "./internal/clip";
 import { resolveAnimation } from "./internal/animation";
 import { animationHandleOf } from "./internal/animation-control";
-import { resolvePaint } from "./internal/paint";
+import { resolveLayerEffect, resolvePaint } from "./internal/paint";
 import { resolveTransform } from "./internal/transform";
 import type { GroupProps } from "./types";
 
@@ -33,6 +33,12 @@ import type { GroupProps } from "./types";
  * the tree. NOT inherited: geometry, `display`/`visibility` (transform is not
  * a paint attribute, but its MATRIX composes geometrically down the tree).
  *
+ * **Layer effects** (RN-Skia `layer`): {@link GroupProps.layer} composites the
+ * subtree offscreen and applies a `<Paint>`'s FILTER children to that
+ * composite — the whole raster blurs/thresholds as one, so overlapping
+ * children FUSE (per-shape inheritance can't do that). `layer={true}` is a
+ * plain offscreen composite with no effects; `layer={false}` clears explicitly.
+ *
  * @example
  * <Group transform={{ translateX: 10, translateY: 10 }}>
  *   <Circle cx={0} cy={0} radius={20} color="red" />
@@ -42,7 +48,7 @@ import type { GroupProps } from "./types";
  *   <Circle cx={50} cy={40} radius={45} />
  * </Group>
  */
-export function Group({ animate, transform, children, ...rest }: GroupProps) {
+export function Group({ animate, transform, children, layer, ...rest }: GroupProps) {
   const clipBytes = buildClipList(findClipSpecs(children));
   return (
     <scumble-group
@@ -50,6 +56,7 @@ export function Group({ animate, transform, children, ...rest }: GroupProps) {
       animationData={resolveAnimation(animate)}
       animationHandle={animationHandleOf(animate)}
       clip={clipBytes ? bytesToBase64(clipBytes) : undefined}
+      {...resolveLayerEffect(layer)}
       {...resolvePaint(rest, children)}
     >
       {children}

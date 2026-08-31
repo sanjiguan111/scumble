@@ -44,6 +44,7 @@ import type {
   ColorMatrixProps,
   DropShadowProps,
   GraphicProps,
+  GroupLayer,
   ImageShaderProps,
   LinearGradientProps,
   MaskBlurProps,
@@ -260,18 +261,72 @@ function findFilterSpecs(children?: ReactNode): FilterSpec[] {
 }
 
 /**
+ * Build the three filter-slot payloads (base64 Filter bytes) from specs:
+ * image filters (blur/dropShadow) compose in declaration order, color filters
+ * (colorMatrix/colorBlend) likewise, and the mask filter takes the first
+ * maskBlur. Empty kinds leave the slot unset.
+ */
+function filterSlotBytes(specs: FilterSpec[]): { image?: string; color?: string; mask?: string } {
+  const out: { image?: string; color?: string; mask?: string } = {};
+  const image = buildImageFilter(specs);
+  if (image !== null) out.image = bytesToBase64(image);
+  const color = buildColorFilter(specs);
+  if (color !== null) out.color = bytesToBase64(color);
+  const mask = buildMaskFilter(specs);
+  if (mask !== null) out.mask = bytesToBase64(mask);
+  return out;
+}
+
+/**
  * Serialize the filter specs onto one paint slot (`fill`/`stroke`): image
  * filters (blur/dropShadow) compose in declaration order, color filters
  * (colorMatrix/colorBlend) likewise, and the mask filter takes the first
  * maskBlur. Empty kinds leave the slot unset.
  */
 function applyFilterProps(out: ResolvedPaint, specs: FilterSpec[], slot: "fill" | "stroke"): void {
-  const image = buildImageFilter(specs);
-  if (image !== null) out[`${slot}ImageFilter`] = bytesToBase64(image);
-  const color = buildColorFilter(specs);
-  if (color !== null) out[`${slot}ColorFilter`] = bytesToBase64(color);
-  const mask = buildMaskFilter(specs);
-  if (mask !== null) out[`${slot}MaskFilter`] = bytesToBase64(mask);
+  const bytes = filterSlotBytes(specs);
+  if (bytes.image !== undefined) out[`${slot}ImageFilter`] = bytes.image;
+  if (bytes.color !== undefined) out[`${slot}ColorFilter`] = bytes.color;
+  if (bytes.mask !== undefined) out[`${slot}MaskFilter`] = bytes.mask;
+}
+
+/**
+ * The layer-effect slice of the group intrinsic props — the output shape of
+ * {@link resolveLayerEffect}. `layerForce` is the "composite the subtree
+ * offscreen" flag; the three filter slots ride the LAYER composite (skity
+ * saveLayer paint), not the per-shape paint inheritance.
+ */
+export interface ResolvedLayerEffect {
+  layerForce?: boolean;
+  layerColorFilter?: string;
+  layerImageFilter?: string;
+  layerMaskFilter?: string;
+}
+
+/**
+ * Resolve {@link GroupProps.layer} (RN-Skia `<Group layer>`) into the
+ * `layerForce` + three base64 Filter props. `true` forces an offscreen
+ * composite with no effects; a `<Paint>` element additionally carries its
+ * FILTER children onto the layer composite (its other props are ignored —
+ * the layer alpha is the Group's own `opacity`). `false` clears explicitly
+ * (full state: force off + empty slots) — removing the prop alone leaves the
+ * native state alone, because Lynx fires the setters with null on
+ * prop removal and null is a no-op. A non-`<Paint>` element is ignored.
+ */
+export function resolveLayerEffect(layer?: GroupLayer): ResolvedLayerEffect {
+  if (layer === undefined) return {};
+  if (layer === true) return { layerForce: true };
+  if (layer === false)
+    return { layerForce: false, layerColorFilter: "", layerImageFilter: "", layerMaskFilter: "" };
+  const el = childElements(layer).find((e) => e.type === Paint);
+  if (el == null) return {};
+  const bytes = filterSlotBytes(findFilterSpecs((el.props as PaintProps).children));
+  return {
+    layerForce: true,
+    layerColorFilter: bytes.color,
+    layerImageFilter: bytes.image,
+    layerMaskFilter: bytes.mask,
+  };
 }
 
 /**

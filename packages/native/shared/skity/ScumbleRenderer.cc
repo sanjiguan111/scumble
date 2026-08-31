@@ -47,6 +47,11 @@ thread_local RenderCache *t_frame_cache = nullptr;
 // SetExactGroupOpacityEnabled at the bottom of this file.
 std::atomic<bool> g_exact_group_opacity{true};
 
+// Kill switch for the group layer-effect lane (default ON). Independent of the
+// opacity switch: layer effects have no old behavior to fall back to (off =
+// effects simply dropped), so the two blast radii stay separate.
+std::atomic<bool> g_group_layer{true};
+
 // Intern-or-build: lookup by content hash (collision-verified), call `build`
 // only on a miss and insert the product. Hits/misses feed the stats counters.
 template <typename T, typename Build>
@@ -1320,8 +1325,17 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
     canvas->Restore();
     return;
   }
-  const bool layerLane = ExactGroupOpacityEnabled() && isGroup && !node->children.empty() &&
-                         nodeOpacity < 0.9999f &&
+  // Group layer effect (F.1.3b): force and/or layer-composite filters open the
+  // same saveLayer lane as exact group opacity. The two switches are
+  // orthogonal — ExactGroupOpacityEnabled() gates only the opacity TRIGGER;
+  // bounds guarding and the layer mechanics (incl. the factor-splitting
+  // invariant below) apply to both sources.
+  const bool hasLayerEffect = node->layer_force || node->layer_color_filter_data != nullptr ||
+                              node->layer_image_filter_data != nullptr ||
+                              node->layer_mask_filter_data != nullptr;
+  const bool wantLayer = GroupLayerEnabled() && hasLayerEffect;
+  const bool layerLane = isGroup && !node->children.empty() &&
+                         (wantLayer || (ExactGroupOpacityEnabled() && nodeOpacity < 0.9999f)) &&
                          ComputeOpacityLayerBounds(canvas, canvasW, canvasH, &layerBounds);
   if (explicitPaint != 0) {
     scratch = inherited;
@@ -1382,11 +1396,22 @@ void DrawNode(const RetainedNode *node, Canvas *canvas, const RetainedComputedSt
     // to a region the layer already covers — visually identical, cheaper.
     ApplyClipIfAny(node, canvas);
     if (layerLane) {
-      Paint layerPaint; // default kFill, no shader/filters — color + alpha only
+      Paint layerPaint;
       // WHITE + alpha, never a bare SetAlphaF: Paint's default color is black
       // (skity paint.hpp fill_color_ = Colors::kBlack); white is correct
       // whether the composite consumes just the alpha or the full color.
       layerPaint.SetColor(ColorFromARGB(0xFFFFFFFFu, nodeOpacity));
+      if (wantLayer) {
+        // Layer-composite effects (F.1.3b): mask → image → color, the same
+        // chain shape skity's ConvertPaintToHWFilter walks. Build* are
+        // content-interned (§15) — repeated frames hit the table.
+        auto cf = BuildColorFilter(node->layer_color_filter_data);
+        if (cf != nullptr) layerPaint.SetColorFilter(cf);
+        auto imf = BuildImageFilter(node->layer_image_filter_data);
+        if (imf != nullptr) layerPaint.SetImageFilter(imf);
+        auto mf = BuildMaskFilter(node->layer_mask_filter_data);
+        if (mf != nullptr) layerPaint.SetMaskFilter(mf);
+      }
       canvas->SaveLayer(layerBounds, layerPaint);
     }
     for (const RetainedNode *child : node->children) {
@@ -1432,6 +1457,17 @@ void SetExactGroupOpacityEnabled(bool enabled) {
 }
 bool ExactGroupOpacityEnabled() {
   return g_exact_group_opacity.load(std::memory_order_relaxed);
+}
+
+// Group layer-effect lane kill switch — default ON. Turning it off drops the
+// layer effects (there is no pre-layer behavior to fall back to — the filters
+// simply don't apply); the exact-opacity lane is unaffected. Same free-function
+// shape as the switches above, not wired to JS.
+void SetGroupLayerEnabled(bool enabled) {
+  g_group_layer.store(enabled, std::memory_order_relaxed);
+}
+bool GroupLayerEnabled() {
+  return g_group_layer.load(std::memory_order_relaxed);
 }
 
 } // namespace skityrt

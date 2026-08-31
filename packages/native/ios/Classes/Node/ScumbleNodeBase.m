@@ -89,6 +89,13 @@ LYNX_PROPS_GROUP_DECLARE(
     // Group clip sequence: base64-encoded JS-built ClipList bytes. An empty
     // payload clears the clip.
     LYNX_PROP_DECLARE("clip", setClip:, NSString *),
+    // Group layer effect (RN-Skia <Group layer>): force + three Filter slots
+    // riding the layer composite. Null (mount/teardown) is a no-op — an
+    // explicit clear is layerForce=false + empty strings.
+    LYNX_PROP_DECLARE("layerForce", setLayerForce:, NSNumber *),
+    LYNX_PROP_DECLARE("layerColorFilter", setLayerColorFilter:, NSString *),
+    LYNX_PROP_DECLARE("layerImageFilter", setLayerImageFilter:, NSString *),
+    LYNX_PROP_DECLARE("layerMaskFilter", setLayerMaskFilter:, NSString *),
     LYNX_PROP_DECLARE("animationData", setAnimationData:, NSString *),
     LYNX_PROP_DECLARE("animationHandle", setAnimationHandle:, NSString *),
     // Image node source uri (http(s) URL / data URI); an empty string clears
@@ -416,6 +423,30 @@ LYNX_PROP_SETTER("clip", setClip, NSString *) {
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _clipData = decoded.length > 0 ? decoded : nil;
   _dirtyClip = YES;
+  [self setNeedsLayout];
+}
+
+// Group layer effect: base64 Filter bytes into the layer slots. Same null
+// contract as setAnimationData (nil on mount/teardown = no-op, an explicit
+// clear is the empty string).
+#define SKITY_LAYER_FILTER_SETTER(PROP, FN, IVAR)                                       \
+  LYNX_PROP_SETTER(PROP, FN, NSString *) {                                              \
+    if (value == nil) return;                                                           \
+    NSData *decoded =                                                                    \
+        [[NSData alloc] initWithBase64EncodedString:value                                              \
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];       \
+    IVAR = decoded.length > 0 ? decoded : nil;                                          \
+    _dirtyLayer = YES;                                                                  \
+    [self setNeedsLayout];                                                              \
+  }
+SKITY_LAYER_FILTER_SETTER("layerColorFilter", setLayerColorFilter, _layerColorFilterData)
+SKITY_LAYER_FILTER_SETTER("layerImageFilter", setLayerImageFilter, _layerImageFilterData)
+SKITY_LAYER_FILTER_SETTER("layerMaskFilter", setLayerMaskFilter, _layerMaskFilterData)
+
+LYNX_PROP_SETTER("layerForce", setLayerForce, NSNumber *) {
+  if (value == nil) return; // mount/teardown no-op, NOT a clear
+  _layerForce = value.boolValue;
+  _dirtyLayer = YES;
   [self setNeedsLayout];
 }
 

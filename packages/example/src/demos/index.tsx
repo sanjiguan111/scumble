@@ -8,6 +8,7 @@ import { BiDiDemo } from "./BiDiDemo";
 import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
+import { GooeyDemo } from "./GooeyDemo";
 import { GroupOpacityDemo } from "./GroupOpacityDemo";
 import { ImageDemo } from "./ImageDemo";
 import { ImageShaderDemo } from "./ImageShaderDemo";
@@ -51,6 +52,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "saveLayer 离屏合成 · 精确组透明度",
     accent: "#ec4899",
     render: () => <GroupOpacityDemo />,
+  },
+  {
+    key: "layer-effects",
+    title: "Layer Effects",
+    subtitle: "Group layer · gooey 融合 · 离屏滤镜",
+    accent: "#8b5cf6",
+    render: () => <GooeyDemo />,
   },
   {
     key: "paths",

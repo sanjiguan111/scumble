@@ -8,7 +8,7 @@
 // Color parsing is delegated to @scumble/graphics (parseColor); this package
 // does not reinvent it.
 
-import type { ReactNode } from "@lynx-js/react";
+import type { ReactElement, ReactNode } from "@lynx-js/react";
 import type { StandardProps } from "@lynx-js/types";
 
 export type { Color } from "@scumble/graphics";
@@ -506,8 +506,36 @@ export interface ImageProps extends GraphicProps {
   sampling?: import("@scumble/graphics").ImageSamplingOptions;
 }
 
+/**
+ * The value of {@link GroupProps.layer} (RN-Skia `<Group layer>`). `true`
+ * composites the subtree offscreen with no effects; a {@link Paint} element
+ * additionally applies its **filter children**
+ * ({@link Blur}/{@link DropShadow}/{@link ColorMatrix}/{@link ColorBlend}/
+ * {@link MaskBlur}) to that composite — the whole subtree rasterizes first,
+ * then the effects run on the raster (gooey/liquid territory). The `<Paint>`'s
+ * other props are ignored; the layer's alpha is the Group's own `opacity`.
+ */
+export type GroupLayer = boolean | ReactElement<PaintProps>;
+
 export interface GroupProps extends GraphicProps {
   children?: ReactNode;
+  /**
+   * Group-level offscreen composite (RN-Skia `layer` semantics) — the ONLY
+   * entrance to group-level effects. Filter children placed directly under
+   * the Group keep their per-shape inheritance semantics (each descendant
+   * applies them to its own drawing — a different, also valid behavior).
+   * Set to `false` to clear explicitly; simply removing the prop leaves the
+   * native layer state untouched (prop removal fires the setters with null,
+   * which is a no-op).
+   *
+   * @example
+   * // gooey: blur → alpha threshold → soften, applied to the composited subtree
+   * <Group layer={<Paint><Blur blur={12} /><ColorMatrix matrix={GOOEY} /><Blur blur={2} /></Paint>}>
+   *   <Circle cx={40} cy={60} radius={26} color="#ec4899" />
+   *   <Circle cx={80} cy={60} radius={26} color="#ec4899" />
+   * </Group>
+   */
+  layer?: GroupLayer;
 }
 
 // ---- paint filters (declarative children of a shape / <Paint>) ----

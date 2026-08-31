@@ -168,6 +168,18 @@ export interface ScumbleGroupProps extends ScumbleCommonProps {
   /** Base64-encoded ClipList bytes (@scumble/graphics); the group's clip
    *  sequence, applied after the transform, before the subtree. Omit = no clip. */
   clip?: string;
+  /** Group layer effect (RN-Skia `layer`): composite the subtree offscreen.
+   *  force alone = plain composite, no effects; the three filter slots below
+   *  ride the LAYER composite (the skity saveLayer paint), not the per-shape
+   *  paint inheritance. */
+  layerForce?: boolean;
+  /** Base64-encoded Filter bytes applied to the layer composite's color. */
+  layerColorFilter?: string;
+  /** Base64-encoded Filter bytes applied to the layer composite's image
+   *  (blur/dropShadow chain). Empty string clears the slot. */
+  layerImageFilter?: string;
+  /** Base64-encoded Filter bytes applied to the layer composite's mask. */
+  layerMaskFilter?: string;
 }
 export interface ScumbleImageProps extends ScumbleCommonProps {
   /** Source uri (http(s) URL or data URI) — doubles as the ImageStore key.

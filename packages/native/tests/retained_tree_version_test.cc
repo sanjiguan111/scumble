@@ -99,6 +99,15 @@ std::vector<uint8_t> MakeSetClip(int32_t node) {
   return b.Finish();
 }
 
+std::vector<uint8_t> MakeSetLayerEffect(int32_t node) {
+  BatchBuilder b;
+  b.Add(Command_SetLayerEffect, [node](flatbuffers::FlatBufferBuilder &f) {
+    return skityrt::CreateSetLayerEffect(f, node, true,
+                                         f.CreateVector(std::vector<uint8_t>{8, 9}), 0, 0);
+  });
+  return b.Finish();
+}
+
 std::vector<uint8_t> MakeSetAnimation(int32_t node) {
   BatchBuilder b;
   b.Add(Command_SetAnimation, [node](flatbuffers::FlatBufferBuilder &f) {
@@ -153,6 +162,19 @@ TEST_F(VersionTest, PaintCommandsBumpPaintVersionOnly) {
   Apply(MakeSetTransform(2));
   EXPECT_EQ(n->paint_version, p0 + 2);
   EXPECT_EQ(n->geom_version, g0);
+}
+
+TEST_F(VersionTest, SetLayerEffectBumpsPaintVersionOnly) {
+  const RetainedNode *n = tree.Find(2);
+  uint32_t g0 = n->geom_version, p0 = n->paint_version;
+  Apply(MakeSetLayerEffect(2));
+  EXPECT_EQ(n->paint_version, p0 + 1);
+  EXPECT_EQ(n->geom_version, g0);
+  EXPECT_TRUE(n->layer_force);
+  ASSERT_NE(n->layer_color_filter_data, nullptr);
+  EXPECT_EQ(n->layer_color_filter_data->size(), 2u);
+  EXPECT_EQ(n->layer_image_filter_data, nullptr);
+  EXPECT_EQ(n->layer_mask_filter_data, nullptr);
 }
 
 TEST_F(VersionTest, GeometryCommandsBumpGeomVersionOnly) {

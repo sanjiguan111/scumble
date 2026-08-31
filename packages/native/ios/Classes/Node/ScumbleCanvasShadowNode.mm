@@ -209,6 +209,29 @@ static void ScumbleCollectCommands(flatbuffers::FlatBufferBuilder &fbb, ScumbleN
     types.push_back(skityrt::Command_SetClip);
     node.dirtyClip = NO;
   }
+  if (node.dirtyLayer) {
+    // Full-state command: force + all three slots (absent vectors clear).
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> cfOff = 0;
+    if (node.layerColorFilterData.length > 0) {
+      cfOff = fbb.CreateVector((const uint8_t *)node.layerColorFilterData.bytes,
+                               node.layerColorFilterData.length);
+    }
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> imfOff = 0;
+    if (node.layerImageFilterData.length > 0) {
+      imfOff = fbb.CreateVector((const uint8_t *)node.layerImageFilterData.bytes,
+                                node.layerImageFilterData.length);
+    }
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> mfOff = 0;
+    if (node.layerMaskFilterData.length > 0) {
+      mfOff = fbb.CreateVector((const uint8_t *)node.layerMaskFilterData.bytes,
+                               node.layerMaskFilterData.length);
+    }
+    auto off = skityrt::CreateSetLayerEffect(fbb, node.nativeId, node.layerForce, cfOff, imfOff,
+                                             mfOff);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetLayerEffect);
+    node.dirtyLayer = NO;
+  }
   if (node.dirtyAnimation) {
     // Empty/absent payload clears the node's animations on the render side.
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;

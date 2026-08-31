@@ -127,6 +127,7 @@ export type {
   PointsMode,
   PathProps,
   GroupProps,
+  GroupLayer,
   ImageHandle,
   ImageProps,
   ClipOpProp,
