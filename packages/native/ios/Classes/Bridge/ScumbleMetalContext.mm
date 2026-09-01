@@ -145,7 +145,10 @@
     desc.width = static_cast<uint32_t>(texture.width);
     desc.height = static_cast<uint32_t>(texture.height);
     desc.content_scale = 1.0f;
-    desc.sample_count = 1;
+    // 4x MSAA: the multisampled color attachment is memoryless (lives in tile
+    // memory only) and is resolved on-tile into the drawable, so it costs no
+    // extra VRAM on TBDR GPUs. All iOS GPUs support 4x.
+    desc.sample_count = 4;
     desc.surface_type = skity::MTLSurfaceType::kTexture;
     desc.texture = texture;
 

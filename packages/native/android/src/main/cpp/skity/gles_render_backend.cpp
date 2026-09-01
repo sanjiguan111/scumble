@@ -97,6 +97,14 @@ void GLESRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, float
   surface_desc.width = static_cast<uint32_t>(width_);
   surface_desc.height = static_cast<uint32_t>(height_);
   surface_desc.content_scale = 1.0f;
+  // 4x MSAA (GLES3 guarantees GL_MAX_SAMPLES >= 4). With
+  // GL_EXT_multisampled_render_to_texture (standard on tile-based Android
+  // GPUs) the multisampled attachment is a zero-allocation placeholder and
+  // the driver resolves in tile memory; otherwise skity falls back to a
+  // multisample renderbuffer + resolve. MSAA forces the offscreen
+  // kDrawTexture path, which this surface already uses (no stencil on the
+  // default framebuffer), so the present pipeline is unchanged.
+  surface_desc.sample_count = 4;
   surface_desc.surface_type = skity::GLSurfaceType::kFramebuffer;
   surface_desc.gl_id = 0;
   surface_desc.has_stencil_attachment = false;

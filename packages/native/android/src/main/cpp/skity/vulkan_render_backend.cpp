@@ -133,7 +133,9 @@ void VulkanRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, flo
   }
 
   skity::GPUSurfaceAcquireDescriptor acquire_desc = {};
-  acquire_desc.sample_count = 1;
+  // 4x MSAA, resolved on-tile into the (1x) swapchain image — no extra VRAM
+  // on tile-based GPUs. Mirrors the GLES and Metal backends.
+  acquire_desc.sample_count = 4;
   acquire_desc.content_scale = 1.f;
   auto acquire_result = presenter->AcquireNextSurface(acquire_desc);
   if (acquire_result.status == skity::GPUPresenterStatus::kNeedRecreate) {
