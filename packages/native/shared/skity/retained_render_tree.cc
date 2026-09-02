@@ -248,24 +248,42 @@ void RetainedRenderTree::ApplyParagraphRuns(const uint8_t *data, std::size_t siz
     node->paragraph.height = entry->height();
     node->paragraph.line_count = entry->line_count();
     node->paragraph.runs.clear();
-    const auto *runs = entry->runs();
-    if (runs == nullptr) continue; // laid-out but empty (e.g. empty text)
-    node->paragraph.runs.reserve(runs->size());
-    for (::flatbuffers::uoffset_t r = 0; r < runs->size(); r++) {
-      const ParagraphGlyphRun *src = runs->Get(r);
-      const auto *glyphs = src->glyphs();
-      const auto *px = src->pos_x();
-      const auto *py = src->pos_y();
-      if (glyphs == nullptr || px == nullptr || py == nullptr) continue;
-      if (glyphs->size() == 0 || glyphs->size() != px->size() || glyphs->size() != py->size())
-        continue;
-      RetainedNode::GlyphRun run;
-      run.font_id = src->font_id();
-      run.color = src->color();
-      run.glyphs.assign(glyphs->data(), glyphs->data() + glyphs->size());
-      run.pos_x.assign(px->data(), px->data() + px->size());
-      run.pos_y.assign(py->data(), py->data() + py->size());
-      node->paragraph.runs.push_back(std::move(run));
+    const auto *runs = entry->runs(); // null only for pre-decoration payloads
+    if (runs != nullptr) {
+      node->paragraph.runs.reserve(runs->size());
+      for (::flatbuffers::uoffset_t r = 0; r < runs->size(); r++) {
+        const ParagraphGlyphRun *src = runs->Get(r);
+        const auto *glyphs = src->glyphs();
+        const auto *px = src->pos_x();
+        const auto *py = src->pos_y();
+        if (glyphs == nullptr || px == nullptr || py == nullptr) continue;
+        if (glyphs->size() == 0 || glyphs->size() != px->size() || glyphs->size() != py->size())
+          continue;
+        RetainedNode::GlyphRun run;
+        run.font_id = src->font_id();
+        run.color = src->color();
+        run.glyphs.assign(glyphs->data(), glyphs->data() + glyphs->size());
+        run.pos_x.assign(px->data(), px->data() + px->size());
+        run.pos_y.assign(py->data(), py->data() + py->size());
+        node->paragraph.runs.push_back(std::move(run));
+      }
+    }
+    node->paragraph.decorations.clear();
+    const auto *decs = entry->decorations();
+    if (decs != nullptr) {
+      node->paragraph.decorations.reserve(decs->size());
+      for (::flatbuffers::uoffset_t d = 0; d < decs->size(); d++) {
+        const TextDecorationRun *src = decs->Get(d);
+        if (src == nullptr || !(src->width() > 0.f) || !(src->thickness() > 0.f)) continue;
+        RetainedNode::Paragraph::Decoration dec;
+        dec.x = src->x();
+        dec.width = src->width();
+        dec.y = src->y();
+        dec.thickness = src->thickness();
+        dec.color = src->color();
+        dec.style = static_cast<uint8_t>(src->style());
+        node->paragraph.decorations.push_back(dec);
+      }
     }
   }
 }

@@ -27,6 +27,10 @@ describe("buildSpanList → SpanList FlatBuffer round-trip", () => {
     expect(s0.italic()).toBe(false);
     expect(s0.color()).toBe(0xff000000); // opaque black
     expect(s0.letterSpacing()).toBe(0);
+    expect(s0.decoration()).toBe(0); // no decoration
+    expect(s0.decorationColor()).toBe(0); // 0 = follow the text color
+    expect(s0.decorationThickness()).toBe(0); // 0 = font-metrics default
+    expect(s0.decorationStyle()).toBe(0); // SOLID
 
     expect(list.spans(1)!.text()).toBe("skity");
   });
@@ -53,6 +57,46 @@ describe("buildSpanList → SpanList FlatBuffer round-trip", () => {
     expect(s.italic()).toBe(true);
     expect(s.color()).toBe(0xff3b82f6);
     expect(s.letterSpacing()).toBeCloseTo(1.25);
+  });
+
+  // @lat: [[tests#Graphics parsing layer#Paragraph decoration serialization]]
+  it("round-trips text decoration fields", () => {
+    const list = readBack(
+      buildSpanList([
+        {
+          text: "u",
+          decoration: "underline",
+          decorationColor: "#3b82f6",
+          decorationThickness: 3,
+          decorationStyle: "wavy",
+        },
+        { text: "combo", decoration: ["underline", "line-through"] },
+        { text: "nums", decoration: 6, decorationStyle: 4 },
+        { text: "case", decoration: "Underline" },
+        { text: "alias", decoration: "strikethrough" },
+        { text: "unknown", decoration: "blink", decorationStyle: "blink" },
+      ]),
+    );
+    expect(list.spansLength()).toBe(6);
+
+    const s0 = list.spans(0)!; // explicit everything
+    expect(s0.decoration()).toBe(1); // UNDERLINE
+    expect(s0.decorationColor()).toBe(0xff3b82f6);
+    expect(s0.decorationThickness()).toBeCloseTo(3);
+    expect(s0.decorationStyle()).toBe(4); // WAVY
+
+    expect(list.spans(1)!.decoration()).toBe(5); // underline | line-through
+    expect(list.spans(1)!.decorationColor()).toBe(0); // unset
+    expect(list.spans(1)!.decorationStyle()).toBe(0); // solid default
+
+    expect(list.spans(2)!.decoration()).toBe(6); // numeric passthrough
+    expect(list.spans(2)!.decorationStyle()).toBe(4); // numeric passthrough
+
+    expect(list.spans(3)!.decoration()).toBe(1); // case-insensitive
+    expect(list.spans(4)!.decoration()).toBe(4); // strikethrough alias
+
+    expect(list.spans(5)!.decoration()).toBe(0); // unknown name → no bits
+    expect(list.spans(5)!.decorationStyle()).toBe(0); // unknown → SOLID
   });
 
   it("encodes supplementary-plane chars as UTF-8, not CESU-8", () => {

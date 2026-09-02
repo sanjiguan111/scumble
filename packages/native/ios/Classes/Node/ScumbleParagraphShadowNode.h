@@ -27,12 +27,26 @@ struct ScumbleParagraphRun {
   uint32_t color = 0xFF000000u; // 0xAARRGGBB (span color)
 };
 
+/// One decoration line over one span's slice of one line (TextDecorationRun
+/// in paragraph_runs.fbs). Geometry is resolved HERE, at layout time — y is
+/// the line center, frame-top-relative like posY; color is resolved
+/// (decorationColor, else the span color).
+struct ScumbleParagraphDecoration {
+  float x = 0.f;
+  float width = 0.f;
+  float y = 0.f;
+  float thickness = 0.f;
+  uint32_t color = 0xFF000000u;
+  uint8_t style = 0; // skityrt::DecorationStyle
+};
+
 /// Layout result handed to the owning canvas (which serializes the runs of
 /// all paragraph children into one ParagraphRunList per flush).
 struct ScumbleParagraphResult {
   float height = 0.f;
   int lineCount = 0;
   std::vector<ScumbleParagraphRun> runs;
+  std::vector<ScumbleParagraphDecoration> decorations;
 };
 
 @interface ScumbleParagraphShadowNode : ScumbleNodeBase

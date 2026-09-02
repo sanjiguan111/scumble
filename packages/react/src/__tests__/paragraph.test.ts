@@ -84,6 +84,42 @@ describe("normalizeParagraphProps", () => {
     );
   });
 
+  it("merges paragraph-level decoration defaults; span fields win", () => {
+    const n = normalizeParagraphProps(
+      {
+        width: 300,
+        decoration: "underline",
+        decorationColor: "#ef4444",
+        decorationStyle: "wavy",
+      } as never,
+      [
+        span({ text: "inherits" }),
+        span({ text: "own", decoration: ["underline", "line-through"], decorationThickness: 3 }),
+      ],
+    )!;
+    expect(n.spans).toBe(
+      bytesToBase64(
+        buildSpanList([
+          // inherits every paragraph decoration default…
+          {
+            text: "inherits",
+            decoration: "underline",
+            decorationColor: "#ef4444",
+            decorationStyle: "wavy",
+          },
+          // …until the span sets its own (unset fields still fall through)
+          {
+            text: "own",
+            decoration: ["underline", "line-through"],
+            decorationColor: "#ef4444",
+            decorationThickness: 3,
+            decorationStyle: "wavy",
+          },
+        ]),
+      ),
+    );
+  });
+
   it("falls back to one empty span when there is no <TextSpan> child", () => {
     const n = normalizeParagraphProps({ width: 100 } as never)!;
     expect(n.spans).toBe(bytesToBase64(buildSpanList([{ text: "" }])));

@@ -168,6 +168,18 @@ struct RetainedNode {
     float height = 0.f;
     int line_count = 0;
     std::vector<GlyphRun> runs;
+    // Decoration lines over the laid-out glyph runs (TextDecorationRun in
+    // paragraph_runs.fbs). Geometry is a layout product — computed on the TASM
+    // thread; y is the line center, paragraph-box coordinates like pos_y.
+    struct Decoration {
+      float x = 0.f;
+      float width = 0.f;
+      float y = 0.f;
+      float thickness = 0.f;
+      uint32_t color = 0xFF000000u; // 0xAARRGGBB (resolved: deco color or span color)
+      uint8_t style = 0;            // DecorationStyle (paragraph_runs.fbs)
+    };
+    std::vector<Decoration> decorations;
   };
   bool has_paragraph = false;
   Paragraph paragraph;

@@ -286,6 +286,76 @@ export function parseTileMode(v: string | number): number {
 }
 
 /**
+ * Text decoration bits — maps to the `skityrt.Span.decoration` bitfield.
+ */
+export const TEXT_DECORATION_UNDERLINE = 1;
+export const TEXT_DECORATION_OVERLINE = 2;
+export const TEXT_DECORATION_LINE_THROUGH = 4;
+
+/**
+ * A single decoration name, a list of them, or a pre-composed bitmask number.
+ */
+export type TextDecorationProp =
+  "underline" | "overline" | "line-through" | TextDecorationName[] | number;
+export type TextDecorationName = "underline" | "overline" | "line-through";
+
+/**
+ * Resolve a decoration spec to the bitfield the native side expects:
+ * `underline`=1, `overline`=2, `line-through`=4 (combinable — RN-Skia's
+ * `TextDecoration` enum). Numbers pass through; unknown names contribute 0.
+ * Case-insensitive; also accepts `"line_through"` and the `"strikethrough"`
+ * alias.
+ *
+ * @example
+ * parseTextDecoration("underline");                   // 1
+ * parseTextDecoration(["underline", "line-through"]); // 5
+ * parseTextDecoration(6);                             // 6 (overline|line-through)
+ */
+export function parseTextDecoration(v: TextDecorationProp | undefined): number {
+  if (typeof v === "number") return v >>> 0;
+  if (v == null) return 0;
+  const names = Array.isArray(v) ? v : [v];
+  let bits = 0;
+  for (const name of names) {
+    if (typeof name !== "string") continue;
+    const s = name.toLowerCase();
+    if (s === "underline") bits |= TEXT_DECORATION_UNDERLINE;
+    else if (s === "overline") bits |= TEXT_DECORATION_OVERLINE;
+    else if (s === "line-through" || s === "line_through" || s === "strikethrough")
+      bits |= TEXT_DECORATION_LINE_THROUGH;
+  }
+  return bits;
+}
+
+/**
+ * Decoration stroke style for a text decoration. Maps to `skityrt.DecorationStyle`
+ * with RN-Skia's `TextDecorationStyle` value order.
+ *
+ * - `"solid"` — a plain filled bar.
+ * - `"double"` — two parallel bars.
+ * - `"dotted"` — round dots spaced with the thickness.
+ * - `"dashed"` — dashes spaced with the thickness.
+ * - `"wavy"` — a sine-like squiggle (SkParagraph wave shape).
+ */
+export type TextDecorationStyleName = "solid" | "double" | "dotted" | "dashed" | "wavy";
+
+/**
+ * Resolve a {@link TextDecorationStyleName} (or its raw byte) to the
+ * `DecorationStyle` byte: `SOLID=0`, `DOUBLE=1`, `DOTTED=2`, `DASHED=3`,
+ * `WAVY=4`. Case-insensitive; numbers pass through masked to a byte; unknown
+ * falls back to SOLID.
+ *
+ * @example
+ * parseTextDecorationStyle("wavy");  // 4
+ */
+export function parseTextDecorationStyle(v: TextDecorationStyleName | number | undefined): number {
+  if (typeof v === "number") return v & 0xff;
+  if (v == null) return 0;
+  const s = v.toLowerCase();
+  return s === "double" ? 1 : s === "dotted" ? 2 : s === "dashed" ? 3 : s === "wavy" ? 4 : 0;
+}
+
+/**
  * Serialize an image-shader destination rect to the `"x,y,w,h"` string the
  * native prop channel expects (same shape as the dash intervals string).
  * `undefined` in, `undefined` out (identity — 1:1 tiling at the bitmap's

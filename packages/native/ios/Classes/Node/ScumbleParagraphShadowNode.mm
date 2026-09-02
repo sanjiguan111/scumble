@@ -15,6 +15,7 @@
 
 #import <Lynx/LynxComponentRegistry.h>
 
+#include "decoration.h"
 #include "font_registry.h"
 #include "paragraph_runs_generated.h"
 #include "typeface_cache.h"
@@ -38,6 +39,15 @@ using skityrt::FontRegistry;
 // UTF-16 (the NSAttributedString).
 static NSString *const kScumbleSpanColorKey = @"scumbleSpanColor";
 
+// Span text-decoration params riding the same channel (NSNumbers). The
+// keys' PRESENCE alone separates decorated spans from plain neighbors —
+// attribute-dict differences force CTRun splits at span boundaries, so a
+// decoration never bleeds onto an adjacent span.
+static NSString *const kScumbleSpanDecorationKey = @"scumbleSpanDecoration";
+static NSString *const kScumbleSpanDecorationColorKey = @"scumbleSpanDecorationColor";
+static NSString *const kScumbleSpanDecorationThicknessKey = @"scumbleSpanDecorationThickness";
+static NSString *const kScumbleSpanDecorationStyleKey = @"scumbleSpanDecorationStyle";
+
 // Map a span's family/weight/slant to a CTFont. Family empty → the system
 // font; a `data:` URI → the custom-font cache decoded synchronously; any
 // other schemed URI (http/file/host) → the cache WHEN the platform font
@@ -47,7 +57,7 @@ static NSString *const kScumbleSpanColorKey = @"scumbleSpanColor";
 // same typeface object the run extraction will re-wrap, so glyph ids match
 // DrawGlyphs; weight ≥ 600 or italic → symbolic traits on a copy.
 CTFontRef ScumbleSpanFont(NSString *family, float size, int weight, bool italic,
-                        NSMutableSet<NSString *> *missedFontUris) {
+                          NSMutableSet<NSString *> *missedFontUris) {
   CTFontRef base = nullptr;
   const std::string fam(family.UTF8String != nullptr ? family.UTF8String : "");
   std::shared_ptr<skity::Typeface> custom;
@@ -175,6 +185,12 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
       attrs[(NSString *)kCTKernAttributeName] = @(kern);
     }
     attrs[(NSString *)kCTParagraphStyleAttributeName] = (__bridge id)paraStyle;
+    if (span->decoration() != 0u) {
+      attrs[kScumbleSpanDecorationKey] = @(span->decoration());
+      attrs[kScumbleSpanDecorationColorKey] = @(span->decorationColor());
+      attrs[kScumbleSpanDecorationThicknessKey] = @(span->decorationThickness());
+      attrs[kScumbleSpanDecorationStyleKey] = @(span->decorationStyle());
+    }
     [text appendAttributedString:[[NSAttributedString alloc] initWithString:str attributes:attrs]];
     CFRelease(font);
   }
@@ -250,14 +266,28 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
 
     const CFArrayRef runs = CTLineGetGlyphRuns(line);
     const CFIndex runCount = runs != nullptr ? CFArrayGetCount(runs) : 0;
+    // Decoration envelopes for this line, keyed by the decoration params — a
+    // span split across several CTRuns (bidi / font fallback) merges into one
+    // abutting rectangle. `metricsFont` is the first contributing run's font
+    // (borrowed from the run's attribute dict — valid for the line's scope).
+    struct DecoAcc {
+      uint32_t bits, color, runColor;
+      float thickness;
+      uint8_t style;
+      CGFloat lo, hi; // x envelope, line-local (origin.x added at emit)
+      CTFontRef metricsFont;
+      bool init = false;
+    };
+    std::vector<DecoAcc> decoAccs;
     for (CFIndex ri = 0; ri < runCount; ri++) {
       CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(runs, ri);
       const CFIndex glyphCount = CTRunGetGlyphCount(run);
       if (glyphCount == 0) continue;
       CFDictionaryRef attrs = CTRunGetAttributes(run);
-      NSNumber *colorAttr = attrs != nullptr ? CFBridgingRelease(CFDictionaryGetValue(
-                                                   attrs, (__bridge CFStringRef)kScumbleSpanColorKey))
-                                             : nil;
+      NSNumber *colorAttr = attrs != nullptr
+                                ? CFBridgingRelease(CFDictionaryGetValue(
+                                      attrs, (__bridge CFStringRef)kScumbleSpanColorKey))
+                                : nil;
       const uint32_t runColor =
           colorAttr != nil ? (uint32_t)colorAttr.unsignedIntValue : 0xFF000000u;
       CTFontRef ctFont =
@@ -289,6 +319,96 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
         out.posY.push_back((float)(top - (origin.y + positions[(size_t)g].y)));
       }
       result->runs.push_back(std::move(out));
+
+      // Decoration envelope from the SAME positions/advances the glyphs use
+      // (visual coordinates — direction-agnostic, zero drift vs the glyphs;
+      // CTRunGetOffsetForStringIndex has caret ambiguity at bidi edges).
+      NSNumber *decoAttr = attrs != nullptr
+                               ? (__bridge NSNumber *)CFDictionaryGetValue(
+                                     attrs, (__bridge CFStringRef)kScumbleSpanDecorationKey)
+                               : nil;
+      if (decoAttr != nil) {
+        const uint32_t bits = (uint32_t)decoAttr.unsignedIntValue;
+        if (bits != 0u) {
+          NSNumber *colorNum = (__bridge NSNumber *)CFDictionaryGetValue(
+              attrs, (__bridge CFStringRef)kScumbleSpanDecorationColorKey);
+          NSNumber *thickNum = (__bridge NSNumber *)CFDictionaryGetValue(
+              attrs, (__bridge CFStringRef)kScumbleSpanDecorationThicknessKey);
+          NSNumber *styleNum = (__bridge NSNumber *)CFDictionaryGetValue(
+              attrs, (__bridge CFStringRef)kScumbleSpanDecorationStyleKey);
+          const uint32_t decoColor = colorNum != nil ? (uint32_t)colorNum.unsignedIntValue : 0u;
+          const float decoThick = thickNum != nil ? (float)thickNum.doubleValue : 0.f;
+          const uint8_t decoStyle = styleNum != nil ? (uint8_t)styleNum.unsignedIntValue : 0u;
+          std::vector<CGSize> advances((size_t)glyphCount);
+          CTRunGetAdvances(run, CFRangeMake(0, 0), advances.data());
+          CGFloat lo = MAXFLOAT, hi = -MAXFLOAT;
+          for (CFIndex g = 0; g < glyphCount; g++) {
+            const CGFloat l = positions[(size_t)g].x;
+            lo = std::min(lo, l);
+            hi = std::max(hi, l + advances[(size_t)g].width);
+          }
+          DecoAcc *acc = nullptr;
+          for (auto &c : decoAccs) {
+            if (c.bits == bits && c.color == decoColor && c.thickness == decoThick &&
+                c.style == decoStyle) {
+              acc = &c;
+              break;
+            }
+          }
+          if (acc == nullptr) {
+            DecoAcc fresh{};
+            fresh.bits = bits;
+            fresh.color = decoColor;
+            fresh.runColor = runColor;
+            fresh.thickness = decoThick;
+            fresh.style = decoStyle;
+            decoAccs.push_back(fresh);
+            acc = &decoAccs.back();
+          }
+          if (!acc->init) {
+            acc->lo = lo;
+            acc->hi = hi;
+            acc->metricsFont = ctFont;
+            acc->runColor = runColor;
+            acc->init = true;
+          } else {
+            acc->lo = std::min(acc->lo, lo);
+            acc->hi = std::max(acc->hi, hi);
+          }
+        }
+      }
+    }
+
+    // Emit this line's decoration entries: one per (span-merge × set bit).
+    // Baseline in render space: top − origin.y (the glyph posY formula with
+    // the per-glyph offset dropped). Truncated lines keep their runs'
+    // attributes and the ellipsis token carries none — decorations stop at
+    // the truncation point, the ellipsis itself stays bare.
+    if (!decoAccs.empty()) {
+      const float baselineY = (float)(top - origin.y);
+      for (const auto &acc : decoAccs) {
+        if (!acc.init) continue;
+        const float fontSize = (float)CTFontGetSize(acc.metricsFont);
+        skity::FontMetrics m = {};
+        auto tf = skity::TypefaceCT::TypefaceFromCTFont(acc.metricsFont);
+        if (tf != nullptr) {
+          skity::Font font(tf, fontSize);
+          font.GetMetrics(&m);
+        }
+        for (uint8_t bit = 1; bit <= 4; bit <<= 1) {
+          if ((acc.bits & bit) == 0) continue;
+          float t = 0.f, yOff = 0.f;
+          skityrt::ResolveDecorationMetrics(m, fontSize, acc.thickness, bit, &t, &yOff);
+          ScumbleParagraphDecoration d;
+          d.x = (float)(origin.x + acc.lo);
+          d.width = (float)(acc.hi - acc.lo);
+          d.y = baselineY + yOff;
+          d.thickness = t;
+          d.color = acc.color != 0u ? acc.color : acc.runColor;
+          d.style = acc.style;
+          result->decorations.push_back(d);
+        }
+      }
     }
 
     // Content height = frame top down to the last laid line's baseline +

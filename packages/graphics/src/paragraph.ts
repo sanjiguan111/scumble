@@ -14,6 +14,12 @@ import { Span } from "./generated/skityrt/span.js";
 import { SpanList } from "./generated/skityrt/span-list.js";
 
 import { parseColor } from "./color.js";
+import {
+  type TextDecorationProp,
+  type TextDecorationStyleName,
+  parseTextDecoration,
+  parseTextDecorationStyle,
+} from "./enum.js";
 
 /** One styled run of source text — the serialization input for {@link buildSpanList}. */
 export interface SpanSpec {
@@ -29,6 +35,14 @@ export interface SpanSpec {
   color?: string;
   /** Extra letter spacing in px (skity has none; the layout layer applies it). */
   letterSpacing?: number;
+  /** Decoration bitfield input — see {@link parseTextDecoration}. Default none. */
+  decoration?: TextDecorationProp;
+  /** Decoration stroke color; unset = follow {@link color}. */
+  decorationColor?: string;
+  /** Decoration thickness in ABSOLUTE px; 0/unset = the font's metric thickness. */
+  decorationThickness?: number;
+  /** Decoration stroke style — see {@link parseTextDecorationStyle}. Default solid. */
+  decorationStyle?: TextDecorationStyleName | number;
 }
 
 /**
@@ -99,6 +113,13 @@ export function buildSpanList(spans: SpanSpec[]): ArrayBuffer {
     Span.addItalic(builder, span.italic === true);
     Span.addColor(builder, color >>> 0);
     Span.addLetterSpacing(builder, span.letterSpacing ?? 0);
+    Span.addDecoration(builder, parseTextDecoration(span.decoration));
+    Span.addDecorationColor(
+      builder,
+      span.decorationColor !== undefined ? parseColor(span.decorationColor) >>> 0 : 0,
+    );
+    Span.addDecorationThickness(builder, span.decorationThickness ?? 0);
+    Span.addDecorationStyle(builder, parseTextDecorationStyle(span.decorationStyle));
     spanOffsets.push(Span.endSpan(builder));
   }
   const spansOff = SpanList.createSpansVector(builder, spanOffsets);

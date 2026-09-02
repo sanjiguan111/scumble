@@ -17,6 +17,18 @@
 
 namespace skityrt;
 
+// Text decoration stroke style, shared by the Span input (what JS asks for)
+// and the TextDecorationRun output (what the layout backend laid out). Value
+// order follows RN-Skia's TextDecorationStyle (numeric passthrough) — fixed
+// once shipped, append only.
+enum DecorationStyle : byte {
+  SOLID = 0,
+  DOUBLE = 1,
+  DOTTED = 2,
+  DASHED = 3,
+  WAVY = 4,
+}
+
 // ---- Layout input (JS → TASM) ----
 
 // One styled run of source text. Font resolution happens natively: fontFamily
@@ -31,6 +43,17 @@ table Span {
   italic:bool = false;
   color:uint = 0xFF000000;  // 0xAARRGGBB
   letterSpacing:float = 0;  // px, applied by the layout layer (skity has none)
+  // Text decoration (RN-Skia TextStyle parity). `decoration` is a bitfield:
+  // 1 = UNDERLINE, 2 = OVERLINE, 4 = LINE_THROUGH (combinable; 0 = none).
+  // decorationColor 0 = follow the text color (0 doubles as "unset" — an
+  // explicit fully-transparent black falls back too). decorationThickness is
+  // ABSOLUTE px, 0 = the font's metric thickness (a deliberate deviation from
+  // RN-Skia's multiplier semantics). decorationStyle applies to every set bit.
+  // Appended so existing field ids stay stable.
+  decoration:uint = 0;
+  decorationColor:uint = 0;
+  decorationThickness:float = 0;
+  decorationStyle:DecorationStyle = SOLID;
 }
 table SpanList {
   spans:[Span];
@@ -47,11 +70,29 @@ table ParagraphGlyphRun {
   font_id:uint;             // FontRegistry key (the post-fallback font)
   color:uint;               // 0xAARRGGBB (span color)
 }
+// One decoration line over one span's slice of one line. The geometry is a
+// LAYOUT product (computed on the TASM thread): the wire glyph runs carry no
+// advances and iOS pos_y mixes per-glyph offsets, so the renderer could not
+// reconstruct x/y even in principle (TEXT_PARAGRAPH_DESIGN.md §7). x/width/y
+// are in paragraph-box space (same space as ParagraphGlyphRun pos_x/pos_y);
+// y is the CENTER of the line (SkParagraph's draw_line_as_rect is symmetric
+// around it). color is RESOLVED (decorationColor, else the span color — never
+// 0 here). One entry per (span × line × decoration bit); thickness is already
+// resolved from metrics when the Span left it unset.
+table TextDecorationRun {
+  x:float;                  // left edge of the decorated visual interval
+  width:float;              // (max glyph pen + advance) − (min glyph pen)
+  y:float;                  // line center, y-down, absolute in the paragraph box
+  thickness:float;          // resolved stroke thickness (px)
+  color:uint;               // 0xAARRGGBB
+  style:DecorationStyle = SOLID;
+}
 table ParagraphLayout {
   node_id:int = -1;
   height:float;             // laid-out content height (px)
   line_count:int;
   runs:[ParagraphGlyphRun];
+  decorations:[TextDecorationRun]; // appended (field ids stay stable)
 }
 table ParagraphRunList {
   entries:[ParagraphLayout];

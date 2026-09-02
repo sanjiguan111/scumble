@@ -170,6 +170,20 @@ export interface TextSpanProps {
   color?: string;
   /** Extra letter spacing in px. */
   letterSpacing?: number;
+  /** Text decoration: `"underline"`, `"overline"`, `"line-through"` (a.k.a.
+   *  strikethrough), an array of those, or a numeric bitmask (1/2/4,
+   *  combinable — RN-Skia's `TextDecoration`). The layout backend resolves
+   *  each set bit into a line over this span's slice of each laid-out line. */
+  decoration?: import("@scumble/graphics").TextDecorationProp;
+  /** Decoration stroke color. Unset = the paragraph's default, then the text
+   *  color. */
+  decorationColor?: string;
+  /** Decoration thickness in ABSOLUTE px (deliberate deviation from RN-Skia's
+   *  multiplier). Unset/0 = the font's metric thickness. */
+  decorationThickness?: number;
+  /** Decoration stroke style: `"solid"` (default), `"double"`, `"dotted"`,
+   *  `"dashed"`, `"wavy"`. Applies to every set {@link decoration} bit. */
+  decorationStyle?: import("@scumble/graphics").TextDecorationStyleName;
 }
 
 /** Line/box details delivered by the async `onLayout` event of {@link Paragraph}. */
@@ -213,6 +227,12 @@ export interface ParagraphProps extends GraphicProps {
   italic?: boolean;
   color?: string;
   letterSpacing?: number;
+  /** Default span decoration — see TextSpanProps.decoration. */
+  decoration?: import("@scumble/graphics").TextDecorationProp;
+  decorationColor?: string;
+  /** Default decoration thickness (absolute px) — see TextSpanProps. */
+  decorationThickness?: number;
+  decorationStyle?: import("@scumble/graphics").TextDecorationStyleName;
   /** Async layout details (height/lineCount) — fires after each re-layout. */
   onLayout?: (detail: ParagraphLayoutDetail) => void;
 }

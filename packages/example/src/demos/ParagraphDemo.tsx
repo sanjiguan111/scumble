@@ -92,6 +92,91 @@ export function ParagraphDemo() {
       </DemoSection>
 
       <DemoSection
+        title="decoration 基础"
+        caption="下划线 · 删除线 · 上划线;折行每行一条;混排字号基线"
+        height={110}
+      >
+        <Paragraph x={10} y={10} width={330} fontSize={16}>
+          <TextSpan text="underline " decoration="underline" />
+          <TextSpan text="line-through " decoration="line-through" />
+          <TextSpan text="overline " decoration="overline" />
+          {/* 大字号混排:装饰线的 y/粗细跟各 span 自己的字体 metrics
+              (SkParagraph 语义)——同行的 BIG 下划线比小字更低更粗,
+              错位是预期,不是 bug */}
+          <TextSpan text="BIG" fontSize={26} fontWeight={700} decoration="underline" />
+        </Paragraph>
+        {/* 折行的长 underline span:每行各自一条、区间随行截断 */}
+        <Paragraph x={10} y={70} width={330} fontSize={13}>
+          <TextSpan
+            text="A long underlined span that wraps across lines — each line gets its own decoration interval, tracked from the same pen positions as the glyphs."
+            decoration="underline"
+            decorationColor="#3b82f6"
+          />
+        </Paragraph>
+      </DemoSection>
+
+      <DemoSection
+        title="decoration 样式"
+        caption="solid · wavy · dotted · dashed · double"
+        height={120}
+      >
+        <Paragraph x={10} y={10} width={330} fontSize={16}>
+          <TextSpan text="solid " decoration="underline" />
+          <TextSpan text="wavy " decoration="underline" decorationStyle="wavy" />
+          <TextSpan text="dotted " decoration="underline" decorationStyle="dotted" />
+          <TextSpan text="dashed " decoration="underline" decorationStyle="dashed" />
+          <TextSpan text="double" decoration="underline" decorationStyle="double" />
+        </Paragraph>
+        {/* 显式颜色 + 绝对厚度(px,非乘数) */}
+        <Paragraph x={10} y={60} width={330} fontSize={16}>
+          <TextSpan
+            text="thick red wavy / green strikethrough"
+            decoration="underline"
+            decorationColor="#ef4444"
+            decorationThickness={3}
+            decorationStyle="wavy"
+          />
+          <TextSpan
+            text=" and green strike"
+            decoration="line-through"
+            decorationColor="#10b981"
+            decorationThickness={2}
+          />
+        </Paragraph>
+      </DemoSection>
+
+      <DemoSection
+        title="decoration 截断交互"
+        caption="maxLines 截断时装饰止于省略号前"
+        height={70}
+      >
+        <Paragraph x={10} y={10} width={330} fontSize={14} maxLines={2}>
+          <TextSpan
+            text="这段带下划线的长文本会被截断 —— 装饰线必须停在省略号之前,不能盖住省略号本身。 Scumble computes decoration intervals during layout, so truncation clips them for free."
+            decoration="underline"
+          />
+        </Paragraph>
+      </DemoSection>
+
+      <DemoSection
+        title="decoration 组合与 RTL"
+        caption="多 bit 组合;RTL 段落下划线连续"
+        height={110}
+      >
+        <Paragraph x={10} y={10} width={330} fontSize={16}>
+          <TextSpan text="underline + line-through" decoration={["underline", "line-through"]} />
+        </Paragraph>
+        {/* RTL:装饰区间取视觉包络,bidi 反转处必须连续 */}
+        <Paragraph x={10} y={60} width={330} fontSize={16} direction="rtl">
+          <TextSpan
+            text="مرحبا بالعالم RTL underlined"
+            decoration="underline"
+            decorationColor="#8b5cf6"
+          />
+        </Paragraph>
+      </DemoSection>
+
+      <DemoSection
         title="custom 字体"
         caption="fontFamily 直接收 data URI(内联 base64 ttf)"
         height={90}

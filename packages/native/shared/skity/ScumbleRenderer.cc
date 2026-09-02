@@ -947,6 +947,99 @@ void MakeImagePaint(const RetainedComputedStyle *style, float opacity, Paint *ou
   ApplyPaintFilters(style->fill, out);
 }
 
+// Decoration lines over a laid-out paragraph (TextDecorationRun side channel).
+// The geometry — x/width/y (line center, paragraph-box space)/thickness — is a
+// LAYOUT product; this only styles and strokes it. Paint resolution mirrors
+// the glyph lane exactly (node-level COLOR fill overrides, GRADIENT supplies
+// the hue with the decoration color's alpha, else the layout-resolved color ×
+// inherited opacity; blend mode/AA/filters identical) so a decorated paragraph
+// under a gradient or color filter behaves as one visual unit.
+//
+// Style geometry (DecorationStyle value order = RN-Skia TextDecorationStyle):
+//   SOLID  — filled rect, symmetric around y (SkParagraph draw_line_as_rect)
+//   DOUBLE — two SOLID rects, the second offset below by max(3, thickness+2)
+//   DOTTED — stroked line + dash [t, 2t] + round caps. NOT [0, 2t]: skity's
+//            dash filter drops zero-length on-intervals, which would erase
+//            every dot.
+//   DASHED — stroked line + dash [3t, 2t], butt caps
+//   WAVY   — stroked quad zigzag, SkParagraph calculateWaves: quarter wave =
+//            thickness, each bump advances 2×quarter with the control point
+//            ±quarter, plus a partial tail quad. Intervals scale with the
+//            thickness (the override is absolute px, so [t,2t]/[3t,2t] match
+//            SkParagraph's fontSize/14 spacing at the metric default).
+void DrawTextDecorations(const RetainedNode *node, Canvas *canvas,
+                         const RetainedComputedStyle *style, float opacity) {
+  const RetainedPaint *fill = style != nullptr ? &style->fill : nullptr;
+  for (const auto &d : node->paragraph.decorations) {
+    if (!(d.width > 0.f) || !(d.thickness > 0.f)) continue;
+    Paint paint;
+    paint.SetAntiAlias(true);
+    paint.SetBlendMode(
+        static_cast<skity::BlendMode>(style != nullptr ? style->blend_mode : BlendMode_SRC_OVER));
+    bool styled = false;
+    if (fill != nullptr && fill->type == 2 /*GRADIENT*/) {
+      const float decoAlpha = opacity * (float)((d.color >> 24) & 0xFF) / 255.f;
+      styled = ApplyGradient(fill->gradient_data, decoAlpha, &paint);
+    } else if (fill != nullptr && fill->type == 1 /*COLOR*/) {
+      paint.SetColor(ColorFromARGB(fill->color, opacity));
+      styled = true;
+    }
+    if (!styled) paint.SetColor(ColorFromARGB(d.color, opacity));
+    if (fill != nullptr) ApplyPaintFilters(*fill, &paint);
+
+    const float x1 = d.x;
+    const float x2 = d.x + d.width;
+    const float y = d.y;
+    const float t = d.thickness;
+    switch (d.style) {
+    case 4: { // WAVY — SkParagraph calculateWaves
+      Path path;
+      const float quarter = t;
+      float xw = x1;
+      int wave = 0;
+      path.MoveTo(x1, y);
+      while (xw + quarter * 2.f < x2) {
+        path.QuadTo(xw + quarter, y + (wave % 2 != 0 ? quarter : -quarter), xw + quarter * 2.f, y);
+        xw += quarter * 2.f;
+        wave++;
+      }
+      const float rem = x2 - xw; // tail partial quad
+      if (rem > 0.f) {
+        const float sign = wave % 2 == 0 ? -1.f : 1.f;
+        path.QuadTo(xw + rem * 0.5f, y + rem * 0.5f * sign, xw + rem,
+                    y + (rem - rem * rem / (quarter * 2.f)) * sign);
+      }
+      paint.SetStyle(Paint::kStroke_Style);
+      paint.SetStrokeWidth(t);
+      canvas->DrawPath(path, paint);
+      break;
+    }
+    case 1: { // DOUBLE — two filled rects
+      const float spacing = std::max(3.f, t + 2.f);
+      paint.SetStyle(Paint::kFill_Style);
+      canvas->DrawRect(Rect::MakeXYWH(x1, y - t * 0.5f, d.width, t), paint);
+      canvas->DrawRect(Rect::MakeXYWH(x1, y + spacing - t * 0.5f, d.width, t), paint);
+      break;
+    }
+    case 2:   // DOTTED — [t, 2t] + round caps (see header comment)
+    case 3: { // DASHED — [3t, 2t], butt caps
+      paint.SetStyle(Paint::kStroke_Style);
+      paint.SetStrokeWidth(t);
+      if (d.style == 2) paint.SetStrokeCap(Paint::kRound_Cap);
+      const float intervals[2] = {d.style == 2 ? t : 3.f * t, 2.f * t};
+      paint.SetPathEffect(PathEffect::MakeDashPathEffect(intervals, 2, 0.f));
+      canvas->DrawLine(x1, y, x2, y, paint);
+      break;
+    }
+    default: { // SOLID — filled rect symmetric around y
+      paint.SetStyle(Paint::kFill_Style);
+      canvas->DrawRect(Rect::MakeXYWH(x1, y - t * 0.5f, d.width, t), paint);
+      break;
+    }
+    }
+  }
+}
+
 void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style,
                skity::GPUContext *gpu_context) {
   const std::string &tag = node->tag_name;
@@ -1024,7 +1117,7 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     canvas->DrawImageRect(image, src, dst, sampling, &paint);
   } else if (tag == "paragraph") {
     if (!node->has_paragraph) return;
-    if (node->paragraph.runs.empty()) return;
+    if (node->paragraph.runs.empty() && node->paragraph.decorations.empty()) return;
     canvas->Save();
     canvas->Translate(AnimX(node), AnimY(node));
     // Node-level fill (explicit or inherited) rides every run: skity's glyph
@@ -1069,6 +1162,7 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
       canvas->DrawGlyphs(static_cast<int>(run.glyphs.size()), run.glyphs.data(), run.pos_x.data(),
                          run.pos_y.data(), font, paint);
     }
+    DrawTextDecorations(node, canvas, style, opacity);
     canvas->Restore();
   }
 }

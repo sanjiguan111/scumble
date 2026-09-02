@@ -36,9 +36,9 @@ struct ScumbleStructuralOp {
 
 // Drain pending structural ops into the CommandBatch (Insert → Move → Remove).
 static void ScumbleDrainStructural(flatbuffers::FlatBufferBuilder &fbb,
-                                 std::vector<ScumbleStructuralOp> &pending,
-                                 std::vector<flatbuffers::Offset<void>> &offsets,
-                                 std::vector<uint8_t> &types) {
+                                   std::vector<ScumbleStructuralOp> &pending,
+                                   std::vector<flatbuffers::Offset<void>> &offsets,
+                                   std::vector<uint8_t> &types) {
   if (pending.empty()) return;
   for (const auto &op : pending)
     if (op.kind == ScumbleStructuralOp::kInsert) {
@@ -66,8 +66,8 @@ static void ScumbleDrainStructural(flatbuffers::FlatBufferBuilder &fbb,
 // FlatBuffer. Clears the dirty flags. Built on the TASM thread in measure() and
 // piggybacked on the render bundle to the render thread alongside the snapshot.
 static void ScumbleCollectCommands(flatbuffers::FlatBufferBuilder &fbb, ScumbleNodeBase *node,
-                                 std::vector<flatbuffers::Offset<void>> &offsets,
-                                 std::vector<uint8_t> &types) {
+                                   std::vector<flatbuffers::Offset<void>> &offsets,
+                                   std::vector<uint8_t> &types) {
   if (node.dirtyPaintMask != 0) {
     // Gradient bytes (nested Gradient FlatBuffer) ride the same SetPaint command
     // as opaque [ubyte] vectors — same pattern as SetPathData/SetTransform.
@@ -226,8 +226,8 @@ static void ScumbleCollectCommands(flatbuffers::FlatBufferBuilder &fbb, ScumbleN
       mfOff = fbb.CreateVector((const uint8_t *)node.layerMaskFilterData.bytes,
                                node.layerMaskFilterData.length);
     }
-    auto off = skityrt::CreateSetLayerEffect(fbb, node.nativeId, node.layerForce, cfOff, imfOff,
-                                             mfOff);
+    auto off =
+        skityrt::CreateSetLayerEffect(fbb, node.nativeId, node.layerForce, cfOff, imfOff, mfOff);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetLayerEffect);
     node.dirtyLayer = NO;
@@ -384,7 +384,7 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("viewportX", setViewportX:, NSNumber 
 // a full snapshot, not a delta.
 static void
 ScumbleLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fbb,
-                      std::vector<flatbuffers::Offset<skityrt::ParagraphLayout>> &offs) {
+                        std::vector<flatbuffers::Offset<skityrt::ParagraphLayout>> &offs) {
   for (LynxShadowNode *child in node.children) {
     if ([child isKindOfClass:[ScumbleParagraphShadowNode class]]) {
       ScumbleParagraphShadowNode *p = (ScumbleParagraphShadowNode *)child;
@@ -399,8 +399,15 @@ ScumbleLayoutParagraphs(LynxShadowNode *node, flatbuffers::FlatBufferBuilder &fb
             skityrt::CreateParagraphGlyphRun(fbb, glyphsOff, pxOff, pyOff, run.fontId, run.color));
       }
       auto runsOff = fbb.CreateVector(runOffsets);
+      std::vector<flatbuffers::Offset<skityrt::TextDecorationRun>> decoOffsets;
+      decoOffsets.reserve(result->decorations.size());
+      for (const auto &d : result->decorations) {
+        decoOffsets.push_back(skityrt::CreateTextDecorationRun(
+            fbb, d.x, d.width, d.y, d.thickness, d.color, (skityrt::DecorationStyle)d.style));
+      }
+      auto decorsOff = fbb.CreateVector(decoOffsets);
       offs.push_back(skityrt::CreateParagraphLayout(fbb, p.nativeId, result->height,
-                                                    result->lineCount, runsOff));
+                                                    result->lineCount, runsOff, decorsOff));
     }
     ScumbleLayoutParagraphs(child, fbb, offs);
   }

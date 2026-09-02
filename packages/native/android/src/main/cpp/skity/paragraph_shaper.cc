@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "bidi_line.h"
+#include "decoration.h"
 #include "font_registry.h"
 #include "generated/paragraph_runs_generated.h"
 #include "line_breaker.h"
@@ -220,6 +221,15 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     uint32_t cpStart;                 // index into fullText
   };
   std::vector<SpanText> spanTexts;
+  // Decoration params, index-parallel to spanTexts (only non-empty spans
+  // enter, same filter as above). bits = Span.decoration bitfield.
+  struct SpanDeco {
+    uint32_t bits;
+    uint32_t color;  // 0 = follow the span color
+    float thickness; // <= 0 = font-metrics default
+    uint8_t style;   // skityrt::DecorationStyle
+  };
+  std::vector<SpanDeco> spanDecos;
   spanTexts.reserve(spans->size());
   for (::flatbuffers::uoffset_t i = 0; i < spans->size(); i++) {
     const skityrt::Span *span = spans->Get(i);
@@ -232,7 +242,11 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     for (uint32_t cp : st.codepoints) {
       fullText.push_back(cp == '\n' || cp == '\r' ? ' ' : cp);
     }
-    if (!st.codepoints.empty()) spanTexts.push_back(std::move(st));
+    if (!st.codepoints.empty()) {
+      spanDecos.push_back(SpanDeco{span->decoration(), span->decorationColor(),
+                                   span->decorationThickness(), (uint8_t)span->decorationStyle()});
+      spanTexts.push_back(std::move(st));
+    }
   }
 
   // UAX #9 over the full text: one paragraph, base level from the `direction`
@@ -355,6 +369,20 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
   std::vector<uint32_t> glyphCp(glyphs.size());
   for (size_t i = 0; i < glyphs.size(); i++)
     glyphCp[i] = glyphs[i].cpIndex;
+  // Owning span per glyph (for decoration intervals): a glyph's cpIndex is its
+  // cluster's first cp, clusters never cross a span boundary (spans shape
+  // independently), so a cp→span lookup resolves ownership exactly.
+  std::vector<int32_t> glyphSpan(glyphs.size(), -1);
+  if (!spanDecos.empty()) {
+    std::vector<int32_t> cpSpan(fullText.size(), -1);
+    for (size_t si = 0; si < spanTexts.size(); si++) {
+      const uint32_t end = spanTexts[si].cpStart + (uint32_t)spanTexts[si].codepoints.size();
+      for (uint32_t cp = spanTexts[si].cpStart; cp < end && cp < cpSpan.size(); cp++)
+        cpSpan[cp] = (int32_t)si;
+    }
+    for (size_t i = 0; i < glyphs.size(); i++)
+      glyphSpan[i] = glyphs[i].cpIndex < cpSpan.size() ? cpSpan[glyphs[i].cpIndex] : -1;
+  }
 
   // 2) Line breaking over the glyph stream. Empty glyph content falls
   // through — see the note above the serialization: a 0-run entry must still
@@ -391,6 +419,28 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     std::vector<float> py;
   };
   std::vector<OutRun> outRuns;
+  // Decoration output entries — geometry resolved during line assembly below
+  // (one entry per span × line × set decoration bit), serialized alongside
+  // the runs.
+  struct OutDeco {
+    float x, width, y, thickness;
+    uint32_t color;
+    uint8_t style;
+  };
+  std::vector<OutDeco> outDecos;
+  // Full FontMetrics per (typeface, size), for decoration line positions.
+  std::unordered_map<MetricsKey, skity::FontMetrics, MetricsKeyHash> decoMetrics;
+  auto decoMetricsFor = [&](const ShapedGlyph &g) -> skity::FontMetrics {
+    const MetricsKey key{g.typeface->TypefaceId(), g.fontSize};
+    auto it = decoMetrics.find(key);
+    if (it == decoMetrics.end()) {
+      skity::FontMetrics m;
+      skity::Font font(g.typeface, g.fontSize);
+      font.GetMetrics(&m);
+      it = decoMetrics.emplace(key, m).first;
+    }
+    return it->second;
+  };
   // FontRegistry::Register is idempotent per (typeface, size) — repeated
   // layouts return the existing id and don't grow the registry.
 
@@ -508,6 +558,18 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     // logical tail was cut); LTR at the right.
     float cursor = 0.f;
     OutRun *run = nullptr;
+    // Decoration interval accumulation for this line: one accumulator per
+    // decorated span present on it, grown from the SAME pen positions the
+    // glyphs render at (advance already includes letterSpacing, so the
+    // interval covers tracked text; the ellipsis never enters — it emits
+    // outside [head, tail)).
+    struct DecoAcc {
+      uint32_t spanIdx;
+      float minX, maxX;
+      uint32_t firstGlyph; // first VISUAL glyph (metrics font for the lines)
+      bool init = false;
+    };
+    std::vector<DecoAcc> accs;
     auto emitEllipsis = [&]() {
       const ShapedGlyph &g = glyphs[ellGlyphIdx];
       const uint32_t fontId = FontRegistry::Instance().Register(g.typeface, g.fontSize);
@@ -516,7 +578,8 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     };
     if (hasEllipsis && rtlBase) emitEllipsis();
     for (size_t oi = head; oi < tail; oi++) {
-      const auto &g = glyphs[order[oi]];
+      const uint32_t gi = order[oi];
+      const auto &g = glyphs[gi];
       const uint32_t fontId = FontRegistry::Instance().Register(g.typeface, g.fontSize);
       if (run == nullptr || run->fontId != fontId || run->color != g.color) {
         outRuns.push_back(OutRun{fontId, g.color, {}, {}, {}});
@@ -525,9 +588,54 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
       run->glyphs.push_back(g.glyphId);
       run->px.push_back(x0 + cursor + g.xOffset);
       run->py.push_back(baseline);
+      if (!spanDecos.empty()) {
+        const int32_t si = glyphSpan[gi];
+        if (si >= 0 && spanDecos[(size_t)si].bits != 0) {
+          DecoAcc *a = nullptr;
+          for (auto &c : accs) {
+            if (c.spanIdx == (uint32_t)si) {
+              a = &c;
+              break;
+            }
+          }
+          if (a == nullptr) {
+            accs.push_back(DecoAcc{(uint32_t)si, 0.f, 0.f, gi, false});
+            a = &accs.back();
+          }
+          const float xL = x0 + cursor; // pen BEFORE this glyph's advance
+          const float xR = xL + g.advance;
+          if (!a->init) {
+            a->minX = xL;
+            a->maxX = xR;
+            a->firstGlyph = gi; // visual order → the first hit is leftmost
+            a->init = true;
+          } else {
+            a->minX = std::min(a->minX, xL);
+            a->maxX = std::max(a->maxX, xR);
+          }
+        }
+      }
       cursor += g.advance;
     }
     if (hasEllipsis && !rtlBase) emitEllipsis();
+
+    // Resolve this line's decoration accumulators into output entries: one
+    // per (span × line × set bit), y from the first visual glyph's font
+    // metrics (mixed-fallback spans approximate — same stance as the line's
+    // ascent/descent max above).
+    for (const auto &a : accs) {
+      if (!a.init) continue;
+      const SpanDeco &sd = spanDecos[a.spanIdx];
+      const ShapedGlyph &fg = glyphs[a.firstGlyph];
+      const skity::FontMetrics m = decoMetricsFor(fg);
+      for (uint8_t bit = 1; bit <= 4; bit <<= 1) {
+        if ((sd.bits & bit) == 0) continue;
+        float t = 0.f, yOff = 0.f;
+        ResolveDecorationMetrics(m, fg.fontSize, sd.thickness, bit, &t, &yOff);
+        outDecos.push_back(OutDeco{a.minX, a.maxX - a.minX, baseline + yOff, t,
+                                   sd.color != 0 ? sd.color : fg.color, sd.style});
+      }
+    }
   }
   result.height = y;
   result.lineCount = (int32_t)lines.size();
@@ -543,8 +651,15 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
         skityrt::CreateParagraphGlyphRun(fbb, glyphsOff, pxOff, pyOff, r.fontId, r.color));
   }
   auto runsOff = fbb.CreateVector(runOffsets);
+  std::vector<::flatbuffers::Offset<skityrt::TextDecorationRun>> decoOffsets;
+  decoOffsets.reserve(outDecos.size());
+  for (const auto &d : outDecos) {
+    decoOffsets.push_back(skityrt::CreateTextDecorationRun(
+        fbb, d.x, d.width, d.y, d.thickness, d.color, (skityrt::DecorationStyle)d.style));
+  }
+  auto decorsOff = fbb.CreateVector(decoOffsets);
   auto entry = skityrt::CreateParagraphLayout(fbb, (int32_t)nodeId, result.height, result.lineCount,
-                                              runsOff);
+                                              runsOff, decorsOff);
   auto entries =
       fbb.CreateVector(std::vector<::flatbuffers::Offset<skityrt::ParagraphLayout>>{entry});
   auto root = skityrt::CreateParagraphRunList(fbb, entries);

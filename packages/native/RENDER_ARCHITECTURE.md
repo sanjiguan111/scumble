@@ -826,7 +826,70 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
   per (typeface, size).
 - ~~BiDi/RTL~~ — done (2026-08-21): `direction` prop (ltr/rtl/auto) +
   SheenBidi on Android, CoreText `BaseWritingDirection` on iOS (above).
+- ~~Text decoration~~ — done (2026-09-02): see §13.2 below.
 - Justification — out of scope per the design, revisit with a real case.
+
+### 13.2 Text decoration (2026-09-02, as-built)
+
+`decoration` (bitfield: underline/overline/line-through, combinable),
+`decorationColor`, `decorationThickness`, `decorationStyle`
+(solid/double/dotted/dashed/wavy) on spans (RN-Skia TextStyle parity; value
+order = RN-Skia's enums so numbers pass through). One deliberate deviation:
+`decorationThickness` is ABSOLUTE px (0/unset = the font's metric
+thickness), not RN-Skia's multiplier.
+
+**Why the geometry is a layout product**: the wire `ParagraphGlyphRun`
+carries no glyph advances (render-time x extent would miss the last glyph)
+and iOS `pos_y` mixes per-glyph offsets (the baseline is not recoverable) —
+so the renderer could never reconstruct x/y, matching the §7 invariant in
+TEXT_PARAGRAPH_DESIGN.md. Each backend emits one `TextDecorationRun`
+(x/width/y/thickness/color/style, y = line CENTER, paragraph-box space) per
+**span × line × set bit** onto the existing ParagraphRunList side channel
+(entry-level overwrite clears decorations with the runs).
+
+- **Android** (`paragraph_shaper.cc`): the emit loop that walks a line's
+  visual order accumulates, per decorated span on the line, the pen interval
+  `[x0+cursor, x0+cursor+advance)` of its glyphs — the SAME positions the
+  glyphs render at (advance includes letterSpacing, so tracked text is
+  covered; the ellipsis emits outside the loop, so truncation clips
+  decorations for free and never decorates the "…"). At line end each
+  accumulator × set bit resolves y/thickness from the FIRST VISUAL glyph's
+  font via `decoration.h`'s `ResolveDecorationMetrics` (cached per
+  (typeface, size)).
+- **iOS** (`ScumbleParagraphShadowNode.mm`): decoration params ride the
+  attributed string as NSNumber custom attributes (the span-color key
+  pattern; key presence alone forces CTRun splits at span boundaries, so a
+  decoration never bleeds onto a neighbor). The CTRun walk takes each
+  decorated run's x envelope from `CTRunGetPositions`+`CTRunGetAdvances`
+  (visual coordinates — direction-agnostic, zero drift vs the glyphs;
+  `CTRunGetOffsetForStringIndex` has caret ambiguity at bidi edges) and
+  merges runs of the same params into one abutting rectangle; y uses the
+  line baseline `top − origin.y`, metrics from the first contributing run's
+  CTFont bridged through `TypefaceFromCTFont`. Truncated lines keep their
+  runs' attributes, the ellipsis token carries none — same clip-for-free.
+- **Metrics** (`shared/skity/decoration.h`): skity's `FontMetrics` fills
+  `underline_position_` (y-down, >0, stroke CENTER below the baseline — both
+  scalers) and `strikeout_position_` (<0; OS/2 table, 0 when missing —
+  common for CFF fonts on darwin, hence the x_height fallback). Every case
+  is `y = baseline + value`. Fallbacks for metric-less fonts follow
+  SkParagraph: thickness `max(1, fontSize/14)`, underline at +thickness,
+  strikeout at −x_height/2 (else −0.55·ascent), overline at −ascent.
+- **Renderer** (`ScumbleRenderer.cc` `DrawTextDecorations`, called after
+  the glyph loop inside the paragraph's Save/Translate): paint resolution
+  clones the glyph lane exactly (node fill COLOR overrides, GRADIENT
+  supplies hue with the decoration color's alpha, else the resolved color ×
+  inherited opacity; blend/AA/filters identical) so a decorated paragraph
+  under a gradient or color filter reads as one unit. Style geometry =
+  SkParagraph's: SOLID/DOUBLE filled rects symmetric around y, DOTTED/DASHED
+  stroked lines with thickness-scaled dash intervals ([t,2t] round-cap /
+  [3t,2t] butt — NOT [0,2t]: skity's dash filter drops zero-length
+  on-intervals, which would erase every dot), WAVY the calculateWaves quad
+  zigzag (quarter wave = thickness) plus a partial tail quad.
+- **Semantics note**: per-span metrics (SkParagraph/RN-Skia behavior) — on a
+  mixed-size line each span's lines take their OWN font's position and
+  thickness, so the underlines visibly offset (verified on the demo; kept
+  deliberately, matching CSS's "establishing element" rule for span-set
+  decorations).
 
 ## 14. Native animation engine (2026-08-25)
 

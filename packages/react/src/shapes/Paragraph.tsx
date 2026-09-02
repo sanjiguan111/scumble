@@ -84,6 +84,10 @@ export function normalizeParagraphProps(
     italic: s.italic ?? props.italic,
     color: s.color ?? props.color,
     letterSpacing: s.letterSpacing ?? props.letterSpacing,
+    decoration: s.decoration ?? props.decoration,
+    decorationColor: s.decorationColor ?? props.decorationColor,
+    decorationThickness: s.decorationThickness ?? props.decorationThickness,
+    decorationStyle: s.decorationStyle ?? props.decorationStyle,
   }));
   return {
     spans: bytesToBase64(buildSpanList(spec.length > 0 ? spec : [{ text: "" }])),
@@ -110,10 +114,28 @@ export function normalizeParagraphProps(
  * pipeline (falls back to the span colors). Note `color` on a paragraph is
  * the SPAN default color, not a node fill — use `<Paint color>` for that.
  *
+ * Text decoration (`decoration`/`decorationColor`/`decorationThickness`/
+ * `decorationStyle` on spans, or paragraph-level defaults) is computed by the
+ * layout backend (one line per span × laid-out line × set bit, from the font's
+ * underline/strikeout metrics) and drawn after the glyphs through the same
+ * paint channel — a gradient fill tints the decoration lines too.
+ * `decorationThickness` is absolute px (0/unset = the font's metric thickness).
+ *
  * @example
  * <Paragraph x={0} y={0} width={300} fontSize={16} onLayout={(d) => console.log(d.height)}>
  *   <TextSpan text="Hello " />
  *   <TextSpan text="skity" color="#3b82f6" fontWeight={700} />
+ * </Paragraph>
+ *
+ * @example
+ * <Paragraph x={0} y={0} width={300} fontSize={16}>
+ *   <TextSpan
+ *     text="wavy red underline"
+ *     decoration="underline"
+ *     decorationColor="#ef4444"
+ *     decorationStyle="wavy"
+ *     decorationThickness={2}
+ *   />
  * </Paragraph>
  *
  * @example

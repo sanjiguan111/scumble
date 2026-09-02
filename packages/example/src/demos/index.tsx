@@ -154,7 +154,7 @@ export const DEMOS: DemoConfig[] = [
   {
     key: "paragraph",
     title: "Paragraph",
-    subtitle: "富文本 · 换行对齐 · maxLines · onLayout",
+    subtitle: "富文本 · 换行对齐 · decoration · maxLines · onLayout",
     accent: "#10b981",
     render: () => <ParagraphDemo />,
   },

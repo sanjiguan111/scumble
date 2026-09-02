@@ -2,6 +2,7 @@
 lat:
   require-code-mention: true
 ---
+
 # Test specifications
 
 Host-side test suites (graphics / react vitest + native C++ gtest) anchor the semantics documented in [[rendering]], [[animation]], and [[architecture]]. This file registers the key cases; every leaf section must be referenced by exactly one `@lat:` comment placed next to the covering test.
@@ -35,6 +36,12 @@ Details: absolute coords and {x,y} points, explicit positions, repeat mapping, <
 `animation.test.ts` — `buildAnimationList` round-trips every track feature.
 
 Details: from/to sugar → two keyframes, Infinity iterations, preset easing → cubic-bezier, per-keyframe easing fallback, missing offsets evenly spaced, color packing, multi-track order; zero tracks / <2 keyframes throw.
+
+### Paragraph decoration serialization
+
+`paragraph.test.ts` — `buildSpanList` round-trips the four decoration fields onto the `Span` table.
+
+Details: schema defaults (decoration 0 / decorationColor 0 = follow text color / thickness 0 = metric default / SOLID); the bitfield resolves from names, arrays, and numeric passthrough ("underline"→1, underline+line-through→5, 6→6; case-insensitive, strikethrough/line_through aliases, unknown names contribute 0); `decorationStyle` maps names to the RN-Skia value order (wavy→4, double→1) with numbers masked through; decorationColor parses via `parseColor`, unset stays 0.
 
 ## React component layer
 
