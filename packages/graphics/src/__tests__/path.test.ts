@@ -16,6 +16,7 @@ function readBack(bytes: ArrayBuffer): PathCommandList {
   return PathCommandList.getRootAsPathCommandList(bb);
 }
 
+// @lat: [[tests#Graphics parsing layer#Path parsing and Path2D]]
 describe("parsePath → nested FlatBuffer round-trip", () => {
   it("builds a parseable PathCommandList for a simple absolute path", () => {
     const bytes = parsePath("M10 10 L20 20 Z");

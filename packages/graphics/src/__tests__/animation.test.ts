@@ -13,6 +13,7 @@ function readBack(bytes: ArrayBuffer): AnimationList {
   return AnimationList.getRootAsAnimationList(new flatbuffers.ByteBuffer(new Uint8Array(bytes)));
 }
 
+// @lat: [[tests#Graphics parsing layer#Animation serialization]]
 describe("buildAnimationList", () => {
   it("serializes from/to sugar into two keyframes pinned to 0/1", () => {
     const list = readBack(

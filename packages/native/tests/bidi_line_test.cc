@@ -23,6 +23,7 @@ std::vector<uint32_t> OrderFor(const std::vector<uint32_t> &glyphCp, uint32_t st
   return BuildLineVisualOrder(glyphCp, start, end, runs.data(), runs.size());
 }
 
+// @lat: [[tests#Native C++ core#BiDi line assembly]]
 TEST(BidiLine, PureLTRIsStreamOrder) {
   // "abc" one L0 run — the no-bidi degenerate case.
   std::vector<uint32_t> cp = {0, 1, 2};

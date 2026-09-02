@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 
 import { parseColor } from "../color.js";
 
+// @lat: [[tests#Graphics parsing layer#Color parsing]]
 describe("parseColor", () => {
   it("passes a number through (unsigned)", () => {
     expect(parseColor(0xffff0000)).toBe(0xffff0000);

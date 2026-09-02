@@ -110,6 +110,7 @@ protected:
   static constexpr uint64_t kLateT0 = 60ull * 1000 * kMs; // 60s after boot
 };
 
+// @lat: [[tests#Native C++ core#Animation engine]]
 TEST_F(AnimationTest, LinearInterpolationMidpoint) {
   Apply(BuildList({{0.f, 0.f}, {1.f, 1.f}}, AnimatedProperty_OPACITY, 100));
   EXPECT_TRUE(tree.TickAnimations(kT0)); // started, active

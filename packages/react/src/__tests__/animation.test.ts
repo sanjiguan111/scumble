@@ -25,6 +25,7 @@ function expectBytes(actual: string | undefined, expected: AnimationSpec[]) {
   expect(actual).toBe(bytesToBase64(buildAnimationList(expected)));
 }
 
+// @lat: [[tests#React component layer#Animation resolution and playback control]]
 describe("resolveAnimation", () => {
   it("returns undefined when animate is undefined (no command)", () => {
     expect(resolveAnimation(undefined)).toBeUndefined();

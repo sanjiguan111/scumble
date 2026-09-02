@@ -19,6 +19,7 @@ function readBack(bytes: ArrayBuffer): Gradient {
   return Gradient.getRootAsGradient(bb);
 }
 
+// @lat: [[tests#Graphics parsing layer#Gradient building]]
 describe("buildLinearGradient → nested FlatBuffer round-trip", () => {
   it("serializes a 2-stop linear gradient in absolute user-space", () => {
     const bytes = buildLinearGradient({

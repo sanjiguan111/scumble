@@ -20,6 +20,7 @@ function expectBytes(actual: string | undefined, expectedCss: string) {
   expect(actual).toBe(bytesToBase64(expected!));
 }
 
+// @lat: [[tests#React component layer#Transform resolution]]
 describe("resolveTransform", () => {
   it("translates", () => {
     expectBytes(resolveTransform({ translateX: 10, translateY: 20 }), "translate(10,20)");

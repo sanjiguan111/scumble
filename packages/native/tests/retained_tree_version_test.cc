@@ -153,6 +153,7 @@ protected:
   void Apply(std::vector<uint8_t> batch) { tree.ApplyCommandBatch(batch.data(), batch.size()); }
 };
 
+// @lat: [[tests#Native C++ core#Retained tree versioning]]
 TEST_F(VersionTest, PaintCommandsBumpPaintVersionOnly) {
   const RetainedNode *n = tree.Find(2);
   uint32_t g0 = n->geom_version, p0 = n->paint_version;

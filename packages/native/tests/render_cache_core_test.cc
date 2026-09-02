@@ -22,6 +22,7 @@ struct Payload {
   int id = 0;
 };
 
+// @lat: [[tests#Native C++ core#Render build cache]]
 TEST(HashBytes, DeterministicAndDistinguishing) {
   const std::string a = "linear-gradient-stops";
   const std::string b = "linear-gradient-stops";

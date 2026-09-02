@@ -9,6 +9,7 @@ import { Circle } from "../shapes/Circle";
 import { resolveLayerEffect, resolvePaint } from "../internal/paint";
 import type { GroupLayer } from "../types";
 
+// @lat: [[tests#React component layer#Paint resolution]]
 describe("resolvePaint", () => {
   it("parses a color string into fill by default (style=fill)", () => {
     expect(resolvePaint({ color: "red" })).toEqual({ fill: 0xffff0000 });

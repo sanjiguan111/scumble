@@ -48,3 +48,9 @@ xcuserdata/
 .DS_Store
 packages/native/tests/compile_commands.json
 packages/native/tests/.cache/
+# lat.md tool-managed cache (search vector index + init state, rebuilt locally)
+lat.md/.cache/
+# Claude Code: local-only settings (skills/, agents/, settings.json are shared)
+.claude/settings.local.json
+.mcp.json
+.codex

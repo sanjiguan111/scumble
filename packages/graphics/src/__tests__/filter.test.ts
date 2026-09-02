@@ -29,6 +29,7 @@ const GRAYSCALE = [
   1, 0,
 ];
 
+// @lat: [[tests#Graphics parsing layer#Filter building]]
 describe("buildImageFilter → nested Filter", () => {
   it("serializes a single blur leaf directly (uniform and per-axis)", () => {
     const f = readBack(buildImageFilter([{ kind: "blur", blur: 4 }])!);
