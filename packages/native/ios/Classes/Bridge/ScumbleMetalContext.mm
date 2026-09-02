@@ -13,7 +13,7 @@
 #include <skity/gpu/gpu_surface.hpp>
 #include <skity/skity.hpp>
 
-#include "ScumbleRenderer.h"        // shared/skity — cross-platform renderer
+#include "ScumbleRenderer.h"      // shared/skity — cross-platform renderer
 #include "retained_render_tree.h" // skityrt::RetainedRenderTree (per-layer)
 
 @implementation ScumbleMetalContext {
@@ -164,7 +164,7 @@
     // The Metal context is passed so image nodes can materialize ImageStore
     // bitmaps on this backend (Image::MakeImage needs a live context).
     skityrt::ScumbleRenderer::Draw(slot.get(), canvas, density, static_cast<float>(w),
-                                 static_cast<float>(h), _gpuContext.get());
+                                   static_cast<float>(h), _gpuContext.get());
 
     canvas->Flush();
     surface->Flush();

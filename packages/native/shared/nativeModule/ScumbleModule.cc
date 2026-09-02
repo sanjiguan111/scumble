@@ -183,7 +183,7 @@ static napi_value CreateScumbleModule(napi_env env, napi_value exports) {
 } // namespace
 
 extern "C" napi_value LynxAutolinkCreateScumbleModule(napi_env env, napi_value exports,
-                                                        const char *module_name, void *opaque) {
+                                                      const char *module_name, void *opaque) {
   (void)module_name;
   (void)opaque;
   return CreateScumbleModule(env, exports);

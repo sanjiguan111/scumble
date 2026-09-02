@@ -15,6 +15,7 @@ This skill covers the syntax, structure rules, and conventions for writing `lat.
 `lat.md/` files describe **what** the project does and **why** — domain concepts, key design decisions, business logic, and test specifications. They do NOT duplicate source code. Think of each section as an anchor that source code references back to.
 
 Good candidates for sections:
+
 - Architecture decisions and their rationale
 - Domain concepts and business rules
 - API contracts and protocols
@@ -22,6 +23,7 @@ Good candidates for sections:
 - Non-obvious constraints or invariants
 
 Bad candidates:
+
 - Step-by-step code walkthroughs (the code itself is the walkthrough)
 - Auto-generated API docs (use tools for that)
 - Temporary notes or TODOs
@@ -79,12 +81,12 @@ The parser validates [[parser#Wiki Links|wiki link syntax]].
 Reference functions, classes, constants, and methods in source files:
 
 ```markdown
-[[src/config.ts#getConfigDir]]          — function
-[[src/server.ts#App#listen]]            — class method
-[[lib/utils.py#parse_args]]             — Python function
-[[src/lib.rs#Greeter#greet]]            — Rust impl method
-[[src/app.go#Greeter#Greet]]            — Go method
-[[src/app.h#Greeter]]                   — C struct
+[[src/config.ts#getConfigDir]] — function
+[[src/server.ts#App#listen]] — class method
+[[lib/utils.py#parse_args]] — Python function
+[[src/lib.rs#Greeter#greet]] — Rust impl method
+[[src/app.go#Greeter#Greet]] — Go method
+[[src/app.h#Greeter]] — C struct
 ```
 
 `lat check` validates that all targets exist.
@@ -117,6 +119,7 @@ Describe tests as sections in `lat.md/` files. Add frontmatter to require that e
 lat:
   require-code-mention: true
 ---
+
 # Tests
 
 Authentication test specifications.
@@ -143,6 +146,7 @@ def test_rejects_expired_tokens():
 ```
 
 Rules:
+
 - Every leaf section under `require-code-mention: true` must be referenced by exactly one `@lat:` comment
 - Every section MUST have a description — at least one sentence explaining what the test verifies and why
 - `lat check` flags unreferenced specs and dangling code refs
@@ -163,6 +167,7 @@ Currently the only supported field is `require-code-mention` for test spec enfor
 ## Validation
 
 Always run `lat check` after editing `lat.md/` files. It validates:
+
 - All wiki links point to existing sections or source code symbols
 - All `@lat:` code refs point to existing sections
 - Every section has a leading paragraph (≤250 chars)

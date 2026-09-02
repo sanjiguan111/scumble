@@ -154,7 +154,7 @@ void VulkanRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, flo
   }
 
   skityrt::ScumbleRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
-                               static_cast<float>(height_), context_.get());
+                                 static_cast<float>(height_), context_.get());
 
   canvas->Flush();
   surface->Flush();

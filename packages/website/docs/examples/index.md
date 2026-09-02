@@ -15,8 +15,8 @@ Every demo is a single self-contained component under
 the table below links each one to its source and to the guide page that
 explains the topic.
 
-| Demo        | What it shows                                                    | Source                                                                                                                  | Guide                                                   |
-| ----------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Demo        | What it shows                                                    | Source                                                                                                                     | Guide                                                   |
+| ----------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Shapes      | Circle · Rect · RRect · fill/stroke · opacity                    | [ShapesDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/ShapesDemo.tsx)           | [Shapes](/guide/shapes)                                 |
 | Gradient    | Linear · radial · sweep · conical · gradient stroke              | [GradientDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/GradientDemo.tsx)       | [Gradients](/guide/gradients)                           |
 | Paths       | SVG `d` · Path2D · arcs · path trim animation                    | [PathsDemo.tsx](https://github.com/sanjiguan111/scumble/blob/develop/packages/example/src/demos/PathsDemo.tsx)             | [Shapes](/guide/shapes)                                 |

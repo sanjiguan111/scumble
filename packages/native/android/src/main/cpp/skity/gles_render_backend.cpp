@@ -126,7 +126,7 @@ void GLESRenderBackend::DrawFrame(const skityrt::RetainedRenderTree *tree, float
   // The shared GL context is passed so image nodes can materialize ImageStore
   // bitmaps on this backend (Image::MakeImage needs a live context).
   skityrt::ScumbleRenderer::Draw(tree, canvas, density, static_cast<float>(width_),
-                               static_cast<float>(height_), shared_->skity_context.get());
+                                 static_cast<float>(height_), shared_->skity_context.get());
 
   canvas->Flush();
   surface->Flush();

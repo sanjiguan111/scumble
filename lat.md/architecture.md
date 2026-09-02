@@ -6,7 +6,7 @@ This file summarizes the decisions behind it; the full history is `packages/nati
 
 ## Three-thread model
 
-Two threads, decoupled by an immutable message queue. The TASM thread only serializes *changes* into commands and posts them; the render thread owns the retained tree, drains the queue, applies it, and draws.
+Two threads, decoupled by an immutable message queue. The TASM thread only serializes _changes_ into commands and posts them; the render thread owns the retained tree, drains the queue, applies it, and draws.
 
 - TASM thread: a prop setter emits a Command into a per-canvas pending buffer; the layout pass (see [[architecture#Flush via the layout pass]]) packs it into one `CommandBatch` and posts it.
 - UI thread: `onLayout` / `onSizeChanged` adjust the surface via `session.updateSize`.

@@ -102,8 +102,8 @@ std::vector<uint8_t> MakeSetClip(int32_t node) {
 std::vector<uint8_t> MakeSetLayerEffect(int32_t node) {
   BatchBuilder b;
   b.Add(Command_SetLayerEffect, [node](flatbuffers::FlatBufferBuilder &f) {
-    return skityrt::CreateSetLayerEffect(f, node, true,
-                                         f.CreateVector(std::vector<uint8_t>{8, 9}), 0, 0);
+    return skityrt::CreateSetLayerEffect(f, node, true, f.CreateVector(std::vector<uint8_t>{8, 9}),
+                                         0, 0);
   });
   return b.Finish();
 }

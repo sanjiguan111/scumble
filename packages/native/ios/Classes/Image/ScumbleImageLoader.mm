@@ -133,7 +133,7 @@ static ScumbleImagePixels *_Nullable ScumbleDecodeImageBytes(NSData *data) {
 // by-value capture and `px` is our malloc'd copy (handed to skity::Data
 // inside the block; freed by the release proc).
 static void ScumbleStoreImageBytes(std::string uri, const void *bytes, size_t len, uint32_t w,
-                                 uint32_t h, bool ok) {
+                                   uint32_t h, bool ok) {
   void *px = (ok && bytes != nullptr && len > 0) ? std::malloc(len) : nullptr;
   if (px != nullptr) {
     std::memcpy(px, bytes, len);
@@ -211,7 +211,7 @@ static void ScumbleStoreImageBytes(std::string uri, const void *bytes, size_t le
          onComplete:^(ScumbleImagePixels *_Nullable pixels) {
            if (pixels != nil) {
              ScumbleStoreImageBytes(key, pixels.rgba.bytes, pixels.rgba.length, pixels.width,
-                                  pixels.height, true);
+                                    pixels.height, true);
            } else {
              ScumbleStoreImageBytes(key, nullptr, 0, 0, 0, false);
            }

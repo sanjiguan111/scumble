@@ -5,7 +5,7 @@
 
 // This shared texture backend depends on LynxNativeView C API surface handles.
 bool DrawScumbleElementTextureSurface(lynx_surface_handle_t *handle, int width_px, int height_px,
-                                        const char *text);
+                                      const char *text);
 
 namespace {
 

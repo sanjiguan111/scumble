@@ -36,8 +36,7 @@ extern "C" {
 
 JNIEXPORT jlong JNICALL Java_com_scumble_graphics_ScumbleNative_nativeCreateRenderer(
     JNIEnv * /*env*/, jclass /*clazz*/, jint backend_type, jlong shared_gl_handle, jfloat density) {
-  return reinterpret_cast<jlong>(
-      new scumble::AppRenderer(backend_type, shared_gl_handle, density));
+  return reinterpret_cast<jlong>(new scumble::AppRenderer(backend_type, shared_gl_handle, density));
 }
 
 JNIEXPORT jlong JNICALL Java_com_scumble_graphics_ScumbleNative_nativeCreateSharedGLContext(
@@ -55,8 +54,8 @@ JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeDestroyShar
   delete reinterpret_cast<scumble::SharedGLContext *>(handle);
 }
 
-JNIEXPORT jboolean JNICALL Java_com_scumble_graphics_ScumbleNative_nativeProbeVulkan(JNIEnv * /*env*/,
-                                                                                 jclass /*clazz*/) {
+JNIEXPORT jboolean JNICALL
+Java_com_scumble_graphics_ScumbleNative_nativeProbeVulkan(JNIEnv * /*env*/, jclass /*clazz*/) {
   // Create a throwaway Vulkan GPU context to check whether Vulkan is usable on
   // this device (loader present, instance/device creation succeeds). The
   // unique_ptr releases it immediately.
@@ -70,16 +69,15 @@ JNIEXPORT jboolean JNICALL Java_com_scumble_graphics_ScumbleNative_nativeProbeVu
   return ctx != nullptr ? JNI_TRUE : JNI_FALSE;
 }
 
-JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeDestroyRenderer(JNIEnv * /*env*/,
-                                                                                 jclass /*clazz*/,
-                                                                                 jlong handle) {
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeDestroyRenderer(
+    JNIEnv * /*env*/, jclass /*clazz*/, jlong handle) {
   delete FromHandle(handle);
 }
 
 JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeSetSurface(JNIEnv *env,
-                                                                            jclass /*clazz*/,
-                                                                            jlong handle,
-                                                                            jobject surface) {
+                                                                                jclass /*clazz*/,
+                                                                                jlong handle,
+                                                                                jobject surface) {
   auto *renderer = FromHandle(handle);
   if (renderer == nullptr) {
     return;
@@ -94,9 +92,8 @@ JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeSetSurface(
   renderer->SetNativeWindow(native_window);
 }
 
-JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeOnSurfaceCreated(JNIEnv * /*env*/,
-                                                                                  jclass /*clazz*/,
-                                                                                  jlong handle) {
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeOnSurfaceCreated(
+    JNIEnv * /*env*/, jclass /*clazz*/, jlong handle) {
   if (auto *r = FromHandle(handle)) r->OnSurfaceCreated();
 }
 
@@ -111,8 +108,8 @@ JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeOnSurfaceDe
 }
 
 JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeDrawFrame(JNIEnv * /*env*/,
-                                                                           jclass /*clazz*/,
-                                                                           jlong handle) {
+                                                                               jclass /*clazz*/,
+                                                                               jlong handle) {
   if (auto *r = FromHandle(handle)) r->DrawFrame();
 }
 
@@ -240,10 +237,8 @@ JNIEXPORT jobjectArray JNICALL Java_com_scumble_graphics_ScumbleNative_nativeTak
   return out;
 }
 
-JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeStoreFontBytes(JNIEnv *env,
-                                                                                jclass /*clazz*/,
-                                                                                jstring uri,
-                                                                                jbyteArray bytes) {
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeStoreFontBytes(
+    JNIEnv *env, jclass /*clazz*/, jstring uri, jbyteArray bytes) {
   const char *uriChars = env->GetStringUTFChars(uri, nullptr);
   if (uriChars == nullptr) return;
   std::string key(uriChars);
@@ -299,9 +294,8 @@ JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeStoreImage(
                                               /*premultiplied=*/true);
 }
 
-JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeMarkImageFailed(JNIEnv *env,
-                                                                                 jclass /*clazz*/,
-                                                                                 jstring uri) {
+JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeMarkImageFailed(
+    JNIEnv *env, jclass /*clazz*/, jstring uri) {
   const char *uri_chars = env->GetStringUTFChars(uri, nullptr);
   if (uri_chars == nullptr) {
     return;

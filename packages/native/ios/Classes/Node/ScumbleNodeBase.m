@@ -408,7 +408,7 @@ LYNX_PROP_SETTER("strokeImageRect", setStrokeImageRect, NSString *) {
         [[NSData alloc] initWithBase64EncodedString:value                                          \
                                             options:NSDataBase64DecodingIgnoreUnknownCharacters];  \
     ivar = decoded.length > 0 ? decoded : nil;                                                     \
-    _dirtyFilterMask |= kScumbleFilter##field;                                                       \
+    _dirtyFilterMask |= kScumbleFilter##field;                                                     \
     [self setNeedsLayout];                                                                         \
   }
 SKITY_FILTER_SETTER("fillColorFilter", setFillColorFilter, FillColor, _fillColorFilterData)
@@ -429,15 +429,15 @@ LYNX_PROP_SETTER("clip", setClip, NSString *) {
 // Group layer effect: base64 Filter bytes into the layer slots. Same null
 // contract as setAnimationData (nil on mount/teardown = no-op, an explicit
 // clear is the empty string).
-#define SKITY_LAYER_FILTER_SETTER(PROP, FN, IVAR)                                       \
-  LYNX_PROP_SETTER(PROP, FN, NSString *) {                                              \
-    if (value == nil) return;                                                           \
-    NSData *decoded =                                                                    \
-        [[NSData alloc] initWithBase64EncodedString:value                                              \
-                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];       \
-    IVAR = decoded.length > 0 ? decoded : nil;                                          \
-    _dirtyLayer = YES;                                                                  \
-    [self setNeedsLayout];                                                              \
+#define SKITY_LAYER_FILTER_SETTER(PROP, FN, IVAR)                                                  \
+  LYNX_PROP_SETTER(PROP, FN, NSString *) {                                                         \
+    if (value == nil) return;                                                                      \
+    NSData *decoded =                                                                              \
+        [[NSData alloc] initWithBase64EncodedString:value                                          \
+                                            options:NSDataBase64DecodingIgnoreUnknownCharacters];  \
+    IVAR = decoded.length > 0 ? decoded : nil;                                                     \
+    _dirtyLayer = YES;                                                                             \
+    [self setNeedsLayout];                                                                         \
   }
 SKITY_LAYER_FILTER_SETTER("layerColorFilter", setLayerColorFilter, _layerColorFilterData)
 SKITY_LAYER_FILTER_SETTER("layerImageFilter", setLayerImageFilter, _layerImageFilterData)

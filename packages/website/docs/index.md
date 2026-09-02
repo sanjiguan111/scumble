@@ -4,7 +4,7 @@ layout: home
 hero:
   name: scumble
   text: Declarative GPU drawing for Lynx
-  tagline: 'The component API mirrors react-native-skia — Canvas, shapes, declarative paints, Path2D — so an RN-Skia scene ports to Lynx mostly by changing the import. Powered by the skity GPU backend: one C++ renderer drives Android (OpenGL ES / Vulkan) and iOS (Metal), with <strong>zero JS per frame</strong> animations on the render thread.'
+  tagline: "The component API mirrors react-native-skia — Canvas, shapes, declarative paints, Path2D — so an RN-Skia scene ports to Lynx mostly by changing the import. Powered by the skity GPU backend: one C++ renderer drives Android (OpenGL ES / Vulkan) and iOS (Metal), with <strong>zero JS per frame</strong> animations on the render thread."
   actions:
     - theme: brand
       text: Get Started
