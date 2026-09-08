@@ -27,7 +27,7 @@ Pod::Spec.new do |s|
                           'shared/skity/typeface_cache.h'
 
   s.dependency 'Lynx'
-  s.dependency 'skity', '1.1.0-alpha.3'
+  s.dependency 'skity', '1.1.0-alpha.4'
 
   s.ios.frameworks = 'Metal', 'QuartzCore', 'UIKit', 'CoreGraphics'
 

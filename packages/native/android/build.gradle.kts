@@ -90,7 +90,7 @@ dependencies {
 
   // skity rendering engine (prefab). Consumed in CMake via find_package(skity);
   // see packages/native/shared/skity/ScumbleRenderer.
-  implementation("org.lynxsdk.lynx:skity-native:1.1.0-alpha.3")
+  implementation("org.lynxsdk.lynx:skity-native:1.1.0-alpha.4")
 
   // HarfBuzz text shaping for <Paragraph> (Android layout backend). Static
   // prefab AAR: libharfbuzz.a links into libscumblerender.so — no runtime .so

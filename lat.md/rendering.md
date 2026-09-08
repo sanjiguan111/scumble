@@ -58,7 +58,7 @@ Group-level opacity and layer compositing (saveLayer lane, `<Group layer>` filte
 
 `<Image>` rides `SetImageSource` + fit/sampling props; `<ImageShader>` uses an image as a paint texture via tiling scalars + TileMode + local matrix on `SetPaint`.
 
-Platform loaders (JNI / OC) decode into skity images via `Data::MakeWithProc` + pixmap creation (the animax pattern), with `ApplyBoxFit` reused for the fit mapping. The cubic sampling pipeline is dormant in the published skity (1.1.0-alpha.3 lacks cubic support) — the API surface exists, the backend does not.
+Platform loaders (JNI / OC) decode into skity images via `Data::MakeWithProc` + pixmap creation (the animax pattern), with `ApplyBoxFit` reused for the fit mapping. The cubic sampling pipeline is dormant on the scumble side — upstream skity gained bicubic texture filtering in 1.1.0-alpha.4 (`SamplingOptions.cubic`), but scumble does not wire it through yet.
 
 ## Text and paragraphs
 
