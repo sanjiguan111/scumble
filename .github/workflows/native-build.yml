@@ -73,7 +73,7 @@ jobs:
 
       # Gradle build cache + dependency cache (the Lynx/skity AARs from
       # mavenCentral and the NDK/cmake downloads via AGP).
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -117,10 +117,13 @@ jobs:
       - name: Generate FlatBuffer stubs
         run: pnpm --filter @scumble/native generate-fbs
 
-      # Gemfile pins CocoaPods ~1.16 + cocoapods-lynx-library (autolink);
-      # ruby version comes from the runner (>= 3.4 satisfies mise.toml).
+      # Gemfile pins CocoaPods ~1.16 + cocoapods-lynx-library (autolink).
+      # ruby-version must be explicit: the repo pins ruby via mise.toml,
+      # which setup-ruby cannot read (it only understands .ruby-version /
+      # .tool-versions). 3.4 tracks the local mise-pinned 3.4.x.
       - uses: ruby/setup-ruby@v1
         with:
+          ruby-version: "3.4"
           working-directory: packages/example/ios
           bundler-cache: true
 
