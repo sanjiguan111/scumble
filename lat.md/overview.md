@@ -32,9 +32,13 @@ The native setters receive numbers or base64 strings and only memcpy. This princ
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs the full host-side test matrix on GitHub Actions (ubuntu-latest) for pushes to develop and PRs — no device or GPU needed.
+Two workflows run on GitHub Actions for pushes to develop and PRs: `ci.yml` (host-side test matrix) and `native-build.yml` (platform compile smoke tests). README badges show both, pinned to the develop branch.
 
-The single `tests` job runs `tools/hab sync` (habitat deps are gitignored; cached by `hashFiles('DEPS.py')`), `pnpm install --frozen-lockfile`, `generate-fbs` (regenerates the gitignored FlatBuffer stubs that graphics tests import), then `pnpm test` (graphics + react: `tsc --noEmit` + vitest) and `pnpm --filter @scumble/native test:native` (desktop gtest via cmake/ctest). Android/iOS build smoke jobs are intentionally out of scope for now.
+`ci.yml` (ubuntu-latest): the single `tests` job runs `tools/hab sync` (habitat deps are gitignored; cached by `hashFiles('DEPS.py')` with the OS in the key — flatc is a per-OS binary), `pnpm install --frozen-lockfile`, `generate-fbs`, then `pnpm test` (graphics + react: `tsc --noEmit` + vitest) and `pnpm --filter @scumble/native test:native` (desktop gtest via cmake/ctest).
+
+`native-build.yml` covers what the gtests cannot see (they link neither skity nor platform SDKs): `android-build` assembles the example app on ubuntu (all ABIs, externalNativeBuild, prefab + JNI in scope), `ios-build` runs pod install + xcodebuild on macos. Both jobs still need `hab sync` + `generate-fbs` — Android statically links SheenBidi and compiles the generated `.cc` stubs; the iOS pod's header search paths point into `third_party/flatbuffers` and the generated headers. Pods are cached by `Podfile.lock` hash.
+
+A dependency-graph pitfall found on first run: turbo builds its task graph from `dependencies`/`devDependencies` only — it ignores `peerDependencies`, so `react#test` never waited for `graphics#build` and tsc raced against dist generation. `@scumble/graphics` is therefore dual-declared in react's peer+dev dependencies, and `turbo.json`'s `test` task uses `dependsOn: ["^build", "build"]`. Any future cross-package dependency must follow the same dual-declaration rule or the race comes back.
 
 ## Design doc index
 

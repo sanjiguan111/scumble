@@ -1,0 +1,148 @@
+name: Native build
+
+# Compile smoke tests for the platform sides that the host-side test matrix
+# (ci.yml) cannot see: the native gtests link neither skity nor any platform
+# SDK, so podspec/prefab/CMake/JNI/OC regressions (e.g. a skity version bump)
+# are invisible there. Both jobs compile the full example app per platform.
+# Public repo: all runners are free; Android ~10 min (ubuntu), iOS ~15-20 min
+# (macos).
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "packages/native/**"
+      - "packages/example/android/**"
+      - "packages/example/ios/**"
+      - "pnpm-lock.yaml"
+      - "DEPS.py"
+      - "tools/hab*"
+      - ".github/workflows/native-build.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "packages/native/**"
+      - "packages/example/android/**"
+      - "packages/example/ios/**"
+      - "pnpm-lock.yaml"
+      - "DEPS.py"
+      - "tools/hab*"
+      - ".github/workflows/native-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-build:
+    name: Android assembleDebug
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Why the JS toolchain for a native build: the Lynx gradle plugin's
+      # autolink walks node_modules, and generate-fbs needs the flatc binary.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # flatc is a per-OS binary from DEPS.py, so the cache key carries the
+      # OS — a cache saved on linux must never be restored on macos.
+      - uses: actions/cache@v4
+        with:
+          path: packages/native/shared/third_party
+          key: habitat-${{ runner.os }}-${{ hashFiles('DEPS.py') }}
+
+      - name: Sync third-party deps (habitat)
+        run: tools/hab sync
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      # CMakeLists compiles the generated FlatBuffer .cc stubs; also produces
+      # the Java stubs under android/.
+      - name: Generate FlatBuffer stubs
+        run: pnpm --filter @scumble/native generate-fbs
+
+      # Gradle build cache + dependency cache (the Lynx/skity AARs from
+      # mavenCentral and the NDK/cmake downloads via AGP).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build example app (all ABIs, externalNativeBuild included)
+        working-directory: packages/example/android
+        run: ./gradlew :app:assembleDebug --console=plain
+
+      - name: Summarize native libs
+        if: always()
+        run: find packages/example/android/app/build -name "*.so" -exec ls -lh {} +
+
+  ios-build:
+    name: iOS xcodebuild (iphonesimulator)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/cache@v4
+        with:
+          path: packages/native/shared/third_party
+          key: habitat-${{ runner.os }}-${{ hashFiles('DEPS.py') }}
+
+      - name: Sync third-party deps (habitat)
+        run: tools/hab sync
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      # The pod compiles ScumbleRenderer.cc, which includes the generated
+      # headers (header search paths also point into third_party/flatbuffers).
+      - name: Generate FlatBuffer stubs
+        run: pnpm --filter @scumble/native generate-fbs
+
+      # Gemfile pins CocoaPods ~1.16 + cocoapods-lynx-library (autolink);
+      # ruby version comes from the runner (>= 3.4 satisfies mise.toml).
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: packages/example/ios
+          bundler-cache: true
+
+      # Lynx + skity pods are large downloads; cache the installed Pods tree
+      # and let `pod install` reconcile against Podfile.lock on restore.
+      - uses: actions/cache@v4
+        with:
+          path: packages/example/ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('packages/example/ios/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      - name: pod install
+        working-directory: packages/example/ios
+        run: bundle exec pod install
+
+      - name: Build example app (simulator, no signing needed)
+        working-directory: packages/example/ios
+        run: |
+          xcodebuild build \
+            -workspace ScumbleDemo.xcworkspace \
+            -scheme ScumbleDemo \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcbeautify --renderer github-actions

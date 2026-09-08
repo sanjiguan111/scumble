@@ -5,6 +5,8 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-5b8cff.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-2dd4bf.svg)](#architecture)
 [![Docs](https://img.shields.io/badge/docs-sanjiguan111.github.io%2Fscumble-7683b3.svg)](https://sanjiguan111.github.io/scumble)
+[![CI](https://github.com/sanjiguan111/scumble/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/sanjiguan111/scumble/actions/workflows/ci.yml)
+[![Native build](https://github.com/sanjiguan111/scumble/actions/workflows/native-build.yml/badge.svg?branch=develop)](https://github.com/sanjiguan111/scumble/actions/workflows/native-build.yml)
 [![Deploy website](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml/badge.svg)](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml)
 
 **scumble brings [react-native-skia](https://github.com/Shopify/react-native-skia)-style
