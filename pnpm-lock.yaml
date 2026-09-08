@@ -94,13 +94,13 @@ importers:
       '@lynx-js/types':
         specifier: '*'
         version: 3.9.0
-      '@scumble/graphics':
-        specifier: workspace:^
-        version: link:../graphics
       '@scumble/native':
         specifier: workspace:^
         version: link:../native
     devDependencies:
+      '@scumble/graphics':
+        specifier: workspace:^
+        version: link:../graphics
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

@@ -21,6 +21,7 @@
     "@lynx-js/types": "*"
   },
   "devDependencies": {
+    "@scumble/graphics": "workspace:^",
     "typescript": "~5.9.3",
     "vitest": "^4.1.10"
   },
