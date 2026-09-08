@@ -30,6 +30,12 @@ Every user-facing string — CSS colors, paint enums, SVG path `d`, CSS `transfo
 
 The native setters receive numbers or base64 strings and only memcpy. This principle governs the responsibility split in [[architecture#Binary transport]] and explains why there is no string-parsing code anywhere under `packages/native/shared/`.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs the full host-side test matrix on GitHub Actions (ubuntu-latest) for pushes to develop and PRs — no device or GPU needed.
+
+The single `tests` job runs `tools/hab sync` (habitat deps are gitignored; cached by `hashFiles('DEPS.py')`), `pnpm install --frozen-lockfile`, `generate-fbs` (regenerates the gitignored FlatBuffer stubs that graphics tests import), then `pnpm test` (graphics + react: `tsc --noEmit` + vitest) and `pnpm --filter @scumble/native test:native` (desktop gtest via cmake/ctest). Android/iOS build smoke jobs are intentionally out of scope for now.
+
 ## Design doc index
 
 The long-form documents stay in place; this knowledge base links into them rather than duplicating them:

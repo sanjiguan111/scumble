@@ -1,0 +1,88 @@
+name: CI
+
+# Runs the full host-side test matrix (graphics / react vitest + native C++
+# gtest) on every push to develop and every PR. No device or GPU involved —
+# everything runs on a plain ubuntu runner.
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "packages/graphics/**"
+      - "packages/react/**"
+      - "packages/native/shared/**"
+      - "packages/native/tests/**"
+      - "packages/native/schema/**"
+      - "packages/native/scripts/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "turbo.json"
+      - "DEPS.py"
+      - "tools/hab*"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "packages/graphics/**"
+      - "packages/react/**"
+      - "packages/native/shared/**"
+      - "packages/native/tests/**"
+      - "packages/native/schema/**"
+      - "packages/native/scripts/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "turbo.json"
+      - "DEPS.py"
+      - "tools/hab*"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads `packageManager: pnpm@...` from the root package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Habitat-managed third-party deps (flatc binary, flatbuffers sources,
+      # googletest) are gitignored — cache them keyed on DEPS.py so an
+      # unchanged dependency set skips the download-heavy `hab sync`.
+      - uses: actions/cache@v4
+        with:
+          path: packages/native/shared/third_party
+          key: habitat-${{ hashFiles('DEPS.py') }}
+
+      - name: Sync third-party deps (habitat)
+        run: tools/hab sync
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      # Regenerate the gitignored FlatBuffer stubs (native C++/Java +
+      # graphics TS) — graphics tests import them, tsc fails without them.
+      - name: Generate FlatBuffer stubs
+        run: pnpm --filter @scumble/native generate-fbs
+
+      # graphics + react: tsc --noEmit + vitest (turbo's `test` task depends
+      # on `build`, so the dependency chain builds first).
+      - name: JS tests
+        run: pnpm test
+
+      # Native C++ core: cmake configure/build + ctest (GoogleTest provided
+      # by habitat; pure std code, no skity, no platform SDKs).
+      - name: Native C++ tests
+        run: pnpm --filter @scumble/native test:native
