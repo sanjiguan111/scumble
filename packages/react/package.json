@@ -1,7 +1,7 @@
 {
   "name": "@scumble/react",
-  "version": "0.1.0",
-  "description": "React component layer for scumble \u2014 react-native-skity-style API (<Canvas>/<Circle color='red'/>) over the skity intrinsic tags.",
+  "version": "0.1.1",
+  "description": "React component layer for scumble — react-native-skity-style API (<Canvas>/<Circle color='red'/>) over the skity intrinsic tags.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./src/index.ts",

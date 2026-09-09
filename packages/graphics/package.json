@@ -1,7 +1,7 @@
 {
   "name": "@scumble/graphics",
-  "version": "0.1.0",
-  "description": "Framework-agnostic value parsers for scumble: colors, paint enums, CSS transforms, and SVG path data into the numeric/ArrayBuffer values the native skity tags consume. Built with tsc \u2014 the vendored flatbuffers runtime's type-only re-exports are erased at emit time so bundlers can consume the output.",
+  "version": "0.1.1",
+  "description": "Framework-agnostic value parsers for scumble: colors, paint enums, CSS transforms, and SVG path data into the numeric/ArrayBuffer values the native skity tags consume. Built with tsc — the vendored flatbuffers runtime's type-only re-exports are erased at emit time so bundlers can consume the output.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
