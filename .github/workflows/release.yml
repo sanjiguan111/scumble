@@ -1,0 +1,97 @@
+name: Release
+
+# Publishes @scumble/react, @scumble/graphics and @scumble/native to npm via
+# OIDC trusted publishing — no long-lived token anywhere. npm verifies the
+# workflow identity against the trusted-publisher config registered per
+# package on npmjs.com. One-time setup on the npm side (each of the three
+# packages):
+#   Package → Settings → Trusted Publisher: sanjiguan111 / scumble /
+#   release.yml (filename only, no .github/workflows/ prefix). Leave
+#   "Allow npm publish" UNCHECKED — the config is stage-only, matching the
+#   `npm stage publish` step below.
+#
+# Staged publishing: this workflow only stages the tarballs; they go live
+# after a maintainer approves them on npmjs.com (2FA challenge), or drops
+# them. Even a compromised workflow cannot push a public version past that
+# gate.
+#
+# npm versions are immutable: re-running against an already-live version
+# fails by design; bump a new version instead.
+#
+# Release notes come from the release-notes job below (git-cliff, grouped by
+# conventional commits). Milestone releases can be rewritten locally with
+# `gh release edit v<ver> --notes-file <file>` — that is the only step that
+# needs the gh CLI.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for npm trusted publishing
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads `packageManager: pnpm@...` from the root package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >= 11.5.1; node 22 bundles 10.x.
+      - run: npm install -g npm@latest
+
+      # Full workspace install — the lynxtron stub override in the root
+      # package.json only takes effect via a workspace install.
+      - run: pnpm install --frozen-lockfile
+
+      # pack does not run prepublishOnly, so graphics' dist must be built
+      # explicitly (turbo also orders it before react's tests).
+      - run: pnpm build
+
+      # Host-side gate (~1min): tsc + vitest for graphics/react.
+      - run: pnpm test
+
+      # pnpm 9 pack has no -r/--filter, so pack per package; `workspace:^`
+      # ranges are rewritten to real versions at pack time. Native's
+      # prepublishOnly (generate-fbs) is safe to skip: its outputs are
+      # git-tracked.
+      - run: |
+          mkdir -p "$RUNNER_TEMP/tarballs"
+          for p in react graphics native; do
+            (cd "packages/$p" && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
+          done
+
+      # The npm CLI performs the OIDC exchange itself — no token env var.
+      # Stage-only: each tarball lands in the staging queue and goes live
+      # only after a maintainer approves it (2FA) on npmjs.com.
+      - run: for t in "$RUNNER_TEMP"/tarballs/*.tgz; do npm stage publish "$t"; done
+
+  release-notes:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # git-cliff walks history back to the previous tag
+
+      # Conventional-commit grouped notes; grouping lives in cliff.toml.
+      - uses: orhun/git-cliff-action@v4
+        id: cliff
+        with:
+          config: cliff.toml
+          args: --latest
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.cliff.outputs.content }}

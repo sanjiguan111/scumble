@@ -32,13 +32,15 @@ The native setters receive numbers or base64 strings and only memcpy. This princ
 
 ## Continuous integration
 
-Two workflows run on GitHub Actions for pushes to develop and PRs: `ci.yml` (host-side test matrix) and `native-build.yml` (platform compile smoke tests). README badges show both, pinned to the develop branch.
+Three workflows run on GitHub Actions: `ci.yml` (host-side test matrix) and `native-build.yml` (compile smoke tests) on develop pushes and PRs — README badges pin those — plus `release.yml` on `v*` tags for tokenless npm publishing.
 
 `ci.yml` (ubuntu-latest): the single `tests` job runs `tools/hab sync` (habitat deps are gitignored; cached by `hashFiles('DEPS.py')` with the OS in the key — flatc is a per-OS binary), `pnpm install --frozen-lockfile`, `generate-fbs`, then `pnpm test` (graphics + react: `tsc --noEmit` + vitest) and `pnpm --filter @scumble/native test:native` (desktop gtest via cmake/ctest).
 
 `native-build.yml` covers what the gtests cannot see (they link neither skity nor platform SDKs): `android-build` assembles the example app on ubuntu (all ABIs, externalNativeBuild, prefab + JNI in scope), `ios-build` runs pod install + xcodebuild on macos. Both jobs still need `hab sync` + `generate-fbs` — Android statically links SheenBidi and compiles the generated `.cc` stubs; the iOS pod's header search paths point into `third_party/flatbuffers` and the generated headers. Pods are cached by `Podfile.lock` hash.
 
 A dependency-graph pitfall found on first run: turbo builds its task graph from `dependencies`/`devDependencies` only — it ignores `peerDependencies`, so `react#test` never waited for `graphics#build` and tsc raced against dist generation. `@scumble/graphics` is therefore dual-declared in react's peer+dev dependencies, and `turbo.json`'s `test` task uses `dependsOn: ["^build", "build"]`. Any future cross-package dependency must follow the same dual-declaration rule or the race comes back.
+
+`release.yml` publishes via npm trusted publishing (OIDC): each package has a trusted-publisher entry on npmjs.com binding sanjiguan111/scumble to this workflow filename, so the job needs only `id-token: write` and an npm CLI ≥ 11.5.1 (node 22 bundles 10.x, hence a global upgrade step) — no `NPM_TOKEN` secret exists to leak. The trusted-publisher entries are stage-only ("Allow npm publish" unchecked): the workflow runs `npm stage publish`, and tarballs go live only after a maintainer approves them with a 2FA challenge on npmjs.com — a compromised workflow cannot push a public version past that gate. pnpm is kept off the publish path: pnpm 9 `pack` supports no `-r`/`--filter`, `workspace:^` ranges are rewritten at pack time (verified), and pnpm v11's native publish regressed OIDC — so the workflow packs per package (`pnpm build` first, since pack skips `prepublishOnly`; native's generate-fbs outputs are git-tracked, making that skip safe) and lets npm ship the tarballs. A second job creates the GitHub Release body from git-cliff (`cliff.toml`, conventional-commit grouping) under `contents: write`; milestone notes can be rewritten locally via `gh release edit`. npm versions are immutable — a re-run against a live version fails by design.
 
 ## Design doc index
 

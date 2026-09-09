@@ -1,0 +1,13 @@
+# git-cliff configuration consumed by release.yml's release-notes job.
+# Output is embedded as the body of a GitHub Release, not a standalone
+# changelog file, so there is no header/footer. Grouping follows the
+# conventional-commit style this repo already uses (feat/fix/perf/docs/...).
+
+[changelog]
+header = ""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_commits = true
