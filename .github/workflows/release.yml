@@ -53,6 +53,19 @@ jobs:
       # package.json only takes effect via a workspace install.
       - run: pnpm install --frozen-lockfile
 
+      # Habitat-managed third-party deps (flatc, flatbuffers, googletest) are
+      # gitignored — same cache key as ci.yml so an ubuntu CI run warms it.
+      - uses: actions/cache@v4
+        with:
+          path: packages/native/shared/third_party
+          key: habitat-${{ runner.os }}-${{ hashFiles('DEPS.py') }}
+
+      - run: tools/hab sync
+
+      # Regenerate the gitignored FlatBuffer stubs — graphics' src/generated
+      # is imported by its sources, tsc fails without them (same as ci.yml).
+      - run: pnpm --filter @scumble/native generate-fbs
+
       # pack does not run prepublishOnly, so graphics' dist must be built
       # explicitly (turbo also orders it before react's tests).
       - run: pnpm build
