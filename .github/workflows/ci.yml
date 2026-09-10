@@ -20,21 +20,13 @@ on:
       - "DEPS.py"
       - "tools/hab*"
       - ".github/workflows/ci.yml"
+  # No `paths` filter on pull_request on purpose: the `tests` job is a
+  # required status check (branch protection on develop), and a workflow
+  # skipped by path filtering never reports — the check would sit on
+  # "Expected — Waiting for status" forever and block the merge. The full
+  # run is ~1 min, so running it on every PR is cheap.
   pull_request:
     branches: [develop, main]
-    paths:
-      - "packages/graphics/**"
-      - "packages/react/**"
-      - "packages/native/shared/**"
-      - "packages/native/tests/**"
-      - "packages/native/schema/**"
-      - "packages/native/scripts/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "turbo.json"
-      - "DEPS.py"
-      - "tools/hab*"
-      - ".github/workflows/ci.yml"
   workflow_dispatch:
 
 permissions:
