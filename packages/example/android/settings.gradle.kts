@@ -13,7 +13,7 @@ pluginManagement {
 }
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
-    id("org.lynxsdk.lynx.library-settings") version "4.0.1"
+    id("org.lynxsdk.lynx.library-settings") version "4.0.2"
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
