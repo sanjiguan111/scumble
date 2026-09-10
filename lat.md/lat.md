@@ -5,4 +5,5 @@ This directory is the structured knowledge graph of scumble's architecture, desi
 - [[lynx-integration]] — Lynx runtime constraints and platform traps
 - [[rendering]] — feature semantics (shapes, paint, paths, filters, text) and parity gaps
 - [[animation]] — overlay model, frame drivers, playback control
+- [[ci]] — workflow matrix and the soft PR merge gate on develop
 - [[tests]] — test specifications (require code mentions)
