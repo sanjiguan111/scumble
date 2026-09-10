@@ -73,7 +73,7 @@ class MainActivity : Activity() {
         // Bind each runtime's napi_env to the host NAPI addon loader. The loader
         // (LynxNodeAPIModule) needs the env to dlopen + init component addons.
         view.addRuntimeLifecycleListener(object : RuntimeLifecycleListener {
-            override fun onRuntimeAttach(napiEnv: Long) {
+            override fun onRuntimeAttach(napiEnv: Long, runtimeType: String) {
                 LynxNodeAPIModule.putEnv(view.getLynxContext(), napiEnv)
             }
             override fun onRuntimeDetach() {

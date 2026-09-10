@@ -47,10 +47,11 @@ The one JS→native channel that bypasses NAPI is the UIMethod lane: `element.in
 
 Gradle-side facts the host app and the library build must satisfy.
 
-- Autolink: the Lynx Gradle plugin (library-settings/library-build 4.0.1) auto-integrates the library; the library needs `namespace`, androidx.annotation, and CMake ≥ 3.22.1.
+- Autolink: the Lynx Gradle plugin (library-settings/library-build 4.0.2) auto-integrates the library; the library needs `namespace`, androidx.annotation, and CMake ≥ 3.22.1.
 - NAPI addon `.so` must be `System.loadLibrary`-loaded explicitly (primjs registers via dlopen constructor; autolink does not do it).
 - prefab: skity-native is linked via prefab; AGP copies the prefab runtime `.so` into the library AAR's `jni/`, duplicating the copy skity-native already ships — the host resolves with `packaging { jniLibs { pickFirsts += "**/libskity.so" } }`.
 - Generated FlatBuffer Java stubs land in `android/.../fbs-gen/` via `pnpm --filter @scumble/native generate-fbs`.
+- Host API break in 4.0.2: `RuntimeLifecycleListener.onRuntimeAttach` gained a `runtimeType: String` parameter (4.0.1 took only `napiEnv: Long`). The example's `MainActivity` ignores it — same as the upstream explorer host — and passes only `napiEnv` to the addon loader. Trap: with a stale local Gradle cache (4.0.1 AAR) the old signature compiles green locally while CI (fresh 4.0.2) fails.
 
 ## iOS integration traps
 
