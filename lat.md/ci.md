@@ -13,13 +13,13 @@ Four workflows under `.github/workflows/`, split by what they can see:
 
 ## PR gate policy
 
-Decided 2026-09-10: a soft gate. develop branch protection sets `tests` as the ONLY required status check; direct pushes are not blocked — the gate guards PR merges, not the maintainer.
+Decided 2026-09-10: a soft gate. develop branch protection requires THREE checks — `tests`, `Android assembleDebug`, `iOS xcodebuild (iphonesimulator)` — and direct pushes are not blocked: the gate guards PR merges, not the maintainer.
 
-Single-maintainer repo, so requiring reviews would deadlock (you cannot approve your own PR). Android/iOS compile smoke runs on PRs but stays non-required: making iOS required would add ~27 min of wait to every native-touching PR.
+Single-maintainer repo, so requiring reviews would deadlock (you cannot approve your own PR). Both platform compile jobs are required because podspec/prefab/JNI/OC regressions are invisible to the host gtest matrix; the iOS ~27 min cost is contained by the per-job change probe (see [[ci#CI and merge gates#Why pull_request has no paths filter]]) — PRs that touch no native input see both jobs finish green in seconds.
 
 Consequences:
 
-- Normal flow: feature branch → PR → `tests` green → merge. CI failures surface before merge, not after.
+- Normal flow: feature branch → PR → all three green → merge. CI failures surface before merge, not after.
 - Hotfix path: direct push to develop remains available and intentionally unguarded.
 - `enforce_admins` is off, so the maintainer can bypass a red check in an emergency — bypassing is a conscious act, not a habit.
 
@@ -27,4 +27,4 @@ Consequences:
 
 A required status check whose workflow was skipped by path filtering never reports, leaving the check stuck on "Expected — Waiting for status" and blocking the merge.
 
-So `ci.yml` filters `push` by paths to save runner time, but its `pull_request` trigger deliberately has NO paths filter — the full run is ~1 min, every PR just runs it. `native-build.yml` keeps paths filters on both triggers because its jobs are non-required; a skipped informational check blocks nothing.
+So neither `ci.yml` nor `native-build.yml` filters `pull_request` by paths (`push` keeps the filter to save runner time). `ci.yml` just runs everything (~1 min). `native-build.yml` instead probes inside each job: a first step diffs `origin/<base>...HEAD` against that platform's input paths (native sources, that platform's example app, lockfiles, DEPS.py, habitat tooling, the workflow itself); when nothing matches, every later step is skipped and the job reports green in seconds. Push events skip the probe: the workflow-level paths filter already guaranteed relevance.
