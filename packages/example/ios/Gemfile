@@ -9,4 +9,6 @@ source 'https://rubygems.org'
 # run `bundle exec pod install` (packages/example/scripts/run-ios.mjs does this
 # automatically).
 gem 'cocoapods', '~> 1.16'
-gem 'cocoapods-lynx-library', '>= 4.0.1'
+# Track the Lynx SDK's 4.0.x line — the 4.1 plugin line ships alongside the
+# harmony-only SDK 4.1.0, which iOS never got.
+gem 'cocoapods-lynx-library', '~> 4.0.2'
