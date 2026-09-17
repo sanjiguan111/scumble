@@ -1,4 +1,28 @@
-platform :ios, '13.0'
+# Xcode 27 compatibility notes (2026-09):
+#
+# Building with Xcode 27 / iOS 27 SDK against Lynx 4.0.2 requires the
+# workarounds collected in the post_install hook below. None of them change
+# runtime behavior — they only unblock compilation:
+#
+#   1. Deployment targets: Xcode 27 rejects IPHONEOS_DEPLOYMENT_TARGET < 15.0
+#      (the Lynx/PrimJS pods still declare 8.0–13.0). The hook clamps every
+#      target in the generated Pods project to the platform minimum.
+#   2. Source patches inside Pods/Lynx: the newer clang + SDK turn three
+#      classes of pre-existing Lynx code into -Werror errors (Lynx compiles
+#      with -Wall -Werror):
+#        - ignored nodiscard returns → patched with (void) casts
+#        - deprecated UIKit APIs (keyWindow, UIMenuController,
+#          showCGlyphs:, …) → file-wide suppression pragmas on the darwin
+#          platform layer
+#      The -Werror flags ride build-setting ordering levels that xcconfig
+#      edits can't reliably beat (they don't reach the compiler response
+#      file), so the sources are patched directly — immune to flag order.
+#
+# With Xcode ≤ 26 these patches are unnecessary but harmless. All of it is
+# idempotent and re-applied on every `pod install`; drop the corresponding
+# blocks once a Lynx release compatible with Xcode 27 lands.
+
+platform :ios, '15.0'
 
 plugin 'cocoapods-lynx-library'
 
@@ -14,4 +38,74 @@ target 'ScumbleDemo' do
 
   # Autolink
   use_lynx_library!
+end
+
+# Xcode 27 rejects deployment targets below iOS 15 — clamp every target in
+# the generated Pods project (pod-declared 8.0–13.0s are stale) plus the
+# aggregate-target xcconfigs to the platform minimum.
+post_install do |installer|
+  minimum = '15.0'
+  set_target = lambda { |target|
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = minimum
+    end
+  }
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = minimum
+  end
+  installer.pods_project.targets.each(&set_target)
+  # Xcode 27's clang + the iOS 27 SDK trip over code inside the Lynx pod
+  # sources, and the -Wall -Werror flags ride ordering levels we can't
+  # reliably beat (xcconfig redefinitions don't reach the response file).
+  # Fix the sources instead — pragma/(void) patches are immune to any flag
+  # order. Pod sources are checked out read-only: chmod → write → restore.
+  patch_pod_source = lambda { |rel, marker, transform|
+    path = File.join(installer.sandbox.root, rel)
+    next unless File.exist?(path)
+    src = File.read(path)
+    next if src.include?(marker)
+    patched = transform.call(src)
+    next if patched == src
+    mode = File.stat(path).mode
+    File.chmod(0o644, path)
+    File.write(path, patched)
+    File.chmod(mode, path)
+  }
+
+  # Ignored nodiscard returns (GetFuture().get()) — cast to void, the
+  # standard "deliberately ignored" idiom. Only bare discarded statements
+  # (no '=' — assigned results are used and warn nothing).
+  void_discarded_futures = lambda { |src|
+    src.gsub('(void)auto ', 'auto ').gsub(/^(\s*)(?!\(void\))((?!.*=).*->GetFuture\(\)\.get\(\);)/) do
+      "#{Regexp.last_match(1)}(void)#{Regexp.last_match(2)}"
+    end
+  }
+  patch_pod_source.call(
+    File.join('Lynx', 'core', 'template_bundle', 'template_codec', 'binary_decoder',
+              'parallel_parse_task_scheduler.cc'),
+    '(void)generate_element_template_parse_task_->GetFuture().get();',
+    void_discarded_futures
+  )
+
+  # Deprecated UIKit APIs (keyWindow, UIMenuController, showCGGlyphs:, …) —
+  # the iOS 27 SDK + -Werror trips over them one file at a time (LynxUI.m,
+  # LynxTextView.m, LynxTextLayoutManager.m, …). Patch ALL Objective-C sources
+  # of the Lynx platform layer at once with file-wide suppression pragmas —
+  # idempotent via the marker comment.
+  deprecation_pragmas =
+    "#pragma clang diagnostic ignored \"-Wdeprecated-declarations\" // scumble-patch: ignore deprecations\n" \
+    "#pragma clang diagnostic ignored \"-Wdeprecated-implementations\" // scumble-patch: ignore deprecations\n"
+  Dir.glob(File.join(installer.sandbox.root, 'Lynx', 'platform', 'darwin', '**', '*.{m,mm}')).each do |f|
+    src = File.read(f)
+    next if src.include?('scumble-patch: ignore deprecations')
+    mode = File.stat(f).mode
+    File.chmod(0o644, f)
+    File.write(f, "#{deprecation_pragmas}#{src}")
+    File.chmod(mode, f)
+  end
+  installer.aggregate_targets.each do |t|
+    t.xcconfigs.each do |_, xcconfig|
+      xcconfig.attributes['IPHONEOS_DEPLOYMENT_TARGET'] = minimum
+    end
+  end
 end
