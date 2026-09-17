@@ -58,6 +58,26 @@ struct RetainedPaint {
   BytesPtr mask_filter_data;
 };
 
+// One pass of the multi-<Paint> channel (SetMultiPaint; FEATURE_PARITY F.1.3 /
+// roadmap #13 — RN-Skia multi-pass semantics). Full per-pass state, including
+// opacity/blend_mode which the single-slot channel shares between fill and
+// stroke. NOT inherited: stored on RetainedNode next to the layer_* fields,
+// and when non-empty it takes over the node's drawing entirely (the renderer
+// loops it instead of the fixed fill+stroke double pass).
+struct RetainedPaintPass {
+  bool stroke = false; // PaintSlot (FILL=0 / STROKE=1)
+  RetainedPaint paint; // color/gradient/image shader + the three filter slots
+  float stroke_width = 1.f;
+  LineCap stroke_cap = LineCap_BUTT;
+  LineJoin stroke_join = LineJoin_MITER;
+  float stroke_miter = 4.f;
+  FillRule fill_rule = FillRule_NONZERO;
+  FloatsPtr stroke_dash;
+  float stroke_dashoffset = 0.f;
+  float opacity = 1.f;
+  BlendMode blend_mode = BlendMode_SRC_OVER;
+};
+
 // Mutable, owning counterpart of ComputedStyle. Deep fields are COW payloads
 // (BytesPtr/FloatsPtr — see RetainedPaint) so the per-frame inheritance
 // scratch copy stays allocation-free.
@@ -137,6 +157,13 @@ struct RetainedNode {
   BytesPtr layer_color_filter_data;
   BytesPtr layer_image_filter_data;
   BytesPtr layer_mask_filter_data;
+
+  // Multi-pass paint list (SetMultiPaint; F.1.3 / roadmap #13). Per-shape and
+  // NOT inherited — DrawNode reads it straight off the node (like layer_*).
+  // Non-empty = the node draws once per pass with fully independent paint
+  // state (the fixed fill+stroke double pass and the explicit_paint
+  // inheritance merge are bypassed); empty = single-slot paints as usual.
+  std::vector<RetainedPaintPass> multi_passes;
 
   // Image node source. image_uri doubles as the ImageStore key and the
   // platform loader request (http(s) URL / data URI); the TASM setter fires

@@ -163,6 +163,77 @@ BytesPtr CloneBytes(const ::flatbuffers::Vector<uint8_t> *src) {
   return std::make_shared<const std::vector<uint8_t>>(src->Data(), src->Data() + src->size());
 }
 
+// Apply a SetMultiPaint command (full state): replace the node's pass list
+// from the nested MultiPaintList bytes. An empty/absent list clears the
+// multi-pass state — the node falls back to its single-slot paints.
+void ApplySetMultiPaint(const SetMultiPaint *m, RetainedNode *node) {
+  node->multi_passes.clear();
+  const auto *blob = m->data();
+  const MultiPaintList *list = blob != nullptr && blob->size() > 0
+                                   ? ::flatbuffers::GetRoot<MultiPaintList>(blob->data())
+                                   : nullptr;
+  const auto *passes = list != nullptr ? list->passes() : nullptr;
+  if (passes != nullptr) {
+    node->multi_passes.reserve(passes->size());
+    for (::flatbuffers::uoffset_t i = 0; i < passes->size(); i++) {
+      const PaintPass *src = passes->Get(i);
+      if (src == nullptr) continue;
+      RetainedPaintPass pass;
+      pass.stroke = src->style() == PaintSlot_STROKE;
+      switch (src->type()) {
+      case 1: // COLOR
+        pass.paint.type = 1;
+        pass.paint.color = src->color();
+        break;
+      case 2: // GRADIENT
+        pass.paint.type = 2;
+        pass.paint.gradient_data = CloneBytes(src->gradient());
+        break;
+      case 3: { // IMAGE_SHADER
+        const ::flatbuffers::String *uri = src->image_uri();
+        pass.paint.type = (uri != nullptr && uri->size() > 0) ? 3 : 0;
+        pass.paint.image_shader_uri = uri != nullptr && uri->size() > 0
+                                          ? std::make_shared<const std::string>(uri->str())
+                                          : nullptr;
+        pass.paint.image_shader_fit = static_cast<uint8_t>(src->image_fit());
+        pass.paint.image_shader_tx = static_cast<uint8_t>(src->image_tx());
+        pass.paint.image_shader_ty = static_cast<uint8_t>(src->image_ty());
+        const auto *rect = src->image_rect();
+        if (rect != nullptr && rect->size() == 4) {
+          for (uint32_t r = 0; r < 4; r++)
+            pass.paint.image_shader_rect[r] = rect->Get(r);
+        }
+        break;
+      }
+      default: // NONE — an inactive pass (draws nothing)
+        pass.paint.type = 0;
+        break;
+      }
+      pass.paint.color_filter_data = CloneBytes(src->color_filter());
+      pass.paint.image_filter_data = CloneBytes(src->image_filter());
+      pass.paint.mask_filter_data = CloneBytes(src->mask_filter());
+      pass.stroke_width = src->stroke_width();
+      pass.stroke_cap = src->stroke_cap();
+      pass.stroke_join = src->stroke_join();
+      pass.stroke_miter = src->stroke_miter();
+      pass.fill_rule = src->fill_rule();
+      const auto *dash = src->stroke_dash();
+      if (dash != nullptr && dash->size() > 0) {
+        auto owned = std::make_shared<std::vector<float>>();
+        owned->reserve(dash->size());
+        for (uint32_t d = 0; d < dash->size(); d++)
+          owned->push_back(dash->Get(d));
+        pass.stroke_dash = std::move(owned);
+      }
+      pass.stroke_dashoffset = src->stroke_dashoffset();
+      pass.opacity = src->opacity();
+      pass.blend_mode = src->blend_mode();
+      node->multi_passes.push_back(std::move(pass));
+    }
+  }
+  node->paint_version++; // passes feed paint construction (§15 build cache)
+}
+
 } // namespace
 
 RetainedNode *RetainedRenderTree::Find(int32_t id) const {
@@ -387,6 +458,22 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       if (node != nullptr) {
         AssignOwnedBytes(sc->data(), &node->clip_data);
         node->geom_version++;
+      }
+      break;
+    }
+    case Command_SetMultiPaint: {
+      const auto *mp = static_cast<const SetMultiPaint *>(obj);
+      RetainedNode *node = Find(mp->node_id());
+      if (node != nullptr) {
+        ApplySetMultiPaint(mp, node);
+        // The passes take over the node's paint entirely — animated paint
+        // fields (opacity/fill/stroke color) would fight the pass list every
+        // frame. Geometry/transform tracks are unaffected (they compose with
+        // any paint channel).
+        CancelAnimationsFor(node,
+                            AnimationOverlay::kBitOpacity | AnimationOverlay::kBitFillColor |
+                                AnimationOverlay::kBitStrokeColor,
+                            &animated_ids_);
       }
       break;
     }

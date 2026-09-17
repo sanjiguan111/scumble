@@ -29,10 +29,12 @@ import type { PaintProps } from "./types";
  * placed *inside* the `<Paint>` apply to that paint (`style="stroke"` → stroke
  * gradient), while shaders placed directly under the shape apply to fill.
  *
- * Native paint-slot limits: at most one
- * fill paint + one stroke paint per shape (a later `<Paint>` of the same style
- * wins), and `opacity`/`blendMode` are not supported here (opacity is a single
- * node-level channel).
+ * Channel limits: at most one fill paint + one stroke paint ride the shared
+ * single-slot channel (a later `<Paint>` of the same style wins there).
+ * Declaring several paints of the same style — or giving any `<Paint>` its own
+ * `opacity` — switches the shape to the multi-pass channel, where the geometry
+ * draws once per paint with fully independent state (per-paint
+ * `opacity`/`blendMode` included).
  */
 export function Paint(_props: PaintProps): null {
   // Data-only component; consumed by the parent shape's resolvePaint. Returning

@@ -45,11 +45,15 @@ function floatsFromBase64(s: string | undefined): number[] {
 
 describe("resolvePaint defaultStyle", () => {
   it("routes color to stroke when the shape defaults to stroke (Line/Polyline)", () => {
-    expect(resolvePaint({ color: "red" }, undefined, "stroke")).toEqual({ stroke: 0xffff0000 });
+    expect(resolvePaint({ color: "red" }, undefined, "stroke")).toEqual({
+      multiPaint: "",
+      stroke: 0xffff0000,
+    });
   });
 
   it("an explicit style still wins over defaultStyle", () => {
     expect(resolvePaint({ color: "red", style: "fill" }, undefined, "stroke")).toEqual({
+      multiPaint: "",
       fill: 0xffff0000,
     });
   });
@@ -227,6 +231,7 @@ describe("findClipSpecs (Group clip children)", () => {
 describe("resolvePaint blendMode", () => {
   it("maps the blendMode literal to a byte (no longer dropped)", () => {
     expect(resolvePaint({ color: "red", blendMode: "multiply" })).toEqual({
+      multiPaint: "",
       fill: 0xffff0000,
       blendMode: 24,
     });

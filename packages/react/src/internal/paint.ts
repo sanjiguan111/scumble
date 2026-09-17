@@ -15,6 +15,7 @@ import {
   buildImageFilter,
   buildLinearGradient,
   buildMaskFilter,
+  buildMultiPaint,
   buildRadialGradient,
   buildSweepGradient,
   buildTwoPointConicalGradient,
@@ -28,7 +29,7 @@ import {
   parseStrokeJoin,
   parseTileMode,
 } from "@scumble/graphics";
-import type { FilterSpec } from "@scumble/graphics";
+import type { FilterSpec, PaintPassSpec } from "@scumble/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
 import { Blur, ColorBlend, ColorMatrix, DropShadow, MaskBlur } from "../filters/filters";
@@ -97,6 +98,15 @@ export interface ResolvedPaint {
   strokeImageTx?: number;
   strokeImageTy?: number;
   strokeImageRect?: string;
+  /**
+   * Base64 MultiPaintList bytes — the multi-pass channel (RN-Skia
+   * multi-`<Paint>` semantics). When non-empty, the node draws its geometry
+   * once per pass with fully independent paint state instead of the fixed
+   * fill+stroke double pass, and the single-slot props above are unused.
+   * `""` clears (falls back to the single-slot paints); the native setter
+   * treats null as a no-op like every other paint prop.
+   */
+  multiPaint?: string;
 }
 
 /**
@@ -171,19 +181,34 @@ export function childElements(children?: ReactNode): ChildElement[] {
 }
 
 /**
- * Find the `<Paint>` children (data-only, declarative paint
- * overrides). Returns at most one entry per style — fill and stroke — with a
- * later declaration of the same style winning.
+ * Find the `<Paint>` children (data-only, declarative paint overrides) in
+ * declaration order. The single-slot channel reduces this to one entry per
+ * style (last wins); the multi-pass channel keeps every entry.
  */
-function findPaintChildren(children?: ReactNode): Partial<Record<"fill" | "stroke", PaintProps>> {
-  const found: Partial<Record<"fill" | "stroke", PaintProps>> = {};
+function findPaintChildren(children?: ReactNode): PaintProps[] {
+  const found: PaintProps[] = [];
   for (const el of childElements(children)) {
-    if (el.type === Paint) {
-      const props = el.props as PaintProps;
-      found[props.style ?? "fill"] = props;
-    }
+    if (el.type === Paint) found.push(el.props as PaintProps);
   }
   return found;
+}
+
+/**
+ * Serialize a recognized gradient child into raw Gradient bytes (the shared
+ * payload behind both the base64 `fillGradient`/`strokeGradient` prop channel
+ * and the multi-pass blob).
+ */
+function rawGradient(shader: Exclude<ShaderChild, { kind: "image" }>): ArrayBuffer {
+  switch (shader.kind) {
+    case "linear":
+      return buildLinearGradient(shader.props);
+    case "radial":
+      return buildRadialGradient(shader.props);
+    case "sweep":
+      return buildSweepGradient(shader.props);
+    case "conical":
+      return buildTwoPointConicalGradient(shader.props);
+  }
 }
 
 /**
@@ -191,16 +216,7 @@ function findPaintChildren(children?: ReactNode): Partial<Record<"fill" | "strok
  * `fillGradient` prop channel).
  */
 function gradientBytes(shader: Exclude<ShaderChild, { kind: "image" }>): string {
-  switch (shader.kind) {
-    case "linear":
-      return bytesToBase64(buildLinearGradient(shader.props));
-    case "radial":
-      return bytesToBase64(buildRadialGradient(shader.props));
-    case "sweep":
-      return bytesToBase64(buildSweepGradient(shader.props));
-    case "conical":
-      return bytesToBase64(buildTwoPointConicalGradient(shader.props));
-  }
+  return bytesToBase64(rawGradient(shader));
 }
 
 /**
@@ -261,19 +277,38 @@ function findFilterSpecs(children?: ReactNode): FilterSpec[] {
 }
 
 /**
+ * Build the three filter-slot payloads (raw Filter bytes) from specs: image
+ * filters (blur/dropShadow) compose in declaration order, color filters
+ * (colorMatrix/colorBlend) likewise, and the mask filter takes the first
+ * maskBlur. Empty kinds leave the slot unset.
+ */
+function filterSlotRaw(specs: FilterSpec[]): {
+  image?: ArrayBuffer;
+  color?: ArrayBuffer;
+  mask?: ArrayBuffer;
+} {
+  const out: { image?: ArrayBuffer; color?: ArrayBuffer; mask?: ArrayBuffer } = {};
+  const image = buildImageFilter(specs);
+  if (image !== null) out.image = image;
+  const color = buildColorFilter(specs);
+  if (color !== null) out.color = color;
+  const mask = buildMaskFilter(specs);
+  if (mask !== null) out.mask = mask;
+  return out;
+}
+
+/**
  * Build the three filter-slot payloads (base64 Filter bytes) from specs:
  * image filters (blur/dropShadow) compose in declaration order, color filters
  * (colorMatrix/colorBlend) likewise, and the mask filter takes the first
  * maskBlur. Empty kinds leave the slot unset.
  */
 function filterSlotBytes(specs: FilterSpec[]): { image?: string; color?: string; mask?: string } {
+  const raw = filterSlotRaw(specs);
   const out: { image?: string; color?: string; mask?: string } = {};
-  const image = buildImageFilter(specs);
-  if (image !== null) out.image = bytesToBase64(image);
-  const color = buildColorFilter(specs);
-  if (color !== null) out.color = bytesToBase64(color);
-  const mask = buildMaskFilter(specs);
-  if (mask !== null) out.mask = bytesToBase64(mask);
+  if (raw.image !== undefined) out.image = bytesToBase64(raw.image);
+  if (raw.color !== undefined) out.color = bytesToBase64(raw.color);
+  if (raw.mask !== undefined) out.mask = bytesToBase64(raw.mask);
   return out;
 }
 
@@ -329,6 +364,124 @@ export function resolveLayerEffect(layer?: GroupLayer): ResolvedLayerEffect {
   };
 }
 
+// ---- multi-pass channel (RN-Skia multi-<Paint> semantics, F.1.3) ----
+
+/**
+ * True when the declarative paints must ride the multi-pass channel instead
+ * of the single-slot one: several `<Paint>` declarations of the same style
+ * (only the last could survive the single slot), or any declaration carrying
+ * its own `opacity` (the single slot shares opacity between fill and stroke).
+ */
+function needsMultiPaint(paints: PaintProps[]): boolean {
+  if (paints.some((p) => p.opacity !== undefined)) return true;
+  const seen = new Set<"fill" | "stroke">();
+  for (const p of paints) {
+    const style = p.style ?? "fill";
+    if (seen.has(style)) return true;
+    seen.add(style);
+  }
+  return false;
+}
+
+/** Fill the shader fields of one pass from a recognized shader child. */
+function applyShaderToPass(pass: PaintPassSpec, shader: ShaderChild): void {
+  if (shader.kind !== "image") {
+    pass.gradient = rawGradient(shader);
+    return;
+  }
+  const { image, fit = "contain", tx = "clamp", ty = "clamp", rect } = shader.props;
+  const uri =
+    image == null || (typeof image === "string" && image.length === 0)
+      ? ""
+      : typeof image === "string"
+        ? image
+        : image.uri;
+  pass.image = {
+    uri,
+    fit: parseFit(fit),
+    tx: parseTileMode(tx),
+    ty: parseTileMode(ty),
+    rect: rect === undefined ? undefined : [rect.x ?? 0, rect.y ?? 0, rect.width, rect.height],
+  };
+}
+
+/**
+ * Build the multi-pass payload (`""` when there are no passes). The base pass
+ * comes first — the shape's OWN paint props (color / shader / filters), only
+ * when it declares any — then one pass per `<Paint>` child in declaration
+ * order. Each pass starts from the shape's stroke/dash/opacity/blendMode
+ * defaults and overrides only what its source declares (the same
+ * partial-override rule as the single-slot channel).
+ */
+function multiPaintProp(
+  props: GraphicProps,
+  children: ReactNode,
+  paints: PaintProps[],
+  defaultStyle: "fill" | "stroke",
+): string {
+  const { color, style = defaultStyle } = props;
+  const shader = findShaderChild(children);
+  const filterSpecs = findFilterSpecs(children);
+  const hasBase = color !== undefined || shader !== null || filterSpecs.length > 0;
+
+  const passes: PaintPassSpec[] = [];
+
+  if (hasBase) {
+    const base: PaintPassSpec = { style };
+    if (color !== undefined) base.color = parseColor(color);
+    if (shader !== null) applyShaderToPass(base, shader);
+    if (props.strokeWidth !== undefined) base.strokeWidth = props.strokeWidth;
+    if (props.strokeCap !== undefined) base.strokeCap = parseStrokeCap(props.strokeCap);
+    if (props.strokeJoin !== undefined) base.strokeJoin = parseStrokeJoin(props.strokeJoin);
+    if (props.strokeMiter !== undefined) base.strokeMiter = props.strokeMiter;
+    if (props.dash !== undefined) base.dash = normalizeDash(props.dash);
+    if (props.dashOffset !== undefined) base.dashOffset = props.dashOffset;
+    if (props.opacity !== undefined) base.opacity = props.opacity;
+    if (props.blendMode !== undefined) base.blendMode = parseBlendMode(props.blendMode);
+    if (filterSpecs.length > 0) {
+      const bytes = filterSlotRaw(filterSpecs);
+      if (bytes.image !== undefined) base.imageFilter = bytes.image;
+      if (bytes.color !== undefined) base.colorFilter = bytes.color;
+      if (bytes.mask !== undefined) base.maskFilter = bytes.mask;
+    }
+    passes.push(base);
+  }
+
+  for (const p of paints) {
+    const pass: PaintPassSpec = { style: p.style ?? "fill" };
+    if (p.color !== undefined) pass.color = parseColor(p.color);
+    if (p.strokeWidth !== undefined) pass.strokeWidth = p.strokeWidth;
+    else if (props.strokeWidth !== undefined) pass.strokeWidth = props.strokeWidth;
+    if (p.strokeCap !== undefined) pass.strokeCap = parseStrokeCap(p.strokeCap);
+    else if (props.strokeCap !== undefined) pass.strokeCap = parseStrokeCap(props.strokeCap);
+    if (p.strokeJoin !== undefined) pass.strokeJoin = parseStrokeJoin(p.strokeJoin);
+    else if (props.strokeJoin !== undefined) pass.strokeJoin = parseStrokeJoin(props.strokeJoin);
+    if (p.strokeMiter !== undefined) pass.strokeMiter = p.strokeMiter;
+    else if (props.strokeMiter !== undefined) pass.strokeMiter = props.strokeMiter;
+    if (p.dash !== undefined) pass.dash = normalizeDash(p.dash);
+    else if (props.dash !== undefined) pass.dash = normalizeDash(props.dash);
+    if (p.dashOffset !== undefined) pass.dashOffset = p.dashOffset;
+    else if (props.dashOffset !== undefined) pass.dashOffset = props.dashOffset;
+    if (p.opacity !== undefined) pass.opacity = p.opacity;
+    else if (props.opacity !== undefined) pass.opacity = props.opacity;
+    if (p.blendMode !== undefined) pass.blendMode = parseBlendMode(p.blendMode);
+    else if (props.blendMode !== undefined) pass.blendMode = parseBlendMode(props.blendMode);
+    const pShader = findShaderChild(p.children);
+    if (pShader !== null) applyShaderToPass(pass, pShader);
+    const pFilters = findFilterSpecs(p.children);
+    if (pFilters.length > 0) {
+      const bytes = filterSlotRaw(pFilters);
+      if (bytes.image !== undefined) pass.imageFilter = bytes.image;
+      if (bytes.color !== undefined) pass.colorFilter = bytes.color;
+      if (bytes.mask !== undefined) pass.maskFilter = bytes.mask;
+    }
+    passes.push(pass);
+  }
+
+  const bytes = buildMultiPaint(passes);
+  return bytes === null ? "" : bytesToBase64(bytes);
+}
+
 /**
  * Normalize a shape's {@link GraphicProps} into the `{fill?, stroke?, …}`
  * scalars the skity intrinsic tags accept. `color` is run through `parseColor`
@@ -361,6 +514,18 @@ export function resolvePaint(
   } = props;
 
   const out: ResolvedPaint = {};
+
+  // Multi-pass channel: several paints of the same style, or any paint with
+  // its own opacity — the shape's geometry draws once per pass with fully
+  // independent paint state (base64 MultiPaintList bytes; the single-slot
+  // props are left unset so the node doesn't double-draw). Every other shape
+  // carries `multiPaint: ""` so a multi→single transition clears natively
+  // (prop removal fires the setter with null, which is a no-op).
+  const paints = findPaintChildren(children);
+  if (needsMultiPaint(paints)) {
+    return { multiPaint: multiPaintProp(props, children ?? null, paints, defaultStyle) };
+  }
+  out.multiPaint = "";
 
   // color omitted → no fill/stroke set → native draws nothing (== transparent).
   if (color !== undefined) {
@@ -396,10 +561,13 @@ export function resolvePaint(
 
   // Declarative <Paint> children override the paint of their
   // style; shaders nested inside route to that paint's gradient slot. Only
-  // properties the <Paint> actually declares are overridden.
-  const paints = findPaintChildren(children);
+  // properties the <Paint> actually declares are overridden. (Here the list
+  // is already reduced to ≤1 per style — the multi-pass branch above returned
+  // when that didn't hold.)
+  const paintsByStyle: Partial<Record<"fill" | "stroke", PaintProps>> = {};
+  for (const p of paints) paintsByStyle[p.style ?? "fill"] = p;
   for (const target of ["fill", "stroke"] as const) {
-    const p = paints[target];
+    const p = paintsByStyle[target];
     if (p === undefined) continue;
     if (p.color !== undefined) out[target] = parseColor(p.color);
     if (p.strokeWidth !== undefined) out.strokeWidth = p.strokeWidth;

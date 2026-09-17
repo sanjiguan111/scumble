@@ -89,9 +89,14 @@ at all.
    once). The old folding stays as the leaf fast path and the fallback when
    layer bounds can't be computed (degenerate transform / oversized extents);
    see RENDER_ARCHITECTURE.md §16.
-3. **Single paint slot** — blendMode/opacity are shared by the fill and
-   stroke paints; RN-Skia keeps them independent, and multiple `<Paint>`
-   children draw multiple passes (we have a fixed fill+stroke double pass).
+3. ~~**Single paint slot**~~ — **fixed (2026-09-16)**: several `<Paint>`
+   children of the same style, or any `<Paint>` with its own `opacity`, now
+   switch the shape to the multi-pass channel — the geometry draws once per
+   paint with fully independent state (per-paint opacity/blendMode/stroke
+   attrs/filters; `SetMultiPaint` full-state command carrying a nested
+   MultiPaintList, as-built RENDER_ARCHITECTURE.md §18). ≤1 fill + ≤1 stroke
+   without per-paint opacity keep the single-slot fast path (zero behavior
+   change for existing code).
    3b. ~~**Group-level filters**~~ — **fixed (2026-08-31)**: `<Group layer>`
    forces an offscreen composite and `layer={<Paint>…}</Paint>` applies the
    Paint's filter children to that composite (`SetLayerEffect` full-state

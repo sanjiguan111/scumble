@@ -52,6 +52,10 @@ std::atomic<bool> g_exact_group_opacity{true};
 // effects simply dropped), so the two blast radii stay separate.
 std::atomic<bool> g_group_layer{true};
 
+// Kill switch for the multi-<Paint> multi-pass lane (default ON). Off = the
+// node's pass list is ignored and it falls back to its single-slot paints.
+std::atomic<bool> g_multi_paint{true};
+
 // Intern-or-build: lookup by content hash (collision-verified), call `build`
 // only on a miss and insert the product. Hits/misses feed the stats counters.
 template <typename T, typename Build>
@@ -1040,8 +1044,32 @@ void DrawTextDecorations(const RetainedNode *node, Canvas *canvas,
   }
 }
 
-void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style,
-               skity::GPUContext *gpu_context) {
+// Synthesize a single-slot style from one multi-pass entry: the pass's paint
+// lands in its style slot; per-pass stroke attrs / fill rule / dash / blend
+// mode / opacity ride the style's own fields, so every downstream consumer
+// (MakeFillPaint/MakeStrokePaint/DrawCachedPath) is reused verbatim.
+// `inherited_opacity` (the group-inherited contribution, folded into the
+// merged style by DrawNode) multiplies the pass's own opacity — the same
+// folding the single-slot lane applies.
+RetainedComputedStyle StyleFromPass(const RetainedPaintPass &pass, float inherited_opacity) {
+  RetainedComputedStyle cs;
+  (pass.stroke ? cs.stroke : cs.fill) = pass.paint;
+  cs.stroke_width = pass.stroke_width;
+  cs.stroke_cap = pass.stroke_cap;
+  cs.stroke_join = pass.stroke_join;
+  cs.stroke_miter = pass.stroke_miter;
+  cs.fill_rule = pass.fill_rule;
+  cs.stroke_dash = pass.stroke_dash;
+  cs.stroke_dashoffset = pass.stroke_dashoffset;
+  cs.blend_mode = pass.blend_mode;
+  cs.opacity = pass.opacity * inherited_opacity;
+  return cs;
+}
+
+// The single-slot draw (the historical body of DrawShape): the fixed
+// fill+stroke double pass over one merged style.
+void DrawShapeSingle(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style,
+                     skity::GPUContext *gpu_context) {
   const std::string &tag = node->tag_name;
   if (tag.empty()) return;
   float opacity = style != nullptr ? style->opacity : 1.f;
@@ -1164,6 +1192,29 @@ void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedS
     }
     DrawTextDecorations(node, canvas, style, opacity);
     canvas->Restore();
+  }
+}
+
+// Multi-pass dispatch (SetMultiPaint; F.1.3 / roadmap #13 — RN-Skia
+// multi-<Paint> semantics): a node with a non-empty pass list draws its
+// geometry once per pass, each with fully independent paint state. The pass
+// list takes over the node's paint entirely — the merged (inherited) style
+// contributes only its opacity — and the single-slot props are unused (the
+// react layer leaves them unset on this channel). Kill switch: off = ignore
+// the passes and fall back to the single-slot paints. Image/paragraph nodes
+// ignore the pass list (no paint to multi-plex).
+void DrawShape(const RetainedNode *node, Canvas *canvas, const RetainedComputedStyle *style,
+               skity::GPUContext *gpu_context) {
+  const std::string &tag = node->tag_name;
+  if (tag.empty()) return;
+  if (!MultiPaintEnabled() || node->multi_passes.empty() || tag == "image" || tag == "paragraph") {
+    DrawShapeSingle(node, canvas, style, gpu_context);
+    return;
+  }
+  float inherited_opacity = style != nullptr ? style->opacity : 1.f;
+  for (const RetainedPaintPass &pass : node->multi_passes) {
+    RetainedComputedStyle cs = StyleFromPass(pass, inherited_opacity);
+    DrawShapeSingle(node, canvas, &cs, gpu_context);
   }
 }
 
@@ -1562,6 +1613,16 @@ void SetGroupLayerEnabled(bool enabled) {
 }
 bool GroupLayerEnabled() {
   return g_group_layer.load(std::memory_order_relaxed);
+}
+
+// Multi-<Paint> multi-pass lane kill switch — default ON. Turning it off
+// drops the pass list (the node falls back to its single-slot paints); same
+// free-function shape as the switches above, not wired to JS.
+void SetMultiPaintEnabled(bool enabled) {
+  g_multi_paint.store(enabled, std::memory_order_relaxed);
+}
+bool MultiPaintEnabled() {
+  return g_multi_paint.load(std::memory_order_relaxed);
 }
 
 } // namespace skityrt

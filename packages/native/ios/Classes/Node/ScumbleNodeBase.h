@@ -160,6 +160,10 @@ enum ScumblePaintFilterField {
 /// all animations on the node). The render thread interpolates per vsync —
 /// the TASM side only forwards the description (ANIMATION_DESIGN.md).
 @property(nonatomic, strong, nullable) NSData *animationData;
+/// Multi-pass paint list (JS-built MultiPaintList bytes; nil/empty = clear —
+/// the node falls back to its single-slot paints). Full state, per-shape, NOT
+/// inherited (FEATURE_PARITY F.1.3 — RN-Skia multi-<Paint> semantics).
+@property(nonatomic, strong, nullable) NSData *multiPaintData;
 /// JS-minted playback-control address riding the SAME SetAnimation command
 /// (ANIMATION_CONTROL_DESIGN.md D1). Stored, never dirties on its own — it
 /// only matters when animationData changes.
@@ -204,6 +208,7 @@ enum ScumblePaintFilterField {
 @property(nonatomic, assign) BOOL dirtyLayer;
 @property(nonatomic, assign) BOOL dirtyImage;
 @property(nonatomic, assign) BOOL dirtyAnimation;
+@property(nonatomic, assign) BOOL dirtyMultiPaint;
 
 // Phase 2 Step 2: structural hooks. Lynx has no "move" primitive — a move is a
 // remove + insert, which the canvas merges into a MoveNode (same id, same batch).

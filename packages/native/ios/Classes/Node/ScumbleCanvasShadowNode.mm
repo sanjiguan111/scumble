@@ -232,6 +232,19 @@ static void ScumbleCollectCommands(flatbuffers::FlatBufferBuilder &fbb, ScumbleN
     types.push_back(skityrt::Command_SetLayerEffect);
     node.dirtyLayer = NO;
   }
+  if (node.dirtyMultiPaint) {
+    // Full-state command: the JS-built MultiPaintList bytes memcpy'd verbatim
+    // (same pattern as SetAnimation); an absent vector clears the passes.
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;
+    if (node.multiPaintData.length > 0) {
+      dataOff =
+          fbb.CreateVector((const uint8_t *)node.multiPaintData.bytes, node.multiPaintData.length);
+    }
+    auto off = skityrt::CreateSetMultiPaint(fbb, node.nativeId, dataOff);
+    offsets.push_back(off.Union());
+    types.push_back(skityrt::Command_SetMultiPaint);
+    node.dirtyMultiPaint = NO;
+  }
   if (node.dirtyAnimation) {
     // Empty/absent payload clears the node's animations on the render side.
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> dataOff = 0;

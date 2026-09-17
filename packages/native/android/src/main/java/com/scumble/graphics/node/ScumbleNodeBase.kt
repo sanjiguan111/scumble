@@ -116,6 +116,10 @@ abstract class ScumbleNodeBase : ShadowNode() {
   // (ANIMATION_CONTROL_DESIGN.md D1). Read at collectCommands time; never
   // dirties on its own — it only matters when animationData changes.
   @JvmField var animationHandle: String? = null
+  // Multi-pass paint list (JS-built MultiPaintList bytes; null/empty = clear —
+  // the node falls back to its single-slot paints). Full state, per-shape, NOT
+  // inherited (FEATURE_PARITY F.1.3 — RN-Skia multi-<Paint> semantics).
+  @JvmField var multiPaintData: ByteArray? = null
   // Image node source: the uri doubles as the ImageStore key and the platform
   // loader request. Empty/null = no source (node draws nothing).
   @JvmField var imageUri: String? = null
@@ -157,6 +161,7 @@ abstract class ScumbleNodeBase : ShadowNode() {
   @JvmField var dirtyClip: Boolean = false
   @JvmField var dirtyLayer: Boolean = false
   @JvmField var dirtyAnimation: Boolean = false
+  @JvmField var dirtyMultiPaint: Boolean = false
   @JvmField var dirtyImage: Boolean = false
 
   /** Paint filter slot bitmask (which of the six *FilterData slots is dirty). */
@@ -577,6 +582,17 @@ abstract class ScumbleNodeBase : ShadowNode() {
   // Playback-control handle (invoke lane): stored, never dirties — it is
   // carried by the next SetAnimation command whatever flushes it (the React
   // layer always sends handle + animationData from the same render).
+  // Multi-pass paint list: base64 MultiPaintList bytes. Same null contract as
+  // setAnimationData (null on mount/teardown = no-op, an explicit clear is the
+  // empty string).
+  @LynxProp(name = "multiPaint") fun setMultiPaint(v: String?) {
+    if (v == null) return
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    multiPaintData = if (decoded.isNotEmpty()) decoded else null
+    dirtyMultiPaint = true
+    markDirty()
+  }
+
   @LynxProp(name = "animationHandle") fun setAnimationHandle(v: String?) {
     animationHandle = if (!v.isNullOrEmpty()) v else null
   }

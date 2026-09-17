@@ -12,7 +12,7 @@ import type { GroupLayer } from "../types";
 // @lat: [[tests#React component layer#Paint resolution]]
 describe("resolvePaint", () => {
   it("parses a color string into fill by default (style=fill)", () => {
-    expect(resolvePaint({ color: "red" })).toEqual({ fill: 0xffff0000 });
+    expect(resolvePaint({ color: "red" })).toEqual({ multiPaint: "", fill: 0xffff0000 });
   });
 
   it("routes color to stroke when style=stroke", () => {
@@ -22,7 +22,7 @@ describe("resolvePaint", () => {
   });
 
   it("packs a 0xAARRGGBB number color as-is", () => {
-    expect(resolvePaint({ color: 0xff00ff00 })).toEqual({ fill: 0xff00ff00 });
+    expect(resolvePaint({ color: 0xff00ff00 })).toEqual({ multiPaint: "", fill: 0xff00ff00 });
   });
 
   it("sets no fill/stroke when color is omitted (transparent)", () => {
@@ -44,6 +44,7 @@ describe("resolvePaint", () => {
         opacity: 0.5,
       }),
     ).toEqual({
+      multiPaint: "",
       stroke: 0xff0000ff,
       strokeWidth: 4,
       strokeCap: 1,
@@ -55,9 +56,50 @@ describe("resolvePaint", () => {
 
   it("maps blendMode to a byte, drops zIndex (not a paint concern)", () => {
     expect(resolvePaint({ color: "red", blendMode: "multiply", zIndex: 3 })).toEqual({
+      multiPaint: "",
       fill: 0xffff0000,
       blendMode: 24,
     });
+  });
+});
+
+// @lat: [[tests#React component layer#Paint resolution#Multi-pass paint channel]]
+describe("resolvePaint multi-pass channel", () => {
+  // The resolvers consume {type, props} only — hand-built elements stand in
+  // for JSX without a renderer.
+  const el = (type: unknown, props: unknown) => ({ type, props });
+
+  it("single fill + single stroke paint stay on the single-slot channel", () => {
+    const r = resolvePaint({}, [
+      el(Paint, { color: "red" }),
+      el(Paint, { style: "stroke", color: "blue", strokeWidth: 2 }),
+    ] as never);
+    expect(r.multiPaint).toBe("");
+    expect(r.fill).toBe(0xffff0000);
+    expect(r.stroke).toBe(0xff0000ff);
+  });
+
+  it("two paints of the same style switch to the multi-pass channel only", () => {
+    const r = resolvePaint({}, [
+      el(Paint, { color: "red" }),
+      el(Paint, { color: "blue" }),
+    ] as never);
+    expect(r.multiPaint).not.toBe("");
+    // The single-slot props stay unset — the passes draw, not the slots.
+    expect(r.fill).toBeUndefined();
+    expect(r.stroke).toBeUndefined();
+  });
+
+  it("a paint with its own opacity switches to the multi-pass channel", () => {
+    const r = resolvePaint({}, [el(Paint, { color: "red", opacity: 0.5 })] as never);
+    expect(r.multiPaint).not.toBe("");
+    expect(r.fill).toBeUndefined();
+  });
+
+  it("no paint children → explicit clear (empty multiPaint)", () => {
+    const r = resolvePaint({ color: "red" });
+    expect(r.multiPaint).toBe("");
+    expect(r.fill).toBe(0xffff0000);
   });
 });
 

@@ -31,6 +31,12 @@ Details: absolute coords and {x,y} points, explicit positions, repeat mapping, <
 
 `filter.test.ts` — buildImageFilter (single blur, dropShadow color, declaration-order composition, none/bad kind → null); buildColorFilter (20-float matrix, colorBlend, illegal matrix dropped); buildMaskFilter (1-based BlurStyle, first-only).
 
+### Multi-paint blob
+
+`multi-paint.test.ts` — `buildMultiPaint` round-trips a pass list through the MultiPaintList reader; empty list returns null.
+
+Per-pass independent state (style, color, opacity, blendMode, stroke attrs, dash), gradient/filter bytes verbatim, image-shader fields, type NONE for an inactive pass.
+
 ### Animation serialization
 
 `animation.test.ts` — `buildAnimationList` round-trips every track feature.
@@ -51,6 +57,12 @@ Vitest suites under `packages/react/src/__tests__/` (LEPUS globals stubbed) veri
 
 `paint.test.ts` — resolvePaint default fill, stroke routing, numeric colors, blendMode byte; resolveLayerEffect three states (undefined/true/false), multi-slot filters, non-Paint children ignored.
 
+#### Multi-pass paint channel
+
+`paint.test.ts` multi-pass describe — the channel switch in `resolvePaint`.
+
+Two same-style `<Paint>` children or any paint with its own `opacity` emit ONLY the `multiPaint` blob; single fill+stroke stay on the single-slot props; no paints carry the explicit `""` clear.
+
 ### Animation resolution and playback control
 
 `animation.test.ts` — resolveAnimation (undefined → no command, array filtering, empty result clears, shape passthrough, handle passthrough); createAnimation handle uniqueness and finish-event routing by handle.
@@ -62,6 +74,10 @@ Vitest suites under `packages/react/src/__tests__/` (LEPUS globals stubbed) veri
 ## Native C++ core
 
 Host-side gtest suites under `packages/native/tests/` — run on the desktop, no device or GPU surface needed.
+
+### Multi-pass paint
+
+`multi_paint_test.cc` — SetMultiPaint installs a full pass list with independent per-pass state on the retained node (bumping paint_version), a second command REPLACES the list, an empty payload clears it, and an unknown node id is a no-op.
 
 ### Animation engine
 

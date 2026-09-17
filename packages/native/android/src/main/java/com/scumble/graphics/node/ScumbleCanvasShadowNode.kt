@@ -17,6 +17,7 @@ import com.scumble.graphics.skityrt.InsertNode
 import com.scumble.graphics.skityrt.MoveNode
 import com.scumble.graphics.skityrt.RemoveNode
 import com.scumble.graphics.skityrt.SetAnimation
+import com.scumble.graphics.skityrt.SetMultiPaint
 import com.scumble.graphics.skityrt.SetClip
 import com.scumble.graphics.skityrt.SetGeometry
 import com.scumble.graphics.skityrt.SetPaint
@@ -373,6 +374,15 @@ class ScumbleCanvasShadowNode : ScumbleNodeBase(), CustomMeasureFunc {
       offsets += SetLayerEffect.createSetLayerEffect(fbb, node.nativeId, node.layerForce, cfOff, imfOff, mfOff)
       types += Command.SetLayerEffect
       node.dirtyLayer = false
+    }
+    if (node.dirtyMultiPaint) {
+      // Full-state command: JS-built MultiPaintList bytes memcpy'd verbatim;
+      // an absent vector clears the passes.
+      val data = node.multiPaintData
+      val off = if (data != null && data.isNotEmpty()) SetMultiPaint.createDataVector(fbb, data) else 0
+      offsets += SetMultiPaint.createSetMultiPaint(fbb, node.nativeId, off)
+      types += Command.SetMultiPaint
+      node.dirtyMultiPaint = false
     }
     if (node.dirtyAnimation) {
       // Empty/absent payload clears the node's animations on the render side.

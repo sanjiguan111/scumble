@@ -292,9 +292,10 @@ export interface TwoPointConicalGradientProps {
 /**
  * Props for {@link Paint} — the declarative paint: a data-only child of a
  * shape that overrides the paint properties for its `style`. Shaders placed
- * inside apply to that paint. Native slot limits: one fill paint + one stroke
- * paint per shape max, and `opacity` is not honored (see the {@link Paint}
- * docs).
+ * inside apply to that paint. Single-slot limits: at most one fill + one
+ * stroke declaration ride the shared-paint channel (a later declaration of
+ * the same style wins there, and `opacity` needs the multi-pass channel — see
+ * the {@link Paint} docs).
  */
 export interface PaintProps {
   /** Which paint this declaration targets. Defaults to `"fill"`. */
@@ -302,11 +303,17 @@ export interface PaintProps {
   /** Paint color; overrides the shape's `color` for this style. */
   color?: import("@scumble/graphics").Color;
   /**
-   * Blend mode; overrides the shape's `blendMode`. NOTE: natively one blend
-   * mode is shared by the fill and stroke paints (a per-paint mode is not
-   * transportable today) — the last declaration wins.
+   * Blend mode; overrides the shape's `blendMode`. On the single-slot channel
+   * one mode is shared by the fill and stroke paints (the last declaration
+   * wins); in multi-pass mode each pass composites independently.
    */
   blendMode?: BlendMode;
+  /**
+   * Paint opacity, 0–1 — independent per pass. Declaring it (or declaring
+   * several paints of the same style) switches the shape to the multi-pass
+   * channel, where every paint draws with fully independent state.
+   */
+  opacity?: number;
   /** Stroke width. Stroke-only. */
   strokeWidth?: number;
   /** Stroke cap. Stroke-only. */

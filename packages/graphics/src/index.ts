@@ -83,6 +83,9 @@ export * from "./clip";
 // Filters: paint filter specs (blur/dropShadow/colorMatrix/colorBlend/maskBlur)
 // → nested Filter FlatBuffer bytes.
 export * from "./filter";
+// Multi-paint: per-pass paint specs → nested MultiPaintList FlatBuffer bytes
+// (the multi-<Paint> multi-pass channel, FEATURE_PARITY F.1.3).
+export * from "./multi-paint";
 // Paragraph: styled span specs → nested SpanList FlatBuffer bytes (the
 // <Paragraph> layout input).
 export * from "./paragraph";

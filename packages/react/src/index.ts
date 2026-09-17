@@ -157,6 +157,8 @@ export type {
 // Gradients (linear/radial/sweep/two-point-conical) work on BOTH the fill and
 // stroke paints: a shader placed directly under a shape targets fill, while a
 // shader inside a `<Paint style="stroke">` child targets stroke (the native
-// renderer draws fill + stroke as two passes). Per-paint `opacity`/`blendMode`
-// and more than one paint per style (multi-pass) are still TODO —
-// the command stream has exactly one fill + one stroke paint slot.
+// renderer draws fill + stroke as two passes). Several paints of the same
+// style, or any `<Paint>` with its own `opacity`, switch the shape to the
+// multi-pass channel: the geometry draws once per paint with fully
+// independent state (per-paint opacity/blendMode included — see
+// resolvePaint's multiPaint output and RENDER_ARCHITECTURE.md §18).

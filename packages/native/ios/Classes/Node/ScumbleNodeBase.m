@@ -98,6 +98,9 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("layerMaskFilter", setLayerMaskFilter:, NSString *),
     LYNX_PROP_DECLARE("animationData", setAnimationData:, NSString *),
     LYNX_PROP_DECLARE("animationHandle", setAnimationHandle:, NSString *),
+    // Multi-pass paint list (base64 MultiPaintList bytes). Empty clears (the
+    // node falls back to its single-slot paints); null is a no-op.
+    LYNX_PROP_DECLARE("multiPaint", setMultiPaint:, NSString *),
     // Image node source uri (http(s) URL / data URI); an empty string clears
     // the source. Setting it also fires the platform image load.
     LYNX_PROP_DECLARE("image", setImage:, NSString *),
@@ -465,6 +468,19 @@ LYNX_PROP_SETTER("animationData", setAnimationData, NSString *) {
 // Playback-control handle (invoke lane): stored, never dirties — carried by
 // the next SetAnimation command whatever flushes it (the React layer always
 // sends handle + animationData from the same render).
+// Multi-pass paint list: base64 MultiPaintList bytes. Same null contract as
+// setAnimationData (nil on mount/teardown = no-op, an explicit clear is the
+// empty string).
+LYNX_PROP_SETTER("multiPaint", setMultiPaint, NSString *) {
+  if (value == nil) return;
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  _multiPaintData = decoded.length > 0 ? decoded : nil;
+  _dirtyMultiPaint = YES;
+  [self setNeedsLayout];
+}
+
 LYNX_PROP_SETTER("animationHandle", setAnimationHandle, NSString *) {
   _animationHandle = value.length > 0 ? value : nil;
 }

@@ -44,6 +44,13 @@ bool ExactGroupOpacityEnabled();
 void SetGroupLayerEnabled(bool enabled);
 bool GroupLayerEnabled();
 
+// Multi-<Paint> multi-pass lane (SetMultiPaint; F.1.3 / roadmap #13) kill
+// switch — default ON. Off = the pass list is ignored and the node falls
+// back to its single-slot paints (one-line rollback if a backend misbehaves).
+// Not wired to JS.
+void SetMultiPaintEnabled(bool enabled);
+bool MultiPaintEnabled();
+
 } // namespace skityrt
 
 #endif // SCUMBLE_RENDERER_H_

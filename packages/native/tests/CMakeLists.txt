@@ -62,6 +62,15 @@ target_include_directories(retained_tree_version_test PRIVATE
   ../shared/skity ../shared/skity/generated ../shared/third_party/flatbuffers/include)
 target_link_libraries(retained_tree_version_test GTest::gtest_main)
 
+# Multi-<Paint> multi-pass channel (FEATURE_PARITY F.1.3 / roadmap #13):
+# SetMultiPaint installs a full pass list on the retained node; empty clears.
+add_executable(multi_paint_test multi_paint_test.cc
+  ../shared/skity/node_animation.cc ../shared/skity/easing.cc
+  ../shared/skity/retained_render_tree.cc)
+target_include_directories(multi_paint_test PRIVATE
+  ../shared/skity ../shared/skity/generated ../shared/third_party/flatbuffers/include)
+target_link_libraries(multi_paint_test GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(line_breaker_test)
 gtest_discover_tests(base64_test)
@@ -70,3 +79,4 @@ gtest_discover_tests(easing_test)
 gtest_discover_tests(animation_test)
 gtest_discover_tests(render_cache_core_test)
 gtest_discover_tests(retained_tree_version_test)
+gtest_discover_tests(multi_paint_test)

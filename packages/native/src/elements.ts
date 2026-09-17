@@ -90,6 +90,13 @@ export interface ScumblePaintProps {
    * dirties on its own. "" = uncontrolled node.
    */
   animationHandle?: string;
+  /**
+   * Base64-encoded MultiPaintList bytes (@scumble/graphics) — the multi-pass
+   * channel (RN-Skia multi-`<Paint>`): the node draws its geometry once per
+   * pass with fully independent paint state, instead of the fixed fill+stroke
+   * double pass. Empty string clears (falls back to the single-slot paints).
+   */
+  multiPaint?: string;
 }
 
 export interface ScumbleCommonProps extends StandardProps, ScumblePaintProps {}

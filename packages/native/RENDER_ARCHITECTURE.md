@@ -1136,3 +1136,54 @@ during animations.
 stroke/dash/shaders are ignored — the layer alpha is the Group's own
 `opacity`), and a layer-composite blendMode (`layer_blend_mode` is an
 append-only schema field whenever needed).
+
+## 18. Multi-`<Paint>` multi-pass — the `multiPaint` channel (2026-09-16)
+
+FEATURE_PARITY.md F.1.3 / roadmap #13 — RN-Skia multi-`<Paint>` semantics: a
+shape with several paints draws its geometry once per paint, each pass with
+FULLY independent state. This is the channel where per-paint
+`opacity`/`blendMode` live (the single-slot SetPaint channel shares both
+between fill and stroke — that limit is why the channel exists).
+
+**Trigger** (decided in `resolvePaint`, packages/react/src/internal/paint.ts):
+≥2 `<Paint>` children of the same style, OR any `<Paint>` child declaring its
+own `opacity`. Everything else — the overwhelmingly common ≤1 fill + ≤1 stroke
+without per-paint opacity — stays on the single-slot fast path with zero
+behavior change. The pass list: the shape's OWN paint props first (implicit
+base pass, only when it declares any), then one pass per `<Paint>` child in
+declaration order; each pass starts from the shape's stroke/dash/opacity/
+blendMode defaults and overrides only what its source declares (the same
+partial-override rule as the single-slot merge).
+
+**Transport** — the `SetLayerEffect` recipe verbatim: the react layer
+serializes the passes with `buildMultiPaint` (@scumble/graphics) into a
+nested MultiPaintList FlatBuffer, base64 onto the `multiPaint` string prop;
+the shadow-node setter decodes + stores + sets `dirtyMultiPaint`; the canvas
+drain builds one full-state `SetMultiPaint(node_id, data)` command (union
+member 15, appended additively). Non-multi shapes carry `multiPaint: ""` —
+prop removal fires setters with null (a no-op), so the explicit empty string
+is what clears after a multi→single transition.
+
+**Retained state** — `RetainedNode::multi_passes` (`std::vector<RetainedPaintPass>`),
+non-inherited, read straight off the node by the renderer (the §17 layer
+fields pattern). Full-state apply: the command REPLACES the list; an empty
+payload clears it (fall back to the single-slot paints). Each write bumps
+`paint_version` and cancels animated opacity/fill/stroke-color tracks (the
+passes own those fields now; geometry/transform tracks compose unaffected).
+
+**Rendering** — `DrawShape` intercepts: non-empty pass list (and the
+`SetMultiPaintEnabled` kill switch ON, default) → loop the passes, synthesize
+a single-slot `RetainedComputedStyle` per pass via `StyleFromPass`, and hand
+it to the historical `DrawShapeSingle` body — so every downstream consumer
+(MakeFillPaint/MakeStrokePaint, DrawCachedPath's fill-rule-keyed cache,
+shaders, filters) is reused verbatim. The merged inherited style contributes
+only its opacity, multiplied into each pass (`inherited_opacity × pass
+opacity` — the same folding the single-slot lane applies); the
+`explicit_paint` inheritance merge is otherwise bypassed (the passes take
+over). Image and paragraph nodes ignore the pass list (no paint to
+multi-plex). Cache note: consecutive passes sharing a node id are safe — the
+path cache's hit check already compares `fill_rule` (per-pass), and both
+passes bump nothing between draws.
+
+**Out of scope**: per-pass transform/clip (paint state only — those stay
+node-level), and paragraph/image multi-passing.

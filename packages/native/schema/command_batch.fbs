@@ -77,6 +77,7 @@ union Command {
   SetImageSource,// image node: source uri + fit (pixels arrive via the platform image loader)
   SetAnimation, // native animation tracks: nested AnimationList bytes (render-thread interpolation)
   SetLayerEffect,// group layer composite: force flag + three nested Filter bytes (the saveLayer paint)
+  SetMultiPaint,// multi-<Paint> multi-pass: a vector of full per-pass paints (F.1.3 / roadmap #13)
 }
 
 // Paint mutation. fill_color / stroke_color are 0xAARRGGBB; the paint is
@@ -331,6 +332,64 @@ table SetAnimation {
   // animated nodes by this handle. "" (default) = uncontrolled. The tree
   // keeps a handle→id map; survives clears, drops with the node.
   handle:string;
+}
+
+// One pass of a multi-<Paint> node (FEATURE_PARITY F.1.3 / roadmap #13 —
+// RN-Skia multi-pass semantics). A shape with N paints draws its geometry N
+// times, once per pass, each with FULLY independent paint state — unlike the
+// single-slot SetPaint channel where opacity/blendMode/stroke attrs are shared
+// by the fixed fill+stroke double pass. type follows ResolvedPaint's convention
+// (0=NONE inactive pass, 1=COLOR, 2=GRADIENT, 3=IMAGE_SHADER) so "no paint"
+// is distinguishable from color 0. All nested bytes (gradient, filters) are
+// JS-built FlatBuffers memcpy'd verbatim, same as SetPaint.
+table PaintPass {
+  style:PaintSlot = FILL;    // which stroke geometry this pass draws
+  type:byte = 0;             // 0=NONE, 1=COLOR, 2=GRADIENT, 3=IMAGE_SHADER
+  color:uint = 0;            // 0xAARRGGBB; valid only if type == COLOR
+  gradient:[ubyte] (nested_flatbuffer: "Gradient"); // valid only if type == GRADIENT
+  // Image shader fields (valid only if type == IMAGE_SHADER); same contract as
+  // SetPaint.fill_image_*: uri is the ImageStore key + platform loader request.
+  image_uri:string;
+  image_fit:BoxFit = CONTAIN;
+  image_tx:TileMode = CLAMP;
+  image_ty:TileMode = CLAMP;
+  image_rect:[float];
+  // Per-pass stroke attributes + fill rule (independent of every other pass).
+  stroke_width:float = 1.0;
+  stroke_cap:LineCap = BUTT;
+  stroke_join:LineJoin = MITER;
+  stroke_miter:float = 4.0;
+  fill_rule:FillRule = NONZERO;
+  stroke_dash:[float];
+  stroke_dashoffset:float = 0.0;
+  // Per-pass compositing — the fields the single-slot channel shares, made
+  // independent here.
+  opacity:float = 1.0;
+  blend_mode:BlendMode = SRC_OVER;
+  // Per-pass filters (the slots SetPaintFilter addresses one at a time on the
+  // single-slot channel). Empty/absent bytes = no filter in that slot.
+  color_filter:[ubyte] (nested_flatbuffer: "Filter");
+  image_filter:[ubyte] (nested_flatbuffer: "Filter");
+  mask_filter:[ubyte] (nested_flatbuffer: "Filter");
+}
+
+// Wrapper for the JS-built multi-pass payload (same memcpy contract as
+// SetClip's ClipList / SetAnimation's AnimationList).
+table MultiPaintList {
+  passes:[PaintPass];
+}
+
+// Multi-<Paint> full-state mutation (per-shape, NOT inherited). When the list
+// is non-empty, the renderer loops it IN ORDER instead of the fixed
+// fill+stroke double pass, and the explicit_paint inheritance merge is
+// bypassed for that node (the passes take over — same takeover semantics as
+// a declarative <Paint> child on the single-slot channel). An empty/absent
+// vector clears the multi-pass state and the node falls back to its
+// single-slot paints. Inherited attributes (transform, clip) still apply per
+// node as usual.
+table SetMultiPaint {
+  node_id:int = -1;
+  data:[ubyte] (nested_flatbuffer: "MultiPaintList");
 }
 
 table CommandBatch {

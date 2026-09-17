@@ -19,7 +19,13 @@ Every node renders a fixed fill+stroke double pass; paint resolution routes `<Pa
 
 Resolution lives in [[packages/react/src/internal/paint.ts#resolvePaint]]; a directly-nested shader child follows the style it lands under.
 
-Known limit (F.1.3): blendMode and opacity are single slots shared by both paints (RN-Skia keeps them independent), and multiple `<Paint>` children do not draw multiple passes. Fill and stroke each get their own filter slots — the six `SetPaintFilter` slots are fill/stroke × color/image/mask.
+Fill and stroke each get their own filter slots — the six `SetPaintFilter` slots are fill/stroke × color/image/mask. On this channel `blendMode`/`opacity` stay single slots shared by both paints.
+
+## Multi-pass paint channel
+
+RN-Skia multi-`<Paint>` semantics (F.1.3, fixed 2026-09-16): the geometry draws once per paint with fully independent state (per-pass opacity/blendMode/stroke attrs/shaders/filters).
+
+Trigger: ≥2 `<Paint>` children of one style, or any `<Paint>` with its own `opacity`; everything else keeps the single-slot fast path unchanged. Transport: `buildMultiPaint` → base64 `multiPaint` prop → full-state `SetMultiPaint` command → `RetainedNode::multi_passes` (non-inherited) → the renderer loops a per-pass synthesized style over the fixed-double-pass machinery; the inherited style contributes only opacity. Kill switch `SetMultiPaintEnabled`. Design: RENDER_ARCHITECTURE.md §18. Demo: the example app's Multi-Paint page (`packages/example/src/demos/MultiPaintDemo.tsx`) — concentric multi-strokes, fill + halo stroke, per-pass opacity/blendMode/dash.
 
 ## Gradients
 
@@ -74,7 +80,7 @@ Text decoration (`decoration` bitfield + `decorationColor`/`decorationThickness`
 
 Overall parity: geometry ~95%, paint ~95%, text ~85%. Remaining gaps fall into four buckets by ROOT CAUSE (`FEATURE_PARITY.md` §F) — the bucket decides whether a gap is schedulable work at all:
 
-- **F.1 same name, different semantics** (fixable, touches the command stream): single paint slot (see [[rendering#Paint: double pass, single slot]]); minor items — no per-corner ClipRRect radii, antiAlias hard-wired true, DropShadow lacks inner/shadowOnly. Three former members were retracted/fixed: nested transforms DO cascade (the old claim was a documentation misreading); group opacity went exact via the saveLayer lane; text decoration shipped (2026-09-02, layout-time geometry — see [[rendering#Text and paragraphs]]).
+- **F.1 same name, different semantics** (fixable, touches the command stream): minor items — no per-corner ClipRRect radii, antiAlias hard-wired true, DropShadow lacks inner/shadowOnly. Three former members were retracted/fixed: nested transforms DO cascade (the old claim was a documentation misreading); group opacity went exact via the saveLayer lane; text decoration shipped (2026-09-02, layout-time geometry — see [[rendering#Text and paragraphs]]).
 - **F.2 skity upstream limits**: Morphology; image-shader fills and blur on text (glyph pipeline consumes gradient + ColorFilter only); Vertices/Patch/Atlas; DisplacementMap/Offset; FractalNoise/Turbulence; corner/discrete path effects.
 - **F.3 architecture limits** (Android public SDK compiles NAPI off — see [[lynx-integration#The NAPI wall and the invoke lane]]): the imperative API, shared values, `useImage` loading phases — anything needing a native→JS channel or JS-held objects.
 - **F.4 Lynx composition-model limits**: BackdropFilter (canvas can't see compositor layers beneath it); MaskedView-style view/canvas blending (the canvas is not a native view group).
