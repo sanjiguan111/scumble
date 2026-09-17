@@ -44,12 +44,14 @@ top of the corresponding demo page — the live app renders every scene at
 
 <div class="shot-grid">
   <figure v-for="s in shots" :key="s.name">
-    <img :src="'/shots/' + s.name + '.png'" :alt="s.alt" loading="lazy" />
+    <img :src="withBase('/shots/' + s.name + '.png')" :alt="s.alt" loading="lazy" />
     <figcaption>{{ s.caption }}</figcaption>
   </figure>
 </div>
 
 <script setup>
+import { withBase } from "vitepress";
+
 const shots = [
   { name: "shapes", caption: "Shapes", alt: "Shapes demo — circles, rects, opacity" },
   { name: "gradient", caption: "Gradient", alt: "Gradients — linear, radial, sweep, conical" },

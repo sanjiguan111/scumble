@@ -139,7 +139,9 @@ The shape's own paint props become an implicit first pass; on this channel
 <img :src="shotSrc" class="phone-shot" alt="Multi-pass painting demo — concentric strokes, per-pass opacity and blend modes" />
 
 <script setup>
-const shotSrc = "/shots/multi-paint.png";
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/multi-paint.png");
 </script>
 
 ## Paint inheritance from Group
