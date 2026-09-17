@@ -2,6 +2,14 @@
 
 Gradient and image shaders are declarative **children** of a shape (or of a [`<Paint>`](/api/paint#paint)): a shader placed directly under a shape targets its fill, while a shader inside `<Paint style="stroke">` targets its stroke — the native renderer draws fill + stroke as two passes.
 
+<img :src="shotSrc" class="api-shot" alt="Rendered gradients — linear, radial, sweep and two-point conical swatches" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/gradient.png");
+</script>
+
 ```tsx
 import {
   LinearGradient,

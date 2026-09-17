@@ -2,6 +2,14 @@
 
 [`Path2D`](#path2d) is a command-style path builder (re-exported from `@scumble/graphics`, the same shape as the Web Canvas `Path2D`) for authoring paths imperatively instead of via an SVG `d` string. A `Path2D` and a `d` string are interchangeable wherever a `path` prop is accepted — [`<Path>`](/api/shapes#path) and [`<ClipPath>`](/api/clipping#clippath).
 
+<img :src="shotSrc" class="api-shot" alt="Path2D boolean ops — union, intersect, difference and xor" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/pathops.png");
+</script>
+
 ```tsx
 import { Path, Path2D } from "@scumble/react";
 import type { PathOpName } from "@scumble/react";

@@ -2,6 +2,14 @@
 
 Clip components are declarative **children of a [`<Group>`](/api/canvas-and-group#group)**: data-only, consumed by the group into its `clip` prop — they render nothing themselves.
 
+<img :src="shotSrc" class="api-shot" alt="Clipping — clip rect, rrect and path with intersect and difference ops" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/clip.png");
+</script>
+
 ```tsx
 import { ClipRect, ClipRRect, ClipPath } from "@scumble/react";
 ```

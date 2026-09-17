@@ -136,7 +136,7 @@ The shape's own paint props become an implicit first pass; on this channel
 </Circle>;
 ```
 
-<img :src="shotSrc" class="phone-shot" alt="Multi-pass painting demo — concentric strokes, per-pass opacity and blend modes" />
+<img :src="shotSrc" class="api-shot" alt="Multi-pass painting demo — concentric strokes, per-pass opacity and blend modes" />
 
 <script setup>
 import { withBase } from "vitepress";

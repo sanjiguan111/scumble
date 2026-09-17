@@ -2,6 +2,14 @@
 
 Paint filter components — declarative children of a shape (or of a [`<Paint>`](/api/paint#paint)), like the [shaders](/api/gradients). Each is data-only and renders nothing itself: the parent shape collects the props and serializes them into its paint.
 
+<img :src="shotSrc" class="api-shot" alt="Rendered filters — blur, drop shadow, color matrix and color blend" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/filters.png");
+</script>
+
 ```tsx
 import { Blur, DropShadow, ColorMatrix, ColorBlend, MaskBlur } from "@scumble/react";
 ```

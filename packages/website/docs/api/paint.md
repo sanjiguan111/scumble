@@ -2,6 +2,14 @@
 
 Every shape (and `Canvas`/`Group`) accepts the shared `GraphicProps` — the paint and compositing attributes that control how a node draws. This page documents that shared surface, plus `<Paint>`, the declarative child that overrides a shape's fill or stroke paint.
 
+<img :src="shotSrc" class="api-shot" alt="Multi-pass painting — concentric strokes and a fill + halo stroke pass" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/multi-paint.png");
+</script>
+
 ```tsx
 import { Paint } from "@scumble/react";
 ```

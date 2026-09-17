@@ -2,6 +2,14 @@
 
 Animations are declarative: an `animate` prop carries track specs, they ride the command stream once, and the render thread interpolates every frame per vsync — zero JS work per frame, no React re-render. `createAnimation()` mints a spec with an attached `controller` for imperative playback control.
 
+<img :src="shotSrc" class="api-shot" alt="Native animation — interpolated progress demos" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/animation.png");
+</script>
+
 ```tsx
 import { createAnimation } from "@scumble/react";
 import type { AnimationController, ControlledAnimationSpec } from "@scumble/react";

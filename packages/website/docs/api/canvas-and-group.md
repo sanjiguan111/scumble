@@ -2,6 +2,14 @@
 
 The two container components: `<Canvas>` is the GPU drawing surface every scene renders into, and `<Group>` applies transforms, paint inheritance, and clipping to a subtree.
 
+<img :src="shotSrc" class="api-shot" alt="Group layer effects — offscreen compositing and gooey fusion" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/layer-effects.png");
+</script>
+
 ```tsx
 import { Canvas, Group } from "@scumble/react";
 ```

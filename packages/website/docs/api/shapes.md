@@ -2,6 +2,14 @@
 
 The geometry components. Every shape inherits the full [shared graphic props](/api/paint#shared-graphic-props) — `color`, `style`, `opacity`, `blendMode`, the stroke attributes, `dash`, `transform`, `animate`, and declarative shader/filter children — so the tables below list only the geometry each shape adds.
 
+<img :src="shotSrc" class="api-shot" alt="Rendered shapes — circles, rects, RRect, ellipse, line and points at varying opacity" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/shapes.png");
+</script>
+
 ```tsx
 import {
   Circle,

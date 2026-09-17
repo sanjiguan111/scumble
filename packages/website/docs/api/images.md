@@ -2,6 +2,14 @@
 
 `<Image>` draws a bitmap; `useImage` resolves a source uri into a stable handle. The bitmap loads asynchronously on the platform side — the node stays blank until pixels land (there is no null-while-loading phase and no `onError`; no native→JS channel exists for it).
 
+<img :src="shotSrc" class="api-shot" alt="Images — fit modes and async decode" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/image.png");
+</script>
+
 ```tsx
 import { Image, useImage, createImageHandle } from "@scumble/react";
 import type { ImageHandle } from "@scumble/react";

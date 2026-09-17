@@ -2,6 +2,14 @@
 
 `<Paragraph>` lays out width-constrained rich text natively (CoreText on iOS, HarfBuzz + a CJK-aware line breaker on Android, with UAX #9 BiDi reordering). Layout runs in the TASM measure pass; the measured height reaches JS asynchronously via `onLayout`. `<TextSpan>` is its data-only styled-text child — the same declarative-child pattern as the [shaders](/api/gradients).
 
+<img :src="shotSrc" class="api-shot" alt="Paragraph — rich multi-style text layout" loading="lazy" />
+
+<script setup>
+import { withBase } from "vitepress";
+
+const shotSrc = withBase("/shots/paragraph.png");
+</script>
+
 ```tsx
 import { Paragraph, TextSpan } from "@scumble/react";
 ```
