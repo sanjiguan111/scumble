@@ -54,3 +54,5 @@ lat.md/.cache/
 .claude/settings.local.json
 .mcp.json
 .codex
+# ZCode: local-only session state (agent workspace/scratch files)
+.zcode/
