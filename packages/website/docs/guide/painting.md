@@ -112,10 +112,35 @@ instead of fill:
 ```
 
 `<Paint>` accepts `color`, `strokeWidth`, cap/join/miter, `dash`/`dashOffset`,
-and `blendMode`; values given here override the shape-level ones, omitted
-values fall back. Two native caveats: `opacity` is not honored inside
-`<Paint>` (opacity is a single node-level channel), and the blend mode is one
-slot shared by both paints — the last declaration wins.
+`blendMode`, and `opacity`; values given here override the shape-level ones,
+omitted values fall back.
+
+### Multi-pass — several `<Paint>` children
+
+While a shape keeps at most one fill + one stroke on the shared single-slot
+channel, declaring **several `<Paint>` children of the same style — or any
+`<Paint>` with its own `opacity`** — switches the shape to the multi-pass
+channel: the geometry draws once per paint, each pass with fully independent
+state (per-pass `opacity`/`blendMode`, stroke attributes, shaders, filters).
+The shape's own paint props become an implicit first pass; on this channel
+`opacity` and `blendMode` are per-pass, not shared slots.
+
+```tsx
+{
+  /* three concentric strokes — impossible on the single-slot channel */
+}
+<Circle cx={180} cy={100} radius={70}>
+  <Paint style="stroke" color="#1e3a8a" strokeWidth={24} />
+  <Paint style="stroke" color="#3b82f6" strokeWidth={12} />
+  <Paint style="stroke" color="#93c5fd" strokeWidth={3} />
+</Circle>;
+```
+
+<img :src="shotSrc" class="phone-shot" alt="Multi-pass painting demo — concentric strokes, per-pass opacity and blend modes" />
+
+<script setup>
+const shotSrc = "/shots/multi-paint.png";
+</script>
 
 ## Paint inheritance from Group
 
