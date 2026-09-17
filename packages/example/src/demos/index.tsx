@@ -14,6 +14,7 @@ import { ImageDemo } from "./ImageDemo";
 import { ImageShaderDemo } from "./ImageShaderDemo";
 import { ParagraphDemo } from "./ParagraphDemo";
 import { InteractiveDemo } from "./InteractiveDemo";
+import { MultiPaintDemo } from "./MultiPaintDemo";
 import { PaintDemo } from "./PaintDemo";
 import { PathOpsDemo } from "./PathOpsDemo";
 import { AnimationDemo } from "./AnimationDemo";
@@ -115,6 +116,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "stroke cap/join/width · fillRule",
     accent: "#ef4444",
     render: () => <PaintDemo />,
+  },
+  {
+    key: "multi-paint",
+    title: "Multi-Paint",
+    subtitle: "多 pass 描边 · per-pass opacity/blendMode",
+    accent: "#0d9488",
+    render: () => <MultiPaintDemo />,
   },
   {
     key: "blend",
