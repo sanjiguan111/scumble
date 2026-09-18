@@ -107,15 +107,17 @@ Rounded rectangle — a [`<Rect>`](#rect) with corner radii.
 ```tsx
 <RRect x={10} y={10} width={80} height={80} radii={16} color="red" />
 <RRect width={100} height={100} radii={{ x: 10, y: 20 }} color="blue" />
+// Only the top corners rounded (bottom-sheet / card shapes):
+<RRect width={120} height={80} radii={[{ x: 16, y: 16 }, { x: 16, y: 16 }, { x: 0, y: 0 }, { x: 0, y: 0 }]} color="green" />
 ```
 
 ### Props
 
 All [`RectProps`](#rect) (and the [shared graphic props](/api/paint#shared-graphic-props)), plus:
 
-| Prop    | Type                                    | Default | Description                                                                                                                                                                                                            |
-| ------- | --------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `radii` | `number \| CornerRadius \| CornerRadii` | —       | Corner radii: a `number` is uniform, `{x, y}` is uniform per-axis, and a 4-corner array is `[top-left, top-right, bottom-right, bottom-left]` — native only supports uniform rx/ry today, so per-corner uses top-left. |
+| Prop    | Type                                    | Default | Description                                                                                                                                                                                                                                                  |
+| ------- | --------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `radii` | `number \| CornerRadius \| CornerRadii` | —       | Corner radii: a `number` is uniform, `{x, y}` is uniform per-axis, and a 4-corner array is `[top-left, top-right, bottom-right, bottom-left]` (per corner `{x, y}`). Negative radii clamp to 0; radii too large for the rect are shrunk to fit at draw time. |
 
 ## `<Polyline>`
 

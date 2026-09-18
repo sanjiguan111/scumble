@@ -95,7 +95,9 @@ public:
     enum class Kind : uint8_t { kRect, kRRect, kPath };
     Kind kind = Kind::kRect;
     skity::Rect rect{};
-    float rx = 0.f, ry = 0.f;
+    // kRRect: the full geometry (uniform or per-corner radii) baked in at
+    // build time — SetRectRadii or MakeRectXY, whichever the clip specified.
+    skity::RRect rrect{};
     skity::Path path;
     // skity::Canvas::ClipOp stored as the renderer's enum — avoids pulling
     // canvas.hpp into this header; the renderer casts on replay.

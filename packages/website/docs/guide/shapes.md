@@ -25,8 +25,9 @@ import { Circle, Rect, RRect } from "@scumble/react";
 - a `number` — uniform radius,
 - `{ x, y }` — per-axis radii (`<RRect radii={{ x: 40, y: 16 }} />` makes
   wide, flat corners),
-- a `[top-left, top-right, bottom-right, bottom-left]` array — only the
-  top-left value is consumed today (the native side supports uniform rx/ry).
+- a `[top-left, top-right, bottom-right, bottom-left]` array — per-corner
+  radii (each entry is an `{ x, y }`), e.g. a card with only its top corners
+  rounded.
   :::
 
 ## Ellipse and Line

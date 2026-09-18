@@ -36,6 +36,11 @@ export interface ClipSpec {
   /** RRect corner radii (uniform). */
   rx?: number;
   ry?: number;
+  /**
+   * RRect per-corner radii (overrides rx/ry): 8 floats [tlx,tly, trx,try,
+   * brx,bry, blx,bly] (skity RRect corner order). Only read when length is 8.
+   */
+  cornerRadii?: number[];
   /** Path geometry for `kind: "path"` — an SVG `d` string or a Path2D. */
   path?: string | Path2D;
 }
@@ -68,6 +73,10 @@ export function buildClipList(clips: ClipSpec[]): ArrayBuffer | null {
       const bytes = typeof clip.path === "string" ? parsePath(clip.path) : clip.path.toBytes();
       if (bytes !== null) pathOffset = Clip.createPathVector(builder, new Uint8Array(bytes));
     }
+    const radii =
+      clip.kind === "rrect" && clip.cornerRadii !== undefined && clip.cornerRadii.length === 8
+        ? Clip.createRadiiVector(builder, clip.cornerRadii)
+        : 0;
     offsets.push(
       Clip.createClip(
         builder,
@@ -80,6 +89,7 @@ export function buildClipList(clips: ClipSpec[]): ArrayBuffer | null {
         clip.rx ?? 0,
         clip.ry ?? 0,
         pathOffset,
+        radii,
       ),
     );
   }

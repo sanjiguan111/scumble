@@ -129,6 +129,18 @@ void ApplySetGeometry(const SetGeometry *g, RetainedNode *node) {
         node->points.push_back(pts->Get(i));
     }
   }
+  if (dirty & GeometryField_CORNER_RADII) {
+    // Same clear contract: a vector of exactly 8 floats sets the per-corner
+    // radii; anything else reverts the node to its uniform rx/ry.
+    const auto *radii = g->corner_radii();
+    if (radii != nullptr && radii->size() == 8) {
+      for (uint32_t i = 0; i < 8; i++)
+        node->corner_radii[i] = radii->Get(i);
+      node->corner_radii_set = true;
+    } else {
+      node->corner_radii_set = false;
+    }
+  }
 }
 
 // Apply a SetViewport command to the tree-level viewport (canvas viewBox).

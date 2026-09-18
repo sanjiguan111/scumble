@@ -58,6 +58,7 @@ enum ScumbleGeometryField {
   kScumbleGeomPathStart = 8192,
   kScumbleGeomPathEnd = 16384,
   kScumbleGeomPoints = 32768,
+  kScumbleGeomCornerRadii = 65536,
 };
 
 // Paint filter slot bitmask (which of the six *FilterData slots is dirty).
@@ -97,6 +98,11 @@ enum ScumblePaintFilterField {
 /// bytes (nil/empty = none) — decoded at command-build time into a [float]
 /// vector, mirroring strokeDashData.
 @property(nonatomic, strong, nullable) NSData *pointsData;
+
+/// Rect per-corner radii [tlx,tly, trx,try, brx,bry, blx,bly] as raw
+/// little-endian float32 bytes (nil = uniform rx/ry; exactly 32 bytes) —
+/// decoded at command-build time like pointsData.
+@property(nonatomic, strong, nullable) NSData *cornerRadiiData;
 
 // ---- paint (ARGB 0xAARRGGBB; nil = inactive) ----
 @property(nonatomic, strong, nullable) NSNumber *fillColor;

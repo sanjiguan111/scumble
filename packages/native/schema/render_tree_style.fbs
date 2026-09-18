@@ -105,6 +105,12 @@ table Clip {
   rx:float = 0;
   ry:float = 0;
   path:[ubyte] (nested_flatbuffer: "PathCommandList");
+  // Per-corner radii (rrect only): 8 floats [tlx,tly, trx,try, brx,bry,
+  // blx,bly] in skity RRect corner order (TL, TR, BR, BL). Present (len ≥ 8)
+  // overrides the uniform rx/ry; absent/short = uniform. The producer clamps
+  // negatives to 0; skity ScaleRadii shrinks over-large radii to fit the rect.
+  // Appended so existing field ids stay stable.
+  radii:[float];
 }
 
 table ClipList {

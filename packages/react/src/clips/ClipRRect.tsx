@@ -5,9 +5,9 @@ import type { ClipRRectProps } from "../types";
 
 /**
  * Rounded-rect clip — a **child** of a {@link Group}. `radii` is a number
- * (uniform) or `{x, y}` (per-axis); per-corner arrays are not supported by the
- * clip transport (native takes uniform rx/ry). See {@link ClipRect} for how
- * clip children combine.
+ * (uniform), `{x, y}` (per-axis), or a 4-corner array `[tl, tr, br, bl]`
+ * (per-corner — e.g. only the top corners rounded). See {@link ClipRect} for
+ * how clip children combine.
  *
  * @example
  * <Group>

@@ -404,17 +404,21 @@ class ScumbleCanvasShadowNode : ScumbleNodeBase(), CustomMeasureFunc {
       node.dirtyImage = false
     }
     if (node.dirtyGeometry != 0) {
-      // Polyline/polygon vertices ride as a [float] vector; null/empty = no
-      // vector = cleared (same pattern as the dash intervals in SetPaint).
+      // Float vectors ([x0,y0,...] points / [tlx,tly,...] corner radii) ride as
+      // [float] vectors; null/empty = no vector = cleared (same pattern as the
+      // dash intervals in SetPaint).
       val pts = node.points
       val ptsOff = if (pts != null && pts.isNotEmpty())
           SetGeometry.createPointsVector(fbb, pts) else 0
+      val radii = node.cornerRadii
+      val radiiOff = if (radii != null && radii.isNotEmpty())
+          SetGeometry.createCornerRadiiVector(fbb, radii) else 0
       offsets += SetGeometry.createSetGeometry(
         fbb, node.nativeId, node.dirtyGeometry.toLong(),
         node.x, node.y, node.width, node.height,
         node.cx, node.cy, node.r, node.rx, node.ry,
         node.x1, node.y1, node.x2, node.y2,
-        node.pathStart, node.pathEnd, ptsOff)
+        node.pathStart, node.pathEnd, ptsOff, radiiOff)
       types += Command.SetGeometry
       node.dirtyGeometry = 0
     }

@@ -277,9 +277,9 @@ static void ScumbleCollectCommands(flatbuffers::FlatBufferBuilder &fbb, ScumbleN
     node.dirtyImage = NO;
   }
   if (node.dirtyGeometryMask != 0) {
-    // Polyline/polygon vertices ride as a [float] vector (raw little-endian
-    // float32 bytes), mirroring the dash intervals in SetPaint; nil/empty = no
-    // vector = cleared.
+    // Float vectors ([x0,y0,...] points / [tlx,tly,...] corner radii) ride as
+    // [float] vectors built from raw little-endian float32 bytes, mirroring
+    // the dash intervals in SetPaint; nil/empty = no vector = cleared.
     flatbuffers::Offset<flatbuffers::Vector<float>> pointsOff = 0;
     if (node.pointsData.length >= 4) {
       size_t count = node.pointsData.length / 4;
@@ -287,10 +287,16 @@ static void ScumbleCollectCommands(flatbuffers::FlatBufferBuilder &fbb, ScumbleN
       std::memcpy(pts.data(), node.pointsData.bytes, count * sizeof(float));
       pointsOff = fbb.CreateVector(pts);
     }
+    flatbuffers::Offset<flatbuffers::Vector<float>> cornerRadiiOff = 0;
+    if (node.cornerRadiiData.length == 8 * sizeof(float)) {
+      std::vector<float> radii(8);
+      std::memcpy(radii.data(), node.cornerRadiiData.bytes, 8 * sizeof(float));
+      cornerRadiiOff = fbb.CreateVector(radii);
+    }
     auto off = skityrt::CreateSetGeometry(
         fbb, node.nativeId, static_cast<skityrt::GeometryField>(node.dirtyGeometryMask), node.x,
         node.y, node.width, node.height, node.cx, node.cy, node.r, node.rx, node.ry, node.x1,
-        node.y1, node.x2, node.y2, node.pathStart, node.pathEnd, pointsOff);
+        node.y1, node.x2, node.y2, node.pathStart, node.pathEnd, pointsOff, cornerRadiiOff);
     offsets.push_back(off.Union());
     types.push_back(skityrt::Command_SetGeometry);
     node.dirtyGeometryMask = 0;

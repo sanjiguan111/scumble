@@ -75,6 +75,24 @@ std::vector<uint8_t> MakeSetGeometry(int32_t node) {
   return b.Finish();
 }
 
+// SetGeometry carrying the CORNER_RADII bit with an 8-float vector (per-corner
+// radii on) or no vector (clear — the node reverts to its uniform rx/ry).
+std::vector<uint8_t> MakeSetCornerRadii(int32_t node, bool with_vector) {
+  BatchBuilder b;
+  b.Add(Command_SetGeometry, [node, with_vector](flatbuffers::FlatBufferBuilder &f) {
+    flatbuffers::Offset<flatbuffers::Vector<float>> radii_off = 0;
+    if (with_vector) {
+      // [tlx,tly, trx,try, brx,bry, blx,bly] — skity RRect corner order.
+      radii_off = f.CreateVector(std::vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    }
+    // 15 floats (x..path_end; path_end keeps its 1 default semantics).
+    return skityrt::CreateSetGeometry(
+        f, node, static_cast<skityrt::GeometryField>(skityrt::GeometryField_CORNER_RADII), 0.f, 0.f,
+        0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0, radii_off);
+  });
+  return b.Finish();
+}
+
 std::vector<uint8_t> MakeSetPathData(int32_t node) {
   BatchBuilder b;
   b.Add(Command_SetPathData, [node](flatbuffers::FlatBufferBuilder &f) {
@@ -186,6 +204,21 @@ TEST_F(VersionTest, GeometryCommandsBumpGeomVersionOnly) {
   Apply(MakeSetClip(2));
   EXPECT_EQ(n->geom_version, g0 + 3);
   EXPECT_EQ(n->paint_version, p0);
+}
+
+// Per-corner radii (SetGeometry CORNER_RADII): the 8-float vector sets the
+// node's radii; a subsequent command with the bit but no vector clears them
+// (the node reverts to its uniform rx/ry).
+TEST_F(VersionTest, SetGeometryCornerRadiiSetThenClear) {
+  const RetainedNode *n = tree.Find(2);
+  EXPECT_FALSE(n->corner_radii_set);
+  Apply(MakeSetCornerRadii(2, true));
+  ASSERT_TRUE(n->corner_radii_set);
+  const float expected[8] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+  for (int i = 0; i < 8; i++)
+    EXPECT_EQ(n->corner_radii[i], expected[i]);
+  Apply(MakeSetCornerRadii(2, false));
+  EXPECT_FALSE(n->corner_radii_set);
 }
 
 TEST_F(VersionTest, SetAnimationAndTicksBumpNothing) {

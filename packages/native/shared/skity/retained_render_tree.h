@@ -145,6 +145,11 @@ struct RetainedNode {
   // (the component layer sends one or the other); non-empty path_op_data wins.
   std::vector<uint8_t> path_op_data;
   std::vector<float> points; // polyline/polygon [x0,y0,x1,y1,...]
+  // Per-corner rect radii (SetGeometry CORNER_RADII): 8 floats [tlx,tly,
+  // trx,try, brx,bry, blx,bly] — skity RRect corner order (TL, TR, BR, BL).
+  // Valid only while corner_radii_set; otherwise the uniform rx/ry apply.
+  float corner_radii[8] = {};
+  bool corner_radii_set = false;
   // JS-built ClipList bytes (owned). Group nodes only: the clip sequence
   // applied after the node's transform, before its subtree.
   std::vector<uint8_t> clip_data;

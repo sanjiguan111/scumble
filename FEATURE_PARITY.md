@@ -10,7 +10,7 @@
 
 | Capability                                     | Status | Notes                                                                                                                                                                                                                                                   |
 | ---------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rect / RRect                                   | ✅     | RRect = rect + `rx`/`ry`                                                                                                                                                                                                                                |
+| Rect / RRect                                   | ✅     | RRect radii: `rx`/`ry` uniform, or a 4-corner array → `SetGeometry.corner_radii` (8 floats, skity `SetRectRadii` order)                                                                                                                                 |
 | Circle                                         | ✅     |                                                                                                                                                                                                                                                         |
 | Path (`d` string / Path2D)                     | ✅     | Full SVG command set M/L/H/V/C/S/Q/T/A/Z; + `start`/`end` trim                                                                                                                                                                                          |
 | **Ellipse**                                    | ✅     | `<Ellipse cx cy rx ry>` → `scumble-ellipse` (native DrawShape `ellipse` branch)                                                                                                                                                                         |
@@ -39,7 +39,7 @@
 | Capability                                               | Status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | translate / scale / rotate / matrix / skew               | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| **Group clip (clipRect / clipPath / RRect)**             | ✅ RN-Skia-style declarative children `<ClipRect>`/`<ClipRRect>`/`<ClipPath>` (`op: intersect\|difference`, combined in order); transported as a base64 ClipList on a new `SetClip` command, applied after the group's transform. ClipRRect radii: uniform / per-axis only (no per-corner)                                                                                                                                                                                              |
+| **Group clip (clipRect / clipPath / RRect)**             | ✅ RN-Skia-style declarative children `<ClipRect>`/`<ClipRRect>`/`<ClipPath>` (`op: intersect\|difference`, combined in order); transported as a base64 ClipList on a new `SetClip` command, applied after the group's transform. ClipRRect radii: uniform / per-axis / **per-corner 4-array** (8-float `radii` vector, skity `SetRectRadii`; baked into the render cache's RRect)                                                                                                      |
 | **Group paint inheritance** (color / opacity to subtree) | ✅ Render-time resolution via `RetainedComputedStyle.explicit_paint` (the SetPaint dirty bits): unset fields fall back to the nearest ancestor; opacity multiplies. Inherits fill/stroke paint (color + gradient), stroke attrs, dash, fillRule. NOT paint-inherited: geometry, display/visibility (transform is not a paint attribute, but its matrix composes geometrically down the tree — cascading)                                                                                |
 | **Exact group opacity (saveLayer)**                      | ✅ A group whose own opacity < 1 composites its subtree through a skity `saveLayer` — children mix inside the offscreen layer first, then the whole layer fades in (RN-Skia/SVG semantics). Leaves still fold alpha into their paint (exact, zero cost). Layer bounds = device surface inverse-mapped into the group's local space, guarded against empty/non-finite/oversized extents (fallback = folded lane). Kill switch `SetExactGroupOpacityEnabled` (RENDER_ARCHITECTURE.md §16) |
 | **Group `layer` prop (offscreen + layer-paint effects)** | ✅ `<Group layer>` (boolean, force offscreen) and `layer={<Paint><Blur …/></Paint>}` (offscreen + the Paint's filter children applied to the COMPOSITE — children fuse, gooey territory). Full-state `SetLayerEffect` command; `layer={false}` clears explicitly (prop removal is a no-op). Filter children placed directly on the Group keep their per-shape inheritance semantics (different, also valid). Kill switch `SetGroupLayerEnabled` (RENDER_ARCHITECTURE.md §17)            |
@@ -104,8 +104,17 @@ at all.
    directly on the Group keep their per-shape inheritance semantics — a
    deliberate, documented distinction (different blast radius, not a
    fallback). See RENDER_ARCHITECTURE.md §17.
-4. Minor: no per-corner ClipRRect radii; antiAlias hard-wired true;
-   DropShadow has no `inner`/`shadowOnly`.
+4. Minor: ~~no per-corner ClipRRect radii~~ — **fixed (2026-09-18)**: the
+   4-corner array form ships on BOTH `<RRect>` and `<ClipRRect>`. The shape
+   rides `SetGeometry.corner_radii` (a `[float]` vector + the `CORNER_RADII`
+   dirty bit, appended after `points`; the react layer emits it as a base64 LE
+   float32 `radii` string prop — always emitted, empty = revert to uniform,
+   mirroring the `points`/`strokeDash` clear contract) and draws via
+   `RRect::SetRectRadii` + `DrawRRect`. The clip rides a `radii:[float]`
+   vector on the `Clip` table (`ClipRRectGeometry`; the render cache bakes the
+   resolved RRect into `ClipCacheItem::rrect`). Negatives clamp to 0 in JS;
+   skity ScaleRadii shrinks over-large radii. Still open: antiAlias
+   hard-wired true; DropShadow has no `inner`/`shadowOnly`.
 5. ~~**No text decoration on `<TextSpan>`**~~ — **fixed (2026-09-02)**:
    `decoration`/`decorationColor`/`decorationThickness`/`decorationStyle`
    ship end-to-end. Decoration geometry is a LAYOUT product (the wire glyph
@@ -310,13 +319,15 @@ Stage 2 are unaffected either way.
     is the only group-semantics entrance (RN-Skia-isomorphic, zero surprise
     for migrators). Kill switch `SetGroupLayerEnabled`; demo `GooeyDemo`;
     as-built RENDER_ARCHITECTURE.md §17.
-13. **Multi-`<Paint>` multi-pass** (F.1.3) — multiple `<Paint>` children
-    drawing multiple passes with independent fill/stroke paints. The exact
-    group-opacity half of the original item shipped 2026-08-31 via the
-    saveLayer lane (F.1.2, RENDER_ARCHITECTURE.md §16), which this can build
-    on.
-14. **Small-items bundle** (F.1.4 + justification) — per-corner radii,
-    antiAlias toggle, DropShadow variants, paragraph justification.
+13. ~~**Multi-`<Paint>` multi-pass** (F.1.3)~~ — **done (2026-09-16)**:
+    `SetMultiPaint` full-state command carrying a nested MultiPaintList;
+    several same-style `<Paint>` children (or any with its own `opacity`)
+    switch the node to per-pass independent state, everything else keeps the
+    single-slot fast path. As-built RENDER_ARCHITECTURE.md §18, tests
+    `multi_paint_test.cc`.
+14. **Small-items bundle** (F.1.4 + justification) — ~~per-corner radii~~
+    (done 2026-09-18, F.1.4), antiAlias toggle, DropShadow variants,
+    paragraph justification.
 15. **Explicitly out of scope** — BackdropFilter, Vertices/Atlas/Patch,
     SkSL/RuntimeEffect, imperative API (F.2–F.4: double-constrained by
     upstream and architecture; worst effort/return on this list).

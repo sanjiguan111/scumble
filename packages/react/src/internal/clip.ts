@@ -7,6 +7,7 @@
 // consumes their props here and serializes them into its base64 `clip` prop.
 
 import type { ClipSpec } from "@scumble/graphics";
+import { resolveCornerRadii } from "@scumble/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
 import { ClipPath } from "../clips/ClipPath";
@@ -24,8 +25,7 @@ export function findClipSpecs(children?: ReactNode): ClipSpec[] {
       specs.push({ kind: "rect", op: p.op, x: p.x, y: p.y, width: p.width, height: p.height });
     } else if (el.type === ClipRRect) {
       const p = el.props as ClipRRectProps;
-      const radii =
-        typeof p.radii === "number" ? { x: p.radii, y: p.radii } : (p.radii ?? { x: 0, y: 0 });
+      const r = resolveCornerRadii(p.radii);
       specs.push({
         kind: "rrect",
         op: p.op,
@@ -33,8 +33,9 @@ export function findClipSpecs(children?: ReactNode): ClipSpec[] {
         y: p.y,
         width: p.width,
         height: p.height,
-        rx: radii.x,
-        ry: radii.y,
+        rx: r.rx,
+        ry: r.ry,
+        cornerRadii: r.cornerRadii,
       });
     } else if (el.type === ClipPath) {
       const p = el.props as ClipPathProps;

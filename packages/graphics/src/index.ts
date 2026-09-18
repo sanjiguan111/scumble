@@ -80,6 +80,9 @@ export * from "./path";
 export * from "./gradient";
 // Clip: group clip shapes (rect/rrect/path) → nested ClipList FlatBuffer bytes.
 export * from "./clip";
+// Corner radii: the number / {x,y} / 4-corner authoring forms → uniform rx/ry
+// + the per-corner 8-float vector (RRect shape + ClipRRect).
+export * from "./radii";
 // Filters: paint filter specs (blur/dropShadow/colorMatrix/colorBlend/maskBlur)
 // → nested Filter FlatBuffer bytes.
 export * from "./filter";

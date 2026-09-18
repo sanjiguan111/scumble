@@ -53,6 +53,10 @@ abstract class ScumbleNodeBase : ShadowNode() {
   // draws nothing. An empty payload clears.
   @JvmField var points: FloatArray? = null
 
+  // Rect per-corner radii [tlx,tly, trx,try, brx,bry, blx,bly] (null = uniform
+  // rx/ry); exactly 8 floats or the payload clears.
+  @JvmField var cornerRadii: FloatArray? = null
+
   // ---- paint (ARGB packed as Long 0xAARRGGBB; null = inactive) ----
   @JvmField var fillColor: Long? = null
   @JvmField var strokeColor: Long? = null
@@ -210,6 +214,7 @@ abstract class ScumbleNodeBase : ShadowNode() {
     const val PATH_START = 8192
     const val PATH_END = 16384
     const val POINTS = 32768
+    const val CORNER_RADII = 65536
   }
 
   // Every setter calls markDirty() so a prop change forces a layout pass → the
@@ -305,6 +310,17 @@ abstract class ScumbleNodeBase : ShadowNode() {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     points = if (decoded.size >= 4) decodeFloatsLE(decoded) else null
     dirtyGeometry = dirtyGeometry or GeometryField.POINTS
+    markDirty()
+  }
+  // Rect per-corner radii, same base64 LE float32 channel. Exactly 8 floats
+  // ([tlx,tly, trx,try, brx,bry, blx,bly]) or the payload clears (back to the
+  // uniform rx/ry props) — the RRect component always emits the prop so a
+  // switch back to uniform clears stale state.
+  @LynxProp(name = "radii") fun setRadii(v: String) {
+    val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
+    val floats = if (decoded.size >= 4) decodeFloatsLE(decoded) else null
+    cornerRadii = if (floats != null && floats.size == 8) floats else null
+    dirtyGeometry = dirtyGeometry or GeometryField.CORNER_RADII
     markDirty()
   }
 

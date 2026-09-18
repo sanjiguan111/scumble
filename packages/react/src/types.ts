@@ -403,7 +403,8 @@ export type CornerRadii = [CornerRadius, CornerRadius, CornerRadius, CornerRadiu
 export interface RRectProps extends RectProps {
   /**
    * Corner radii. number → uniform; {x,y} → uniform per-axis; [4 corners] →
-   * native only supports uniform rx/ry today, so per-corner uses top-left (caveat).
+   * per-corner (TL, TR, BR, BL order). Negatives clamp to 0; over-large radii
+   * are shrunk to fit the rect at draw time.
    */
   radii?: number | CornerRadius | CornerRadii;
 }
@@ -630,8 +631,12 @@ export interface ClipRectProps {
 }
 
 export interface ClipRRectProps extends ClipRectProps {
-  /** Corner radii. number → uniform; `{x, y}` → per-axis. */
-  radii: number | CornerRadius;
+  /**
+   * Corner radii. number → uniform; `{x, y}` → per-axis; [4 corners] →
+   * per-corner (TL, TR, BR, BL order). Negatives clamp to 0; over-large radii
+   * are shrunk to fit the rect at apply time.
+   */
+  radii: number | CornerRadius | CornerRadii;
 }
 
 export interface ClipPathProps {

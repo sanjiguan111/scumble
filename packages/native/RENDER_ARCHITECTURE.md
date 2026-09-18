@@ -466,6 +466,20 @@ path/transform/gradient/dash. The renderer applies it in `DrawNode` **after**
 the group's own transform (clip geometry is in the group's local space), before
 the subtree; the canvas accumulates intersect/difference ops natively.
 
+**Per-corner clip radii** (2026-09-18): a `Clip` entry of kind rrect may carry
+`radii:[float]` — 8 floats `[tlx,tly, trx,try, brx,bry, blx,bly]` in skity
+`RRect` corner order — which overrides the uniform `rx`/`ry`
+(`ClipRRectGeometry` builds a `SetRectRadii` RRect; absent/short vector =
+`MakeRectXY`). The render cache bakes the resolved RRect into
+`ClipCacheItem::rrect` (previously rect + rx/ry scalars), so the replay lane
+needs no radii branch. The shape side gets the same capability through
+`SetGeometry.corner_radii` (a `[float]` vector + the `CORNER_RADII` dirty bit,
+appended after `points`): the `<RRect>` component emits it as a base64 LE
+float32 `radii` string prop (the `points` channel) — exactly 8 floats sets the
+per-corner radii, anything else reverts the node to its uniform rx/ry — and
+`DrawShapeSingle`'s rect branch draws a `SetRectRadii` RRect via
+`canvas->DrawRRect` when the flag is set.
+
 **Paint inheritance** is resolved entirely at render time — nothing new is
 transported. `RetainedComputedStyle.explicit_paint` accumulates the
 `SetPaint.fields_dirty` bits a node ever received; `DrawNode` threads a merged

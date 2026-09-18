@@ -183,6 +183,7 @@ enum GeometryField : uint {
   PATH_START = 8192,
   PATH_END   = 16384,
   POINTS     = 32768,
+  CORNER_RADII = 65536,
 }
 
 // Per-field geometry mutation. Only fields whose GeometryField bit is set in
@@ -214,6 +215,13 @@ table SetGeometry {
   // empty/absent vector clears the vertices. Appended so existing field ids
   // stay stable.
   points:[float];
+  // Per-corner rect radii (rect nodes): 8 floats [tlx,tly, trx,try, brx,bry,
+  // blx,bly] in skity RRect corner order (TL, TR, BR, BL). Valid only if the
+  // CORNER_RADII bit is set; present (len ≥ 8) overrides the uniform rx/ry,
+  // an empty/absent vector reverts to uniform. The producer clamps negatives
+  // to 0; skity ScaleRadii shrinks over-large radii to fit the rect. Appended
+  // so existing field ids stay stable.
+  corner_radii:[float];
 }
 
 // Canvas logical viewport (SVG viewBox). Targets the tree-level viewport (not a

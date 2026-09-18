@@ -62,13 +62,33 @@ Clip a group's subtree to a rounded rectangle.
 </Group>
 ```
 
+A 4-corner array clips to a per-corner rounded rect — e.g. only the top corners:
+
+```tsx
+<Group>
+  <ClipRRect
+    x={0}
+    y={0}
+    width={120}
+    height={200}
+    radii={[
+      { x: 16, y: 16 },
+      { x: 16, y: 16 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ]}
+  />
+  <Image image={img} width={120} height={200} />
+</Group>
+```
+
 ### Props
 
 All [`ClipRectProps`](#cliprect), plus:
 
-| Prop    | Type                                 | Default | Description                                                                                                                                                  |
-| ------- | ------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `radii` | `number \| { x: number; y: number }` | —       | Corner radii: a `number` is uniform, `{x, y}` is per-axis. Per-corner arrays are not supported by the clip transport (native takes uniform rx/ry). Required. |
+| Prop    | Type                                                | Default | Description                                                                                                                                      |
+| ------- | --------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `radii` | `number \| { x: number; y: number } \| CornerRadii` | —       | Corner radii: a `number` is uniform, `{x, y}` is per-axis, and a 4-corner array is `[top-left, top-right, bottom-right, bottom-left]`. Required. |
 
 ## `<ClipPath>`
 

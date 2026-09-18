@@ -21,6 +21,16 @@ Vitest suites under `packages/graphics/src/__tests__/`, verifying parsers by rou
 
 Details: relative coords, H/V lowering, S/T control-point reflection, implicit repeats, scientific notation, arc flag forms; arcTo flags, addRect, addCircle as four béziers, addPath chaining; `parsePoints` separators; `Path2D.op` null/empty, chained left-fold flattening, right-nesting.
 
+### Corner radii resolution
+
+`radii.test.ts` — `resolveCornerRadii` normalizes the three radii authoring forms shared by `<RRect>` and `<ClipRRect>`.
+
+Details: number → uniform, `{x,y}` → per-axis, undefined → zeros; the 4-corner array yields the TL uniform fallback plus the 8-float vector in skity RRect corner order (TL, TR, BR, BL); negatives and non-finite values clamp to 0; a malformed array (≠4 corners) degrades to uniform first-entry with no vector.
+
+### Clip serialization
+
+`clip.test.ts` — `buildClipList` round-trips rect/rrect/path entries through the ClipList reader: geometry, combine ops, nested path bytes; per-corner radii ride the 8-float `radii` vector (the uniform form emits none).
+
 ### Gradient building
 
 `gradient.test.ts` — all four gradient kinds serialize to decodable bytes.
@@ -85,7 +95,7 @@ Host-side gtest suites under `packages/native/tests/` — run on the desktop, no
 
 ### Retained tree versioning
 
-`retained_tree_version_test.cc` — command-batch versioning and retained-tree state transitions: inserts/removes/moves keep the tree consistent and stale ids never validate.
+`retained_tree_version_test.cc` — command-batch versioning and retained-tree state transitions: inserts/removes/moves keep the tree consistent, stale ids never validate, corner radii set and clear.
 
 ### Render build cache
 

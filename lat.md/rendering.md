@@ -58,6 +58,8 @@ Paint attributes (color, opacity, style, shaders, filters, dash) inherit down th
 
 Clips: `<ClipRect>` / `<ClipRRect>` / `<ClipPath>` children on a Group build a ClipList ([[packages/graphics/src/clip.ts#buildClipList]]; default combine op intersect, difference opt-in) riding `SetClip`, applied after the group transform. A group's own clip and its children's clips compose in document order.
 
+Per-corner radii (2026-09-18): both `<RRect>` and `<ClipRRect>` accept the 4-corner array form `[tl, tr, br, bl]`. [[packages/graphics/src/radii.ts#resolveCornerRadii]] normalizes all three authoring forms (number / `{x,y}` / array) — the array yields an 8-float vector (skity RRect corner order; negatives clamp to 0, over-large radii shrink via skity ScaleRadii). The shape rides `SetGeometry.corner_radii` (base64 LE float32 `radii` string prop, the `points` channel; the prop is always emitted so a switch back to uniform clears stale state) and draws via `RRect::SetRectRadii` + `DrawRRect`; the clip rides the `Clip.radii` vector with the resolved RRect baked into the render cache's `ClipCacheItem::rrect` (RENDER_ARCHITECTURE.md §11.12).
+
 Group-level opacity and layer compositing (saveLayer lane, `<Group layer>` filters) are architecture-level features: see [[architecture#Exact group opacity and layer effects]].
 
 ## Images
@@ -80,7 +82,7 @@ Text decoration (`decoration` bitfield + `decorationColor`/`decorationThickness`
 
 Overall parity: geometry ~95%, paint ~95%, text ~85%. Remaining gaps fall into four buckets by ROOT CAUSE (`FEATURE_PARITY.md` §F) — the bucket decides whether a gap is schedulable work at all:
 
-- **F.1 same name, different semantics** (fixable, touches the command stream): minor items — no per-corner ClipRRect radii, antiAlias hard-wired true, DropShadow lacks inner/shadowOnly. Three former members were retracted/fixed: nested transforms DO cascade (the old claim was a documentation misreading); group opacity went exact via the saveLayer lane; text decoration shipped (2026-09-02, layout-time geometry — see [[rendering#Text and paragraphs]]).
+- **F.1 same name, different semantics** (fixable, touches the command stream): minor items — antiAlias hard-wired true, DropShadow lacks inner/shadowOnly. Per-corner ClipRRect/RRect radii shipped (2026-09-18, see [[rendering#Clipping and paint inheritance]]). Three former members were retracted/fixed: nested transforms DO cascade (the old claim was a documentation misreading); group opacity went exact via the saveLayer lane; text decoration shipped (2026-09-02, layout-time geometry — see [[rendering#Text and paragraphs]]).
 - **F.2 skity upstream limits**: Morphology; image-shader fills and blur on text (glyph pipeline consumes gradient + ColorFilter only); Vertices/Patch/Atlas; DisplacementMap/Offset; FractalNoise/Turbulence; corner/discrete path effects.
 - **F.3 architecture limits** (Android public SDK compiles NAPI off — see [[lynx-integration#The NAPI wall and the invoke lane]]): the imperative API, shared values, `useImage` loading phases — anything needing a native→JS channel or JS-held objects.
 - **F.4 Lynx composition-model limits**: BackdropFilter (canvas can't see compositor layers beneath it); MaskedView-style view/canvas blending (the canvas is not a native view group).

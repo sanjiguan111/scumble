@@ -222,6 +222,27 @@ describe("findClipSpecs (Group clip children)", () => {
     expect(specs[0]).toMatchObject({ kind: "rrect", rx: 8, ry: 2 });
   });
 
+  it("passes a 4-corner radii array through as the 8-float vector", () => {
+    const specs = findClipSpecs([
+      el(ClipRRect, {
+        width: 100,
+        height: 50,
+        radii: [
+          { x: 16, y: 16 },
+          { x: 16, y: 16 },
+          { x: 0, y: 0 },
+          { x: 0, y: 0 },
+        ],
+      }),
+    ]);
+    expect(specs[0]).toMatchObject({
+      kind: "rrect",
+      rx: 16,
+      ry: 16,
+      cornerRadii: [16, 16, 16, 16, 0, 0, 0, 0],
+    });
+  });
+
   it("returns [] when there are no clip children", () => {
     expect(findClipSpecs(undefined)).toEqual([]);
     expect(findClipSpecs([{ type: "x", props: {} } as never])).toEqual([]);

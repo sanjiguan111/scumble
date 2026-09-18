@@ -42,6 +42,11 @@ LYNX_PROPS_GROUP_DECLARE(
     // bytes (same string channel as strokeDash — Lynx props marshal no float
     // arrays). An empty payload clears the vertices.
     LYNX_PROP_DECLARE("points", setPoints:, NSString *),
+    // Rect per-corner radii, same base64 LE float32 channel: exactly 8 floats
+    // ([tlx,tly, trx,try, brx,bry, blx,bly]) or the payload clears (back to
+    // the uniform rx/ry props). The RRect component always emits the prop so
+    // a switch back to uniform clears stale state.
+    LYNX_PROP_DECLARE("radii", setRadii:, NSString *),
     // paint
     LYNX_PROP_DECLARE("color", setColor:, NSNumber *),
     LYNX_PROP_DECLARE("fill", setFill:, NSNumber *),
@@ -232,6 +237,16 @@ LYNX_PROP_SETTER("points", setPoints, NSString *) {
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _pointsData = decoded.length >= 4 ? decoded : nil;
   _dirtyGeometryMask |= kScumbleGeomPoints;
+  [self setNeedsLayout];
+}
+LYNX_PROP_SETTER("radii", setRadii, NSString *) {
+  NSData *decoded =
+      [[NSData alloc] initWithBase64EncodedString:value
+                                          options:NSDataBase64DecodingIgnoreUnknownCharacters];
+  // Exactly 8 floats (32 bytes) of per-corner radii; anything else clears
+  // (the node reverts to its uniform rx/ry props).
+  _cornerRadiiData = decoded.length == 8 * sizeof(float) ? decoded : nil;
+  _dirtyGeometryMask |= kScumbleGeomCornerRadii;
   [self setNeedsLayout];
 }
 

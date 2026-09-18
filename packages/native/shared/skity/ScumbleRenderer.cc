@@ -1079,20 +1079,41 @@ void DrawShapeSingle(const RetainedNode *node, Canvas *canvas, const RetainedCom
     float h = AnimHeight(node);
     if (w <= 0.f || h <= 0.f) return;
     Rect rect = Rect::MakeXYWH(AnimX(node), AnimY(node), w, h);
+    // Per-corner radii (8 floats, skity RRect order) ride their own geometry
+    // slot and override the uniform rx/ry; skity ScaleRadii shrinks over-large
+    // radii to fit the rect.
+    skity::RRect corner_rrect;
+    if (node->corner_radii_set) {
+      skity::Vec2 radii[4] = {
+          skity::Vec2{node->corner_radii[0], node->corner_radii[1]},
+          skity::Vec2{node->corner_radii[2], node->corner_radii[3]},
+          skity::Vec2{node->corner_radii[4], node->corner_radii[5]},
+          skity::Vec2{node->corner_radii[6], node->corner_radii[7]},
+      };
+      corner_rrect.SetRectRadii(rect, radii);
+    }
     float rx = node->rx;
     float ry = node->ry;
-    bool round = rx > 0.f || ry > 0.f;
+    bool round = node->corner_radii_set || rx > 0.f || ry > 0.f;
     // Each pass gets its own Paint: reusing one would leak the fill pass's
     // gradient shader into the stroke pass (a shader overrides SetColor), so a
     // gradient fill would repaint the stroke with the fill's shader.
     Paint fillPaint;
     if (MakeFillPaint(style, opacity, gpu_context, &fillPaint)) {
-      round ? canvas->DrawRoundRect(rect, rx, ry, fillPaint) : canvas->DrawRect(rect, fillPaint);
+      if (node->corner_radii_set) {
+        canvas->DrawRRect(corner_rrect, fillPaint);
+      } else {
+        round ? canvas->DrawRoundRect(rect, rx, ry, fillPaint) : canvas->DrawRect(rect, fillPaint);
+      }
     }
     Paint strokePaint;
     if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint)) {
-      round ? canvas->DrawRoundRect(rect, rx, ry, strokePaint)
-            : canvas->DrawRect(rect, strokePaint);
+      if (node->corner_radii_set) {
+        canvas->DrawRRect(corner_rrect, strokePaint);
+      } else {
+        round ? canvas->DrawRoundRect(rect, rx, ry, strokePaint)
+              : canvas->DrawRect(rect, strokePaint);
+      }
     }
   } else if (tag == "circle") {
     float r = AnimR(node);
@@ -1271,6 +1292,26 @@ void ApplyViewport(const RetainedViewport &vp, Canvas *canvas, float canvasWidth
   canvas->Translate(-vx, -vy);
 }
 
+// Build a clip entry's RRect: per-corner radii (8 floats, skity RRect order
+// TL,TR,BR,BL) when present, else the uniform rx/ry. skity ScaleRadii shrinks
+// over-large radii to fit the rect.
+skity::RRect ClipRRectGeometry(const Clip *c) {
+  Rect rect = Rect::MakeXYWH(c->x(), c->y(), c->width(), c->height());
+  const auto *radii = c->radii();
+  if (radii != nullptr && radii->size() == 8) {
+    skity::Vec2 v[4] = {
+        skity::Vec2{radii->Get(0), radii->Get(1)},
+        skity::Vec2{radii->Get(2), radii->Get(3)},
+        skity::Vec2{radii->Get(4), radii->Get(5)},
+        skity::Vec2{radii->Get(6), radii->Get(7)},
+    };
+    skity::RRect rr;
+    rr.SetRectRadii(rect, v);
+    return rr;
+  }
+  return skity::RRect::MakeRectXY(rect, c->rx(), c->ry());
+}
+
 // Apply the node's clip sequence (group nodes), in the group's local
 // coordinate space (after its own transform, before its subtree). The canvas
 // accumulates intersect/difference ops natively, so a ClipList is just applied
@@ -1291,10 +1332,7 @@ void ApplyClipUncached(const std::vector<uint8_t> &clip_data, Canvas *canvas) {
       canvas->ClipRect(Rect::MakeXYWH(c->x(), c->y(), c->width(), c->height()), op);
       break;
     case ClipType_RRECT:
-      canvas->ClipRRect(
-          skity::RRect::MakeRectXY(Rect::MakeXYWH(c->x(), c->y(), c->width(), c->height()), c->rx(),
-                                   c->ry()),
-          op);
+      canvas->ClipRRect(ClipRRectGeometry(c), op);
       break;
     case ClipType_PATH: {
       // The nested PathCommandList bytes travel as a [ubyte] vector; copy into
@@ -1337,9 +1375,7 @@ void ApplyClipIfAny(const RetainedNode *node, Canvas *canvas) {
           break;
         case ClipType_RRECT:
           item.kind = RenderCache::ClipCacheItem::Kind::kRRect;
-          item.rect = Rect::MakeXYWH(c->x(), c->y(), c->width(), c->height());
-          item.rx = c->rx();
-          item.ry = c->ry();
+          item.rrect = ClipRRectGeometry(c);
           break;
         case ClipType_PATH: {
           const auto *bytes = c->path();
@@ -1367,7 +1403,7 @@ void ApplyClipIfAny(const RetainedNode *node, Canvas *canvas) {
       canvas->ClipRect(item.rect, op);
       break;
     case RenderCache::ClipCacheItem::Kind::kRRect:
-      canvas->ClipRRect(skity::RRect::MakeRectXY(item.rect, item.rx, item.ry), op);
+      canvas->ClipRRect(item.rrect, op);
       break;
     case RenderCache::ClipCacheItem::Kind::kPath:
       canvas->ClipPath(item.path, op);

@@ -1,3 +1,4 @@
+// @lat: [[tests#Graphics parsing layer#Clip serialization]]
 import { describe, it, expect } from "vitest";
 
 import { buildClipList } from "../clip.js";
@@ -38,6 +39,28 @@ describe("buildClipList", () => {
     expect(c.op()).toBe(ClipOp.DIFFERENCE);
     expect(c.rx()).toBe(4);
     expect(c.ry()).toBe(2);
+    expect(c.radiiLength()).toBe(0); // uniform form → no per-corner vector
+  });
+
+  it("serializes per-corner radii (8 floats override uniform rx/ry)", () => {
+    const list = readBack(
+      buildClipList([
+        {
+          kind: "rrect",
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 50,
+          rx: 4,
+          ry: 4,
+          cornerRadii: [16, 0, 16, 0, 0, 0, 0, 0], // top corners only
+        },
+      ])!,
+    );
+    const c = list.clips(0, new Clip())!;
+    expect(c.type()).toBe(ClipType.RRECT);
+    expect(c.radiiLength()).toBe(8);
+    expect(Array.from(c.radiiArray()!)).toEqual([16, 0, 16, 0, 0, 0, 0, 0]);
   });
 
   it("nests PathCommandList bytes for path clips (d string or Path2D)", () => {

@@ -126,6 +126,12 @@ export interface ScumbleRectProps extends ScumbleCommonProps {
   height: number;
   rx?: number;
   ry?: number;
+  /**
+   * Per-corner radii (overrides rx/ry): base64 LE float32 of 8 floats
+   * [tlx,tly, trx,try, brx,bry, blx,bly] from @scumble/graphics — the same
+   * string channel as polyline `points`. Empty string = revert to uniform.
+   */
+  radii?: string;
 }
 export interface ScumbleCircleProps extends ScumbleCommonProps {
   cx: number;
