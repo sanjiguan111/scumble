@@ -97,7 +97,7 @@ backends agree. Feature-by-feature status lives in
   easing, delay/iterations/autoReverse/fill) ride the command stream once; the render
   thread interpolates per vsync — **zero JS per frame**, stop-on-idle drivers.
   Playback control ships with it: `createAnimation().controller.{pause, play, seekTo,
-  cancel, onFinish}`.
+cancel, onFinish}`.
 - **Gradients & shaders** — linear / radial / sweep / two-point conical, as fill or
   stroke; images as paint textures (`ImageShader`) with fit/tile modes.
 - **Filters** — blur, drop shadow, color matrix, color blend, mask blur, per paint slot.

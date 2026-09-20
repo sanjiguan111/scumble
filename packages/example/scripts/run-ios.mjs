@@ -104,6 +104,23 @@ function openDevServerInNewTerminal() {
   if (r.status !== 0) throw new Error("failed to open a new Terminal window via osascript");
 }
 
+// Open the simulator UI window. Xcode 27 replaced Simulator.app with
+// DeviceHub.app (the old Developer/Applications/ location no longer exists),
+// so try the classic name first and fall back to the new one. A failure is a
+// warning, not an error: simctl install/launch below run headless anyway —
+// the window is only there to watch.
+function openSimulatorUi() {
+  for (const name of ["Simulator", "DeviceHub"]) {
+    if (runQuiet("open", ["-a", name]).status === 0) {
+      console.log(`✓ opened ${name}`);
+      return;
+    }
+  }
+  console.log(
+    "⚠ could not open the simulator UI (neither Simulator nor DeviceHub) — continuing headless",
+  );
+}
+
 // 1) dev server: reuse if running, otherwise open it in a new terminal window
 const initial = await probeDevServer();
 if (initial === "up") {
@@ -206,7 +223,7 @@ function pickDevice() {
 const device = pickDevice();
 if (device.state !== "Booted") {
   run("xcrun", ["simctl", "boot", device.udid]);
-  run("open", ["-a", "Simulator"]);
+  openSimulatorUi();
 }
 const DESTINATION = `platform=iOS Simulator,id=${device.udid}`;
 
