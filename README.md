@@ -1,21 +1,31 @@
-# scumble
+<p align="center">
+  <img src="https://sanjiguan111.github.io/scumble/logo.svg" width="110" alt="scumble logo — dry-brush sweeps on a navy tile" />
+</p>
 
-[![npm](https://img.shields.io/npm/v/@scumble/react?label=%40scumble%2Freact)](https://www.npmjs.com/package/@scumble/react)
-[![API style: react-native-skia](https://img.shields.io/badge/API_style-react--native--skia-f4801f.svg)](https://github.com/Shopify/react-native-skia)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-5b8cff.svg)](LICENSE)
-[![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-2dd4bf.svg)](#architecture)
-[![Docs](https://img.shields.io/badge/docs-sanjiguan111.github.io%2Fscumble-7683b3.svg)](https://sanjiguan111.github.io/scumble)
-[![CI](https://github.com/sanjiguan111/scumble/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/sanjiguan111/scumble/actions/workflows/ci.yml)
-[![Native build](https://github.com/sanjiguan111/scumble/actions/workflows/native-build.yml/badge.svg?branch=develop)](https://github.com/sanjiguan111/scumble/actions/workflows/native-build.yml)
-[![Deploy website](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml/badge.svg)](https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml)
+<h1 align="center">scumble</h1>
+
+<p align="center">
+  <strong>react-native-skia-style declarative 2D graphics for <a href="https://lynxjs.org/">Lynx</a></strong><br />
+  on the <a href="https://github.com/lynx-family/skity">skity</a> GPU backend — Android (OpenGL&nbsp;ES / Vulkan) · iOS (Metal)
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@scumble/react"><img src="https://img.shields.io/npm/v/@scumble/react?label=%40scumble%2Freact" alt="npm version" /></a>
+  <a href="https://github.com/Shopify/react-native-skia"><img src="https://img.shields.io/badge/API_style-react--native--skia-f4801f.svg" alt="API style: react-native-skia" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-5b8cff.svg" alt="License: Apache-2.0" /></a>
+  <a href="#architecture"><img src="https://img.shields.io/badge/platforms-Android%20%7C%20iOS-2dd4bf.svg" alt="Platforms: Android | iOS" /></a><br />
+  <a href="https://sanjiguan111.github.io/scumble"><img src="https://img.shields.io/badge/docs-sanjiguan111.github.io%2Fscumble-7683b3.svg" alt="Documentation" /></a>
+  <a href="https://github.com/sanjiguan111/scumble/actions/workflows/ci.yml"><img src="https://github.com/sanjiguan111/scumble/actions/workflows/ci.yml/badge.svg?branch=develop" alt="CI" /></a>
+  <a href="https://github.com/sanjiguan111/scumble/actions/workflows/native-build.yml"><img src="https://github.com/sanjiguan111/scumble/actions/workflows/native-build.yml/badge.svg?branch=develop" alt="Native build" /></a>
+  <a href="https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml"><img src="https://github.com/sanjiguan111/scumble/actions/workflows/deploy-website.yml/badge.svg" alt="Deploy website" /></a>
+</p>
 
 **scumble brings [react-native-skia](https://github.com/Shopify/react-native-skia)-style
 drawing to the [Lynx](https://lynxjs.org/) ecosystem.** The component model you
 know from React Native — `<Canvas>`, declarative shapes, `<Paint>` / gradient /
 filter children, `Path2D`, image and paragraph components — rebuilt for Lynx on
-the **[skity](https://github.com/lynx-family/skity)** GPU backend (Android
-OpenGL ES / Vulkan, iOS Metal), with the native side reduced to a thin memcpy
-over a FlatBuffer render tree:
+the **[skity](https://github.com/lynx-family/skity)** GPU backend, with the
+native side reduced to a thin memcpy over a FlatBuffer render tree:
 
 ```tsx
 import { Canvas, Rect, createAnimation } from "@scumble/react";
@@ -37,6 +47,42 @@ const spin = createAnimation({
 > reference, and architecture notes, built with VitePress from
 > [`packages/website`](packages/website).
 
+## Showcase
+
+Real renders from the example app, one per feature area — click through to the
+API page for the code behind each:
+
+<table>
+  <tr>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/shapes.html"><img src="https://sanjiguan111.github.io/scumble/shots/shapes.png" width="150" alt="Shape components — circle, rect, rrect, line, points, path" /></a></td>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/gradients.html"><img src="https://sanjiguan111.github.io/scumble/shots/gradient.png" width="150" alt="Linear, radial, sweep and two-point conical gradients" /></a></td>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/filters.html"><img src="https://sanjiguan111.github.io/scumble/shots/filters.png" width="150" alt="Blur, drop shadow and color-matrix filters" /></a></td>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/clipping.html"><img src="https://sanjiguan111.github.io/scumble/shots/clip.png" width="150" alt="Rect, rrect and path clips" /></a></td>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/path2d.html"><img src="https://sanjiguan111.github.io/scumble/shots/pathops.png" width="150" alt="Path2D boolean ops — union, intersect, difference and xor" /></a></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/shapes.html">Shapes</a></sub></td>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/gradients.html">Gradients</a></sub></td>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/filters.html">Filters</a></sub></td>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/clipping.html">Clipping</a></sub></td>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/path2d.html">Path ops</a></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/guide/painting.html"><img src="https://sanjiguan111.github.io/scumble/shots/multi-paint.png" width="150" alt="Multiple paints — stroke layered over fill" /></a></td>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/canvas-and-group.html"><img src="https://sanjiguan111.github.io/scumble/shots/layer-effects.png" width="150" alt="Group layer effects — shadow and opacity applied to a whole group" /></a></td>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/paragraph-and-text.html"><img src="https://sanjiguan111.github.io/scumble/shots/paragraph.png" width="150" alt="Paragraph with per-span styling and gradient fills" /></a></td>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/images.html"><img src="https://sanjiguan111.github.io/scumble/shots/image.png" width="150" alt="Image fit modes and image shaders" /></a></td>
+    <td align="center"><a href="https://sanjiguan111.github.io/scumble/api/animation.html"><img src="https://sanjiguan111.github.io/scumble/shots/animation.png" width="150" alt="Declarative animations with playback control" /></a></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/guide/painting.html">Multi-paint</a></sub></td>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/canvas-and-group.html">Layer effects</a></sub></td>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/paragraph-and-text.html">Text &amp; paragraphs</a></sub></td>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/images.html">Images</a></sub></td>
+    <td align="center"><sub><a href="https://sanjiguan111.github.io/scumble/api/animation.html">Animation</a></sub></td>
+  </tr>
+</table>
+
 ## Features
 
 The API tracks [@shopify/react-native-skia](https://github.com/Shopify/react-native-skia)
@@ -51,7 +97,7 @@ backends agree. Feature-by-feature status lives in
   easing, delay/iterations/autoReverse/fill) ride the command stream once; the render
   thread interpolates per vsync — **zero JS per frame**, stop-on-idle drivers.
   Playback control ships with it: `createAnimation().controller.{pause, play, seekTo,
-cancel, onFinish}`.
+  cancel, onFinish}`.
 - **Gradients & shaders** — linear / radial / sweep / two-point conical, as fill or
   stroke; images as paint textures (`ImageShader`) with fit/tile modes.
 - **Filters** — blur, drop shadow, color matrix, color blend, mask blur, per paint slot.
@@ -162,7 +208,8 @@ pnpm example:ios       # iOS simulator (scripts/run-ios.mjs)
 pnpm example:android   # Android (scripts/run-android.mjs)
 ```
 
-Edit `packages/example/src/App.tsx` and reload to iterate.
+Edit `packages/example/src/App.tsx` and reload to iterate. The `Showcase`
+section above is a good tour — each example app demo maps to a docs page.
 
 > The iOS build needs Ruby ≥ 3.0 for CocoaPods — `mise` provides 3.4.9 (the
 > 3.0.x branch is EOL and won't compile on recent Xcode toolchains).
