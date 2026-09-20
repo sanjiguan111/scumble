@@ -15,7 +15,7 @@ import type { ParagraphProps, TextSpanProps } from "../types";
 /** The paragraph slice of the skity intrinsic props (after span collection). */
 export interface NormalizedParagraph {
   spans: string; // base64 SpanList bytes
-  textAlign: number; // 0=left 1=center 2=right
+  textAlign: number; // 0=left 1=center 2=right 3=justify
   direction: number; // 0=ltr 1=rtl 2=auto (first-strong)
   lineHeight: number;
   maxLines: number;
@@ -24,7 +24,7 @@ export interface NormalizedParagraph {
   width: number;
 }
 
-const TEXT_ALIGN_BYTES: Record<string, number> = { left: 0, center: 1, right: 2 };
+const TEXT_ALIGN_BYTES: Record<string, number> = { left: 0, center: 1, right: 2, justify: 3 };
 const DIRECTION_BYTES: Record<string, number> = { ltr: 0, rtl: 1, auto: 2 };
 
 /** Collect the `<TextSpan>` children's props in declaration order. */

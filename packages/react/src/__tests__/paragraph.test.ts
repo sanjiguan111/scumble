@@ -143,7 +143,9 @@ describe("normalizeParagraphProps", () => {
     });
     expect(normalizeParagraphProps({ ...base, textAlign: "center" } as never)!.textAlign).toBe(1);
     expect(normalizeParagraphProps({ ...base, textAlign: "right" } as never)!.textAlign).toBe(2);
-    expect(normalizeParagraphProps({ ...base, textAlign: "justify" } as never)!.textAlign).toBe(0);
+    expect(normalizeParagraphProps({ ...base, textAlign: "justify" } as never)!.textAlign).toBe(3);
+    // Unknown values still fall back to left (0).
+    expect(normalizeParagraphProps({ ...base, textAlign: "justifyX" } as never)!.textAlign).toBe(0);
     expect(normalizeParagraphProps({ ...base, direction: "rtl" } as never)!.direction).toBe(1);
     expect(normalizeParagraphProps({ ...base, direction: "auto" } as never)!.direction).toBe(2);
     expect(normalizeParagraphProps({ ...base, direction: "ttb" } as never)!.direction).toBe(0);

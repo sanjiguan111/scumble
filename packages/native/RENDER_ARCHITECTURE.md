@@ -819,6 +819,29 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
     left for RTL); the ellipsis lands on that same edge with the cut-adjacent
     glyph's font. fribidi (LGPL, incompatible with static linking) and ICU
     (too heavy) were considered and rejected.
+- **Justification (2026-09-20)**. `textAlign: "justify"` (byte 3 through the
+  shadow-node prop channel) distributes a line's slack — layout box minus
+  natural width (trailing spaces excluded) — evenly across the line's
+  INTERIOR spaces, the CoreText/SkParagraph inter-word semantics. Exempt
+  lines stay left: the paragraph's last line, ellipsized lines, lines with
+  no interior spaces (pure CJK), and lines at/over the box (slack is never
+  negative — justification only stretches). The policy lives in
+  `shared/skity/paragraph_justify.cc` (`JustifyLineSlack`, host-tested
+  `tests/paragraph_justify_test.cc`) so the two backends share one rule:
+  - **iOS**: one line — align 3 maps to `kCTTextAlignmentJustified`;
+    CoreText does the distribution at frame time (last line stays left,
+    ellipsis lines are last lines by construction).
+  - **Android**: the shaper counts interior spaces inside the trimmed
+    `[head, tail)` visual range (the `breakChars` kSpace classification),
+    calls `JustifyLineSlack`, and adds the delta to the pen cursor after
+    each interior space's advance in the line-assembly loop — justified
+    positions are baked into `pos_x` before serialization, decorations
+    track for free (their envelopes grow from the same pen).
+  - Known cross-platform divergence (accepted, pre-existing): Android
+    flattens `\n`/`\r` to spaces before shaping, so a line ended by an
+    explicit newline justifies on Android while iOS (CoreText treats `\n`
+    as a paragraph end) leaves it left — same family as the accepted
+    line-break differences.
 - **Empty text clears (2026-08-20..21)**: a paragraph whose spans decode empty
   emits a 0-height/0-run ENTRY (not a missing entry) — `ApplyParagraphRuns`
   then clears the retained node's previous runs. iOS produces it via
@@ -841,7 +864,8 @@ true`, height/line_count/runs overwritten whole. **A missing entry is not a
 - ~~BiDi/RTL~~ — done (2026-08-21): `direction` prop (ltr/rtl/auto) +
   SheenBidi on Android, CoreText `BaseWritingDirection` on iOS (above).
 - ~~Text decoration~~ — done (2026-09-02): see §13.2 below.
-- Justification — out of scope per the design, revisit with a real case.
+- ~~Justification~~ — done (2026-09-20): `textAlign: "justify"`, inter-word
+  spaces only (above).
 
 ### 13.2 Text decoration (2026-09-02, as-built)
 

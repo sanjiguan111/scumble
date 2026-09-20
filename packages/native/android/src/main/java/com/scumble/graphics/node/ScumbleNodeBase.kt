@@ -141,7 +141,7 @@ abstract class ScumbleNodeBase : ShadowNode() {
   // iOS) so the setters live next to every other prop setter; the canvas walk
   // only reads them on paragraph nodes.
   @JvmField var paragraphSpansData: ByteArray? = null
-  @JvmField var paragraphAlign: Byte = 0        // 0=left 1=center 2=right
+  @JvmField var paragraphAlign: Byte = 0        // 0=left 1=center 2=right 3=justify
   @JvmField var paragraphDirection: Byte = 0    // 0=ltr 1=rtl 2=auto (first-strong)
   @JvmField var paragraphLineHeight = 1f        // multiplier; <=0 = 1
   @JvmField var paragraphMaxLines = 0           // 0 = unlimited

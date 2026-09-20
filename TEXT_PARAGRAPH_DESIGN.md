@@ -103,9 +103,11 @@ than calling ICU for line breaking — ICU is only a hard requirement for BiDi.
   prop channel → native `Typeface::MakeFromData`), plus platform system font
   lookup by family name
 
-**Not in v1:** BiDi/RTL, complex-script shaping beyond what HarfBuzz gives for
-free, justification, `getMinIntrinsicWidth`-style JS queries, vertical text,
-strut/half-leading controls.
+**Not in v1:** BiDi/RTL (shipped 2026-08-21), complex-script shaping beyond
+what HarfBuzz gives for free, justification (shipped 2026-09-20 —
+inter-word spaces only, see RENDER_ARCHITECTURE.md §13),
+`getMinIntrinsicWidth`-style JS queries, vertical text, strut/half-leading
+controls.
 
 **Accepted caveat:** the two platforms will not produce pixel-identical line
 breaks (CoreText's breaker vs the shared simple breaker differ at edge widths

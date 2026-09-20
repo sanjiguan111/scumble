@@ -207,8 +207,11 @@ export interface ParagraphProps extends GraphicProps {
   y?: number;
   /** Layout width constraint (dp). Required — line breaking needs it. */
   width: number;
-  /** Line alignment. Defaults to `"left"`. */
-  textAlign?: "left" | "center" | "right";
+  /** Line alignment. Defaults to `"left"`. `"justify"` distributes a line's
+   *  slack across its inter-word spaces (CoreText/SkParagraph semantics):
+   *  the last line, ellipsized lines, and lines without spaces (pure CJK)
+   *  stay left-aligned; lines are only stretched, never compressed. */
+  textAlign?: "left" | "center" | "right" | "justify";
   /** Base writing direction for bidi (UAX #9) reordering. `"auto"` picks the
    *  first strong directional character (LTR when there is none). Defaults to
    *  `"ltr"`. `textAlign` stays physical — left/right always mean the screen

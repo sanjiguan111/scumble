@@ -104,3 +104,7 @@ Host-side gtest suites under `packages/native/tests/` — run on the desktop, no
 ### BiDi line assembly
 
 `bidi_line_test.cc` — SheenBidi runs assemble into visual order per line; RTL output needs no second reversal; mixed-direction runs split correctly.
+
+### Paragraph justification slack
+
+`paragraph_justify_test.cc` — the shared inter-word justification policy (`JustifyLineSlack`): slack splits evenly across interior spaces; last/ellipsized/space-less/overflowing lines fall back to left.

@@ -19,6 +19,7 @@
 #include "font_registry.h"
 #include "generated/paragraph_runs_generated.h"
 #include "line_breaker.h"
+#include "paragraph_justify.h"
 #include "typeface_cache.h"
 
 namespace {
@@ -546,6 +547,20 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     const float baseline = y + extra * 0.5f + ascent;
     y += lineAdvance;
 
+    // Justification (align==3): the slack policy lives in JustifyLineSlack
+    // (shared, host-tested); this loop only counts the stretch points — the
+    // spaces inside [head, tail), whose visual-edge trailing peers the trim
+    // above already excluded from the alignment width.
+    float justifySlack = 0.f;
+    if (align == 3) {
+      uint32_t interiorSpaces = 0;
+      for (size_t oi = head; oi < tail; oi++) {
+        if (breakChars[order[oi]].cls == BreakClass::kSpace) interiorSpaces++;
+      }
+      justifySlack =
+          JustifyLineSlack(li == lastLineIndex, hasEllipsis, lineWidth, width, interiorSpaces);
+    }
+
     float x0 = 0.f;
     if (align == 1) {
       x0 = (width - lineWidth) * 0.5f;
@@ -616,6 +631,11 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
         }
       }
       cursor += g.advance;
+      // Justified lines stretch at each interior space; decorations track
+      // automatically — their envelopes grow from these same pen positions.
+      if (justifySlack > 0.f && breakChars[gi].cls == BreakClass::kSpace) {
+        cursor += justifySlack;
+      }
     }
     if (hasEllipsis && !rtlBase) emitEllipsis();
 

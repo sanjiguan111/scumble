@@ -107,9 +107,13 @@ CTParagraphStyleRef ScumbleParagraphStyle(uint8_t align, uint8_t direction, floa
   // Physical alignment: left/center/right are screen edges, so align 0 must be
   // kCTTextAlignmentLeft explicitly — kCTTextAlignmentNatural would flip with
   // the writing direction below and turn "left" into right under RTL.
+  // align 3 (justify) rides CoreText's built-in inter-word justification:
+  // spaces stretch, the paragraph's last line stays left (matching the
+  // Android shaper's JustifyLineSlack policy).
   CTTextAlignment alignment = kCTTextAlignmentLeft;
   if (align == 1) alignment = kCTTextAlignmentCenter;
   if (align == 2) alignment = kCTTextAlignmentRight;
+  if (align == 3) alignment = kCTTextAlignmentJustified;
   // Base writing direction feeds CoreText's built-in UAX #9 (bidi reordering,
   // mirroring, run order). `auto` = first strong character (Natural).
   CTWritingDirection writing = kCTWritingDirectionLeftToRight;

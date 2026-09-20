@@ -108,6 +108,9 @@ add_library(scumblerender SHARED
   # the TASM side registers, DrawShape's paragraph branch reads).
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/font_registry.cc"
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/line_breaker.cc"
+  # Inter-word justification policy (textAlign=3), shared with the host tests;
+  # the shaper distributes the slack at the line's interior spaces.
+  "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/paragraph_justify.cc"
   # BiDi visual-order mapping for the shaper's line assembly (UAX #9 levels
   # come from SheenBidi; this is the pure-std part the host tests cover).
   "${LYNX_LIBRARY_PACKAGE_ROOT}/shared/skity/bidi_line.cc"

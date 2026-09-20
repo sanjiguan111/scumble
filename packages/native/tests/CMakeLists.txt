@@ -33,6 +33,11 @@ target_link_libraries(base64_test GTest::gtest_main)
 add_executable(bidi_line_test bidi_line_test.cc ../shared/skity/bidi_line.cc)
 target_link_libraries(bidi_line_test GTest::gtest_main)
 
+# Inter-word justification policy (textAlign=3, roadmap #14).
+add_executable(paragraph_justify_test paragraph_justify_test.cc
+  ../shared/skity/paragraph_justify.cc)
+target_link_libraries(paragraph_justify_test GTest::gtest_main)
+
 # Native animation engine (ANIMATION_DESIGN.md): easing curves, then the
 # full track/tick lifecycle through the retained tree (FlatBuffer batches
 # built in-test, synthetic frame timestamps).
@@ -75,6 +80,7 @@ include(GoogleTest)
 gtest_discover_tests(line_breaker_test)
 gtest_discover_tests(base64_test)
 gtest_discover_tests(bidi_line_test)
+gtest_discover_tests(paragraph_justify_test)
 gtest_discover_tests(easing_test)
 gtest_discover_tests(animation_test)
 gtest_discover_tests(render_cache_core_test)
