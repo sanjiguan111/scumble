@@ -60,3 +60,62 @@ export function floatsToBase64(values: number[]): string {
   for (let i = 0; i < values.length; i++) view.setFloat32(i * 4, values[i], true);
   return bytesToBase64(buf);
 }
+
+// Reverse lookup for {@link base64ToBytes}: B64_CHARS index → 6-bit value.
+const B64_VALUES = new Int8Array(256).fill(-1);
+for (let i = 0; i < B64_CHARS.length; i++) {
+  B64_VALUES[B64_CHARS.charCodeAt(i)] = i;
+}
+
+/**
+ * Base64-decode a string back to bytes — the JS-side counterpart of the native
+ * decode. Used by {@link createFontMetrics} to unpack the `data:` URI a span
+ * `fontFamily` carries (the one font form whose bytes JS can reach
+ * synchronously), so measurement and rendering consume the identical binary.
+ * Hand-written (no `atob`) so it runs in Lynx's JSC runtime, like the encoder.
+ *
+ * ASCII whitespace is skipped (the padding a long data: URI may pick up);
+ * anything else outside the alphabet throws — a wrong-length or corrupted
+ * payload must fail loudly, not silently mis-decode a font.
+ *
+ * @param s The base64 payload (padding optional; interior `=` is invalid).
+ * @returns The decoded bytes.
+ *
+ * @example
+ * base64ToBytes(bytesToBase64(buf));  // round-trips to the original bytes
+ */
+export function base64ToBytes(s: string): Uint8Array {
+  // Count decodable chars first so the output buffer is allocated once.
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    const isPad = c === 61; // '='
+    const isSpace =
+      c === 32 || c === 9 || c === 10 || c === 13; // space, tab, LF, CR
+    if (isPad || isSpace) continue;
+    if (B64_VALUES[c] < 0) {
+      throw new Error(`base64: invalid character ${JSON.stringify(s[i])} at ${i}`);
+    }
+    n++;
+  }
+  // 4 chars → 3 bytes; a trailing 2- or 3-char group carries 1 or 2 bytes.
+  const bytes = new Uint8Array(Math.floor(n / 4) * 3 + (n % 4 === 2 ? 1 : n % 4 === 3 ? 2 : 0));
+  if (n % 4 === 1) {
+    throw new Error("base64: invalid length (a 1-char trailing group carries no bytes)");
+  }
+
+  let out = 0;
+  let acc = 0; // up to four 6-bit groups pending a byte-triple flush
+  let bits = 0;
+  for (let i = 0; i < s.length; i++) {
+    const v = B64_VALUES[s.charCodeAt(i)];
+    if (v < 0) continue; // padding or whitespace — already validated above
+    acc = (acc << 6) | v;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes[out++] = (acc >> bits) & 0xff;
+    }
+  }
+  return bytes;
+}

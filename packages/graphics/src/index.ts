@@ -95,3 +95,7 @@ export * from "./paragraph";
 // Animation: track specs → nested AnimationList FlatBuffer bytes (render-side
 // per-vsync interpolation — ANIMATION_DESIGN.md).
 export * from "./animation";
+// Font metrics: synchronous JS-side text measurement parsed from the font
+// binary itself (cmap + hmtx) — the same data:-URI fontFamily bytes native
+// renders (the F.3 gap's no-JSI workaround).
+export * from "./font-metrics";

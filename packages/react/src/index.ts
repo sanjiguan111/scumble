@@ -62,6 +62,17 @@ export { useImage, createImageHandle } from "./hooks/useImage";
 // PathOpName type names the four operations it accepts.
 export { Path2D } from "@scumble/graphics";
 export type { PathOpName } from "@scumble/graphics";
+// Font metrics (synchronous JS-side text measurement from the font binary —
+// the no-JSI workaround for label layout) re-exported for the same
+// one-stop-import reason as Path2D above.
+export { createFontMetrics, measureTextWidth } from "@scumble/graphics";
+export type {
+  FontMetrics,
+  FontMetricsSource,
+  FontVerticalMetrics,
+  MeasureTextOptions,
+  ScaledFontMetrics,
+} from "@scumble/graphics";
 // <Image> fit mode union + sampling option types.
 export type {
   Fit,

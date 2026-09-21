@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { bytesToBase64, floatsToBase64 } from "../base64.js";
+import { base64ToBytes, bytesToBase64, floatsToBase64 } from "../base64.js";
 
 /** Decode base64 → raw LE float32s (mirror of floatsToBase64). */
 function floatsFromBase64(s: string): number[] {
@@ -18,6 +18,28 @@ describe("bytesToBase64", () => {
     expect(bytesToBase64(new Uint8Array([0]).buffer)).toBe("AA==");
     expect(bytesToBase64(new Uint8Array([0, 0]).buffer)).toBe("AAA=");
     expect(bytesToBase64(new Uint8Array([1, 2, 3]).buffer)).toBe("AQID");
+  });
+});
+
+describe("base64ToBytes", () => {
+  it("round-trips every length mod 3", () => {
+    for (let n = 0; n <= 9; n++) {
+      const bytes = Uint8Array.from({ length: n }, (_, i) => (i * 37 + 11) & 0xff);
+      const decoded = base64ToBytes(bytesToBase64(bytes.buffer));
+      expect(Array.from(decoded)).toEqual(Array.from(bytes));
+    }
+  });
+
+  it("decodes unpadded input and skips ASCII whitespace", () => {
+    expect(Array.from(base64ToBytes("AQID"))).toEqual([1, 2, 3]);
+    expect(Array.from(base64ToBytes("AQ\nID"))).toEqual([1, 2, 3]);
+    expect(Array.from(base64ToBytes(" AQID \n"))).toEqual([1, 2, 3]);
+  });
+
+  it("throws on invalid characters and undecodable trailing groups", () => {
+    expect(() => base64ToBytes("AQ!D")).toThrow(/invalid character/);
+    expect(() => base64ToBytes("A")).toThrow(/invalid length/);
+    expect(() => base64ToBytes("AAAAA")).toThrow(/invalid length/);
   });
 });
 

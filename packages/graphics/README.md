@@ -19,6 +19,18 @@ const gear = new Path2D().moveTo(24, 8).lineTo(32, 8).lineTo(36, 16).closePath()
 const cutout = Path2D.op(gear, hole, "difference");
 ```
 
+The package also carries **synchronous font measurement**: `createFontMetrics`
+parses a TTF/OTF binary's `cmap` + `hmtx` tables in pure JS and answers text
+widths without any platform call (there is no synchronous JSI channel to ask
+the native shaper). Measuring the same `data:` URI a `<TextSpan fontFamily>`
+takes keeps JS math and the native layout on identical bytes:
+
+```ts
+import { measureTextWidth } from "@scumble/graphics";
+
+measureTextWidth(FONT_URI, "Q3 (est.)", 12); // px — axis-label gutter math
+```
+
 > Built with `tsc` and consumed through a bundler (rspeedy/rspack) — the
 > compiled `dist` uses extensionless relative imports, so plain Node ESM
 > imports are not a supported consumption mode.

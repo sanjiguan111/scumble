@@ -59,6 +59,12 @@ Details: from/to sugar → two keyframes, Infinity iterations, preset easing →
 
 Details: schema defaults (decoration 0 / decorationColor 0 = follow text color / thickness 0 = metric default / SOLID); the bitfield resolves from names, arrays, and numeric passthrough ("underline"→1, underline+line-through→5, 6→6; case-insensitive, strikethrough/line_through aliases, unknown names contribute 0); `decorationStyle` maps names to the RN-Skia value order (wavy→4, double→1) with numbers masked through; decorationColor parses via `parseColor`, unset stays 0.
 
+### Font metrics
+
+`font-metrics.test.ts` — `createFontMetrics` measures advance sums from a hand-built synthetic sfnt (exact chosen values) and from the real Press Start 2P fixture against fontTools-computed ground truth.
+
+Details: format-4 idDelta and idRangeOffset lookups (0 entries → .notdef), format 12 with astral code points and surrogate-pair merging (lone surrogate misses), leftmost-segment selection, (3,1)-over-(0,3) subtable preference and symbol-only rejection, hmtx tail sharing beyond numberOfHMetrics, OS/2 typo metrics gated on fsSelection bit 7, letterSpacing per glyph, unitsPerEm scaling; error cases cover truncated/garbage/WOFF/TTC input, missing tables, out-of-range glyph IDs, and non-base64-data-URI string sources; `base64ToBytes` round-trips every length mod 3, tolerates padding and whitespace, and rejects invalid characters and 1-char trailing groups.
+
 ## React component layer
 
 Vitest suites under `packages/react/src/__tests__/` (LEPUS globals stubbed) verifying the resolution layer that turns component trees into intrinsic props.

@@ -80,6 +80,14 @@ Text decoration (`decoration` bitfield + `decorationColor`/`decorationThickness`
 
 `textAlign: "justify"` (byte 3) ships the same layout-time way (2026-09-20): a line's slack splits evenly across its INTERIOR spaces (CoreText/SkParagraph inter-word semantics), last/ellipsized/space-less lines stay left, slack is never negative. The policy is one shared pure rule — `JustifyLineSlack` in [[packages/native/shared/skity/paragraph_justify.h]] (host-tested); iOS maps to `kCTTextAlignmentJustified`, Android's shaper adds the delta to the pen cursor after each interior space in its line-assembly loop (`paragraph_shaper.cc`). Justified positions are baked into `pos_x` at layout, so the renderer and decorations need no change.
 
+## Font metrics (JS-side measurement)
+
+`createFontMetrics` / `measureTextWidth` answer "how wide is this string" SYNCHRONOUSLY in JS, by parsing the font binary itself — the workaround for the F.3 no-JSI wall (chart-label gutters, Victory-style libraries).
+
+Built by [[packages/graphics/src/font-metrics.ts#createFontMetrics]]: an sfnt reader (head/hhea/maxp/hmtx/cmap, OS/2 optional) that sums glyph ADVANCE widths (`cmap` → glyph ID → `hmtx` advance × fontSize/unitsPerEm) — RN-Skia `getGlyphWidths` semantics, no kerning/shaping/ligatures. The accuracy argument is that JS measures the SAME bytes native renders: a span `fontFamily` data: URI decodes via [[packages/graphics/src/base64.ts#base64ToBytes]] into the identical binary. `measureTextWidth` caches parses per source (Map for URIs, WeakMap for byte objects); `.at(size)` binds an SkFont-shaped view (`getGlyphIDs`/`getGlyphWidths`/`measureText`/`getVerticalMetrics`).
+
+Lookup paths: cmap subtable selection by (platform, encoding) preference (3,10) > (0,6)/(0,4) > (3,1) > (0,3)…, formats 4 (both idDelta and the self-referential idRangeOffset path) and 12 (astral, surrogate pairs merged in `codePoints`); unmapped code points measure as `.notdef`. Glyphs at index ≥ numberOfHMetrics share the LAST hmtx advance. Vertical metrics prefer OS/2 sTypo* when fsSelection bit 7 is set, else hhea. WOFF/WOFF2 (compressed containers) and TTC collections throw — measure the raw TTF/OTF; string sources must be base64 data: URIs (http/file bytes: fetch and pass `Uint8Array`).
+
 ## Parity gap taxonomy
 
 Overall parity: geometry ~95%, paint ~95%, text ~85%. Remaining gaps fall into four buckets by ROOT CAUSE (`FEATURE_PARITY.md` §F) — the bucket decides whether a gap is schedulable work at all:
