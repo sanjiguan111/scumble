@@ -18,11 +18,18 @@ Dependency direction is a single DAG; nothing skips a layer:
 
 - **@scumble/react** (`packages/react`) — the user-facing React layer: ergonomic components with friendly props, plus the animation React API. Entry: [[packages/react/src/Canvas.tsx#Canvas]].
 - **@scumble/graphics** (`packages/graphics`) — framework-agnostic pure-JS core: color / enum / path / transform parsers, `Path2D`, and the FlatBuffer builders for gradients, filters, clips, spans, animation tracks. Entry: [[packages/graphics/src/color.ts#parseColor]], [[packages/graphics/src/path.ts#parsePath]].
+- **@scumble/skia-compat** (`packages/skia-compat`) — the RN-Skia API surface over the two below: components, the `Skia` namespace, matrix helpers, `useFont`. See [[overview#The skia-compat adapter layer]].
 - **@scumble/native** (`packages/native`) — the native Lynx library: intrinsic `<scumble-*>` tags, the `skityrt` FlatBuffer schema (`packages/native/schema/*.fbs`), and the cross-platform C++ core in `packages/native/shared/skity/`.
-- **example** (`packages/example`) — rspeedy demo app with 20 demo pages under `packages/example/src/demos/`, used for on-device verification.
+- **example** (`packages/example`) — rspeedy demo app with 21 demo pages under `packages/example/src/demos/`, used for on-device verification; `ChartDemo.tsx` is the skia-compat vertical slice (d3 running unmodified, shim components rendering, JS-measured label gutters).
 - **website** (`packages/website`) — VitePress docs site (GitHub Pages), built from `packages/website/docs/`.
 
 All three published packages are consumed through a bundler (rspeedy/rspack); `@scumble/graphics` ships a tsc-built `dist/` (raw source fails to link under `isolatedModules` because the vendored flatbuffers runtime re-exports types), while react/native ship TS sources.
+
+## The skia-compat adapter layer
+
+`@scumble/skia-compat` re-exposes the used RN-Skia API surface (audited against Victory Native XL v42's `lib/src`) over scumble, so an RN-Skia library ports by rewriting imports — component names and call shapes are identical.
+
+Built from [[packages/skia-compat/src/index.ts]]: the `Skia` namespace ([[packages/skia-compat/src/Skia.ts#Skia]] — PathBuilder/Path factories, `Interpolate` over [[packages/graphics/src/path.ts#Path2D#interpolate]]), `SkPath` wrapping Path2D (per-corner `addRRect`, Canvas-style `arcToOval`), components mapping RN-Skia props onto scumble's (`<Text>` lifts y from baseline to paragraph-top via font ascent; `clip`/DashPathEffect become scumble clip children / `dash` props; Matrix4 transforms pass through untouched — scumble's Group takes the same column-major form), and `useFont`/`matchFont` backed by [[rendering#Font metrics (JS-side measurement)]] (family-name fonts render but cannot measure — the system-font prefetch lane is the follow-up). Deliberately absent: Reanimated/gesture lanes (no Lynx counterpart — the port swaps them), `Skia.FontManager`, JSI-implying APIs. The Victory port plan (W1–W5 breakdown) lives in the package README.
 
 ## Core principle: the native side never parses strings
 

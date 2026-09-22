@@ -5,6 +5,7 @@ import type { ReactNode } from "@lynx-js/react";
 
 import { BlendDemo } from "./BlendDemo";
 import { BiDiDemo } from "./BiDiDemo";
+import { ChartDemo } from "./ChartDemo";
 import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
@@ -172,6 +173,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "RTL · auto 检测 · 混排 · 物理对齐",
     accent: "#f97316",
     render: () => <BiDiDemo />,
+  },
+  {
+    key: "chart",
+    title: "Chart (Victory lane)",
+    subtitle: "skia-compat shim · d3 原样运行 · JS 字体测量 · 点击切换数据",
+    accent: "#22c55e",
+    render: () => <ChartDemo />,
   },
 ];
 
