@@ -90,8 +90,7 @@ export function base64ToBytes(s: string): Uint8Array {
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
     const isPad = c === 61; // '='
-    const isSpace =
-      c === 32 || c === 9 || c === 10 || c === 13; // space, tab, LF, CR
+    const isSpace = c === 32 || c === 9 || c === 10 || c === 13; // space, tab, LF, CR
     if (isPad || isSpace) continue;
     if (B64_VALUES[c] < 0) {
       throw new Error(`base64: invalid character ${JSON.stringify(s[i])} at ${i}`);

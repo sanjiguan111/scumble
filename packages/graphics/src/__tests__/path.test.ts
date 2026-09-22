@@ -321,3 +321,32 @@ describe("Path2D.op → nested PathOpList", () => {
     expect(list.operands(1)!.nestedLength()).toBe(0);
   });
 });
+
+// @lat: [[tests#Graphics parsing layer#Path serialization round-trip]]
+describe("Path2D toDString / fromDString / interpolate", () => {
+  it("round-trips d strings through fromDString and back", () => {
+    expect(Path2D.fromDString("M0 0 L10 10 z").toDString()).toBe("M0 0 L10 10 Z");
+    // Normalization happens on parse: relative folds to absolute, H/V to L.
+    expect(Path2D.fromDString("m0 0 h10 v5").toDString()).toBe("M0 0 L10 0 L10 5");
+    expect(Path2D.fromDString("   ").toDString()).toBe("");
+  });
+
+  it("serializes arcs with delimited flags and op-composed paths to empty", () => {
+    const p = new Path2D().moveTo(10, 5).arcTo(5, 5, 0, false, true, 5, 10);
+    expect(p.toDString()).toBe("M10 5 A5 5 0 0 1 5 10");
+    expect(Path2D.op(CIRCLE, CIRCLE, "union").toDString()).toBe("");
+  });
+
+  it("interpolates matching command structures and nulls on mismatch", () => {
+    const a = Path2D.fromDString("M0 0 L10 10 Z");
+    const b = Path2D.fromDString("M4 4 L2 2 Z");
+    expect(Path2D.interpolate(a, b, 0.5)!.toDString()).toBe("M2 2 L6 6 Z");
+    expect(Path2D.interpolate(a, b, 0)!.toDString()).toBe("M0 0 L10 10 Z");
+    expect(Path2D.interpolate(a, b, 1)!.toDString()).toBe("M4 4 L2 2 Z");
+    const tri = Path2D.fromDString("M0 0 L10 0 L5 5 Z");
+    expect(Path2D.interpolate(a, tri, 0.5)).toBeNull();
+    expect(() => Path2D.interpolate(Path2D.op(CIRCLE, CIRCLE, "union"), a, 0.5)).toThrow(
+      /op-composed/,
+    );
+  });
+});

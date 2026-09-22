@@ -1,0 +1,50 @@
+{
+  "name": "@scumble/skia-compat",
+  "version": "0.1.0",
+  "description": "The @shopify/react-native-skia API surface over scumble: components, the Skia namespace, matrix helpers, and useFont — the adapter layer for porting RN-Skia libraries (Victory Native XL and friends) to Lynx.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc --noEmit && vitest run",
+    "prepublishOnly": "tsc"
+  },
+  "dependencies": {
+    "@scumble/graphics": "workspace:^",
+    "@scumble/react": "workspace:^"
+  },
+  "peerDependencies": {
+    "@lynx-js/react": "*"
+  },
+  "devDependencies": {
+    "@lynx-js/react": "*",
+    "d3-shape": "^3.2.0",
+    "react": "*",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.10"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanjiguan111/scumble.git",
+    "directory": "packages/skia-compat"
+  },
+  "homepage": "https://github.com/sanjiguan111/scumble/tree/develop/packages/skia-compat",
+  "bugs": {
+    "url": "https://github.com/sanjiguan111/scumble/issues"
+  }
+}

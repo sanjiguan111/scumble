@@ -21,6 +21,12 @@ Vitest suites under `packages/graphics/src/__tests__/`, verifying parsers by rou
 
 Details: relative coords, H/V lowering, S/T control-point reflection, implicit repeats, scientific notation, arc flag forms; arcTo flags, addRect, addCircle as four béziers, addPath chaining; `parsePoints` separators; `Path2D.op` null/empty, chained left-fold flattening, right-nesting.
 
+### Path serialization round-trip
+
+`path.test.ts` — `toDString`/`fromDString` serialize the normalized command form back to an SVG `d` string and parse it again; `Path2D.interpolate` morphs two same-structure paths.
+
+Details: compact form (letter glued to first arg, arc flags delimited); normalization applied on parse (relative folds to absolute); op-composed paths serialize to `""`; interpolate lerps args with `a·(1−t)+b·t`, re-quantizes arc flags, nulls on command-structure mismatch, throws on op-composed operands.
+
 ### Corner radii resolution
 
 `radii.test.ts` — `resolveCornerRadii` normalizes the three radii authoring forms shared by `<RRect>` and `<ClipRRect>`.
@@ -86,6 +92,28 @@ Two same-style `<Paint>` children or any paint with its own `opacity` emit ONLY 
 ### Transform resolution
 
 `transform.test.ts` — translate/scale/rotate (degrees, no pivot), 4x4 column-major → 2D affine, op-array left-to-right composition, no transform → undefined; shape transform passthrough.
+
+## Skia compat layer
+
+Vitest suites under `packages/skia-compat/src/__tests__/` (same LEPUS stubs) verifying the RN-Skia adapter surface from [[overview#The skia-compat adapter layer]] — pure mappers are tested directly; fixture numbers shared with the graphics font-metrics suite.
+
+### Skia namespace and path shims
+
+`skia-core.test.ts` — matrix helpers compose column-major; `SkPath`/`PathBuilder` produce the d-strings Victory's lanes build.
+
+Details: `multiply4`/`translate`/`scale`/`rotate` point-mapping; `rrect` caps radii at half the shorter side; `addRRect` walks per-corner elliptical arcs and SKIPS zero-radius corners; `arcToOval` converts Canvas oval-arc form to SVG endpoint arcs (large-sweep flag over 180°, forceMoveTo vs continue); `MakeFromSVGString` round-trips and nulls on blank, including REAL d3-shape `curveMonotoneX` output (semantic round-trip: same command sequence + number stream — d3 comma-glues where toDString spaces); `Path.Interpolate` midpoint and mismatch-null; fillType survives build; `Skia.Color` packs; `SkPaint` setters feed reads.
+
+### Compat component and font mapping
+
+`components.test.tsx` — the exported pure mappers turn RN-Skia props into scumble component props, and `useFont` measures from the fixture binary.
+
+Details: PaintStyle enum → style string; DashPathEffect children extracted to `dash`/`dashOffset`; `paint`-object state under explicit props; `path` prop carries the wrapped Path2D + fillType → fillRule; `p1`/`p2` → x1/y1/x2/y2; Matrix4 passthrough with RN-Skia-only props dropped; ClipDef → scumble clip child props incl. 4-corner radii array; `textPropsToScumble` lifts baseline y by font ascent with measured no-wrap width (fixture: 24px ascent/widths), family-name fonts fall back to a wide box + size lift; `matchFont` on a family name throws guidance on measure.
+
+### Paragraph builder shim
+
+`paragraph-builder.test.ts` — `Skia.ParagraphBuilder` measures multi-line label layout from font metrics.
+
+Details: intrinsic width from measured advances (fixture em-width math); explicit newlines count as lines; heuristic fallback (fontSize·0.6·chars per line) for metrics-less families; built paragraph exposes its spans for the shim's renderer.
 
 ## Native C++ core
 

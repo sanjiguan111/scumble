@@ -22,9 +22,7 @@ extern "C" void napi_module_register_xx(lynx_autolink_napi_module *mod);
   static lynx_autolink_napi_module _module_##modname = {NAPI_MODULE_VERSION, __FILE__, regfunc,    \
                                                         #modname, nullptr};                        \
   void _napi_register_xx_##modname(void) __attribute__((constructor));                             \
-  void _napi_register_xx_##modname(void) {                                                         \
-    napi_module_register_xx(&_module_##modname);                                                   \
-  }                                                                                                \
+  void _napi_register_xx_##modname(void) { napi_module_register_xx(&_module_##modname); }          \
   EXTERN_C_END
 #endif
 

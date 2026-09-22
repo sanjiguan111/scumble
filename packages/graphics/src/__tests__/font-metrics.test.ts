@@ -69,7 +69,14 @@ function headBytes(unitsPerEm: number): Uint8Array {
 
 function hheaBytes(ascent: number, descent: number, lineGap: number, numberOfHMetrics: number) {
   // descent follows the file convention: negative. 38 bytes — through numberOfHMetrics @34.
-  return new Bytes().u32(0x00010000).i16(ascent).i16(descent).i16(lineGap).zeros(28).patch16(34, numberOfHMetrics).out();
+  return new Bytes()
+    .u32(0x00010000)
+    .i16(ascent)
+    .i16(descent)
+    .i16(lineGap)
+    .zeros(28)
+    .patch16(34, numberOfHMetrics)
+    .out();
 }
 
 function maxpBytes(numGlyphs: number): Uint8Array {
@@ -82,10 +89,22 @@ function hmtxBytes(advances: number[]): Uint8Array {
   return b.out();
 }
 
-function os2Bytes(fsSelection: number, typoAscent: number, typoDescent: number, typoLineGap: number) {
+function os2Bytes(
+  fsSelection: number,
+  typoAscent: number,
+  typoDescent: number,
+  typoLineGap: number,
+) {
   // 78 bytes — through sTypoLineGap; the parser only reads fsSelection/@8 and
   // the typo triple at @68.
-  return new Bytes().u16(4).zeros(66).patch16(8, fsSelection).patch16(68, typoAscent).patch16(70, typoDescent).patch16(72, typoLineGap).out();
+  return new Bytes()
+    .u16(4)
+    .zeros(66)
+    .patch16(8, fsSelection)
+    .patch16(68, typoAscent)
+    .patch16(70, typoDescent)
+    .patch16(72, typoLineGap)
+    .out();
 }
 
 interface Segment4 {
@@ -98,7 +117,9 @@ interface Segment4 {
 }
 
 /** Build a cmap with one format-4 subtable per encoding record. */
-function cmap4Bytes(records: Array<{ platform: number; encoding: number; segments: Segment4[] }>): Uint8Array {
+function cmap4Bytes(
+  records: Array<{ platform: number; encoding: number; segments: Segment4[] }>,
+): Uint8Array {
   const subs = records.map(({ segments }) => {
     const segs = [...segments, { start: 0xffff, end: 0xffff, delta: 1 }];
     const n = segs.length;
@@ -180,7 +201,9 @@ function syntheticDeltaFont(): Uint8Array {
     hhea: hheaBytes(800, -200, 100, 2),
     maxp: maxpBytes(8),
     hmtx: hmtxBytes([500, 800]),
-    cmap: cmap4Bytes([{ platform: 3, encoding: 1, segments: [{ start: 0x41, end: 0x44, delta: -64 }] }]),
+    cmap: cmap4Bytes([
+      { platform: 3, encoding: 1, segments: [{ start: 0x41, end: 0x44, delta: -64 }] },
+    ]),
   });
 }
 
@@ -191,7 +214,10 @@ function syntheticDeltaFont(): Uint8Array {
 //   bit 7 (useTypoMetrics) set · numGlyphs 109 · numberOfHMetrics 1
 //   cmap subtables (0,3,4) and (3,1,4) · advances all 1000
 //   gids: H=9 e=32 o=43 !=80 · .notdef advance 1000 · '中' unmapped
-const FONT_URI = readFileSync(new URL("./fixtures/press-start-2p-ascii.data-uri.txt", import.meta.url), "utf8").trim();
+const FONT_URI = readFileSync(
+  new URL("./fixtures/press-start-2p-ascii.data-uri.txt", import.meta.url),
+  "utf8",
+).trim();
 
 // @lat: [[tests#Graphics parsing layer#Font metrics]]
 describe("font metrics — synthetic sfnt", () => {
@@ -212,7 +238,9 @@ describe("font metrics — synthetic sfnt", () => {
         hhea: hheaBytes(800, -200, 0, 6),
         maxp: maxpBytes(6),
         hmtx: hmtxBytes([500, 600, 700, 750, 800, 900]),
-        cmap: cmap4Bytes([{ platform: 3, encoding: 1, segments: [{ start: 0x61, end: 0x63, ids: [3, 0, 5] }] }]),
+        cmap: cmap4Bytes([
+          { platform: 3, encoding: 1, segments: [{ start: 0x61, end: 0x63, ids: [3, 0, 5] }] },
+        ]),
       }),
     );
     expect(m.getGlyphIDs("abc")).toEqual([3, 0, 5]); // 'b' unmapped → .notdef
@@ -240,17 +268,34 @@ describe("font metrics — synthetic sfnt", () => {
   it("uses OS/2 typo metrics only when fsSelection bit 7 is set", () => {
     const withFlag = os2Bytes(0xc0, 700, -250, 50); // 0x80 useTypo | 0x40 italic
     const withoutFlag = os2Bytes(0x40, 700, -250, 50);
-    const base = { head: headBytes(1000), hhea: hheaBytes(800, -200, 100, 1), maxp: maxpBytes(1), hmtx: hmtxBytes([500]), cmap: cmap4Bytes([{ platform: 3, encoding: 1, segments: [{ start: 0x41, end: 0x41, delta: -64 }] }]) };
-    const typo = createFontMetrics(buildSfnt({ ...base, "OS/2": withFlag })).at(10).getVerticalMetrics();
+    const base = {
+      head: headBytes(1000),
+      hhea: hheaBytes(800, -200, 100, 1),
+      maxp: maxpBytes(1),
+      hmtx: hmtxBytes([500]),
+      cmap: cmap4Bytes([
+        { platform: 3, encoding: 1, segments: [{ start: 0x41, end: 0x41, delta: -64 }] },
+      ]),
+    };
+    const typo = createFontMetrics(buildSfnt({ ...base, "OS/2": withFlag }))
+      .at(10)
+      .getVerticalMetrics();
     expect(typo).toEqual({ ascent: 7, descent: 2.5, lineGap: 0.5, lineHeight: 10 });
-    const hhea = createFontMetrics(buildSfnt({ ...base, "OS/2": withoutFlag })).at(10).getVerticalMetrics();
+    const hhea = createFontMetrics(buildSfnt({ ...base, "OS/2": withoutFlag }))
+      .at(10)
+      .getVerticalMetrics();
     expect(hhea).toEqual({ ascent: 8, descent: 2, lineGap: 1, lineHeight: 11 });
     const absent = createFontMetrics(buildSfnt(base)).at(10).getVerticalMetrics();
     expect(absent).toEqual(hhea);
   });
 
   it("prefers (3,1) over (0,3) subtables and rejects symbol-only cmaps", () => {
-    const base = { head: headBytes(1000), hhea: hheaBytes(800, -200, 0, 1), maxp: maxpBytes(1), hmtx: hmtxBytes([500]) };
+    const base = {
+      head: headBytes(1000),
+      hhea: hheaBytes(800, -200, 0, 1),
+      maxp: maxpBytes(1),
+      hmtx: hmtxBytes([500]),
+    };
     const dual = createFontMetrics(
       buildSfnt({
         ...base,
@@ -263,7 +308,9 @@ describe("font metrics — synthetic sfnt", () => {
     expect(dual.getGlyphID(0x41)).toBe(2);
     const symbolOnly = buildSfnt({
       ...base,
-      cmap: cmap4Bytes([{ platform: 3, encoding: 0, segments: [{ start: 0x41, end: 0x41, delta: -64 }] }]),
+      cmap: cmap4Bytes([
+        { platform: 3, encoding: 0, segments: [{ start: 0x41, end: 0x41, delta: -64 }] },
+      ]),
     });
     expect(() => createFontMetrics(symbolOnly)).toThrow(/no supported Unicode cmap/);
   });
@@ -278,7 +325,12 @@ describe("font metrics — synthetic sfnt", () => {
     expect(() => createFontMetrics(new Uint8Array(64))).toThrow(/not an sfnt font/);
     expect(() => createFontMetrics(new Bytes().u32(0x774f4646).zeros(32).out())).toThrow(/WOFF/);
     expect(() => createFontMetrics(new Bytes().u32(0x74746366).zeros(32).out())).toThrow(/TTC/);
-    const noCmap = buildSfnt({ head: headBytes(1000), hhea: hheaBytes(800, -200, 0, 1), maxp: maxpBytes(1), hmtx: hmtxBytes([500]) });
+    const noCmap = buildSfnt({
+      head: headBytes(1000),
+      hhea: hheaBytes(800, -200, 0, 1),
+      maxp: maxpBytes(1),
+      hmtx: hmtxBytes([500]),
+    });
     expect(() => createFontMetrics(noCmap)).toThrow(/missing required table\(s\) cmap/);
     const m = createFontMetrics(syntheticDeltaFont());
     expect(() => m.getGlyphWidthsInUnits([8])).toThrow(/glyph ID 8 outside/);
@@ -316,10 +368,7 @@ describe("font metrics — real font (fontTools-verified)", () => {
     const uri = FONT_URI;
     expect(measureTextWidth(uri, "Hello!", 24)).toBe(144);
     expect(measureTextWidth(uri, "Hello!", 24, { letterSpacing: 2 })).toBe(156);
-    const decoded = Uint8Array.from(
-      atob(uri.slice(uri.indexOf(",") + 1)),
-      (c) => c.charCodeAt(0),
-    );
+    const decoded = Uint8Array.from(atob(uri.slice(uri.indexOf(",") + 1)), (c) => c.charCodeAt(0));
     expect(createFontMetrics(decoded).at(24).measureText("Hello!")).toBe(144);
     expect(createFontMetrics(decoded.buffer).at(24).measureText("Hello!")).toBe(144);
   });

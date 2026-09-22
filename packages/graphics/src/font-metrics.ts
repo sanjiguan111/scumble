@@ -91,7 +91,10 @@ interface SfntTable {
 }
 
 class Reader {
-  constructor(private view: DataView, private tables: Map<string, SfntTable>) {}
+  constructor(
+    private view: DataView,
+    private tables: Map<string, SfntTable>,
+  ) {}
 
   u16(table: SfntTable, at: number): number {
     return this.view.getUint16(this.abs(table, at, 2));
@@ -135,7 +138,9 @@ function parseFontBytes(bytes: Uint8Array): FontMetrics {
   const magic = view.getUint32(0);
   if (magic === 0x774f4646 || magic === 0x774f4632) {
     // 'wOFF' / 'wOF2'
-    throw new Error("font: WOFF/WOFF2 containers are not supported — measure the raw TTF/OTF bytes");
+    throw new Error(
+      "font: WOFF/WOFF2 containers are not supported — measure the raw TTF/OTF bytes",
+    );
   }
   if (magic === 0x74746366) {
     throw new Error("font: TTC collections are not supported — extract a single font first");
@@ -227,8 +232,7 @@ function parseFontBytes(bytes: Uint8Array): FontMetrics {
       return {
         size: fontSize,
         getGlyphIDs: (text) => metrics.getGlyphIDs(text),
-        getGlyphWidths: (glyphIDs) =>
-          glyphIDs.map((gid) => advanceAt(gid) * scale),
+        getGlyphWidths: (glyphIDs) => glyphIDs.map((gid) => advanceAt(gid) * scale),
         measureText: (text, options) => metrics.measureText(text, fontSize, options),
         getVerticalMetrics: vertical,
       };
@@ -397,7 +401,9 @@ function decodeSource(source: FontMetricsSource): Uint8Array {
     );
   }
   if (!/;base64$/i.test(source.slice(0, comma))) {
-    throw new Error("font: data: URI must carry ;base64 (percent-encoded font text is not a font binary)");
+    throw new Error(
+      "font: data: URI must carry ;base64 (percent-encoded font text is not a font binary)",
+    );
   }
   return base64ToBytes(source.slice(comma + 1));
 }

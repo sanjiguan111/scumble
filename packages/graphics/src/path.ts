@@ -39,6 +39,22 @@ const Q = PATH_COMMAND_TYPE.QUAD_TO;
 const A = PATH_COMMAND_TYPE.ARC_TO;
 const Z = PATH_COMMAND_TYPE.CLOSE;
 
+// Op byte → SVG letter, for Path2D#toDString (the normalized absolute form).
+const D_STRING_NAMES: Record<number, string> = {
+  [M]: "M",
+  [L]: "L",
+  [C]: "C",
+  [Q]: "Q",
+  [A]: "A",
+  [Z]: "Z",
+};
+
+/** Number → shortest faithful d-string token (6-decimal cap, −0 normalized). */
+function fmtDNumber(n: number): string {
+  const r = Math.round(n * 1e6) / 1e6;
+  return Object.is(r, -0) ? "0" : String(r);
+}
+
 /**
  * Character-level scanner for SVG path data, interleaved with the parser so arc
  * flags can be consumed as single digits. Malformed runs report "no more data"
@@ -171,20 +187,12 @@ const PATH_OP_KIND = {
 } as const;
 
 /**
- * Parse an SVG path `d` string into a nested PathCommandList FlatBuffer. See
- * the module doc above for the full command set and normalization rules
- * (relative→absolute, H/V→line, S/T control-point reflection, single-digit
- * arc flags).
- *
- * @param d An SVG path data string.
- * @returns PathCommandList FlatBuffer bytes, or `null` if `d` has no commands.
- *
- * @example
- * parsePath("M10 10 L20 20 Z");        // closed triangle, as bytes
- * parsePath("M0 0 a10 10 0 11 20 0");  // arc, concatenated flags (large=1 sweep=1)
- * parsePath("   ");                    // null
+ * Parse an SVG path `d` string into normalized commands — the shared core of
+ * {@link parsePath} (which packs them into bytes) and {@link Path2D.fromDString}
+ * (which replays them into a builder instance). Normalization rules: the
+ * module doc above.
  */
-export function parsePath(d: string): ArrayBuffer | null {
+function parsePathOps(d: string): CmdOp[] {
   const s = new PathScanner(d);
   const ops: CmdOp[] = [];
   let cx = 0,
@@ -435,6 +443,25 @@ export function parsePath(d: string): ArrayBuffer | null {
     }
   }
 
+  return ops;
+}
+
+/**
+ * Parse an SVG path `d` string into a nested PathCommandList FlatBuffer. See
+ * the module doc above for the full command set and normalization rules
+ * (relative→absolute, H/V→line, S/T control-point reflection, single-digit
+ * arc flags).
+ *
+ * @param d An SVG path data string.
+ * @returns PathCommandList FlatBuffer bytes, or `null` if `d` has no commands.
+ *
+ * @example
+ * parsePath("M10 10 L20 20 Z");        // closed triangle, as bytes
+ * parsePath("M0 0 a10 10 0 11 20 0");  // arc, concatenated flags (large=1 sweep=1)
+ * parsePath("   ");                    // null
+ */
+export function parsePath(d: string): ArrayBuffer | null {
+  const ops = parsePathOps(d);
   return ops.length ? buildPathCommandList(ops) : null;
 }
 
@@ -601,6 +628,82 @@ export class Path2D {
   reset(): this {
     this.ops.length = 0;
     return this;
+  }
+
+  /**
+   * Serialize the accumulated commands back to an SVG `d` string — the
+   * already-normalized absolute form (M/L/C/Q/A/Z), no relative commands or
+   * implicit repeats. Round-trips with {@link fromDString} and `parsePath`;
+   * op-composed instances (from {@link op}) carry no commands and serialize
+   * to `""`.
+   *
+   * @example
+   * Path2D.fromDString("M0 0 L10 10 z").toDString();  // "M0 0 L10 10 Z"
+   */
+  toDString(): string {
+    if (this.opSpec) return "";
+    // Compact form: letter glued to its first arg ("M0 0 L10 10 Z"), commands
+    // space-separated — args are space-joined, so arc flags stay delimited.
+    const parts: string[] = [];
+    for (const op of this.ops) {
+      const name = D_STRING_NAMES[op.type];
+      parts.push(op.args.length ? name + op.args.map(fmtDNumber).join(" ") : name);
+    }
+    return parts.join(" ");
+  }
+
+  /**
+   * Parse an SVG `d` string into a Path2D — the builder counterpart of
+   * {@link parsePath} (same normalization: relative→absolute, H/V→L,
+   * S/T reflection, concatenated arc flags). Useful for round-tripping
+   * {@link toDString} output and for adopting d strings (d3-shape output)
+   * into command-style code.
+   *
+   * @example
+   * Path2D.fromDString(d3.line()(points)!).lineTo(0, 0);
+   */
+  static fromDString(d: string): Path2D {
+    const p = new Path2D();
+    p.ops.push(...parsePathOps(d));
+    return p;
+  }
+
+  /**
+   * Interpolate two paths towards each other (Skia `SkPath::interpolate`
+   * semantics): `a·(1−t) + b·t`, command-by-command — coordinates and
+   * control points lerp linearly. Both paths must have the SAME command
+   * sequence (same types in the same order, `SkPath` returns the same
+   * failure); otherwise `null`. Arc flags are re-quantized (never a
+   * fractional 0.5 sweep). Op-composed operands throw — a lazy composition
+   * has no commands to walk.
+   *
+   * NOTE for Victory-native ports: victory's `interpolatePath` hook calls
+   * `Interpolate(to, from, t)` while its comment claims the opposite
+   * weighting; this implementation follows Skia's documented instance-method
+   * semantics — flip the argument order after visual verification, not the
+   * math here.
+   *
+   * @example
+   * const mid = Path2D.interpolate(prev, next, 0.5);
+   */
+  static interpolate(a: Path2D, b: Path2D, t: number): Path2D | null {
+    if (a.opSpec || b.opSpec) {
+      throw new Error("Path2D.interpolate: op-composed paths carry no commands");
+    }
+    if (a.ops.length !== b.ops.length) return null;
+    const out = new Path2D();
+    for (let i = 0; i < a.ops.length; i++) {
+      const oa = a.ops[i]!;
+      const ob = b.ops[i]!;
+      if (oa.type !== ob.type) return null;
+      const args = oa.args.map((v, k) => {
+        const mixed = v * (1 - t) + ob.args[k]! * t;
+        // Arc large/sweep flags must stay 0/1 (indexes 3 and 4 of ARC_TO).
+        return oa.type === A && (k === 3 || k === 4) ? Math.round(mixed) : mixed;
+      });
+      out.ops.push({ type: oa.type, args });
+    }
+    return out;
   }
 
   /**
