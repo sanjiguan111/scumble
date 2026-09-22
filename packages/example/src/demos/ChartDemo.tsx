@@ -17,6 +17,13 @@
 //     replacement — setInterval, rAF is dead on the iOS Lynx runtime) drives
 //     t, each frame morphs line/area/markers via Skia.Path.Interpolate
 //     (both datasets are 12-point monotoneX, so command structures match).
+//
+// W4 gestures: a drag scrubs the series — Gesture.Pan (RNGH active/fail
+// offset windows) over Lynx touch events, touch px → viewPort logical units
+// via the detector view's measured width (bindlayoutchange), cursor +
+// highlight + value bubble all through the shim components. Tap (dataset
+// swap) still works: a tap is a pan that never activates, and Lynx tap
+// events bubble to the outer view.
 
 import { useEffect, useMemo, useState } from "@lynx-js/react";
 import { createAnimation } from "@scumble/react";
@@ -27,6 +34,8 @@ import {
   Canvas,
   DashPathEffect,
   Easing,
+  GestureDetector,
+  Gesture,
   Group,
   Line,
   Path,
@@ -178,6 +187,65 @@ export function ChartDemo() {
     tween.start({ duration: MORPH_MS, easing: Easing.easeInOutCubic });
   };
 
+  // --- W4: drag-to-scrub over the RNGH-shaped pan ---
+  // The detector view wraps exactly the canvas, so its touch x/y scale to
+  // logical units with W / measuredPxWidth (bindlayoutchange below).
+  const [pressIndex, setPressIndex] = useState<number | null>(null);
+  const [widthPx, setWidthPx] = useState(0);
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-6, 6])
+        .failOffsetY([-24, 24])
+        .onUpdate((e) => {
+          if (widthPx <= 0) return;
+          const logicalX = (e.x * W) / widthPx;
+          const x0 = target.x(0) ?? 0;
+          const x1 = target.x(DATASETS[which].values.length - 1) ?? W;
+          const step = (x1 - x0) / (DATASETS[which].values.length - 1);
+          const i = Math.round((logicalX - x0) / step);
+          setPressIndex(Math.max(0, Math.min(DATASETS[which].values.length - 1, i)));
+        })
+        .onEnd(() => setPressIndex(null))
+        .onFinalize(() => setPressIndex(null)),
+    [widthPx, which, target],
+  );
+
+  // The scrub cursor: vertical line + enlarged marker + value bubble, all
+  // through the shim (bubble geometry from JS-measured text width).
+  const values = DATASETS[which].values;
+  const cursor =
+    pressIndex !== null
+      ? (() => {
+          const cx = target.x(pressIndex) ?? 0;
+          const cy = target.y(values[pressIndex]!) ?? 0;
+          const label = `${values[pressIndex]}`;
+          const textW = font.measureText(label);
+          const bubbleW = textW + 12;
+          const bubbleX = Math.max(plot.x, Math.min(cx - bubbleW / 2, plot.x + plot.w - bubbleW));
+          const bubbleY = Math.max(plot.y, cy - 34);
+          const bubble = Skia.PathBuilder.Make();
+          bubble.addRRect({
+            rect: { x: bubbleX, y: bubbleY, width: bubbleW, height: 18 },
+            topLeft: { x: 4, y: 4 },
+            topRight: { x: 4, y: 4 },
+            bottomRight: { x: 4, y: 4 },
+            bottomLeft: { x: 4, y: 4 },
+          });
+          const dot = Skia.PathBuilder.Make();
+          dot.addCircle(cx, cy, 4.5);
+          return {
+            cx,
+            cy,
+            label,
+            bubble: bubble.build(),
+            dot: dot.build(),
+            labelX: bubbleX + 6,
+            labelY: bubbleY + 9,
+          };
+        })()
+      : null;
+
   const baseline = plot.y + plot.h;
 
   return (
@@ -189,74 +257,104 @@ export function ChartDemo() {
           Chart — Victory lane (skia-compat + d3)
         </text>
         <text style={{ fontSize: "12px", color: "#6b7280", lineHeight: "18px" }}>
-          d3 原样运行 · 入场描线 = 渲染线程 trim 动画(零 JS)· 点击切换数据 = useTween +
-          Path.Interpolate 逐帧 morph
+          d3 原样运行 · 入场描线 = 渲染线程 trim(零 JS)· 点击切换 = 逐帧 morph · 横向拖动 = scrub
+          读数(手势层)
         </text>
         <view bindtap={swap}>
-          <Canvas
-            style={{ width: "100%", height: 260 }}
-            viewPort={{ x: 0, y: 0, width: W, height: H }}
-          >
-            {/* Plot area — clip keeps the monotone curve inside its gutter box. */}
-            <Group clip={{ rect: [plot.x, plot.y, plot.w, plot.h] }}>
-              <Path path={series.area} color={target.color} opacity={0.15} />
-              <Path
-                path={series.line}
-                color={target.color}
-                style="stroke"
-                strokeWidth={2.5}
-                animate={drewIn ? undefined : DRAW_IN}
-              />
-              <Path path={series.markers} color={target.color} />
-            </Group>
+          <GestureDetector gesture={pan} style={{ width: "100%" }}>
+            <view
+              style={{ width: "100%" }}
+              bindlayoutchange={(e: { detail?: { width?: number }; params?: { width?: number } }) =>
+                setWidthPx(e.detail?.width ?? e.params?.width ?? 0)
+              }
+            >
+              <Canvas
+                style={{ width: "100%", height: 260 }}
+                viewPort={{ x: 0, y: 0, width: W, height: H }}
+              >
+                {/* Plot area — clip keeps the monotone curve inside its gutter box. */}
+                <Group clip={{ rect: [plot.x, plot.y, plot.w, plot.h] }}>
+                  <Path path={series.area} color={target.color} opacity={0.15} />
+                  <Path
+                    path={series.line}
+                    color={target.color}
+                    style="stroke"
+                    strokeWidth={2.5}
+                    animate={drewIn ? undefined : DRAW_IN}
+                  />
+                  <Path path={series.markers} color={target.color} />
+                </Group>
 
-            {/* Grid: dashed lines via the DashPathEffect child lane. */}
-            {target.ticks.map((tt) =>
-              tt === 0 ? null : (
+                {/* Grid: dashed lines via the DashPathEffect child lane. */}
+                {target.ticks.map((tt) =>
+                  tt === 0 ? null : (
+                    <Line
+                      key={`g${tt}`}
+                      p1={{ x: plot.x, y: target.y(tt) ?? 0 }}
+                      p2={{ x: plot.x + plot.w, y: target.y(tt) ?? 0 }}
+                      color="#e5e7eb"
+                      strokeWidth={1}
+                    >
+                      <DashPathEffect intervals={[3, 4]} />
+                    </Line>
+                  ),
+                )}
+
+                {/* Baseline axis (solid). */}
                 <Line
-                  key={`g${tt}`}
-                  p1={{ x: plot.x, y: target.y(tt) ?? 0 }}
-                  p2={{ x: plot.x + plot.w, y: target.y(tt) ?? 0 }}
-                  color="#e5e7eb"
-                  strokeWidth={1}
-                >
-                  <DashPathEffect intervals={[3, 4]} />
-                </Line>
-              ),
-            )}
+                  p1={{ x: plot.x, y: baseline }}
+                  p2={{ x: plot.x + plot.w, y: baseline }}
+                  color="#9ca3af"
+                  strokeWidth={1.5}
+                />
 
-            {/* Baseline axis (solid). */}
-            <Line
-              p1={{ x: plot.x, y: baseline }}
-              p2={{ x: plot.x + plot.w, y: baseline }}
-              color="#9ca3af"
-              strokeWidth={1.5}
-            />
+                {/* Y labels: right-aligned against the measured gutter (baseline y). */}
+                {target.ticks.map((tt, i) => (
+                  <Text
+                    key={`y${tt}-${i}`}
+                    x={margin.left - 8 - font.measureText(`${tt}`)}
+                    y={(target.y(tt) ?? 0) + 3}
+                    text={`${tt}`}
+                    color="#6b7280"
+                    font={font}
+                  />
+                ))}
 
-            {/* Y labels: right-aligned against the measured gutter (baseline y). */}
-            {target.ticks.map((tt, i) => (
-              <Text
-                key={`y${tt}-${i}`}
-                x={margin.left - 8 - font.measureText(`${tt}`)}
-                y={(target.y(tt) ?? 0) + 3}
-                text={`${tt}`}
-                color="#6b7280"
-                font={font}
-              />
-            ))}
+                {/* X labels: month initials under each point. */}
+                {MONTHS.map((m, i) => (
+                  <Text
+                    key={`x${i}`}
+                    x={(target.x(i) ?? 0) - 5}
+                    y={baseline + 16}
+                    text={m}
+                    color="#6b7280"
+                    font={font}
+                  />
+                ))}
 
-            {/* X labels: month initials under each point. */}
-            {MONTHS.map((m, i) => (
-              <Text
-                key={`x${i}`}
-                x={(target.x(i) ?? 0) - 5}
-                y={baseline + 16}
-                text={m}
-                color="#6b7280"
-                font={font}
-              />
-            ))}
-          </Canvas>
+                {/* W4 scrub cursor: line + enlarged dot + value bubble (topmost). */}
+                {cursor && (
+                  <Group>
+                    <Line
+                      p1={{ x: cursor.cx, y: plot.y }}
+                      p2={{ x: cursor.cx, y: baseline }}
+                      color="#3b82f6"
+                      strokeWidth={1}
+                    />
+                    <Path path={cursor.dot} color="#3b82f6" />
+                    <Path path={cursor.bubble} color="#1f2937" opacity={0.92} />
+                    <Text
+                      x={cursor.labelX}
+                      y={cursor.labelY}
+                      text={cursor.label}
+                      color="#ffffff"
+                      font={font}
+                    />
+                  </Group>
+                )}
+              </Canvas>
+            </view>
+          </GestureDetector>
         </view>
       </view>
     </view>

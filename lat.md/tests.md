@@ -121,6 +121,18 @@ Details: intrinsic width from measured advances (fixture em-width math); explici
 
 Details: `tweenValue` progresses with the easing and clamps to [0,1] on both sides; zero/negative/non-finite durations complete instantly; easing presets match the standard cubic curves (easeInOutCubic point-symmetric about its 0.5 knot); `Skia.Path.Interpolate` morphs two REAL d3 monotoneX series across ChartDemo's datasets — matched command structures by construction, midpoint coordinate asserted (58 vs 40 → 49).
 
+### Pan recognizer state machine
+
+`gesture.test.ts` — the RNGH-semantics pan: offset windows, fail-beats-activate, long-press arming, default min distance, tap finalize.
+
+Details: number window is [−V, V] with an inclusive boundary, array form explicit (one-sided windows); activation past activeOffsetX streams onUpdate with translation/x/numberOfPointers then onEnd(END)+onFinalize on touchup; failOffsetY fails a vertical drag BEFORE X activation (FAILED finalizes, state resets to UNDETERMINED); activateAfterLongPress arms a timer that activates within the 10px slop and a slop-exceeding move fails it (late timer is a no-op); without active axes the default 10px euclidean min-distance activates; a no-activation tap finalizes FAILED without onEnd; builders capture config/callbacks chainably and minDistance is superseded by an explicit active-axis window.
+
+### Pinch recognizer and detector wiring
+
+`gesture.test.ts` — two-pointer scale/focal tracking and the GestureDetector runtime flattening.
+
+Details: pinch begins at scale 1 with the focal midpoint, scales by distance ratio, and lifts (END → UNDETERMINED) when a pointer drops; `buildRuntime` flattens bare builders, Race (flagged, first-activation cancels the rest), Simultaneous, and nested compositions (a nested Race still arbitrates).
+
 ## Native C++ core
 
 Host-side gtest suites under `packages/native/tests/` — run on the desktop, no device or GPU surface needed.

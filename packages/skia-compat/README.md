@@ -48,8 +48,9 @@ Rect|Interpolate`, `XYWHRect`, `Color`, `Paint`, `ParagraphBuilder`,
 
 ## Deliberately absent
 
-- **Reanimated and gesture-handler lanes** — no Lynx counterpart; the port
-  swaps them (JS state + Lynx touch events). See the Victory port plan below.
+- **Reanimated worklets** — no Lynx counterpart; the port swaps them for JS
+  state + `useTween`. (The gesture layer is NOT absent — see
+  `Gesture`/`GestureDetector` and W4 below.)
 - **`Skia.FontManager` / system-font matching** — measuring platform system
   fonts needs the skity table-prefetch lane (not built); bundle fonts.
 - JSI-implying APIs (vertices, pictures, snapshots, pixel readback) — no
@@ -69,8 +70,18 @@ Rect|Interpolate`, `XYWHRect`, `Color`, `Paint`, `ParagraphBuilder`,
   live in ChartDemo's dataset swap; first-mount draw-in rides scumble's
   render-thread trim via the shim's `animate` passthrough). A port still
   rewrites Victory's own hooks — worklets have no Lynx counterpart.
-- **W4 — gesture layer**: Pan recognizer (activeOffset/failOffset/
-  activateAfterLongPress) + Pinch over Lynx touch events.
+- **W4 — gesture layer** ✅ recognizer lane shipped: RNGH-shaped
+  `Gesture.Pan()/Pinch()/Race()/Simultaneous()` builders over pure
+  recognizers (offset windows with fail-beats-activate,
+  activateAfterLongPress with a 10px slop, default 10px min distance) —
+  fully unit-tested, including the Lynx event shape (`touches` is a
+  TOP-LEVEL event property, not under `detail` — regression-locked).
+  `<GestureDetector>` rides Lynx touch events (ref-held runtime, race
+  arbitration; coordinates ELEMENT-LOCAL px). ⚠️ OPEN device issue:
+  ChartDemo's drag-to-scrub still does not respond on device after the
+  touches fix — touch delivery through the canvas view tree needs
+  on-device diagnosis (whether bindtouchmove fires there at all). The
+  recognizer lane itself is unaffected; scrub is parked as low-priority.
 - **W5 — fork & publish** as `@scumble/victory-native` (MIT upstream).
 - **W1.5 — system-font prefetch** (optional): skity `Typeface::GetTableData`
   over the invoke+event lane, feeding the same `createFontMetrics`.

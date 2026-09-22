@@ -38,6 +38,13 @@ export {
 } from "./components/Path.js";
 export { Line, linePropsToScumble, type ShimLineProps } from "./components/Line.js";
 export { Text, textPropsToScumble, type ShimTextProps } from "./components/Text.js";
+export {
+  GestureDetector,
+  buildRuntime,
+  toPointers,
+  type GestureDetectorProps,
+  type LynxTouchEvent,
+} from "./components/GestureDetector.js";
 export { DashPathEffect } from "./components/DashPathEffect.js";
 
 // ---- imperative namespace ----
@@ -62,6 +69,22 @@ export {
   type TweenEasing,
   type TweenOptions,
 } from "./useTween.js";
+export {
+  Gesture,
+  GestureState,
+  PanRecognizer,
+  PinchRecognizer,
+  outsideWindow,
+  type GestureComposition,
+  type GesturePointer,
+  type OffsetWindow,
+  type PanConfig,
+  type PanGestureBuilder,
+  type PanGestureEvent,
+  type PinchCallbacks,
+  type PinchGestureBuilder,
+  type PinchGestureEvent,
+} from "./gesture.js";
 
 // ---- math + types ----
 export { vec, rect, rrect, translate, scale, rotate, multiply4, identity4 } from "./math.js";
