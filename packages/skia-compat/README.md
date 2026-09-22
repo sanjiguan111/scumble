@@ -63,8 +63,12 @@ Rect|Interpolate`, `XYWHRect`, `Color`, `Paint`, `ParagraphBuilder`,
 - **Vertical slice** ✅ — `packages/example/src/demos/ChartDemo.tsx`: a line
   chart with d3 running unmodified, every visual element through the shim,
   y-label gutters measured in JS (tap to swap datasets).
-- **W3 — Reanimated swap**: `useSharedValue` → plain state; data transitions
-  via scumble's declarative animations (render-thread interpolation).
+- **W3 — Reanimated swap** ✅ building blocks shipped: `useTween` (the
+  `withTiming` replacement — setInterval-driven, rAF is dead on the iOS Lynx
+  runtime) + the per-frame morph pattern (`useTween` + `Skia.Path.Interpolate`,
+  live in ChartDemo's dataset swap; first-mount draw-in rides scumble's
+  render-thread trim via the shim's `animate` passthrough). A port still
+  rewrites Victory's own hooks — worklets have no Lynx counterpart.
 - **W4 — gesture layer**: Pan recognizer (activeOffset/failOffset/
   activateAfterLongPress) + Pinch over Lynx touch events.
 - **W5 — fork & publish** as `@scumble/victory-native` (MIT upstream).

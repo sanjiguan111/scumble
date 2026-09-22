@@ -19,6 +19,14 @@ export interface ShimPathProps extends ShimShapeProps {
   path: SkPath | string;
   start?: number;
   end?: number;
+  /**
+   * scumble EXTENSION (no RN-Skia counterpart): a declarative animation spec
+   * from `createAnimation` — rides the render thread (zero JS per frame).
+   * Animatable path lanes there: `pathStart`/`pathEnd` (trim draw-in) and
+   * stroke/fill color; path MORPH has no track and stays JS-driven
+   * (`useTween` + `Skia.Path.Interpolate`).
+   */
+  animate?: Parameters<typeof ScumblePath>[0]["animate"];
 }
 
 /** fillType byte → scumble fillRule string ("nonzero" default omitted). */

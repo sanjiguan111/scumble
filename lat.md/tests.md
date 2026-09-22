@@ -115,6 +115,12 @@ Details: PaintStyle enum → style string; DashPathEffect children extracted to 
 
 Details: intrinsic width from measured advances (fixture em-width math); explicit newlines count as lines; heuristic fallback (fontSize·0.6·chars per line) for metrics-less families; built paragraph exposes its spans for the shim's renderer.
 
+### Tween core and morph lane
+
+`use-tween.test.ts` — the pure half of the `useTween` Reanimated replacement plus the per-frame morph consumer.
+
+Details: `tweenValue` progresses with the easing and clamps to [0,1] on both sides; zero/negative/non-finite durations complete instantly; easing presets match the standard cubic curves (easeInOutCubic point-symmetric about its 0.5 knot); `Skia.Path.Interpolate` morphs two REAL d3 monotoneX series across ChartDemo's datasets — matched command structures by construction, midpoint coordinate asserted (58 vs 40 → 49).
+
 ## Native C++ core
 
 Host-side gtest suites under `packages/native/tests/` — run on the desktop, no device or GPU surface needed.

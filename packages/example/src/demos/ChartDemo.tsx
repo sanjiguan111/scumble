@@ -10,22 +10,31 @@
 //   skia-compat shim      → SkPath/PathBuilder, Path/Line/Text/Group, useFont
 //   font metrics (W2)     → y-label gutter width measured in JS, right-aligned labels
 //
-// Tap the chart to swap datasets (the re-render lane — every d-string,
-// builder path, and label re-resolves through one layout-pass flush).
+// W3 transitions, both lanes a port needs:
+//   - FIRST MOUNT draw-in rides scumble's declarative trim animation — the
+//     render thread interpolates pathEnd 0→1, zero JS per frame.
+//   - Tap swaps datasets with a path MORPH: useTween (the withTiming
+//     replacement — setInterval, rAF is dead on the iOS Lynx runtime) drives
+//     t, each frame morphs line/area/markers via Skia.Path.Interpolate
+//     (both datasets are 12-point monotoneX, so command structures match).
 
-import { useState } from "@lynx-js/react";
+import { useEffect, useMemo, useState } from "@lynx-js/react";
+import { createAnimation } from "@scumble/react";
 import { scaleLinear, scalePoint } from "d3-scale";
 import { area, curveMonotoneX, line } from "d3-shape";
 
 import {
   Canvas,
   DashPathEffect,
+  Easing,
   Group,
   Line,
   Path,
   Skia,
   Text,
   useFont,
+  useTween,
+  type SkPath,
 } from "@scumble/skia-compat";
 
 import { PRESS_START_2P } from "./fontData";
@@ -49,20 +58,82 @@ const DATASETS = {
 const W = 360;
 const H = 240;
 
+// First-mount draw-in: render-thread trim, zero JS per frame.
+const DRAW_IN = createAnimation({
+  property: "pathEnd",
+  from: 0,
+  to: 1,
+  duration: 900,
+  easing: "ease-out",
+});
+
+const MORPH_MS = 450;
+
+/** Everything derived from one dataset — rebuilt on tap, morphed per frame. */
+function seriesOf(
+  values: readonly number[],
+  color: string,
+  plot: { x: number; y: number; w: number; h: number },
+) {
+  const x = scalePoint<number>()
+    .domain(values.map((_, i) => i))
+    .range([plot.x + plot.w / 24, plot.x + plot.w - plot.w / 24]);
+  const y = scaleLinear()
+    .domain([0, Math.max(...values)])
+    .range([plot.y + plot.h, plot.y])
+    .nice();
+  const lineD =
+    line<number>()
+      .x((_, i) => x(i) ?? 0)
+      .y((v) => y(v) ?? 0)
+      .curve(curveMonotoneX)(values) ?? "";
+  const areaD =
+    area<number>()
+      .x((_, i) => x(i) ?? 0)
+      .y0(() => y(0) ?? 0)
+      .y1((v) => y(v) ?? 0)
+      .curve(curveMonotoneX)(values) ?? "";
+  const markers = Skia.PathBuilder.Make();
+  values.forEach((v, i) => markers.addCircle(x(i) ?? 0, y(v) ?? 0, 3));
+  return {
+    color,
+    x,
+    y,
+    ticks: y.ticks(4),
+    line: Skia.Path.MakeFromSVGString(lineD)!,
+    area: Skia.Path.MakeFromSVGString(areaD)!,
+    markers: markers.build(),
+  };
+}
+
+type Series = ReturnType<typeof seriesOf>;
+
 export function ChartDemo() {
   const [which, setWhich] = useState<"revenue" | "costs">("revenue");
-  const set = DATASETS[which];
   const font = useFont(PRESS_START_2P, 10);
+  const tween = useTween(1);
+  // The morph SOURCE series (captured at tap time, mid-flight included).
+  const [morphFrom, setMorphFrom] = useState<Series | null>(null);
+  // Trim draw-in only for the first mount: the morph churns the path prop
+  // every frame afterwards, and a persistent animate would risk re-running
+  // the trim on each update.
+  const [drewIn, setDrewIn] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setDrewIn(true), 900);
+    return () => clearTimeout(id);
+  }, []);
 
   // --- the W2 payoff: measure the y labels in JS and derive the gutter ---
   // ticks() depends on the domain only, so a provisional scale settles the
   // tick values (and thus the label widths) before the plot box exists.
-  const yMax = Math.max(...set.values);
-  const yTicks = scaleLinear().domain([0, yMax]).nice().ticks(4);
-  const tickTexts = yTicks.map((t) => `${t}`);
+  const yMax = Math.max(...DATASETS[which].values);
+  const tickTexts = scaleLinear()
+    .domain([0, yMax])
+    .nice()
+    .ticks(4)
+    .map((t) => `${t}`);
   const gutter = Math.max(...tickTexts.map((t) => font.measureText(t))) + 10;
   const margin = { top: 12, right: 12, bottom: 22, left: gutter };
-
   const plot = {
     x: margin.left,
     y: margin.top,
@@ -70,32 +141,42 @@ export function ChartDemo() {
     h: H - margin.top - margin.bottom,
   };
 
-  // --- d3 runs unmodified: the scales and d-string generators ---
-  const x = scalePoint<number>()
-    .domain(set.values.map((_, i) => i))
-    .range([plot.x + plot.w / 24, plot.x + plot.w - plot.w / 24]);
-  const y = scaleLinear()
-    .domain([0, yMax])
-    .range([plot.y + plot.h, plot.y])
-    .nice();
+  const target = useMemo(
+    () => seriesOf(DATASETS[which].values, DATASETS[which].color, plot),
+    [which, gutter], // plot derives from gutter deterministically
+  );
 
-  const lineD =
-    line<number>()
-      .x((_, i) => x(i) ?? 0)
-      .y((v) => y(v) ?? 0)
-      .curve(curveMonotoneX)(set.values) ?? "";
+  const t = tween.value;
+  const morphing = morphFrom !== null && t < 1;
+  // Per-frame morph: same command structures (12-pt monotoneX / 12 circles),
+  // so Interpolate never nulls in practice; the fallback snaps anyway.
+  const mix = (from: SkPath, to: SkPath): SkPath =>
+    morphing ? (Skia.Path.Interpolate(from, to, t) ?? to) : to;
+  const series =
+    morphing && morphFrom
+      ? {
+          ...target,
+          line: mix(morphFrom.line, target.line),
+          area: mix(morphFrom.area, target.area),
+          markers: mix(morphFrom.markers, target.markers),
+        }
+      : target;
 
-  const areaD =
-    area<number>()
-      .x((_, i) => x(i) ?? 0)
-      .y0(() => y(0) ?? 0)
-      .y1((v) => y(v) ?? 0)
-      .curve(curveMonotoneX)(set.values) ?? "";
-
-  // --- the RN-Skia imperative lane: markers via PathBuilder ---
-  const markers = Skia.PathBuilder.Make();
-  set.values.forEach((v, i) => markers.addCircle(x(i) ?? 0, y(v) ?? 0, 3));
-  const markersPath = markers.build();
+  const swap = () => {
+    // Capture what is VISIBLE right now (mid-flight included) as the source.
+    const from =
+      morphing && morphFrom
+        ? {
+            ...target,
+            line: mix(morphFrom.line, target.line),
+            area: mix(morphFrom.area, target.area),
+            markers: mix(morphFrom.markers, target.markers),
+          }
+        : target;
+    setMorphFrom(from);
+    setWhich(which === "revenue" ? "costs" : "revenue");
+    tween.start({ duration: MORPH_MS, easing: Easing.easeInOutCubic });
+  };
 
   const baseline = plot.y + plot.h;
 
@@ -108,28 +189,34 @@ export function ChartDemo() {
           Chart — Victory lane (skia-compat + d3)
         </text>
         <text style={{ fontSize: "12px", color: "#6b7280", lineHeight: "18px" }}>
-          d3-scale/shape 原样运行 · RN-Skia API shim 渲染 · y 轴留白由 JS 字体测量得出 ·
-          点击切换数据集
+          d3 原样运行 · 入场描线 = 渲染线程 trim 动画(零 JS)· 点击切换数据 = useTween +
+          Path.Interpolate 逐帧 morph
         </text>
-        <view bindtap={() => setWhich(which === "revenue" ? "costs" : "revenue")}>
+        <view bindtap={swap}>
           <Canvas
             style={{ width: "100%", height: 260 }}
             viewPort={{ x: 0, y: 0, width: W, height: H }}
           >
             {/* Plot area — clip keeps the monotone curve inside its gutter box. */}
             <Group clip={{ rect: [plot.x, plot.y, plot.w, plot.h] }}>
-              <Path path={areaD} color={set.color} opacity={0.15} />
-              <Path path={lineD} color={set.color} style="stroke" strokeWidth={2.5} />
-              <Path path={markersPath} color={set.color} />
+              <Path path={series.area} color={target.color} opacity={0.15} />
+              <Path
+                path={series.line}
+                color={target.color}
+                style="stroke"
+                strokeWidth={2.5}
+                animate={drewIn ? undefined : DRAW_IN}
+              />
+              <Path path={series.markers} color={target.color} />
             </Group>
 
             {/* Grid: dashed lines via the DashPathEffect child lane. */}
-            {yTicks.map((t) =>
-              t === 0 ? null : (
+            {target.ticks.map((tt) =>
+              tt === 0 ? null : (
                 <Line
-                  key={`g${t}`}
-                  p1={{ x: plot.x, y: y(t) ?? 0 }}
-                  p2={{ x: plot.x + plot.w, y: y(t) ?? 0 }}
+                  key={`g${tt}`}
+                  p1={{ x: plot.x, y: target.y(tt) ?? 0 }}
+                  p2={{ x: plot.x + plot.w, y: target.y(tt) ?? 0 }}
                   color="#e5e7eb"
                   strokeWidth={1}
                 >
@@ -147,12 +234,12 @@ export function ChartDemo() {
             />
 
             {/* Y labels: right-aligned against the measured gutter (baseline y). */}
-            {yTicks.map((t, i) => (
+            {target.ticks.map((tt, i) => (
               <Text
-                key={`y${t}-${i}`}
-                x={margin.left - 8 - font.measureText(tickTexts[i] ?? "")}
-                y={(y(t) ?? 0) + 3}
-                text={tickTexts[i] ?? ""}
+                key={`y${tt}-${i}`}
+                x={margin.left - 8 - font.measureText(`${tt}`)}
+                y={(target.y(tt) ?? 0) + 3}
+                text={`${tt}`}
                 color="#6b7280"
                 font={font}
               />
@@ -162,7 +249,7 @@ export function ChartDemo() {
             {MONTHS.map((m, i) => (
               <Text
                 key={`x${i}`}
-                x={(x(i) ?? 0) - 5}
+                x={(target.x(i) ?? 0) - 5}
                 y={baseline + 16}
                 text={m}
                 color="#6b7280"

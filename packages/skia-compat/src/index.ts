@@ -54,6 +54,14 @@ export {
   type SkFont,
   type SkPaint,
 } from "./useFont.js";
+export {
+  useTween,
+  tweenValue,
+  Easing,
+  type TweenController,
+  type TweenEasing,
+  type TweenOptions,
+} from "./useTween.js";
 
 // ---- math + types ----
 export { vec, rect, rrect, translate, scale, rotate, multiply4, identity4 } from "./math.js";

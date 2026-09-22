@@ -680,8 +680,9 @@ export class Path2D {
    * NOTE for Victory-native ports: victory's `interpolatePath` hook calls
    * `Interpolate(to, from, t)` while its comment claims the opposite
    * weighting; this implementation follows Skia's documented instance-method
-   * semantics — flip the argument order after visual verification, not the
-   * math here.
+   * semantics — VERIFIED on device (2026-09-22, ChartDemo's dataset morph:
+   * interpolate(prev, next, t) with t 0→1 travels old→new correctly, no
+   * argument flip needed).
    *
    * @example
    * const mid = Path2D.interpolate(prev, next, 0.5);
