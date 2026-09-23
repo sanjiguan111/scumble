@@ -59,4 +59,13 @@ deps = {
         "ignore_in_git": True,
         "tag": "v3.0.0",
     },
+    # Victory Native XL — the chart library ported onto scumble via
+    # @scumble/skia-compat (packages/victory-native is the wrapper: shims +
+    # codemod; its src/ is GENERATED from this tree, never hand-edited).
+    'packages/victory-native/upstream': {
+        "type": "git",
+        "url": "https://github.com/FormidableLabs/victory-native-xl.git",
+        "ignore_in_git": True,
+        "tag": "victory-native@42.0.1",
+    },
 }

@@ -82,7 +82,10 @@ Rect|Interpolate`, `XYWHRect`, `Color`, `Paint`, `ParagraphBuilder`,
   touches fix — touch delivery through the canvas view tree needs
   on-device diagnosis (whether bindtouchmove fires there at all). The
   recognizer lane itself is unaffected; scrub is parked as low-priority.
-- **W5 — fork & publish** as `@scumble/victory-native` (MIT upstream).
+- **W5 — fork & publish** ✅ adapted & device-verified: the "fork" shipped
+  as habitat-upstream + codemod + shims (`@scumble/victory-native`, zero
+  upstream changes; upstream's 252-case suite green; a real CartesianChart
+  renders on device). npm publishing remains optional follow-up.
 - **W1.5 — system-font prefetch** (optional): skity `Typeface::GetTableData`
   over the invoke+event lane, feeding the same `createFontMetrics`.
 

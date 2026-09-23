@@ -1,0 +1,64 @@
+{
+  "name": "@scumble/victory-native",
+  "version": "42.0.1-scumble.0",
+  "description": "Victory Native XL (FormidableLabs, MIT) over scumble: the upstream tree is hab-synced (DEPS.py) and import-codemodded onto @scumble/skia-compat at vendor time; Reanimated/gesture-handler/RN run through Lynx shims. Zero upstream code changes.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src",
+    "shims",
+    "dist",
+    "scripts",
+    "NOTICE.md",
+    "README.md"
+  ],
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "build": "node scripts/vendor.mjs && rm -rf dist && tsc -p tsconfig.build.json --noCheck",
+    "typecheck": "node scripts/vendor.mjs && tsc --noEmit",
+    "test": "node scripts/vendor.mjs && vitest run"
+  },
+  "dependencies": {
+    "@scumble/skia-compat": "workspace:*",
+    "@types/react": "^18.3.28",
+    "d3-scale": "^4.0.2",
+    "d3-shape": "^3.2.0",
+    "d3-zoom": "^3.0.0",
+    "its-fine": "^1.2.5",
+    "react-fast-compare": "^3.2.2"
+  },
+  "peerDependencies": {
+    "@lynx-js/react": "*"
+  },
+  "devDependencies": {
+    "@lynx-js/react": "*",
+    "@types/d3-scale": "^4.0.8",
+    "@types/d3-shape": "^3.1.6",
+    "@types/d3-zoom": "^3.0.4",
+    "react": "^18.3.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.10",
+    "@types/node": "^22.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanjiguan111/scumble.git",
+    "directory": "packages/victory-native"
+  },
+  "homepage": "https://github.com/sanjiguan111/scumble/tree/develop/packages/victory-native",
+  "bugs": {
+    "url": "https://github.com/sanjiguan111/scumble/issues"
+  }
+}

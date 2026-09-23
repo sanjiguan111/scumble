@@ -19,3 +19,7 @@ dist
 # lockfiles
 pnpm-lock.yaml
 **/*.lock
+# victory-native: hab-synced upstream + codemod-generated tree (never hand-
+# formatted; src/ is wiped on every vendor run)
+packages/victory-native/upstream/
+packages/victory-native/src/

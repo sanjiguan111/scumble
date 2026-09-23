@@ -95,7 +95,9 @@ Two same-style `<Paint>` children or any paint with its own `opacity` emit ONLY 
 
 ## Skia compat layer
 
-Vitest suites under `packages/skia-compat/src/__tests__/` (same LEPUS stubs) verifying the RN-Skia adapter surface from [[overview#The skia-compat adapter layer]] — pure mappers are tested directly; fixture numbers shared with the graphics font-metrics suite.
+Vitest suites under `packages/skia-compat/src/__tests__/` (same LEPUS stubs) verifying the RN-Skia adapter surface from [[overview#The skia-compat adapter layer]] — pure mappers tested directly; fixture numbers shared with the graphics font-metrics suite.
+
+The vendored Victory suite — upstream's own 48 files / 252 cases under `packages/victory-native/src/`, codemodded onto the shim — is the functional gate for that package; its tree is generated, so it carries no `@lat:` leaves by design.
 
 ### Skia namespace and path shims
 
