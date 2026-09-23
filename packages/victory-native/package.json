@@ -11,7 +11,8 @@
       "types": "./dist/src/index.d.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
-    }
+    },
+    "./shims/*": "./shims/*"
   },
   "files": [
     "src",

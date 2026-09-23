@@ -40,9 +40,13 @@ export default defineConfig({
       // runtime too — two React copies make victory's hooks throw and the
       // page renders an empty patch (white screen).
       react: "@lynx-js/react",
-      // App code imports the UPSTREAM name verbatim (RN code runs
-      // unmodified); the bundler redirects to the scumble adapter.
+      // App code imports the UPSTREAM names verbatim (RN code runs
+      // unmodified); the bundler redirects to the scumble adapter and its
+      // Lynx shims.
       "victory-native": "@scumble/victory-native",
+      "react-native": "@scumble/victory-native/shims/react-native",
+      "react-native-reanimated": "@scumble/victory-native/shims/reanimated",
+      "react-native-gesture-handler": "@scumble/victory-native/shims/gesture-handler",
     },
   },
   source: {

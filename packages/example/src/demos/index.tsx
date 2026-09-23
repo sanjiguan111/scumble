@@ -7,6 +7,7 @@ import { BlendDemo } from "./BlendDemo";
 import { BiDiDemo } from "./BiDiDemo";
 import { ChartDemo } from "./ChartDemo";
 import { VictoryChartDemo } from "./VictoryChartDemo";
+import { VictoryExamplesDemo } from "./VictoryExamplesDemo";
 import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
@@ -188,6 +189,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "上游零改动 · CartesianChart/Line/Scatter · shim 全栈",
     accent: "#8b5cf6",
     render: () => <VictoryChartDemo />,
+  },
+  {
+    key: "victory-examples",
+    title: "Victory 官方示例",
+    subtitle: "Bar 圆角标签 · StackedArea · Donut 环图 · 上游 example 移植",
+    accent: "#6366f1",
+    render: () => <VictoryExamplesDemo />,
   },
 ];
 
