@@ -341,8 +341,9 @@ describe("Path2D toDString / fromDString / interpolate", () => {
     const a = Path2D.fromDString("M0 0 L10 10 Z");
     const b = Path2D.fromDString("M4 4 L2 2 Z");
     expect(Path2D.interpolate(a, b, 0.5)!.toDString()).toBe("M2 2 L6 6 Z");
-    expect(Path2D.interpolate(a, b, 0)!.toDString()).toBe("M0 0 L10 10 Z");
-    expect(Path2D.interpolate(a, b, 1)!.toDString()).toBe("M4 4 L2 2 Z");
+    // Static-convention weighting (a·t + b·(1−t)): t=0 → b, t=1 → a.
+    expect(Path2D.interpolate(a, b, 0)!.toDString()).toBe("M4 4 L2 2 Z");
+    expect(Path2D.interpolate(a, b, 1)!.toDString()).toBe("M0 0 L10 10 Z");
     const tri = Path2D.fromDString("M0 0 L10 0 L5 5 Z");
     expect(Path2D.interpolate(a, tri, 0.5)).toBeNull();
     expect(() => Path2D.interpolate(Path2D.op(CIRCLE, CIRCLE, "union"), a, 0.5)).toThrow(

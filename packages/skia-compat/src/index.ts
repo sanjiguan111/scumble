@@ -35,6 +35,7 @@ export {
   pathPropsToScumble,
   fillTypeToFillRule,
   type ShimPathProps,
+  type ShimPathProps as PathProps,
 } from "./components/Path.js";
 export { Line, linePropsToScumble, type ShimLineProps } from "./components/Line.js";
 export { Text, textPropsToScumble, type ShimTextProps } from "./components/Text.js";
@@ -46,6 +47,7 @@ export {
   type LynxTouchEvent,
 } from "./components/GestureDetector.js";
 export { DashPathEffect } from "./components/DashPathEffect.js";
+export { Paragraph, type ShimParagraphProps } from "./components/Paragraph.js";
 
 // ---- imperative namespace ----
 export { Skia, ParagraphBuilder, type SkParagraph } from "./Skia.js";
@@ -84,13 +86,24 @@ export {
   type PinchCallbacks,
   type PinchGestureBuilder,
   type PinchGestureEvent,
+  type TouchData,
+  type TouchPoint,
 } from "./gesture.js";
 
 // ---- math + types ----
 export { vec, rect, rrect, translate, scale, rotate, multiply4, identity4 } from "./math.js";
 export {
+  read,
+  normalizeStyle,
+  type MaybeAnimated,
+  type RnTransformItem,
+} from "./components/common.js";
+export { normalizeRnTransform } from "./components/common.js";
+export {
   FillType,
   PaintStyle,
+  type SkiaDefaultProps,
+  type SkTypefaceFontProvider,
   type Color,
   type ClipDef,
   type DashPathEffectProps,

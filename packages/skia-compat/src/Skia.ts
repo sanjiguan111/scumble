@@ -134,13 +134,13 @@ export const Skia = {
       const p = new SkPath(Path2D.fromDString(d));
       return p.toSVGString() === "" ? null : p;
     },
-    Rect(x: number, y: number, w: number, h: number): SkPath {
-      return new SkPath().addRect(rect(x, y, w, h));
+    Rect(r: SkRect): SkPath {
+      return new SkPath().addRect(r);
     },
     /**
-     * `a·(1−t) + b·t` (Skia's documented instance-method semantics). null on
-     * a command-structure mismatch. See `Path2D.interpolate` for the Victory
-     * argument-order note.
+     * `a·t + b·(1−t)` — the RN-Skia STATIC convention Victory Native's
+     * interpolatePath contract expects (first path weighted BY t). null on a
+     * command-structure mismatch. See `Path2D.interpolate` for the note.
      */
     Interpolate(a: SkPath, b: SkPath, t: number): SkPath | null {
       const mixed = Path2D.interpolate(a.p2d, b.p2d, t);

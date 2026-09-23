@@ -98,10 +98,10 @@ describe("SkPath / PathBuilder", () => {
   });
 
   it("interpolates matching structures and rejects mismatches", () => {
-    const a = Skia.Path.Rect(0, 0, 10, 10);
-    const b = Skia.Path.Rect(10, 10, 10, 10);
+    const a = Skia.Path.Rect([0, 0, 10, 10]);
+    const b = Skia.Path.Rect([10, 10, 10, 10]);
     const mid = Skia.Path.Interpolate(a, b, 0.5)!;
-    expect(mid.toSVGString()).toBe(Skia.Path.Rect(5, 5, 10, 10).toSVGString());
+    expect(mid.toSVGString()).toBe(Skia.Path.Rect([5, 5, 10, 10]).toSVGString());
     const tri = Skia.Path.MakeFromSVGString("M0 0 L10 0 L5 8 Z")!;
     expect(Skia.Path.Interpolate(a, tri, 0.5)).toBeNull();
   });

@@ -669,20 +669,17 @@ export class Path2D {
   }
 
   /**
-   * Interpolate two paths towards each other (Skia `SkPath::interpolate`
-   * semantics): `a·(1−t) + b·t`, command-by-command — coordinates and
-   * control points lerp linearly. Both paths must have the SAME command
-   * sequence (same types in the same order, `SkPath` returns the same
-   * failure); otherwise `null`. Arc flags are re-quantized (never a
-   * fractional 0.5 sweep). Op-composed operands throw — a lazy composition
-   * has no commands to walk.
-   *
-   * NOTE for Victory-native ports: victory's `interpolatePath` hook calls
-   * `Interpolate(to, from, t)` while its comment claims the opposite
-   * weighting; this implementation follows Skia's documented instance-method
-   * semantics — VERIFIED on device (2026-09-22, ChartDemo's dataset morph:
-   * interpolate(prev, next, t) with t 0→1 travels old→new correctly, no
-   * argument flip needed).
+   * Interpolate two paths towards each other: `a·t + b·(1−t)`,
+   * command-by-command — coordinates and control points lerp linearly. The
+   * weighting matches RN-Skia's STATIC `Skia.Path.Interpolate` as Victory
+   * Native consumes it (first path weighted BY t — victory's interpolatePath
+   * relies on exactly this; its comment documents the contract). Note this
+   * is the mirror of Skia's INSTANCE-method docs (this·(1−w) + ending·w);
+   * the static convention won because it is what ported libraries expect.
+   * Both paths must have the SAME command sequence (same types in the same
+   * order); otherwise `null`. Arc flags are re-quantized (never a fractional
+   * 0.5 sweep). Op-composed operands throw — a lazy composition has no
+   * commands to walk.
    *
    * @example
    * const mid = Path2D.interpolate(prev, next, 0.5);
@@ -698,7 +695,7 @@ export class Path2D {
       const ob = b.ops[i]!;
       if (oa.type !== ob.type) return null;
       const args = oa.args.map((v, k) => {
-        const mixed = v * (1 - t) + ob.args[k]! * t;
+        const mixed = v * t + ob.args[k]! * (1 - t);
         // Arc large/sweep flags must stay 0/1 (indexes 3 and 4 of ARC_TO).
         return oa.type === A && (k === 3 || k === 4) ? Math.round(mixed) : mixed;
       });

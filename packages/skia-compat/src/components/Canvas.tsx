@@ -11,6 +11,8 @@
  */
 
 import { Canvas as ScumbleCanvas } from "@scumble/react";
+
+import { normalizeStyle } from "./common.js";
 import type { ReactNode } from "@lynx-js/react";
 
 /** RN-Skia's CanvasRef surface, stubbed (see module doc). */
@@ -26,7 +28,8 @@ export type CanvasStyle = Parameters<typeof ScumbleCanvas>[0]["style"];
 export interface ShimCanvasProps {
   style?: CanvasStyle;
   children?: ReactNode;
-  ref?: { current: CanvasRef | null };
+  /** Inert (see module doc) — accepted loosely; the stub is never read. */
+  ref?: unknown;
   mode?: "default" | "continuous";
   /**
    * scumble EXTENSION (no RN-Skia counterpart): SVG-viewBox logical coordinate
@@ -45,8 +48,10 @@ export function Canvas(props: ShimCanvasProps) {
   // scumble's Canvas owns its internal ref for the animation invoke lane;
   // the porting-target ref surface is inert (module doc), so it is dropped.
   const { ref: _ref, mode: _mode, style, viewPort, children } = props;
+  // RN consumers hand measured/computed numeric sizes (e.g. Victory's
+  // canvas width 370.0) — normalize to Lynx units at the boundary.
   return (
-    <ScumbleCanvas style={style} viewPort={viewPort}>
+    <ScumbleCanvas style={normalizeStyle(style) as typeof style} viewPort={viewPort}>
       {children}
     </ScumbleCanvas>
   );

@@ -63,9 +63,17 @@ export function translate(x: number, y: number, z = 0): Matrix4 {
   return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1];
 }
 
-/** Column-major scale — RN-Skia `scale(x, y?, z?)`. */
-export function scale(x: number, y = x, z = 1): Matrix4 {
-  return [x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1];
+/** Column-major scale — RN-Skia `scale(x, y?, z?, origin?)`: an optional
+ * pivot point (scale about `origin` instead of the coordinate origin). */
+export function scale(x: number, y = x, z = 1, origin?: { x: number; y: number }): Matrix4 {
+  const m: Matrix4 = [x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1];
+  if (!origin) return m;
+  // T(origin) · S · T(−origin): translate to the pivot, scale, translate back.
+  const back = multiply4(
+    multiply4(translate(origin.x, origin.y), m),
+    translate(-origin.x, -origin.y),
+  );
+  return back;
 }
 
 /** Column-major rotate around Z, radians (gl-matrix convention). */

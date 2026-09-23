@@ -17,23 +17,36 @@ import { ClipPath, ClipRect, ClipRRect, Group as ScumbleGroup } from "@scumble/r
 import type { CornerRadius } from "@scumble/graphics";
 import type { ReactNode } from "@lynx-js/react";
 
-import type { ClipDef, Matrix4 } from "../types.js";
-import { resolveShimPaint, type ShimShapeProps } from "./common.js";
+import type { ClipDef, Matrix4, SkRect } from "../types.js";
+import {
+  normalizeRnTransform,
+  read,
+  resolveShimPaint,
+  type MaybeAnimated,
+  type RnTransformItem,
+  type ShimShapeProps,
+} from "./common.js";
 
 export interface ShimGroupProps extends ShimShapeProps {
-  /** 4×4 column-major — the same Matrix4 scumble's Group transform takes. */
-  transform?: Matrix4;
-  clip?: ClipDef;
+  /** 4×4 column-major Matrix4, an RN-Skia transform-item array, or either
+   * wrapped in a SharedValue (read at render time — the reactive shim
+   * re-renders on every write). */
+  transform?: MaybeAnimated<Matrix4 | readonly RnTransformItem[]>;
+  /** RN-Skia's matrix prop — resolved to scumble's transform. */
+  matrix?: MaybeAnimated<Matrix4>;
+  /** A ClipDef, or a bare `[x,y,w,h]` rect (RN-Skia allows both). */
+  clip?: ClipDef | SkRect;
   origin?: { x: number; y: number };
   layer?: unknown;
   isHeadless?: boolean;
   explicitSize?: unknown;
 }
 
-/** One ClipDef → a scumble clip child element (data-only components). */
-export function clipDefToElement(def: ClipDef | undefined): ReactNode {
+/** One ClipDef (or bare rect) → a scumble clip child element. */
+export function clipDefToElement(def: ClipDef | SkRect | undefined): ReactNode {
   if (!def) return undefined;
-  const op = def.op;
+  if (Array.isArray(def)) return <ClipRect x={def[0]} y={def[1]} width={def[2]} height={def[3]} />;
+  const op = "op" in def ? def.op : undefined;
   if ("rect" in def) {
     const [x, y, width, height] = def.rect;
     return <ClipRect x={x} y={y} width={width} height={height} op={op} />;
@@ -59,13 +72,38 @@ export function clipDefToElement(def: ClipDef | undefined): ReactNode {
       />
     );
   }
-  return <ClipPath path={typeof def.path === "string" ? def.path : def.path.p2d} op={op} />;
+  if ("path" in def) {
+    return <ClipPath path={typeof def.path === "string" ? def.path : def.path.p2d} op={op} />;
+  }
+  return undefined;
+}
+
+/** Resolve transform/matrix (animated or not) onto scumble's transform prop. */
+export function resolveGroupTransform(props: ShimGroupProps): {
+  transform?: Parameters<typeof ScumbleGroup>[0]["transform"];
+} {
+  const matrix = read(props.matrix);
+  const raw = read(props.transform) ?? matrix;
+  if (raw === undefined) return {};
+  if (Array.isArray(raw)) {
+    const items = raw as readonly unknown[];
+    const looksLikeMatrix = items.length === 16 && items.every((v) => typeof v === "number");
+    if (looksLikeMatrix) return { transform: raw as Matrix4 };
+    return {
+      transform: normalizeRnTransform(
+        raw as readonly RnTransformItem[],
+        props.origin,
+      ) as Parameters<typeof ScumbleGroup>[0]["transform"],
+    };
+  }
+  return { transform: raw as Matrix4 };
 }
 
 /** The prop mapping, exported for tests. */
 export function groupPropsToScumble(props: ShimGroupProps) {
   const {
-    transform,
+    transform: _transform,
+    matrix: _matrix,
     clip: _clip,
     origin: _origin,
     layer: _layer,
@@ -73,7 +111,7 @@ export function groupPropsToScumble(props: ShimGroupProps) {
     explicitSize: _size,
     ...rest
   } = props;
-  return { transform, ...resolveShimPaint(rest) };
+  return { ...resolveGroupTransform(props), ...resolveShimPaint(rest) };
 }
 
 export function Group(props: ShimGroupProps & { children?: ReactNode }) {

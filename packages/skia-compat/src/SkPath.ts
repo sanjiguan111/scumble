@@ -169,6 +169,11 @@ export class SkPath {
     return this.p2d.toDString();
   }
 
+  /** True when both paths share a command structure (interpolatable). */
+  isInterpolatable(other: SkPath): boolean {
+    return Path2D.interpolate(this.p2d, other.p2d, 0) !== null;
+  }
+
   /** RN-Skia name for the SVG-string constructor. */
   static fromSVGString(d: string): SkPath {
     return new SkPath(Path2D.fromDString(d));

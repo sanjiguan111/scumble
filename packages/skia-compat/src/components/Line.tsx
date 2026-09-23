@@ -7,17 +7,19 @@
 
 import { Line as ScumbleLine } from "@scumble/react";
 
-import { resolveShimPaint, type ShimShapeProps } from "./common.js";
+import { read, resolveShimPaint, type MaybeAnimated, type ShimShapeProps } from "./common.js";
 import type { SkPoint } from "../types.js";
 
 export interface ShimLineProps extends ShimShapeProps {
-  p1: SkPoint;
-  p2: SkPoint;
+  p1: MaybeAnimated<SkPoint>;
+  p2: MaybeAnimated<SkPoint>;
 }
 
 /** The prop mapping, exported for tests. */
 export function linePropsToScumble(props: ShimLineProps): Parameters<typeof ScumbleLine>[0] {
-  const { p1, p2, ...rest } = props;
+  const p1 = read(props.p1)!;
+  const p2 = read(props.p2)!;
+  const { p1: _p1, p2: _p2, ...rest } = props;
   return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, ...resolveShimPaint(rest) };
 }
 

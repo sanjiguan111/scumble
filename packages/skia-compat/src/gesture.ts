@@ -41,6 +41,27 @@ export interface GesturePointer {
   y: number;
 }
 
+/** RNGH's touch point (`{id, x, y}`). */
+export interface TouchPoint {
+  id: number;
+  x: number;
+  y: number;
+}
+
+/**
+ * RNGH's TouchData: the first touch's own fields PLUS the touch sets, all
+ * optional so a bare TouchPoint is assignable (Victory stores individual
+ * points under this type).
+ */
+export interface TouchData {
+  id?: number;
+  x?: number;
+  y?: number;
+  numberOfTouches?: number;
+  allTouches?: TouchPoint[];
+  changedTouches?: TouchPoint[];
+}
+
 /** The event shape handed to Pan callbacks (RNGH field names). */
 export interface PanGestureEvent {
   translationX: number;
@@ -51,6 +72,12 @@ export interface PanGestureEvent {
   absoluteY: number;
   state: GestureState;
   numberOfPointers: number;
+  numberOfTouches: number;
+  allTouches: TouchPoint[];
+  changedTouches: TouchPoint[];
+  /** Per-move deltas since the previous event (RNGH changeX/changeY). */
+  changeX: number;
+  changeY: number;
 }
 
 export interface PinchGestureEvent {
@@ -63,7 +90,9 @@ export interface PinchGestureEvent {
 
 export interface PinchCallbacks {
   onBegin?: (e: PinchGestureEvent) => void;
+  onStart?: (e: PinchGestureEvent) => void;
   onUpdate?: (e: PinchGestureEvent) => void;
+  onChange?: (e: PinchGestureEvent) => void;
   onEnd?: (e: PinchGestureEvent) => void;
   onFinalize?: (e: PinchGestureEvent) => void;
 }
@@ -88,6 +117,9 @@ interface PanCallbacks {
   onEnd?: (e: PanGestureEvent) => void;
   onFinalize?: (e: PanGestureEvent) => void;
   onTouchesMove?: (e: PanGestureEvent) => void;
+  onTouchesDown?: (e: TouchData) => void;
+  onChange?: (e: PanGestureEvent) => void;
+  onTouchesUp?: (e: TouchData) => void;
 }
 
 export interface PanConfig {
@@ -109,6 +141,9 @@ export class PanRecognizer {
   private lx = 0;
   private ly = 0;
   private pointers = 0;
+  private touchSet: GesturePointer[] = [];
+  private px = 0;
+  private py = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -123,11 +158,13 @@ export class PanRecognizer {
   touchBegin(pointers: GesturePointer[], now: () => number = Date.now): void {
     if (this.config.enabled === false) return;
     this.pointers = pointers.length;
+    this.touchSet = pointers;
     const first = pointers[0];
-    this.bx = this.lx = first?.x ?? 0;
-    this.by = this.ly = first?.y ?? 0;
+    this.bx = this.lx = this.px = first?.x ?? 0;
+    this.by = this.ly = this.py = first?.y ?? 0;
     this.state = GestureState.BEGAN;
     this.emit("onBegin");
+    this.callbacks.onTouchesDown?.(this.touchData());
     if (this.config.activateAfterLongPress !== undefined) {
       const started = now();
       this.timer = setTimeout(
@@ -144,6 +181,7 @@ export class PanRecognizer {
   touchMove(pointers: GesturePointer[]): void {
     if (this.config.enabled === false) return;
     this.pointers = pointers.length;
+    this.touchSet = pointers;
     const first = pointers[0];
     if (!first) return;
     this.lx = first.x;
@@ -183,11 +221,13 @@ export class PanRecognizer {
       }
     } else if (this.state === GestureState.ACTIVE) {
       this.emit("onUpdate");
+      this.emit("onChange");
     }
   }
 
   touchEnd(): void {
     this.clearTimer();
+    this.callbacks.onTouchesUp?.(this.touchData());
     if (this.state === GestureState.ACTIVE) {
       this.state = GestureState.END;
       this.emit("onEnd");
@@ -229,6 +269,16 @@ export class PanRecognizer {
     this.state = GestureState.UNDETERMINED;
   }
 
+  private touchData(): TouchData {
+    const touches = this.touchSet.map((p) => ({ id: p.identifier, x: p.x, y: p.y }));
+    return {
+      ...(touches[0] ?? {}),
+      numberOfTouches: this.pointers,
+      allTouches: touches,
+      changedTouches: touches,
+    };
+  }
+
   private clearTimer(): void {
     if (this.timer !== null) {
       clearTimeout(this.timer);
@@ -239,16 +289,24 @@ export class PanRecognizer {
   private emit(key: keyof PanCallbacks): void {
     const cb = this.callbacks[key];
     if (!cb) return;
-    (cb as (e: PanGestureEvent) => void)({
+    const e: PanGestureEvent = {
       translationX: this.lx - this.bx,
       translationY: this.ly - this.by,
+      changeX: this.lx - this.px,
+      changeY: this.ly - this.py,
       x: this.lx,
       y: this.ly,
       absoluteX: this.lx,
       absoluteY: this.ly,
       state: this.state,
       numberOfPointers: this.pointers,
-    });
+      numberOfTouches: this.pointers,
+      allTouches: this.touchSet.map((p) => ({ id: p.identifier, x: p.x, y: p.y })),
+      changedTouches: this.touchSet.map((p) => ({ id: p.identifier, x: p.x, y: p.y })),
+    };
+    this.px = this.lx;
+    this.py = this.ly;
+    (cb as (ev: PanGestureEvent) => void)(e);
   }
 }
 
@@ -289,12 +347,14 @@ export class PinchRecognizer {
       this.focal = focal;
       this.state = GestureState.ACTIVE;
       this.emit("onBegin");
+      this.emit("onStart");
       this.emit("onUpdate");
       return;
     }
     this.scale = this.baseDist > 0 ? dist / this.baseDist : 1;
     this.focal = focal;
     this.emit("onUpdate");
+    this.emit("onChange");
   }
 
   cancel(): void {
@@ -305,7 +365,9 @@ export class PinchRecognizer {
     this.state = GestureState.UNDETERMINED;
   }
 
-  private emit(key: "onBegin" | "onUpdate" | "onEnd" | "onFinalize"): void {
+  private emit(
+    key: "onBegin" | "onStart" | "onUpdate" | "onChange" | "onEnd" | "onFinalize",
+  ): void {
     const cb = this.callbacks[key];
     if (!cb) return;
     cb({
@@ -340,13 +402,21 @@ export interface PanGestureBuilder {
   onEnd(cb: PanCallbacks["onEnd"]): this;
   onFinalize(cb: PanCallbacks["onFinalize"]): this;
   onTouchesMove(cb: PanCallbacks["onTouchesMove"]): this;
+  onTouchesDown(cb: PanCallbacks["onTouchesDown"]): this;
+  onChange(cb: PanCallbacks["onChange"]): this;
+  onTouchesUp(cb: PanCallbacks["onTouchesUp"]): this;
+  /** Accepted for type parity — the detector arbitrates compositions itself. */
+  simultaneousWithExternalGesture(..._gestures: unknown[]): this;
+  failWithExternalGesture(..._gestures: unknown[]): this;
 }
 
 export interface PinchGestureBuilder {
   readonly kind: "pinch";
   callbacks: PinchCallbacks;
   onBegin(cb: PinchCallbacks["onBegin"]): this;
+  onStart(cb: PinchCallbacks["onStart"]): this;
   onUpdate(cb: PinchCallbacks["onUpdate"]): this;
+  onChange(cb: PinchCallbacks["onChange"]): this;
   onEnd(cb: PinchCallbacks["onEnd"]): this;
   onFinalize(cb: PinchCallbacks["onFinalize"]): this;
 }
@@ -418,6 +488,24 @@ export const Gesture = {
         this.callbacks.onTouchesMove = cb;
         return this;
       },
+      onChange(cb) {
+        this.callbacks.onChange = cb;
+        return this;
+      },
+      onTouchesDown(cb) {
+        this.callbacks.onTouchesDown = cb;
+        return this;
+      },
+      onTouchesUp(cb) {
+        this.callbacks.onTouchesUp = cb;
+        return this;
+      },
+      simultaneousWithExternalGesture() {
+        return this;
+      },
+      failWithExternalGesture() {
+        return this;
+      },
     };
     return b;
   },
@@ -429,8 +517,16 @@ export const Gesture = {
         this.callbacks.onBegin = cb;
         return this;
       },
+      onStart(cb) {
+        this.callbacks.onStart = cb;
+        return this;
+      },
       onUpdate(cb) {
         this.callbacks.onUpdate = cb;
+        return this;
+      },
+      onChange(cb) {
+        this.callbacks.onChange = cb;
         return this;
       },
       onEnd(cb) {

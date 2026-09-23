@@ -79,7 +79,7 @@ export function toPointers(e: LynxTouchEvent): GesturePointer[] {
 export interface GestureDetectorProps {
   gesture: AnyBuilder;
   children?: ReactNode;
-  style?: Record<string, string | number>;
+  style?: unknown;
 }
 
 export function GestureDetector(props: GestureDetectorProps) {
@@ -134,11 +134,11 @@ export function GestureDetector(props: GestureDetectorProps) {
   // carry the loose `detail: {x, y}` shape (see LynxTouchEvent).
   return (
     <view
+      style={(style ?? {}) as Record<string, string | number>}
       bindtouchstart={onStart as never}
       bindtouchmove={onMove as never}
       bindtouchend={onFinish as never}
       bindtouchcancel={onCancel as never}
-      style={style}
     >
       {children}
     </view>

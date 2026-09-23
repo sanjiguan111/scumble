@@ -159,8 +159,10 @@ export function ChartDemo() {
   const morphing = morphFrom !== null && t < 1;
   // Per-frame morph: same command structures (12-pt monotoneX / 12 circles),
   // so Interpolate never nulls in practice; the fallback snaps anyway.
+  // Static-convention weighting (a·t + b·(1−t)): (to, from, t) travels
+  // old→new as t goes 0→1.
   const mix = (from: SkPath, to: SkPath): SkPath =>
-    morphing ? (Skia.Path.Interpolate(from, to, t) ?? to) : to;
+    morphing ? (Skia.Path.Interpolate(to, from, t) ?? to) : to;
   const series =
     morphing && morphFrom
       ? {

@@ -15,14 +15,18 @@
 
 import { Paragraph as ScumbleParagraph, TextSpan } from "@scumble/react";
 
+import { normalizeRnTransform, read, type MaybeAnimated, type RnTransformItem } from "./common.js";
 import type { SkFont } from "../useFont.js";
+import type { Matrix4 } from "../types.js";
 
 export interface ShimTextProps {
-  text: string;
-  x?: number;
-  y?: number;
-  color?: string | number;
-  font: SkFont;
+  text: MaybeAnimated<string>;
+  x?: MaybeAnimated<number>;
+  y?: MaybeAnimated<number>;
+  color?: MaybeAnimated<string | number>;
+  font: MaybeAnimated<SkFont>;
+  transform?: MaybeAnimated<Matrix4 | readonly RnTransformItem[]>;
+  origin?: { x: number; y: number };
 }
 
 /** Fallback when the font carries no metrics (a bare family name). */
@@ -30,7 +34,11 @@ const UNMEASURED_FALLBACK_WIDTH = 4096;
 
 /** The prop mapping, exported for tests. */
 export function textPropsToScumble(props: ShimTextProps) {
-  const { text, x = 0, y = 0, color = "black", font } = props;
+  const text = read(props.text) ?? "";
+  const x = read(props.x) ?? 0;
+  const y = read(props.y) ?? 0;
+  const color = (read(props.color) as string | undefined) ?? "black";
+  const font = read(props.font)!;
   let width = UNMEASURED_FALLBACK_WIDTH;
   let lift = 0; // baseline lift = ascent of the font at its size
   try {
@@ -42,11 +50,19 @@ export function textPropsToScumble(props: ShimTextProps) {
     // size as a rough ascent (cap-height-ish for most UI fonts).
     lift = font.getSize();
   }
+  const rawTransform = read(props.transform);
+  const transform =
+    rawTransform === undefined
+      ? undefined
+      : Array.isArray(rawTransform) && (rawTransform as readonly unknown[]).length !== 16
+        ? normalizeRnTransform(rawTransform as readonly RnTransformItem[], props.origin)
+        : (rawTransform as Matrix4);
   return {
     x,
     y: y - lift,
     width,
     maxLines: 1,
+    transform,
     span: {
       text,
       fontSize: font.getSize(),

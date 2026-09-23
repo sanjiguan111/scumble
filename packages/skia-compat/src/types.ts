@@ -58,8 +58,10 @@ export enum FillType {
   EvenOdd = 1,
 }
 
-/** What a `<Group clip={…}>` accepts — rect, rounded rect, or path. */
+/** What a `<Group clip={…}>` accepts — a bare `[x,y,w,h]` rect, a rounded
+ * rect, or a path (RN-Skia's ClipDef allows the bare-rect form directly). */
 export type ClipDef =
+  | SkRect
   | { rect: SkRect; op?: "difference" | "intersect" }
   | { rrect: NonUniformRRect; op?: "difference" | "intersect" }
   | { path: import("./SkPath.js").SkPath | string; op?: "difference" | "intersect" };
@@ -82,3 +84,10 @@ export interface SkTextStyle {
 export interface SkParagraphStyle {
   textAlign?: "left" | "center" | "right";
 }
+
+/** RN-Skia's SkiaDefaultProps: the keys K carry component defaults, so
+ * callers may OMIT them (Partial, not Required). */
+export type SkiaDefaultProps<P, K extends keyof P> = Omit<P, K> & Partial<Pick<P, K>>;
+
+/** RN-Skia's SkTypefaceFontProvider — a no-op registrar under scumble. */
+export type SkTypefaceFontProvider = { registerFont(data: unknown, familyAlias: string): void };
