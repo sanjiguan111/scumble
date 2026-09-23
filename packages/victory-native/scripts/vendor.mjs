@@ -2,10 +2,11 @@
 // LICENSE file in the root directory of this source tree.
 //
 // Vendor the upstream Victory Native XL into src/ and codemod its imports
-// onto the scumble lanes. The upstream tree itself is hab-synced
-// (DEPS.py → upstream/, gitignored); src/ is a GENERATED tree (also
-// gitignored) — never hand-edit it: fixes belong in shims/, the codemod
-// rules below, or (last resort) a fork branch.
+// onto the scumble lanes. The upstream tree comes from the OFFICIAL npm
+// package's bundled src/ (exact version pinned in package.json — dist/
+// is never used: pre-compiled JSX cannot render on Lynx). src/ here is a
+// GENERATED tree (gitignored) — never hand-edit it: fixes belong in
+// shims/, the codemod rules below, or (last resort) a fork branch.
 //
 //   @shopify/react-native-skia   → @scumble/skia-compat
 //   react                        → @lynx-js/react (single React identity)
@@ -17,19 +18,19 @@
 // Shim specifiers are RELATIVE to each file (the walk knows the depth) so
 // consumers need no paths/exports configuration for them.
 
-import {
-  cpSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { join, relative, sep } from "node:path";
+import { createRequire } from "node:module";
+import { cpSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
 
 const PKG = new URL("..", import.meta.url).pathname;
-const UPSTREAM = join(PKG, "upstream", "lib", "src");
+// The official npm tarball ships the TSX SOURCES alongside dist (dist is
+// unusable on Lynx — pre-compiled jsx() calls render an empty patch), so
+// victory-native is pinned EXACTLY in package.json and vendored from its src/.
+const UPSTREAM = join(
+  // resolve the exports "." target (dist/index.js), then climb to the root
+  dirname(dirname(createRequire(import.meta.url).resolve("victory-native"))),
+  "src",
+);
 const SRC = join(PKG, "src");
 
 const rulesFor = (relPrefix) => [
@@ -49,7 +50,14 @@ const rulesFor = (relPrefix) => [
 ];
 
 rmSync(SRC, { recursive: true, force: true });
-cpSync(UPSTREAM, SRC, { recursive: true });
+try {
+  cpSync(UPSTREAM, SRC, { recursive: true });
+} catch {
+  console.error(
+    `victory vendor: cannot read ${UPSTREAM} — run pnpm install first (the upstream tree comes from the npm package's bundled src/).`,
+  );
+  process.exit(1);
+}
 
 function walk(dir, files = []) {
   for (const name of readdirSync(dir)) {

@@ -7,9 +7,13 @@ https://github.com/FormidableLabs/victory-native-xl).
 
 ## Layout
 
-- `upstream/` — the pristine upstream tree, pinned in the scumble repo's
-  `DEPS.py` (habitat git dependency, gitignored). **Never hand-edited.**
-- `src/` — GENERATED from `upstream/lib/src` by `scripts/vendor.mjs`
+- upstream — the OFFICIAL npm package `victory-native` (exact version in
+  dependencies): the tarball bundles the TSX sources next to dist, and
+  `scripts/vendor.mjs` vendors from `node_modules/victory-native/src`.
+  **dist/ is never used** — its pre-compiled jsx() calls render an empty
+  patch on Lynx. Upgrades = bump the pinned version + `pnpm install` +
+  `pnpm vendor`.
+- `src/` — GENERATED from the npm package's src/ by `scripts/vendor.mjs`
   (gitignored): a byte-close copy apart from import specifiers rewritten
   onto the scumble lanes. **Never hand-edited** — fixes belong in `shims/`,
   the codemod rules, or (last resort) a fork branch.
@@ -49,6 +53,6 @@ types in @scumble/skia-compat, tracked in the scumble repo.
 
 ## Upstream sync
 
-1. Bump the tag in `DEPS.py` → run `tools/hab sync`.
-2. `pnpm vendor` (wipes src/, re-copies, re-runs the codemod).
+1. Bump the exact `victory-native` version in package.json → `pnpm install`.
+2. `pnpm vendor` (wipes src/, re-copies from node_modules, re-runs the codemod).
 3. `pnpm test` (upstream suite) + `pnpm typecheck` (review the delta list).

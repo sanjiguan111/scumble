@@ -12,7 +12,7 @@
 import { useState } from "@lynx-js/react";
 
 import { useFont } from "@scumble/skia-compat";
-import { CartesianChart, Line, Scatter } from "@scumble/victory-native";
+import { CartesianChart, Line, Scatter } from "victory-native";
 
 import { PRESS_START_2P } from "./fontData";
 

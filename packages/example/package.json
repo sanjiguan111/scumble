@@ -27,6 +27,7 @@
     "@types/d3-scale": "^4.0.9",
     "@types/d3-shape": "^3.2.0",
     "@types/react": "^18.3.28",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "victory-native": "42.0.1"
   }
 }

@@ -56,7 +56,9 @@ lat.md/.cache/
 .codex
 # ZCode: local-only session state (agent workspace/scratch files)
 .zcode/
-# victory-native: hab-synced upstream tree + the codemod-generated src/
-# (the wrapper package's committed surface is shims/, scripts/, configs)
-packages/victory-native/upstream/
+# victory-native: codemod-generated src/ (upstream comes from the npm
+# package's bundled src/; the wrapper's committed surface is shims/, scripts/, configs)
 packages/victory-native/src/
+
+# ZCode: local-only session config
+.zcodeignore
