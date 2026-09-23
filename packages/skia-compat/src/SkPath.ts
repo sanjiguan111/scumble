@@ -39,6 +39,14 @@ export function appendRRect(p: Path2D, r: NonUniformRRect): void {
  * positive clockwise (y-down screen convention). Converted to the SVG
  * endpoint-arc form scumble's `arcTo` takes — `largeArc` from |sweep| > 180,
  * `sweep` flag from the sign.
+ *
+ * Canvas semantics for a continued arc (`forceMoveTo` false with a current
+ * point): the current point is connected to the arc's start with a straight
+ * line, then the arc runs. An SVG `A` command cannot express that by itself
+ * (it re-defines the start as the current point), so the connecting line is
+ * emitted explicitly — without it, a path like Victory's donut inner arc
+ * (current point on the outer radius, arc start on the inner radius) renders
+ * as a bulging near-semicircle instead of a radial edge.
  */
 export function appendOvalArc(
   p: Path2D,
@@ -53,16 +61,31 @@ export function appendOvalArc(
   const cy = y + h / 2;
   const rx = w / 2;
   const ry = h / 2;
-  const a0 = (startAngleDeg * Math.PI) / 180;
-  const a1 = ((startAngleDeg + sweepDeg) * Math.PI) / 180;
-  const sx = cx + rx * Math.cos(a0);
-  const sy = cy + ry * Math.sin(a0);
-  const ex = cx + rx * Math.cos(a1);
-  const ey = cy + ry * Math.sin(a1);
-  if (forceMoveTo || !hasCurrentPoint) {
-    p.moveTo(sx, sy);
+  // A single SVG endpoint arc cannot express a full revolution (its start
+  // and end points coincide, which degenerates to a line) — split into two
+  // half sweeps, the way Canvas stacks implement full-circle arcs.
+  const sweeps =
+    Math.abs(sweepDeg) >= 360 ? ([sweepDeg / 2, sweepDeg / 2] as const) : ([sweepDeg] as const);
+  let angle = startAngleDeg;
+  for (let i = 0; i < sweeps.length; i++) {
+    const sweep = sweeps[i]!;
+    const a0 = (angle * Math.PI) / 180;
+    const a1 = ((angle + sweep) * Math.PI) / 180;
+    angle += sweep;
+    const sx = cx + rx * Math.cos(a0);
+    const sy = cy + ry * Math.sin(a0);
+    const ex = cx + rx * Math.cos(a1);
+    const ey = cy + ry * Math.sin(a1);
+    if (i === 0 && (forceMoveTo || !hasCurrentPoint)) {
+      p.moveTo(sx, sy);
+    } else if (i > 0) {
+      // Chained half of a split revolution — the current point is already
+      // (sx, sy); no connecting line needed.
+    } else {
+      p.lineTo(sx, sy);
+    }
+    p.arcTo(rx, ry, 0, Math.abs(sweep) % 360 > 180, sweep > 0, ex, ey);
   }
-  p.arcTo(rx, ry, 0, Math.abs(sweepDeg) % 360 > 180, sweepDeg > 0, ex, ey);
 }
 
 /** The RN-Skia `SkPath` over scumble's `Path2D`. */

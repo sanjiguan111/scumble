@@ -65,8 +65,38 @@ describe("SkPath / PathBuilder", () => {
   });
 
   it("continues an arc from the current point unless forceMoveTo", () => {
-    const joined = new SkPath().moveTo(10, 5).arcToOval([0, 0, 10, 10], 0, 90, false);
-    expect(joined.toSVGString()).toBe("M10 5 A5 5 0 0 1 5 10");
+    // Canvas semantics: the current point connects to the arc's start with a
+    // straight line before the arc runs (an SVG A alone would instead start
+    // the arc AT the current point — different geometry).
+    const joined = new SkPath().moveTo(0, 5).arcToOval([0, 0, 10, 10], 0, 90, false);
+    expect(joined.toSVGString()).toBe("M0 5 L10 5 A5 5 0 0 1 5 10");
+  });
+
+  it("connects outer and inner donut arcs with a radial edge (Victory Pie.Slice)", () => {
+    // Exact shape of upstream useSlicePath for one slice: center (100,100),
+    // R=100, innerR=50, sweep 0°→72°. The inner arc's start sits on the inner
+    // circle while the current point sits on the outer one — without the
+    // connecting line the inner arc bulges into a near-semicircle and the
+    // donut renders as pinwheel blades.
+    const builder = Skia.PathBuilder.Make();
+    builder.arcToOval(Skia.XYWHRect(0, 0, 200, 200), 0, 72, false);
+    builder.arcToOval(Skia.XYWHRect(50, 50, 100, 100), 72, -72, false);
+    builder.close();
+    expect(builder.build().toSVGString()).toBe(
+      "M200 100 A100 100 0 0 1 130.901699 195.105652 " +
+        "L115.45085 147.552826 A50 50 0 0 0 150 100 Z",
+    );
+  });
+
+  it("splits a full-revolution oval arc into two SVG arcs", () => {
+    // SVG A cannot express 360° (start == end degenerates to a line).
+    const full = new SkPath().arcToOval([0, 0, 10, 10], 30, 360, true);
+    expect(full.toSVGString()).toBe(
+      "M9.330127 7.5 A5 5 0 0 1 0.669873 2.5 A5 5 0 0 1 9.330127 7.5",
+    );
+    // addOval rides the same path — a full ellipse, not a collapsed contour.
+    const oval = new SkPath().addOval([0, 0, 10, 10]);
+    expect(oval.toSVGString()).toBe("M10 5 A5 5 0 0 1 0 5 A5 5 0 0 1 10 5 Z");
   });
 
   it("round-trips d strings through MakeFromSVGString", () => {
