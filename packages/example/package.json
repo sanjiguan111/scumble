@@ -16,6 +16,7 @@
     "@scumble/native": "workspace:*",
     "@scumble/react": "workspace:*",
     "@scumble/skia-compat": "workspace:*",
+    "@scumble/victory-native": "workspace:*",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",
     "react-router": "6"

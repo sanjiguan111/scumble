@@ -33,6 +33,15 @@ function notifyReload() {
 
 export default defineConfig({
   server: { host: "localhost" },
+  resolve: {
+    alias: {
+      // Single React identity across the bundle: nested web-react deps
+      // (its-fine inside @scumble/victory-native) must land on the Lynx
+      // runtime too — two React copies make victory's hooks throw and the
+      // page renders an empty patch (white screen).
+      react: "@lynx-js/react",
+    },
+  },
   source: {
     entry: {
       main: "./src/index.tsx",

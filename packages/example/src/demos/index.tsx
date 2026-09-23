@@ -6,6 +6,7 @@ import type { ReactNode } from "@lynx-js/react";
 import { BlendDemo } from "./BlendDemo";
 import { BiDiDemo } from "./BiDiDemo";
 import { ChartDemo } from "./ChartDemo";
+import { VictoryChartDemo } from "./VictoryChartDemo";
 import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
@@ -180,6 +181,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "skia-compat shim · d3 原样运行 · JS 字体测量 · 点击切换数据",
     accent: "#22c55e",
     render: () => <ChartDemo />,
+  },
+  {
+    key: "victory",
+    title: "Victory Native XL",
+    subtitle: "上游零改动 · CartesianChart/Line/Scatter · shim 全栈",
+    accent: "#8b5cf6",
+    render: () => <VictoryChartDemo />,
   },
 ];
 

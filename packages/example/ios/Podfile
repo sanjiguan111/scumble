@@ -34,7 +34,15 @@ target 'ScumbleDemo' do
   pod 'Lynx', '4.0.2', :subspecs => ['Framework']
   pod 'PrimJS', '4.0.0', :subspecs => ['quickjs', 'napi']
 
-  pod 'LynxService', '4.0.2', :subspecs => ['Log', 'Http']
+  pod 'LynxService', '4.0.2', :subspecs => ['Log', 'Http', 'Devtool']
+
+  # Lynx DevTool (https://lynxjs.org/guide/start/integrate-lynx-devtool.html):
+  # version-matched to the Lynx pod; DebugRouter carries the desktop-app
+  # protocol. Debug-only surface — the AppDelegate enablement is wrapped in
+  # #ifdef DEBUG.
+  pod 'LynxDevtool', '4.0.2'
+  pod 'DebugRouter', '5.0.15'
+  pod 'DebugRouter/MessageTransceiverEnable', '5.0.15'
 
   # Autolink
   use_lynx_library!
