@@ -8,6 +8,7 @@ import { BiDiDemo } from "./BiDiDemo";
 import { ChartDemo } from "./ChartDemo";
 import { VictoryChartDemo } from "./VictoryChartDemo";
 import { VictoryExamplesDemo } from "./VictoryExamplesDemo";
+import { VictoryAdvancedDemo } from "./VictoryAdvancedDemo";
 import { ClipDemo } from "./ClipDemo";
 import { FiltersDemo } from "./FiltersDemo";
 import { GradientDemo } from "./GradientDemo";
@@ -196,6 +197,13 @@ export const DEMOS: DemoConfig[] = [
     subtitle: "Bar 圆角标签 · StackedArea · Donut 环图 · 上游 example 移植",
     accent: "#6366f1",
     render: () => <VictoryExamplesDemo />,
+  },
+  {
+    key: "victory-advanced",
+    title: "Victory 进阶示例",
+    subtitle: "Candlestick · 多Y轴 · AreaRange · 星形Points · 非均匀堆叠柱",
+    accent: "#0ea5e9",
+    render: () => <VictoryAdvancedDemo />,
   },
 ];
 
