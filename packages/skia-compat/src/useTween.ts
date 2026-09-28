@@ -58,7 +58,10 @@ export interface TweenController {
   start(options?: TweenOptions): void;
 }
 
-const TICK_MS = 16;
+// 32ms (≈30fps) — every tick re-renders the caller's whole component tree
+// through a full Lynx commit (device-measured ~280ms for a chart page); 16ms
+// ticks halve the wall time of a morph for no visible gain at this cost.
+const TICK_MS = 32;
 
 export function useTween(initial = 1): TweenController {
   const [state, setState] = useState<{ value: number; animating: boolean }>({

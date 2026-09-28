@@ -49,6 +49,25 @@ const rulesFor = (relPrefix) => [
   [/"react-native"/g, `"${relPrefix}/shims/react-native.js"`],
 ];
 
+// Logic patches for specific upstream files (applied after the import rules,
+// keyed by path suffix below SRC). Real Reanimated animates on the UI thread
+// at zero JS cost, so upstream tolerates pointless tweens; our REACTIVE shim
+// pays a full subscriber re-render PER FRAME, so a from==to tween (every
+// AnimatedPath mount: from and to start as copies of the same path) burns
+// ~31 futile render+patch cycles per chart. Skip it when the path is
+// unchanged — the tween only makes sense when there is geometry to travel.
+const patchRules = {
+  "hooks/useAnimatedPath.ts": [
+    [
+      "    if (isWithTimingConfig(animConfig)) {",
+      `    if (targetPathSV.value.toSVGString() === fromPathSV.value.toSVGString()) {
+      // scumble patch: identical geometry — settle instead of tweening.
+      progressSV.value = 1;
+    } else if (isWithTimingConfig(animConfig)) {`,
+    ],
+  ],
+};
+
 rmSync(SRC, { recursive: true, force: true });
 try {
   cpSync(UPSTREAM, SRC, { recursive: true });
@@ -90,6 +109,16 @@ for (const file of walk(SRC)) {
   let text = readFileSync(file, "utf8");
   const before = text;
   for (const [from, to] of rulesFor(relPrefix)) text = text.replace(from, to);
+  const suffix = relative(SRC, file).split(sep).join("/");
+  for (const [from, to] of patchRules[suffix] ?? []) {
+    if (!text.includes(from)) {
+      console.error(
+        `victory vendor: patch rule anchor not found in ${suffix} — upstream drift? Anchor:\n${from}`,
+      );
+      process.exit(1);
+    }
+    text = text.replace(from, to);
+  }
   if (text !== before) {
     writeFileSync(file, text);
     touched++;

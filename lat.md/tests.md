@@ -99,6 +99,12 @@ Vitest suites under `packages/skia-compat/src/__tests__/` (same LEPUS stubs) ver
 
 The vendored Victory suite — upstream's own 48 files / 252 cases under `packages/victory-native/src/`, codemodded onto the shim — is the functional gate for that package; its tree is generated, so it carries no `@lat:` leaves by design.
 
+### Reanimated shim ticker
+
+`tests/reanimated-ticker.test.ts` (packages/victory-native) — pins the global animation ticker that fixed on-device tap latency: all concurrent tweens ride ONE 16 ms interval and subscribers are notified exactly once per frame.
+
+Details: N concurrent `withTiming`s advance the epoch by exactly 1 per frame (not N — the per-tween-interval shape re-rendered every subscriber dozens of times per frame on a candlestick window's ~36 tweens); the final value lands and the completion callback fires; `cancelAnimation` freezes mid-flight; a new assignment supersedes the running tween; the ticker stops itself when idle. Fake timers must fake `Date` alongside the timer APIs (tween progress reads wall-clock), and `resetTickerForTests()` drops the interval between tests — a handle created under one test's clock never fires under the next.
+
 ### Skia namespace and path shims
 
 `skia-core.test.ts` — matrix helpers compose column-major; `SkPath`/`PathBuilder` produce the d-strings Victory's lanes build.

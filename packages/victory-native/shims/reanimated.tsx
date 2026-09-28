@@ -33,7 +33,7 @@ export interface SharedValue<T> {
 let epoch = 0;
 const subscribers = new Set<() => void>();
 
-function bump(): void {
+function notifySubscribers(): void {
   epoch++;
   for (const notify of subscribers) notify();
 }
@@ -43,12 +43,91 @@ export function reanimatedEpoch(): number {
   return epoch;
 }
 
+/**
+ * Internal (test): drop the global ticker so a fresh fake-timer environment
+ * can install its own interval — a handle created under one clock never fires
+ * under the next test's clock.
+ */
+export function resetTickerForTests(): void {
+  if (ticker !== null) {
+    clearInterval(ticker);
+    ticker = null;
+  }
+  activeTweens.clear();
+  tickMs = BASE_TICK_MS;
+}
+
 /** Subscribe to any SharedValue write; returns an unsubscribe function. */
 export function subscribeReanimated(notify: () => void): () => void {
   subscribers.add(notify);
   return () => {
     subscribers.delete(notify);
   };
+}
+
+// ---- Global animation ticker: ONE interval drives ALL active tweens and
+// fires ONE subscriber notification per frame. Victory pages run dozens of
+// concurrent path animations (a candlestick window alone is ~36 tweens);
+// per-tween intervals with per-write bumps would re-render every subscriber
+// dozens of times per frame. The ticker stops itself when idle and applies
+// BACKPRESSURE: a frame that overruns its slot (slow device — every subscriber
+// commit costs a full Lynx patch+layout round, measured ~3ms/node on the iOS
+// simulator, multiples of that on 2017-era Android) doubles its interval, up
+// to 128ms; fast frames halve back toward the base. Tween progress is
+// wall-clock driven, so a lower frame rate never lengthens an animation —
+// slow devices degrade to a choppier animation instead of a saturated thread.
+
+interface Tween {
+  /** Advance to now; false when finished (removes the tween). */
+  step(): boolean;
+}
+
+const activeTweens = new Set<Tween>();
+const BASE_TICK_MS = 32;
+const MAX_TICK_MS = 128;
+let tickMs = BASE_TICK_MS;
+let ticker: ReturnType<typeof setInterval> | null = null;
+
+function restartTicker(): void {
+  if (ticker !== null) clearInterval(ticker);
+  ticker = setInterval(tick, tickMs);
+}
+
+function tick(): void {
+  const frameStart = Date.now();
+  // step() may schedule new tweens — iterate over a snapshot.
+  let stepped = false;
+  for (const tween of [...activeTweens]) {
+    stepped = true;
+    if (!tween.step()) activeTweens.delete(tween);
+  }
+  // The finishing tick still publishes its final values.
+  if (stepped) notifySubscribers();
+  if (activeTweens.size === 0) {
+    if (ticker !== null) {
+      clearInterval(ticker);
+      ticker = null;
+    }
+    return;
+  }
+  const frameCost = Date.now() - frameStart;
+  if (frameCost > tickMs && tickMs < MAX_TICK_MS) {
+    tickMs = Math.min(MAX_TICK_MS, tickMs * 2);
+    restartTicker();
+  } else if (frameCost <= tickMs / 2 && tickMs > BASE_TICK_MS) {
+    tickMs = Math.max(BASE_TICK_MS, Math.floor(tickMs / 2));
+    restartTicker();
+  }
+}
+
+function runTicker(): void {
+  if (ticker !== null) return;
+  restartTicker();
+}
+
+function scheduleTween(tween: Tween): void {
+  activeTweens.add(tween);
+  runTicker();
 }
 
 // ---- withTiming/withSpring: deferred descriptors the setter animates. ----
@@ -86,12 +165,12 @@ function isAnimationDescriptor<T>(v: unknown): v is AnimationDescriptor<T> {
   );
 }
 
-const TICK_MS = 16;
-
 // ---- The reactive SharedValue. ----
 
 class ReactiveSharedValue<T> implements SharedValue<T> {
   private current: T;
+  /** The tween currently driving this value — superseded/cancelled by the next assignment. */
+  private running: Tween | null = null;
 
   constructor(initial: T) {
     this.current = initial;
@@ -104,28 +183,33 @@ class ReactiveSharedValue<T> implements SharedValue<T> {
   set value(next: T) {
     if (isAnimationDescriptor<T>(next)) {
       const descriptor = next;
+      this.stopRunningTween();
       if (typeof descriptor.to === "number") {
-        // Numeric target: tween frame by frame, writing primitive values.
+        // Numeric target: tween frame by frame on the global ticker,
+        // writing primitive values.
         const { to, duration, easing, callback } = descriptor as AnimationDescriptor<number>;
         if (duration <= 0) {
           this.current = descriptor.to;
-          bump();
+          notifySubscribers();
           if (callback) setTimeout(() => callback(true), 0);
           return;
         }
         const t0 = Date.now();
-        const timer = setInterval(() => {
-          const raw = Math.min(Math.max((Date.now() - t0) / duration, 0), 1);
-          if (raw >= 1) {
-            clearInterval(timer);
-            this.current = to as unknown as T;
-            bump();
-            if (callback) callback(true);
-          } else {
+        const tween: Tween = {
+          step: () => {
+            const raw = Math.min(Math.max((Date.now() - t0) / duration, 0), 1);
+            if (raw >= 1) {
+              this.current = to as unknown as T;
+              if (this.running === tween) this.running = null;
+              if (callback) callback(true);
+              return false;
+            }
             this.current = easing(raw) as unknown as T;
-            bump();
-          }
-        }, TICK_MS);
+            return true;
+          },
+        };
+        this.running = tween;
+        scheduleTween(tween);
         return;
       }
       // Non-numeric target (a path, a color string): land it when the tween
@@ -133,19 +217,29 @@ class ReactiveSharedValue<T> implements SharedValue<T> {
       // lane (useDerivedValue over a numeric progress), which is how Victory
       // animates paths anyway.
       const t0 = Date.now();
-      const timer = setInterval(() => {
-        if (Date.now() - t0 >= descriptor.duration) {
-          clearInterval(timer);
+      const tween: Tween = {
+        step: () => {
+          if (Date.now() - t0 < descriptor.duration) return true;
           this.current = descriptor.to;
-          bump();
+          if (this.running === tween) this.running = null;
           if (descriptor.callback) descriptor.callback(true);
-        }
-      }, TICK_MS);
+          return false;
+        },
+      };
+      this.running = tween;
+      scheduleTween(tween);
       return;
     }
+    this.stopRunningTween();
     if (Object.is(this.current, next)) return;
     this.current = next;
-    bump();
+    notifySubscribers();
+  }
+
+  private stopRunningTween(): void {
+    if (this.running === null) return;
+    activeTweens.delete(this.running);
+    this.running = null;
   }
 }
 
@@ -263,9 +357,11 @@ export function makeMutable<T>(v: T): SharedValue<T> {
   return new ReactiveSharedValue(v);
 }
 
-export function cancelAnimation(_sv: SharedValue<unknown>): void {
-  // Tween timers are per-assignment and self-terminating; a new assignment
-  // supersedes the running one's writes, so there is nothing to cancel.
+export function cancelAnimation(sv: SharedValue<unknown>): void {
+  // With the global ticker, tweens are tracked per-value: cancelling removes
+  // the running tween so it stops writing (the value freezes mid-flight,
+  // matching Reanimated's semantics until a new assignment animates again).
+  (sv as { stopRunningTween?: () => void }).stopRunningTween?.();
 }
 
 // Animated.View — Victory's GestureHandler renders into it. The style is
