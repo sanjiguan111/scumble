@@ -34,7 +34,8 @@ struct ParagraphShapeResult {
 // bytes when the input has no renderable content.
 ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanListSize,
                                     uint32_t nodeId, float width, uint8_t align, uint8_t direction,
-                                    float lineHeight, int32_t maxLines);
+                                    float lineHeight, int32_t maxLines,
+                                    const std::string &defaultFamily = std::string());
 
 // Drain the schemed font URIs the last ShapeParagraph for this node found
 // missing in the TypefaceCache (recorded during layout; the JNI layer hands

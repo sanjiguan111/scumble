@@ -199,7 +199,8 @@ void ShapeSegment(const std::vector<uint32_t> &codepoints, uint32_t cpBase, hb_d
 
 ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanListSize,
                                     uint32_t nodeId, float width, uint8_t align, uint8_t direction,
-                                    float lineHeight, int32_t maxLines) {
+                                    float lineHeight, int32_t maxLines,
+                                    const std::string &defaultFamily) {
   ParagraphShapeResult result;
   if (spanListData == nullptr || spanListSize == 0 || !(width > 0.f)) return result;
 
@@ -279,8 +280,11 @@ ParagraphShapeResult ShapeParagraph(const uint8_t *spanListData, size_t spanList
     const std::vector<uint32_t> &codepoints = st.codepoints;
     const uint32_t spanEnd = st.cpStart + (uint32_t)codepoints.size();
 
-    const std::string family =
+    // Span family wins; empty falls through to the paragraph-level default
+    // (a diffed node prop — keeps big data: URIs out of the spans payload).
+    const std::string spanFamily =
         span->fontFamily() != nullptr ? span->fontFamily()->str() : std::string();
+    const std::string family = !spanFamily.empty() ? spanFamily : defaultFamily;
     const FontStyle style(span->fontWeight(), FontStyle::kNormal_Width,
                           span->italic() ? FontStyle::kItalic_Slant : FontStyle::kUpright_Slant);
     // Custom fonts: `data:` URIs decode synchronously; schemed URIs

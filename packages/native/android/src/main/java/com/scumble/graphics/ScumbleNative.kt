@@ -99,6 +99,7 @@ object ScumbleNative {
     direction: Byte,
     lineHeight: Float,
     maxLines: Int,
+    defaultFontFamily: String?,
   ): ByteArray?
 
   /**

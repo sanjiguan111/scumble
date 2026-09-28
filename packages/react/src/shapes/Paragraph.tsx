@@ -76,9 +76,17 @@ export function normalizeParagraphProps(
   } = props;
   if (!(width > 0)) return null;
   const spans = collectSpans(children);
+  // `fontFamily` deliberately does NOT merge into the spans here: the
+  // paragraph-level family rides as its OWN node prop (see the component), so
+  // Lynx's prop diff skips it on every commit where the font is unchanged —
+  // a ~21KB data: URI would otherwise be re-serialized INTO the spans payload
+  // on every commit (per animation frame in chart morphs; device-measured
+  // ~280ms per commit on the patch channel). Native falls spans with no
+  // explicit family through to the node-level default. Span-EXPLICIT families
+  // (multi-font paragraphs) keep riding inline.
   const spec: SpanSpec[] = spans.map((s) => ({
     text: resolveSpanText(s),
-    fontFamily: s.fontFamily ?? props.fontFamily,
+    fontFamily: s.fontFamily,
     fontSize: s.fontSize ?? props.fontSize,
     fontWeight: s.fontWeight ?? props.fontWeight,
     italic: s.italic ?? props.italic,
@@ -174,6 +182,9 @@ export function Paragraph({ children, onLayout, animate, transform, ...rest }: P
   return (
     <scumble-paragraph
       spans={n.spans}
+      // Paragraph-level default family as its OWN prop — Lynx's diff skips it
+      // while unchanged (see normalizeParagraphProps for the rationale).
+      fontFamily={rest.fontFamily}
       textAlign={n.textAlign}
       direction={n.direction}
       transform={resolveTransform(transform)}

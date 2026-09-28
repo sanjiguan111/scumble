@@ -119,6 +119,7 @@ LYNX_PROPS_GROUP_DECLARE(
     LYNX_PROP_DECLARE("cubicC", setCubicC:, NSNumber *),
     // Paragraph node: SpanList bytes (base64) + paragraph-level style.
     LYNX_PROP_DECLARE("spans", setSpans:, NSString *),
+    LYNX_PROP_DECLARE("fontFamily", setParagraphFontFamily:, NSString *),
     LYNX_PROP_DECLARE("textAlign", setTextAlign:, NSNumber *),
     LYNX_PROP_DECLARE("direction", setDirection:, NSNumber *),
     LYNX_PROP_DECLARE("lineHeight", setLineHeight:, NSNumber *),
@@ -547,6 +548,14 @@ LYNX_PROP_SETTER("spans", setSpans, NSString *) {
       [[NSData alloc] initWithBase64EncodedString:value
                                           options:NSDataBase64DecodingIgnoreUnknownCharacters];
   _paragraphSpansData = decoded.length > 0 ? decoded : nil;
+  _dirtyParagraph = YES;
+  [self setNeedsLayout];
+}
+// Paragraph-level default font family — spans without an explicit family fall
+// through to this. A diffed node prop: unchanged fonts never re-fire (the
+// ~21KB data: URI would otherwise ride every commit's spans payload).
+LYNX_PROP_SETTER("fontFamily", setParagraphFontFamily, NSString *) {
+  _paragraphFontFamily = value.length > 0 ? value : nil;
   _dirtyParagraph = YES;
   [self setNeedsLayout];
 }

@@ -197,7 +197,7 @@ JNIEXPORT void JNICALL Java_com_scumble_graphics_ScumbleNative_nativeApplyParagr
 // ParagraphRunList (height/line_count inside) or null for empty content.
 JNIEXPORT jbyteArray JNICALL Java_com_scumble_graphics_ScumbleNative_nativeShapeParagraph(
     JNIEnv *env, jclass /*clazz*/, jbyteArray spans, jint nodeId, jfloat width, jbyte align,
-    jbyte direction, jfloat lineHeight, jint maxLines) {
+    jbyte direction, jfloat lineHeight, jint maxLines, jstring defaultFontFamily) {
   if (spans == nullptr) {
     return nullptr;
   }
@@ -206,9 +206,13 @@ JNIEXPORT jbyteArray JNICALL Java_com_scumble_graphics_ScumbleNative_nativeShape
   if (bytes == nullptr) {
     return nullptr;
   }
+  const char *familyChars =
+      defaultFontFamily != nullptr ? env->GetStringUTFChars(defaultFontFamily, nullptr) : nullptr;
+  const std::string defaultFamily = familyChars != nullptr ? familyChars : "";
+  if (familyChars != nullptr) env->ReleaseStringUTFChars(defaultFontFamily, familyChars);
   skityrt::ParagraphShapeResult result = skityrt::ShapeParagraph(
       reinterpret_cast<const uint8_t *>(bytes), static_cast<std::size_t>(length), (uint32_t)nodeId,
-      width, (uint8_t)align, (uint8_t)direction, lineHeight, maxLines);
+      width, (uint8_t)align, (uint8_t)direction, lineHeight, maxLines, defaultFamily);
   env->ReleaseByteArrayElements(spans, bytes, JNI_ABORT);
   if (result.runsBytes.empty()) {
     return nullptr;

@@ -177,8 +177,12 @@ LYNX_REGISTER_SHADOW_NODE("scumble-paragraph")
     NSString *str =
         span->text() != nullptr ? [NSString stringWithUTF8String:span->text()->c_str()] : @"";
     CTFontRef font = ScumbleSpanFont(
-        span->fontFamily() != nullptr ? [NSString stringWithUTF8String:span->fontFamily()->c_str()]
-                                      : @"",
+        // Span family wins; empty falls through to the paragraph-level
+        // default (a diffed node prop — keeps big data: URIs out of the
+        // per-commit spans payload).
+        span->fontFamily() != nullptr && span->fontFamily()->size() > 0
+            ? [NSString stringWithUTF8String:span->fontFamily()->c_str()]
+            : (self.paragraphFontFamily ?: @""),
         span->fontSize(), span->fontWeight(), span->italic(), missedFonts);
     if (font == nullptr) continue;
     NSMutableDictionary *attrs = [NSMutableDictionary dictionary];

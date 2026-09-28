@@ -223,6 +223,11 @@ export interface ScumbleParagraphProps extends ScumbleCommonProps {
   /** Base64-encoded SpanList bytes (@scumble/graphics buildSpanList) —
    *  the layout input: text + span styles only, never glyph data. */
   spans?: string;
+  /** Paragraph-level default font family — spans without an explicit
+   *  fontFamily fall through to it natively. A diffed node prop: unchanged
+   *  fonts never re-fire, so a large data: URI family costs one send at
+   *  mount instead of riding every commit's spans payload. */
+  fontFamily?: string;
   /** Text alignment byte: 0=left, 1=center, 2=right, 3=justify. Default 0. */
   textAlign?: number;
   /** Base writing direction byte: 0=ltr, 1=rtl, 2=auto (first strong). Default 0. */

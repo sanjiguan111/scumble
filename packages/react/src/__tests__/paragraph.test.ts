@@ -65,20 +65,21 @@ describe("normalizeParagraphProps", () => {
     expect(normalizeParagraphProps({ width: -5 } as never)).toBeNull();
   });
 
-  it("merges paragraph-level defaults into each span (span fields win)", () => {
+  it("keeps paragraph-level defaults OUT of the spans payload (fontFamily rides the node prop)", () => {
     const n = normalizeParagraphProps(
       { width: 300, fontFamily: "serif", fontSize: 18, fontWeight: 600, color: "#ff0000" } as never,
       [span({ text: "styled" }), span({ text: "own", fontSize: 9, color: "#0000ff" })],
     )!;
-    // Assert against the exact expected serialization — the merge is only
-    // observable through the bytes the intrinsic element receives.
+    // Assert against the exact expected serialization: the paragraph-level
+    // family does NOT merge into spans — it rides as a diffed node prop
+    // (native falls spans without a family through to it), so a ~21KB data:
+    // URI never re-serializes per commit. All OTHER defaults still merge.
     expect(n.spans).toBe(
       bytesToBase64(
         buildSpanList([
-          // inherits every paragraph default…
-          { text: "styled", fontFamily: "serif", fontSize: 18, fontWeight: 600, color: "#ff0000" },
+          { text: "styled", fontSize: 18, fontWeight: 600, color: "#ff0000" },
           // …until the span sets its own
-          { text: "own", fontFamily: "serif", fontSize: 9, fontWeight: 600, color: "#0000ff" },
+          { text: "own", fontSize: 9, fontWeight: 600, color: "#0000ff" },
         ]),
       ),
     );

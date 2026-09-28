@@ -141,6 +141,7 @@ abstract class ScumbleNodeBase : ShadowNode() {
   // iOS) so the setters live next to every other prop setter; the canvas walk
   // only reads them on paragraph nodes.
   @JvmField var paragraphSpansData: ByteArray? = null
+  @JvmField var paragraphFontFamily: String? = null // span-level default family
   @JvmField var paragraphAlign: Byte = 0        // 0=left 1=center 2=right 3=justify
   @JvmField var paragraphDirection: Byte = 0    // 0=ltr 1=rtl 2=auto (first-strong)
   @JvmField var paragraphLineHeight = 1f        // multiplier; <=0 = 1
@@ -638,6 +639,14 @@ abstract class ScumbleNodeBase : ShadowNode() {
   @LynxProp(name = "spans") fun setSpans(v: String) {
     val decoded = android.util.Base64.decode(v, android.util.Base64.NO_WRAP)
     paragraphSpansData = if (decoded.isNotEmpty()) decoded else null
+    dirtyParagraph = true
+    markDirty()
+  }
+  // Paragraph-level default font family — spans without an explicit family
+  // fall through to this. A diffed node prop: unchanged fonts never re-fire
+  // (a ~21KB data: URI would otherwise ride every commit's spans payload).
+  @LynxProp(name = "fontFamily") fun setParagraphFontFamily(v: String) {
+    paragraphFontFamily = if (v.isNotEmpty()) v else null
     dirtyParagraph = true
     markDirty()
   }

@@ -63,10 +63,12 @@ export function textPropsToScumble(props: ShimTextProps) {
     width,
     maxLines: 1,
     transform,
+    // Paragraph-level family (a diffed node prop — the 21KB data: URI must
+    // NOT ride the per-commit spans payload; see react Paragraph).
+    fontFamily: font.fontFamily || undefined,
     span: {
       text,
       fontSize: font.getSize(),
-      fontFamily: font.fontFamily || undefined,
       color: color as string,
     },
   };
