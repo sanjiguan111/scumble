@@ -9,6 +9,8 @@ import { ClipRect, ClipRRect } from "@scumble/react";
 import { fillTypeToFillRule, pathPropsToScumble } from "../components/Path.js";
 import { groupPropsToScumble, clipDefToElement } from "../components/Group.js";
 import { linePropsToScumble } from "../components/Line.js";
+import { pointsPropsToScumble } from "../components/Points.js";
+import type { Path2D } from "@scumble/graphics";
 import { textPropsToScumble } from "../components/Text.js";
 import { extractDash, resolveShimPaint, styleToScumble } from "../components/common.js";
 import { DashPathEffect } from "../components/DashPathEffect.js";
@@ -52,6 +54,22 @@ describe("paint prop plumbing", () => {
     expect(resolved.style).toBe("stroke"); // from the paint object
     expect(resolved.strokeWidth).toBe(9);
   });
+
+  it("unwraps MaybeAnimated passthrough paint props and drops undefined wrappers", () => {
+    // Victory's AnimatedPath wraps EVERY present prop key into a {value}
+    // SharedValue — Candlestick explicitly spreads {blendMode: undefined}.
+    // A wrapper object reaching scumble's parseBlendMode crashes on
+    // .toLowerCase; an undefined-valued wrapper must not count as defined.
+    const resolved = resolveShimPaint({
+      color: "#f00",
+      blendMode: { value: undefined },
+      antiAlias: { value: undefined },
+      strokeCap: { value: "round" },
+    });
+    expect(resolved).not.toHaveProperty("blendMode");
+    expect(resolved).not.toHaveProperty("antiAlias");
+    expect(resolved.strokeCap).toBe("round");
+  });
 });
 
 describe("Path / Line / Group mappers", () => {
@@ -79,6 +97,29 @@ describe("Path / Line / Group mappers", () => {
     expect(props.y1).toBe(2);
     expect(props.x2).toBe(3);
     expect(props.y2).toBe(4);
+  });
+
+  it("builds polygon/circle point clouds with mode-defaulted styles", () => {
+    const star = [
+      { x: 0, y: -2 },
+      { x: 1, y: 2 },
+      { x: -1, y: 2 },
+    ];
+    // Polygon: closed stroke (the custom-drawing showcase shape).
+    const poly = pointsPropsToScumble({
+      points: star,
+      mode: "polygon",
+      color: "#22d3ee",
+      strokeWidth: 2,
+    });
+    expect((poly.path as Path2D).toDString()).toBe("M0 -2 L1 2 L-1 2 Z");
+    expect(poly.style).toBe("stroke");
+    expect(poly.strokeWidth).toBe(2);
+    // Circle: one closed subpath per point (graphics addCircle emits cubics),
+    // radius = strokeWidth / 2, fill default.
+    const circ = pointsPropsToScumble({ points: star, color: "#f00", strokeWidth: 4 });
+    expect((circ.path as Path2D).toDString().match(/Z/g)).toHaveLength(3);
+    expect(circ.style).toBe("fill");
   });
 
   it("passes Matrix4 transforms through untouched", () => {

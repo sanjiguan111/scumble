@@ -74,13 +74,34 @@ export function extractDash(children: ReactNode): { dash?: number[]; dashOffset?
  * Merge the shape props with an optional `paint` object's state. Precedence:
  * explicit props win over the paint object (RN-Skia's component-prop layer
  * sits above the paint it references).
+ *
+ * Passthrough paint props (`blendMode`/`strokeCap`/`strokeJoin`/
+ * `strokeMiter`/`antiAlias`) arrive MAYBE-ANIMATED — Victory's AnimatedPath
+ * wraps every present prop key into a `{value}` SharedValue, including
+ * undefined ones (Candlestick explicitly spreads `{blendMode: undefined}`).
+ * They are unwrapped here, and keys resolving to undefined are DROPPED:
+ * scumble's paint resolver branches on `prop !== undefined`, and a wrapper
+ * object would reach `parseBlendMode`/`parseStrokeCap` and crash on
+ * `.toLowerCase`.
  */
 export function resolveShimPaint(props: ShimShapeProps): ResolvedShimPaint {
-  const { children, ...rest } = props;
+  const { children, blendMode, strokeCap, strokeJoin, strokeMiter, antiAlias, ...rest } = props;
   const dash = extractDash(children);
   const paint = read(props.paint);
+  const passthrough: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries({
+    blendMode,
+    strokeCap,
+    strokeJoin,
+    strokeMiter,
+    antiAlias,
+  })) {
+    const value = read(raw as MaybeAnimated<unknown>);
+    if (value !== undefined) passthrough[key] = value;
+  }
   return {
     ...rest,
+    ...passthrough,
     color: read(props.color) ?? paint?.color,
     style: styleToScumble(read(props.style) ?? paint?.style),
     strokeWidth: read(props.strokeWidth) ?? paint?.strokeWidth,

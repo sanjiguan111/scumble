@@ -38,6 +38,12 @@ export {
   type ShimPathProps as PathProps,
 } from "./components/Path.js";
 export { Line, linePropsToScumble, type ShimLineProps } from "./components/Line.js";
+export {
+  Points,
+  buildPointsPath,
+  pointsPropsToScumble,
+  type ShimPointsProps,
+} from "./components/Points.js";
 export { Text, textPropsToScumble, type ShimTextProps } from "./components/Text.js";
 export {
   GestureDetector,
