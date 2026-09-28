@@ -47,6 +47,7 @@ import {
 } from "@scumble/skia-compat";
 
 import { PRESS_START_2P } from "./fontData";
+import { perfMark, perfMarkOnce, perfLogSince, perfCommit, perfQueueLag } from "../components/perf";
 
 const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const DATASETS = {
@@ -117,10 +118,19 @@ function seriesOf(
 
 type Series = ReturnType<typeof seriesOf>;
 
+// [perf probe] per-pass segment costs, logged post-commit by the bare effect
+// below. Segments: font handle, JS label measurement, path (re)build, and the
+// whole body — localizing where a slow pass actually spent its time.
+let seg = { font: 0, measure: 0, series: 0, body: 0 };
+
 export function ChartDemo() {
+  perfMarkOnce("chartdemo-mount");
+  const bodyStart = Date.now();
   const [which, setWhich] = useState<"revenue" | "costs">("revenue");
+  const tFont = Date.now();
   const font = useFont(PRESS_START_2P, 10);
   const tween = useTween(1);
+  seg.font = Date.now() - tFont;
   // The morph SOURCE series (captured at tap time, mid-flight included).
   const [morphFrom, setMorphFrom] = useState<Series | null>(null);
   // Trim draw-in only for the first mount: the morph churns the path prop
@@ -131,10 +141,22 @@ export function ChartDemo() {
     const id = setTimeout(() => setDrewIn(true), 900);
     return () => clearTimeout(id);
   }, []);
+  // [perf probe] fires after EVERY commit: mount latency, tap→commit,
+  // tap→paint, segment costs, queue congestion, commit rate.
+  useEffect(() => {
+    perfLogSince("chartdemo-mount", "ChartDemo mount→commit");
+    perfLogSince("chartdemo-tap", "tap→commit");
+    perfCommit(
+      Date.now() - bodyStart,
+      `render(js) body=${seg.body} font=${seg.font} measure=${seg.measure} series=${seg.series}`,
+    );
+    perfQueueLag("post-commit");
+  });
 
   // --- the W2 payoff: measure the y labels in JS and derive the gutter ---
   // ticks() depends on the domain only, so a provisional scale settles the
   // tick values (and thus the label widths) before the plot box exists.
+  const tMeasure = Date.now();
   const yMax = Math.max(...DATASETS[which].values);
   const tickTexts = scaleLinear()
     .domain([0, yMax])
@@ -142,6 +164,7 @@ export function ChartDemo() {
     .ticks(4)
     .map((t) => `${t}`);
   const gutter = Math.max(...tickTexts.map((t) => font.measureText(t))) + 10;
+  seg.measure = Date.now() - tMeasure;
   const margin = { top: 12, right: 12, bottom: 22, left: gutter };
   const plot = {
     x: margin.left,
@@ -150,10 +173,13 @@ export function ChartDemo() {
     h: H - margin.top - margin.bottom,
   };
 
+  const tSeries = Date.now();
   const target = useMemo(
     () => seriesOf(DATASETS[which].values, DATASETS[which].color, plot),
     [which, gutter], // plot derives from gutter deterministically
   );
+  seg.series = Date.now() - tSeries;
+  seg.body = Date.now() - bodyStart;
 
   const t = tween.value;
   const morphing = morphFrom !== null && t < 1;
@@ -174,6 +200,7 @@ export function ChartDemo() {
       : target;
 
   const swap = () => {
+    perfMark("chartdemo-tap");
     // Capture what is VISIBLE right now (mid-flight included) as the source.
     const from =
       morphing && morphFrom
@@ -262,102 +289,118 @@ export function ChartDemo() {
           d3 原样运行 · 入场描线 = 渲染线程 trim(零 JS)· 点击切换 = 逐帧 morph · 横向拖动 = scrub
           读数(手势层)
         </text>
-        <view bindtap={swap}>
-          <GestureDetector gesture={pan} style={{ width: "100%" }}>
-            <view
-              style={{ width: "100%" }}
-              bindlayoutchange={(e: { detail?: { width?: number }; params?: { width?: number } }) =>
-                setWidthPx(e.detail?.width ?? e.params?.width ?? 0)
-              }
-            >
-              <Canvas
-                style={{ width: "100%", height: 260 }}
-                viewPort={{ x: 0, y: 0, width: W, height: H }}
-              >
-                {/* Plot area — clip keeps the monotone curve inside its gutter box. */}
-                <Group clip={{ rect: [plot.x, plot.y, plot.w, plot.h] }}>
-                  <Path path={series.area} color={target.color} opacity={0.15} />
-                  <Path
-                    path={series.line}
-                    color={target.color}
-                    style="stroke"
-                    strokeWidth={2.5}
-                    animate={drewIn ? undefined : DRAW_IN}
-                  />
-                  <Path path={series.markers} color={target.color} />
-                </Group>
-
-                {/* Grid: dashed lines via the DashPathEffect child lane. */}
-                {target.ticks.map((tt) =>
-                  tt === 0 ? null : (
-                    <Line
-                      key={`g${tt}`}
-                      p1={{ x: plot.x, y: target.y(tt) ?? 0 }}
-                      p2={{ x: plot.x + plot.w, y: target.y(tt) ?? 0 }}
-                      color="#e5e7eb"
-                      strokeWidth={1}
-                    >
-                      <DashPathEffect intervals={[3, 4]} />
-                    </Line>
-                  ),
-                )}
-
-                {/* Baseline axis (solid). */}
-                <Line
-                  p1={{ x: plot.x, y: baseline }}
-                  p2={{ x: plot.x + plot.w, y: baseline }}
-                  color="#9ca3af"
-                  strokeWidth={1.5}
-                />
-
-                {/* Y labels: right-aligned against the measured gutter (baseline y). */}
-                {target.ticks.map((tt, i) => (
-                  <Text
-                    key={`y${tt}-${i}`}
-                    x={margin.left - 8 - font.measureText(`${tt}`)}
-                    y={(target.y(tt) ?? 0) + 3}
-                    text={`${tt}`}
-                    color="#6b7280"
-                    font={font}
-                  />
-                ))}
-
-                {/* X labels: month initials under each point. */}
-                {MONTHS.map((m, i) => (
-                  <Text
-                    key={`x${i}`}
-                    x={(target.x(i) ?? 0) - 5}
-                    y={baseline + 16}
-                    text={m}
-                    color="#6b7280"
-                    font={font}
-                  />
-                ))}
-
-                {/* W4 scrub cursor: line + enlarged dot + value bubble (topmost). */}
-                {cursor && (
-                  <Group>
-                    <Line
-                      p1={{ x: cursor.cx, y: plot.y }}
-                      p2={{ x: cursor.cx, y: baseline }}
-                      color="#3b82f6"
-                      strokeWidth={1}
-                    />
-                    <Path path={cursor.dot} color="#3b82f6" />
-                    <Path path={cursor.bubble} color="#1f2937" opacity={0.92} />
-                    <Text
-                      x={cursor.labelX}
-                      y={cursor.labelY}
-                      text={cursor.label}
-                      color="#ffffff"
-                      font={font}
-                    />
-                  </Group>
-                )}
-              </Canvas>
-            </view>
-          </GestureDetector>
+        <view
+          bindtap={swap}
+          style={{
+            alignSelf: "flex-start",
+            paddingTop: "8px",
+            paddingBottom: "8px",
+            paddingRight: "12px",
+          }}
+        >
+          {/* [perf probe] text width flips with `which` → layoutchange fires
+              when the patch actually landed: tap→paint = user-visible latency. */}
+          <text
+            style={{ fontSize: "13px", color: "#3b82f6" }}
+            bindlayoutchange={() => perfLogSince("chartdemo-tap", "tap→paint(layout)")}
+          >
+            {which === "revenue" ? "点击切换到 costs 数据集 →" : "点击切换到 revenue 数据集 →"}
+          </text>
         </view>
+        <GestureDetector gesture={pan} style={{ width: "100%" }}>
+          <view
+            style={{ width: "100%" }}
+            bindlayoutchange={(e: { detail?: { width?: number }; params?: { width?: number } }) =>
+              setWidthPx(e.detail?.width ?? e.params?.width ?? 0)
+            }
+          >
+            <Canvas
+              style={{ width: "100%", height: 260 }}
+              viewPort={{ x: 0, y: 0, width: W, height: H }}
+            >
+              {/* Plot area — clip keeps the monotone curve inside its gutter box. */}
+              <Group clip={{ rect: [plot.x, plot.y, plot.w, plot.h] }}>
+                <Path path={series.area} color={target.color} opacity={0.15} />
+                <Path
+                  path={series.line}
+                  color={target.color}
+                  style="stroke"
+                  strokeWidth={2.5}
+                  animate={drewIn ? undefined : DRAW_IN}
+                />
+                <Path path={series.markers} color={target.color} />
+              </Group>
+
+              {/* Grid: dashed lines via the DashPathEffect child lane. */}
+              {target.ticks.map((tt) =>
+                tt === 0 ? null : (
+                  <Line
+                    key={`g${tt}`}
+                    p1={{ x: plot.x, y: target.y(tt) ?? 0 }}
+                    p2={{ x: plot.x + plot.w, y: target.y(tt) ?? 0 }}
+                    color="#e5e7eb"
+                    strokeWidth={1}
+                  >
+                    <DashPathEffect intervals={[3, 4]} />
+                  </Line>
+                ),
+              )}
+
+              {/* Baseline axis (solid). */}
+              <Line
+                p1={{ x: plot.x, y: baseline }}
+                p2={{ x: plot.x + plot.w, y: baseline }}
+                color="#9ca3af"
+                strokeWidth={1.5}
+              />
+
+              {/* Y labels: right-aligned against the measured gutter (baseline y). */}
+              {target.ticks.map((tt, i) => (
+                <Text
+                  key={`y${tt}-${i}`}
+                  x={margin.left - 8 - font.measureText(`${tt}`)}
+                  y={(target.y(tt) ?? 0) + 3}
+                  text={`${tt}`}
+                  color="#6b7280"
+                  font={font}
+                />
+              ))}
+
+              {/* X labels: month initials under each point. */}
+              {MONTHS.map((m, i) => (
+                <Text
+                  key={`x${i}`}
+                  x={(target.x(i) ?? 0) - 5}
+                  y={baseline + 16}
+                  text={m}
+                  color="#6b7280"
+                  font={font}
+                />
+              ))}
+
+              {/* W4 scrub cursor: line + enlarged dot + value bubble (topmost). */}
+              {cursor && (
+                <Group>
+                  <Line
+                    p1={{ x: cursor.cx, y: plot.y }}
+                    p2={{ x: cursor.cx, y: baseline }}
+                    color="#3b82f6"
+                    strokeWidth={1}
+                  />
+                  <Path path={cursor.dot} color="#3b82f6" />
+                  <Path path={cursor.bubble} color="#1f2937" opacity={0.92} />
+                  <Text
+                    x={cursor.labelX}
+                    y={cursor.labelY}
+                    text={cursor.label}
+                    color="#ffffff"
+                    font={font}
+                  />
+                </Group>
+              )}
+            </Canvas>
+          </view>
+        </GestureDetector>
       </view>
     </view>
   );

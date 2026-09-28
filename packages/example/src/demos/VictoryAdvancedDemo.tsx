@@ -12,8 +12,15 @@
 // the bundled tesla_stock.json becomes deterministic LCG random-walk data,
 // RN controls collapse to Lynx views, fonts use the bundled data-URI, and
 // sizes ride the explicitSize pattern.
+//
+// Performance shape: INTERACTIVE state lives inside its section component
+// (window navigation, band shuffling, star styling) so a tap re-renders
+// that section only — the page component itself is stateless and renders
+// once. Window data is memoized: a fresh array identity per render would
+// rebuild every candle path object and restart their tweens on unrelated
+// taps.
 
-import { useState } from "@lynx-js/react";
+import { useEffect, useMemo, useState } from "@lynx-js/react";
 import type { ReactNode } from "@lynx-js/react";
 
 import { Points, useFont, vec } from "@scumble/skia-compat";
@@ -29,6 +36,10 @@ import {
 } from "victory-native";
 
 import { PRESS_START_2P } from "./fontData";
+import { perfMark, perfMarkOnce, perfLogSince, perfCommit, perfQueueLag } from "../components/perf";
+
+const AXIS_COLOR = "#d4d4d8";
+const LABEL_COLOR = "#6b7280";
 
 // --- deterministic data (upstream ships tesla_stock.json / Math.random) ---
 const lcg = (() => {
@@ -156,6 +167,8 @@ function starPoints(centerX: number, centerY: number, radius: number, points: nu
   return vectors;
 }
 
+type FontProp = ReturnType<typeof useFont>;
+
 /** One measured-width section: the explicitSize consumption pattern. */
 function ChartSection(props: {
   title: string;
@@ -210,17 +223,534 @@ function DemoButton(props: { title: string; onTap: () => void; disabled?: boolea
   );
 }
 
-export function VictoryAdvancedDemo() {
-  const font = useFont(PRESS_START_2P, 8);
+function CandlestickMainSection({ font }: { font: FontProp }) {
+  return (
+    <ChartSection
+      title="Candlestick — 90 日 OHLC"
+      caption="随机游走生成的日线;绿涨红跌灰十字,烛芯 1.5px,x 轴按月取 tick"
+      height={240}
+    >
+      {({ width, height }) => (
+        <CartesianChart
+          explicitSize={{ width, height }}
+          data={OHLC}
+          xKey="date"
+          yKeys={["open", "high", "low", "close"]}
+          domainPadding={{ left: 8, right: 8, top: 16, bottom: 8 }}
+          xAxis={{
+            font,
+            tickValues: MAIN_TICKS,
+            lineColor: AXIS_COLOR,
+            labelColor: LABEL_COLOR,
+            labelOffset: 6,
+            formatXLabel: formatMonthLabel,
+          }}
+          yAxis={[
+            {
+              yKeys: ["open", "high", "low", "close"],
+              font,
+              tickCount: 5,
+              lineColor: AXIS_COLOR,
+              labelColor: LABEL_COLOR,
+              labelOffset: 4,
+              formatYLabel: (value: number) => `$${Math.round(Number(value))}`,
+            },
+          ]}
+          frame={{ lineColor: AXIS_COLOR, lineWidth: 1 }}
+        >
+          {({ points, chartBounds }) => (
+            <Candlestick
+              openPoints={points.open}
+              highPoints={points.high}
+              lowPoints={points.low}
+              closePoints={points.close}
+              chartBounds={chartBounds}
+              candleRatio={0.65}
+              wickStrokeWidth={1.5}
+              candleColors={{
+                positive: "#16a34a",
+                negative: "#dc2626",
+                neutral: "#71717a",
+              }}
+            />
+          )}
+        </CartesianChart>
+      )}
+    </ChartSection>
+  );
+}
+
+/** Interactive: window navigation state lives HERE so taps re-render this section only. */
+function CandlestickWindowSection({ font }: { font: FontProp }) {
+  perfMarkOnce("window-mount");
+  const windowRenderStart = Date.now();
   const [windowStart, setWindowStart] = useState(70);
+  // Memoized: a fresh array identity per render would rebuild every candle
+  // path and restart the window tween on any unrelated state change.
+  const windowData = useMemo(
+    () => OHLC.slice(windowStart, windowStart + WINDOW_SIZE),
+    [windowStart],
+  );
+  // [perf probe] every-commit lane: mount latency, tap→commit, JS render cost.
+  useEffect(() => {
+    perfLogSince("window-mount", "window section mount→commit");
+    perfLogSince("window-tap", "tap→commit");
+    perfCommit(Date.now() - windowRenderStart, "render(js)");
+    perfQueueLag("post-commit");
+  });
+  return (
+    <view>
+      <ChartSection
+        title="Candlestick — 窗口滚动"
+        caption="Earlier/Later 切换 18 根窗口,逐蜡烛路径 + timing 250ms 平滑过渡"
+        height={200}
+      >
+        {({ width, height }) => (
+          <CartesianChart
+            explicitSize={{ width, height }}
+            data={windowData}
+            xKey="date"
+            yKeys={["open", "high", "low", "close"]}
+            domainPadding={{ left: 20, right: 20, top: 10, bottom: 6 }}
+            xAxis={{
+              font,
+              tickValues: endpointTickValues(windowData),
+              lineColor: AXIS_COLOR,
+              labelColor: LABEL_COLOR,
+              formatXLabel: formatDayLabel,
+            }}
+            yAxis={[
+              {
+                yKeys: ["open", "high", "low", "close"],
+                font,
+                tickCount: 4,
+                lineColor: AXIS_COLOR,
+                labelColor: LABEL_COLOR,
+                formatYLabel: (value: number) => `$${Math.round(Number(value))}`,
+              },
+            ]}
+          >
+            {({ points, chartBounds }) => (
+              <Candlestick
+                openPoints={points.open}
+                highPoints={points.high}
+                lowPoints={points.low}
+                closePoints={points.close}
+                chartBounds={chartBounds}
+                candleCount={WINDOW_SIZE}
+                candleRatio={0.7}
+                wickStrokeWidth={1.25}
+                candleOptions={() => ({})}
+                animate={{ type: "timing", duration: 250 }}
+              />
+            )}
+          </CartesianChart>
+        )}
+      </ChartSection>
+      <view style={{ flexDirection: "row", gap: "12px", marginBottom: "28px" }}>
+        <DemoButton
+          title="← Earlier"
+          disabled={windowStart === 0}
+          onTap={() => {
+            perfMark("window-tap");
+            setWindowStart((s) => Math.max(0, s - WINDOW_STEP));
+          }}
+        />
+        <DemoButton
+          title="Later →"
+          disabled={windowStart >= MAX_WINDOW_START}
+          onTap={() => {
+            perfMark("window-tap");
+            setWindowStart((s) => Math.min(MAX_WINDOW_START, s + WINDOW_STEP));
+          }}
+        />
+      </view>
+    </view>
+  );
+}
+
+function CandlestickEdgeSection({ font }: { font: FontProp }) {
+  return (
+    <ChartSection
+      title="Candlestick — 逐蜡烛样式与缺失值"
+      caption="candleOptions 回调按 high−low 动态调烛芯粗细;null 值蜡烛跳过,minBodyHeight 兜住十字星"
+      height={180}
+    >
+      {({ width, height }) => (
+        <CartesianChart
+          explicitSize={{ width, height }}
+          data={CANDLE_EDGE_DATA}
+          xKey="label"
+          yKeys={["open", "high", "low", "close"]}
+          domain={{ y: [0, 22] }}
+          domainPadding={{ left: 30, right: 30, top: 8 }}
+          xAxis={{ font, tickCount: 5, lineColor: AXIS_COLOR, labelColor: LABEL_COLOR }}
+          yAxis={[
+            {
+              yKeys: ["open", "high", "low", "close"],
+              font,
+              tickCount: 4,
+              lineColor: AXIS_COLOR,
+              labelColor: LABEL_COLOR,
+            },
+          ]}
+        >
+          {({ points, chartBounds }) => (
+            <Candlestick
+              openPoints={points.open}
+              highPoints={points.high}
+              lowPoints={points.low}
+              closePoints={points.close}
+              chartBounds={chartBounds}
+              candleRatio={0.62}
+              minBodyHeight={2}
+              wickStrokeWidth={1.5}
+            />
+          )}
+        </CartesianChart>
+      )}
+    </ChartSection>
+  );
+}
+
+function DualAxisSection({ font }: { font: FontProp }) {
+  return (
+    <ChartSection
+      title="多 Y 轴 — 独立刻度"
+      caption="profit 柱挂左轴($25–50),sales 线挂右轴(10025–10050),两条 y 轴各自定刻度"
+      height={210}
+    >
+      {({ width, height }) => (
+        <CartesianChart
+          explicitSize={{ width, height }}
+          data={DUAL_AXIS_DATA}
+          xKey="day"
+          yKeys={["sales", "profit"]}
+          domainPadding={{ left: 10, right: 10, top: 10 }}
+          xAxis={{
+            font,
+            labelColor: LABEL_COLOR,
+            formatXLabel: (value: number) => `${Math.round(Number(value))}`,
+            lineColor: AXIS_COLOR,
+          }}
+          frame={{ lineColor: "#111827", lineWidth: 2 }}
+          yAxis={[
+            {
+              yKeys: ["sales"],
+              font,
+              labelColor: "#f97316",
+              formatYLabel: (value: number) => `${Math.round(Number(value))}`,
+              lineColor: "#f9a8d4",
+            },
+            {
+              yKeys: ["profit"],
+              font,
+              labelColor: "#16a34a",
+              axisSide: "right",
+              lineWidth: 0,
+              tickValues: [10030, 10045],
+            },
+          ]}
+        >
+          {({ points, chartBounds }) => (
+            <>
+              <Bar color="#1e1e59" points={points.profit} chartBounds={chartBounds} />
+              <Line
+                points={points.sales}
+                color="#a04d4d"
+                strokeWidth={3}
+                animate={{ type: "spring" }}
+              />
+            </>
+          )}
+        </CartesianChart>
+      )}
+    </ChartSection>
+  );
+}
+
+function PerAxisDomainSection({ font }: { font: FontProp }) {
+  return (
+    <ChartSection
+      title="多 Y 轴 — 逐轴 domain"
+      caption="active 阶梯面积 [0,1] · price 阶梯线 $[100,200] · 内外温度 natural 曲线 [0,30]°C,三把尺同图"
+      height={220}
+    >
+      {({ width, height }) => (
+        <CartesianChart
+          explicitSize={{ width, height }}
+          data={PER_AXIS_DATA}
+          xKey="time"
+          yKeys={["active", "price", "insideTemp", "outsideTemp"]}
+          domainPadding={{ left: 6, right: 6, top: 8 }}
+          xAxis={{
+            font,
+            labelColor: LABEL_COLOR,
+            formatXLabel: (value: string) => `${value}`,
+            lineColor: "transparent",
+            tickCount: 6,
+          }}
+          yAxis={[
+            {
+              yKeys: ["active"],
+              font,
+              formatYLabel: () => "",
+              domain: [0, 1],
+              lineColor: "#d3d3d3",
+            },
+            {
+              yKeys: ["price"],
+              font,
+              labelColor: LABEL_COLOR,
+              formatYLabel: (value: number) => `$${Math.round(Number(value))}`,
+              axisSide: "left",
+              domain: [100, 200],
+            },
+            {
+              yKeys: ["insideTemp", "outsideTemp"],
+              font,
+              labelColor: LABEL_COLOR,
+              formatYLabel: (value: number) => `${Math.round(Number(value))}°C`,
+              axisSide: "right",
+              domain: [0, 30],
+            },
+          ]}
+        >
+          {({ points, chartBounds }) => (
+            <>
+              <Area
+                curveType="step"
+                color="#6dc9e8"
+                opacity={0.5}
+                points={points.active}
+                y0={chartBounds.bottom}
+              />
+              <Line
+                points={points.price}
+                curveType="step"
+                color="#a04d4d"
+                strokeWidth={3}
+                opacity={0.8}
+                animate={{ type: "spring" }}
+              />
+              <Line
+                points={points.insideTemp}
+                curveType="natural"
+                color="#1e1e59"
+                strokeWidth={3}
+                animate={{ type: "spring" }}
+              />
+              <Line
+                points={points.outsideTemp}
+                curveType="natural"
+                color="#74b567"
+                strokeWidth={3}
+                animate={{ type: "spring" }}
+              />
+            </>
+          )}
+        </CartesianChart>
+      )}
+    </ChartSection>
+  );
+}
+
+/** Interactive: band data + buttons live HERE so taps re-render this section only. */
+function AreaRangeSection({ font }: { font: FontProp }) {
   const [bandData, setBandData] = useState(() => rangeBandData());
+  const axisOptions = useMemo(
+    () => ({
+      font,
+      lineColor: AXIS_COLOR,
+      labelColor: LABEL_COLOR,
+      tickCount: { x: 6, y: 4 } as const,
+    }),
+    [font],
+  );
+  return (
+    <view>
+      <ChartSection
+        title="AreaRange — 区间带"
+        caption="中线两侧 ±20 的固定带,timing 动画"
+        height={190}
+      >
+        {({ width, height }) => (
+          <CartesianChart
+            explicitSize={{ width, height }}
+            data={bandData}
+            xKey="day"
+            yKeys={["middle", "lower", "upper"]}
+            domain={{ y: [0, 80] }}
+            domainPadding={{ left: 8, right: 8, top: 8 }}
+            axisOptions={axisOptions}
+          >
+            {({ points }) => (
+              <>
+                <AreaRange
+                  points={points.middle.map((p) => ({
+                    ...p,
+                    y: p.y! + 20,
+                    y0: p.y! - 20,
+                  }))}
+                  animate={{ type: "timing" }}
+                  color="#6464ff"
+                  opacity={0.2}
+                />
+                <Line
+                  points={points.middle}
+                  animate={{ type: "timing" }}
+                  color="#6464ff"
+                  strokeWidth={1}
+                />
+              </>
+            )}
+          </CartesianChart>
+        )}
+      </ChartSection>
+      <ChartSection title="AreaRange — 独立上下界" height={190}>
+        {({ width, height }) => (
+          <CartesianChart
+            explicitSize={{ width, height }}
+            data={bandData}
+            xKey="day"
+            yKeys={["middle", "lower", "upper"]}
+            domain={{ y: [0, 80] }}
+            domainPadding={{ left: 8, right: 8, top: 8 }}
+            axisOptions={axisOptions}
+          >
+            {({ points }) => (
+              <>
+                <AreaRange
+                  upperPoints={points.upper}
+                  lowerPoints={points.lower}
+                  animate={{ type: "timing" }}
+                  color="#6464ff"
+                  opacity={0.2}
+                />
+                <Line
+                  points={points.middle}
+                  animate={{ type: "timing" }}
+                  color="#6464ff"
+                  strokeWidth={1}
+                />
+              </>
+            )}
+          </CartesianChart>
+        )}
+      </ChartSection>
+      <view style={{ flexDirection: "row", gap: "12px", marginBottom: "28px" }}>
+        <DemoButton title="Shuffle Data" onTap={() => setBandData(rangeBandData())} />
+        <DemoButton
+          title="Add Points"
+          disabled={bandData.length >= 30}
+          onTap={() => setBandData((d) => [...d, ...rangeBandData(5, d.length + 1)])}
+        />
+      </view>
+    </view>
+  );
+}
+
+/** Interactive: star styling state lives HERE so taps re-render this section only. */
+function StarsSection({ font }: { font: FontProp }) {
   const [corners, setCorners] = useState(5);
   const [starColorIdx, setStarColorIdx] = useState(0);
+  return (
+    <view>
+      <ChartSection
+        title="自定义绘制 — 星形 Points"
+        caption="chart bounds 内逐点画多边形(RN-Skia <Points mode=polygon>);角数与颜色可切换"
+        height={220}
+      >
+        {({ width, height }) => (
+          <CartesianChart
+            explicitSize={{ width, height }}
+            data={STAR_DATA}
+            xKey="day"
+            yKeys={["stars"]}
+            domainPadding={20}
+            axisOptions={{
+              font,
+              lineColor: AXIS_COLOR,
+              labelColor: LABEL_COLOR,
+              tickCount: 5,
+            }}
+          >
+            {({ points }) => (
+              <>
+                {points.stars.map(({ x, y }, i) => (
+                  <Points
+                    key={`star-${i}`}
+                    points={starPoints(x, y ?? 0, 5, corners)}
+                    mode="polygon"
+                    color={STAR_COLORS[starColorIdx]}
+                    strokeWidth={2}
+                  />
+                ))}
+              </>
+            )}
+          </CartesianChart>
+        )}
+      </ChartSection>
+      <view style={{ flexDirection: "row", gap: "12px", marginBottom: "28px" }}>
+        <DemoButton
+          title={`角数: ${corners} → 下一切换`}
+          onTap={() => setCorners((c) => (c >= 8 ? 3 : c + 1))}
+        />
+        <DemoButton
+          title="换颜色"
+          onTap={() => setStarColorIdx((i) => (i + 1) % STAR_COLORS.length)}
+        />
+      </view>
+    </view>
+  );
+}
 
-  const windowData = OHLC.slice(windowStart, windowStart + WINDOW_SIZE);
-  const axisColor = "#d4d4d8";
-  const labelColor = "#6b7280";
+function StackedNonUniformSection({ font }: { font: FontProp }) {
+  return (
+    <ChartSection
+      title="StackedBar — 非均匀数据"
+      caption="缺失键与 0 值段;barOptions 只给顶层/底层段圆角(上游 NonUniformDataSet)"
+      height={200}
+    >
+      {({ width, height }) => (
+        <CartesianChart
+          explicitSize={{ width, height }}
+          data={STACKED_NON_UNIFORM}
+          xKey="month"
+          yKeys={["favouriteCount", "listenCount", "sales"]}
+          domain={{ y: [0, 200] }}
+          domainPadding={{ left: 40, right: 40, top: 8 }}
+          axisOptions={{
+            font,
+            lineColor: AXIS_COLOR,
+            labelColor: LABEL_COLOR,
+            formatXLabel: (value: number) => MONTHS[Number(value) - 1] ?? `${value}`,
+          }}
+        >
+          {({ points, chartBounds }) => (
+            <StackedBar
+              barWidth={45}
+              innerPadding={0.33}
+              chartBounds={chartBounds}
+              points={[points.favouriteCount, points.listenCount, points.sales]}
+              colors={["#3b82f6", "#ef4444", "#22c55e"]}
+              barOptions={({ isBottom, isTop }) => ({
+                roundedCorners: isTop
+                  ? { topLeft: 5, topRight: 5 }
+                  : isBottom
+                    ? { bottomRight: 5, bottomLeft: 5 }
+                    : undefined,
+              })}
+            />
+          )}
+        </CartesianChart>
+      )}
+    </ChartSection>
+  );
+}
 
+export function VictoryAdvancedDemo() {
+  const font = useFont(PRESS_START_2P, 8);
   return (
     <view>
       <view style={{ paddingLeft: "16px", paddingRight: "16px", marginBottom: "24px" }}>
@@ -234,452 +764,14 @@ export function VictoryAdvancedDemo() {
           区间带 · 星形自定义绘制(RN-Skia Points)· 非均匀堆叠柱
         </text>
 
-        <ChartSection
-          title="Candlestick — 90 日 OHLC"
-          caption="随机游走生成的日线;绿涨红跌灰十字,烛芯 1.5px,x 轴按月取 tick"
-          height={240}
-        >
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={OHLC}
-              xKey="date"
-              yKeys={["open", "high", "low", "close"]}
-              domainPadding={{ left: 8, right: 8, top: 16, bottom: 8 }}
-              xAxis={{
-                font,
-                tickValues: MAIN_TICKS,
-                lineColor: axisColor,
-                labelColor,
-                labelOffset: 6,
-                formatXLabel: formatMonthLabel,
-              }}
-              yAxis={[
-                {
-                  yKeys: ["open", "high", "low", "close"],
-                  font,
-                  tickCount: 5,
-                  lineColor: axisColor,
-                  labelColor,
-                  labelOffset: 4,
-                  formatYLabel: (value: number) => `$${Math.round(Number(value))}`,
-                },
-              ]}
-              frame={{ lineColor: axisColor, lineWidth: 1 }}
-            >
-              {({ points, chartBounds }) => (
-                <Candlestick
-                  openPoints={points.open}
-                  highPoints={points.high}
-                  lowPoints={points.low}
-                  closePoints={points.close}
-                  chartBounds={chartBounds}
-                  candleRatio={0.65}
-                  wickStrokeWidth={1.5}
-                  candleColors={{
-                    positive: "#16a34a",
-                    negative: "#dc2626",
-                    neutral: "#71717a",
-                  }}
-                />
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
-
-        <ChartSection
-          title="Candlestick — 窗口滚动"
-          caption="Earlier/Later 切换 18 根窗口,逐蜡烛路径 + timing 250ms 平滑过渡"
-          height={200}
-        >
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={windowData}
-              xKey="date"
-              yKeys={["open", "high", "low", "close"]}
-              domainPadding={{ left: 20, right: 20, top: 10, bottom: 6 }}
-              xAxis={{
-                font,
-                tickValues: endpointTickValues(windowData),
-                lineColor: axisColor,
-                labelColor,
-                formatXLabel: formatDayLabel,
-              }}
-              yAxis={[
-                {
-                  yKeys: ["open", "high", "low", "close"],
-                  font,
-                  tickCount: 4,
-                  lineColor: axisColor,
-                  labelColor,
-                  formatYLabel: (value: number) => `$${Math.round(Number(value))}`,
-                },
-              ]}
-            >
-              {({ points, chartBounds }) => (
-                <Candlestick
-                  openPoints={points.open}
-                  highPoints={points.high}
-                  lowPoints={points.low}
-                  closePoints={points.close}
-                  chartBounds={chartBounds}
-                  candleCount={WINDOW_SIZE}
-                  candleRatio={0.7}
-                  wickStrokeWidth={1.25}
-                  candleOptions={() => ({})}
-                  animate={{ type: "timing", duration: 250 }}
-                />
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
-        <view style={{ flexDirection: "row", gap: "12px", marginBottom: "28px" }}>
-          <DemoButton
-            title="← Earlier"
-            disabled={windowStart === 0}
-            onTap={() => setWindowStart((s) => Math.max(0, s - WINDOW_STEP))}
-          />
-          <DemoButton
-            title="Later →"
-            disabled={windowStart >= MAX_WINDOW_START}
-            onTap={() => setWindowStart((s) => Math.min(MAX_WINDOW_START, s + WINDOW_STEP))}
-          />
-        </view>
-
-        <ChartSection
-          title="Candlestick — 逐蜡烛样式与缺失值"
-          caption="candleOptions 回调按 high−low 动态调烛芯粗细;null 值蜡烛跳过,minBodyHeight 兜住十字星"
-          height={180}
-        >
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={CANDLE_EDGE_DATA}
-              xKey="label"
-              yKeys={["open", "high", "low", "close"]}
-              domain={{ y: [0, 22] }}
-              domainPadding={{ left: 30, right: 30, top: 8 }}
-              xAxis={{ font, tickCount: 5, lineColor: axisColor, labelColor }}
-              yAxis={[
-                {
-                  yKeys: ["open", "high", "low", "close"],
-                  font,
-                  tickCount: 4,
-                  lineColor: axisColor,
-                  labelColor,
-                },
-              ]}
-            >
-              {({ points, chartBounds }) => (
-                <Candlestick
-                  openPoints={points.open}
-                  highPoints={points.high}
-                  lowPoints={points.low}
-                  closePoints={points.close}
-                  chartBounds={chartBounds}
-                  candleRatio={0.62}
-                  minBodyHeight={2}
-                  wickStrokeWidth={1.5}
-                />
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
-
-        <ChartSection
-          title="多 Y 轴 — 独立刻度"
-          caption="profit 柱挂左轴($25–50),sales 线挂右轴(10025–10050),两条 y 轴各自定刻度"
-          height={210}
-        >
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={DUAL_AXIS_DATA}
-              xKey="day"
-              yKeys={["sales", "profit"]}
-              domainPadding={{ left: 10, right: 10, top: 10 }}
-              xAxis={{
-                font,
-                labelColor,
-                formatXLabel: (value: number) => `${Math.round(Number(value))}`,
-                lineColor: axisColor,
-              }}
-              frame={{ lineColor: "#111827", lineWidth: 2 }}
-              yAxis={[
-                {
-                  yKeys: ["sales"],
-                  font,
-                  labelColor: "#f97316",
-                  formatYLabel: (value: number) => `${Math.round(Number(value))}`,
-                  lineColor: "#f9a8d4",
-                },
-                {
-                  yKeys: ["profit"],
-                  font,
-                  labelColor: "#16a34a",
-                  axisSide: "right",
-                  lineWidth: 0,
-                  tickValues: [10030, 10045],
-                },
-              ]}
-            >
-              {({ points, chartBounds }) => (
-                <>
-                  <Bar color="#1e1e59" points={points.profit} chartBounds={chartBounds} />
-                  <Line
-                    points={points.sales}
-                    color="#a04d4d"
-                    strokeWidth={3}
-                    animate={{ type: "spring" }}
-                  />
-                </>
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
-
-        <ChartSection
-          title="多 Y 轴 — 逐轴 domain"
-          caption="active 阶梯面积 [0,1] · price 阶梯线 $[100,200] · 内外温度 natural 曲线 [0,30]°C,三把尺同图"
-          height={220}
-        >
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={PER_AXIS_DATA}
-              xKey="time"
-              yKeys={["active", "price", "insideTemp", "outsideTemp"]}
-              domainPadding={{ left: 6, right: 6, top: 8 }}
-              xAxis={{
-                font,
-                labelColor,
-                formatXLabel: (value: string) => `${value}`,
-                lineColor: "transparent",
-                tickCount: 6,
-              }}
-              yAxis={[
-                {
-                  yKeys: ["active"],
-                  font,
-                  formatYLabel: () => "",
-                  domain: [0, 1],
-                  lineColor: "#d3d3d3",
-                },
-                {
-                  yKeys: ["price"],
-                  font,
-                  labelColor,
-                  formatYLabel: (value: number) => `$${Math.round(Number(value))}`,
-                  axisSide: "left",
-                  domain: [100, 200],
-                },
-                {
-                  yKeys: ["insideTemp", "outsideTemp"],
-                  font,
-                  labelColor,
-                  formatYLabel: (value: number) => `${Math.round(Number(value))}°C`,
-                  axisSide: "right",
-                  domain: [0, 30],
-                },
-              ]}
-            >
-              {({ points, chartBounds }) => (
-                <>
-                  <Area
-                    curveType="step"
-                    color="#6dc9e8"
-                    opacity={0.5}
-                    points={points.active}
-                    y0={chartBounds.bottom}
-                  />
-                  <Line
-                    points={points.price}
-                    curveType="step"
-                    color="#a04d4d"
-                    strokeWidth={3}
-                    opacity={0.8}
-                    animate={{ type: "spring" }}
-                  />
-                  <Line
-                    points={points.insideTemp}
-                    curveType="natural"
-                    color="#1e1e59"
-                    strokeWidth={3}
-                    animate={{ type: "spring" }}
-                  />
-                  <Line
-                    points={points.outsideTemp}
-                    curveType="natural"
-                    color="#74b567"
-                    strokeWidth={3}
-                    animate={{ type: "spring" }}
-                  />
-                </>
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
-
-        <ChartSection
-          title="AreaRange — 区间带"
-          caption="中线两侧 ±20 的固定带(上)+ upper/lower 独立序列带(下),timing 动画"
-          height={190}
-        >
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={bandData}
-              xKey="day"
-              yKeys={["middle", "lower", "upper"]}
-              domain={{ y: [0, 80] }}
-              domainPadding={{ left: 8, right: 8, top: 8 }}
-              axisOptions={{ font, lineColor: axisColor, labelColor, tickCount: { x: 6, y: 4 } }}
-            >
-              {({ points }) => (
-                <>
-                  <AreaRange
-                    points={points.middle.map((p) => ({
-                      ...p,
-                      y: p.y! + 20,
-                      y0: p.y! - 20,
-                    }))}
-                    animate={{ type: "timing" }}
-                    color="#6464ff"
-                    opacity={0.2}
-                  />
-                  <Line
-                    points={points.middle}
-                    animate={{ type: "timing" }}
-                    color="#6464ff"
-                    strokeWidth={1}
-                  />
-                </>
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
-
-        <ChartSection title="AreaRange — 独立上下界" height={190}>
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={bandData}
-              xKey="day"
-              yKeys={["middle", "lower", "upper"]}
-              domain={{ y: [0, 80] }}
-              domainPadding={{ left: 8, right: 8, top: 8 }}
-              axisOptions={{ font, lineColor: axisColor, labelColor, tickCount: { x: 6, y: 4 } }}
-            >
-              {({ points }) => (
-                <>
-                  <AreaRange
-                    upperPoints={points.upper}
-                    lowerPoints={points.lower}
-                    animate={{ type: "timing" }}
-                    color="#6464ff"
-                    opacity={0.2}
-                  />
-                  <Line
-                    points={points.middle}
-                    animate={{ type: "timing" }}
-                    color="#6464ff"
-                    strokeWidth={1}
-                  />
-                </>
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
-        <view style={{ flexDirection: "row", gap: "12px", marginBottom: "28px" }}>
-          <DemoButton title="Shuffle Data" onTap={() => setBandData(rangeBandData())} />
-          <DemoButton
-            title="Add Points"
-            disabled={bandData.length >= 30}
-            onTap={() => setBandData((d) => [...d, ...rangeBandData(5, d.length + 1)])}
-          />
-        </view>
-
-        <ChartSection
-          title="自定义绘制 — 星形 Points"
-          caption="chart bounds 内逐点画多边形(RN-Skia <Points mode=polygon>);角数与颜色可切换"
-          height={220}
-        >
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={STAR_DATA}
-              xKey="day"
-              yKeys={["stars"]}
-              domainPadding={20}
-              axisOptions={{ font, lineColor: axisColor, labelColor, tickCount: 5 }}
-            >
-              {({ points }) => (
-                <>
-                  {points.stars.map(({ x, y }, i) => (
-                    <Points
-                      key={`star-${i}`}
-                      points={starPoints(x, y ?? 0, 5, corners)}
-                      mode="polygon"
-                      color={STAR_COLORS[starColorIdx]}
-                      strokeWidth={2}
-                    />
-                  ))}
-                </>
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
-        <view style={{ flexDirection: "row", gap: "12px", marginBottom: "28px" }}>
-          <DemoButton
-            title={`角数: ${corners} → 下一切换`}
-            onTap={() => setCorners((c) => (c >= 8 ? 3 : c + 1))}
-          />
-          <DemoButton
-            title="换颜色"
-            onTap={() => setStarColorIdx((i) => (i + 1) % STAR_COLORS.length)}
-          />
-        </view>
-
-        <ChartSection
-          title="StackedBar — 非均匀数据"
-          caption="缺失键与 0 值段;barOptions 只给顶层/底层段圆角(上游 NonUniformDataSet)"
-          height={200}
-        >
-          {({ width, height }) => (
-            <CartesianChart
-              explicitSize={{ width, height }}
-              data={STACKED_NON_UNIFORM}
-              xKey="month"
-              yKeys={["favouriteCount", "listenCount", "sales"]}
-              domain={{ y: [0, 200] }}
-              domainPadding={{ left: 40, right: 40, top: 8 }}
-              axisOptions={{
-                font,
-                lineColor: axisColor,
-                labelColor,
-                formatXLabel: (value: number) => MONTHS[Number(value) - 1] ?? `${value}`,
-              }}
-            >
-              {({ points, chartBounds }) => (
-                <StackedBar
-                  barWidth={45}
-                  innerPadding={0.33}
-                  chartBounds={chartBounds}
-                  points={[points.favouriteCount, points.listenCount, points.sales]}
-                  colors={["#3b82f6", "#ef4444", "#22c55e"]}
-                  barOptions={({ isBottom, isTop }) => ({
-                    roundedCorners: isTop
-                      ? { topLeft: 5, topRight: 5 }
-                      : isBottom
-                        ? { bottomRight: 5, bottomLeft: 5 }
-                        : undefined,
-                  })}
-                />
-              )}
-            </CartesianChart>
-          )}
-        </ChartSection>
+        <CandlestickMainSection font={font} />
+        <CandlestickWindowSection font={font} />
+        <CandlestickEdgeSection font={font} />
+        <DualAxisSection font={font} />
+        <PerAxisDomainSection font={font} />
+        <AreaRangeSection font={font} />
+        <StarsSection font={font} />
+        <StackedNonUniformSection font={font} />
       </view>
     </view>
   );

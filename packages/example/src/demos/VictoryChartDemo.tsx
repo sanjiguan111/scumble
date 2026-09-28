@@ -9,12 +9,13 @@
 // axis labels (W2), and the RNGH-shaped gesture lane (press/scrub rides the
 // open touch-delivery issue — W4's known caveat).
 
-import { useState } from "@lynx-js/react";
+import { useEffect, useState } from "@lynx-js/react";
 
 import { useFont } from "@scumble/skia-compat";
 import { CartesianChart, Line, Scatter } from "victory-native";
 
 import { PRESS_START_2P } from "./fontData";
+import { perfMark, perfMarkOnce, perfLogSince, perfCommit, perfQueueLag } from "../components/perf";
 
 const SERIES = {
   sales: {
@@ -34,6 +35,8 @@ const SERIES = {
 } as const;
 
 export function VictoryChartDemo() {
+  perfMarkOnce("victory-mount");
+  const victoryRenderStart = Date.now();
   const [which, setWhich] = useState<keyof typeof SERIES>("sales");
   const set = SERIES[which];
   const font = useFont(PRESS_START_2P, 8);
@@ -42,6 +45,13 @@ export function VictoryChartDemo() {
   // (auto-height intermediaries collapse the basis-0/grow-1 chain), while
   // explicitSize makes ChartWrapper use fixed width/height styles directly.
   const [width, setWidth] = useState(0);
+  // [perf probe] every-commit lane: mount latency, tap→commit, JS render cost.
+  useEffect(() => {
+    perfLogSince("victory-mount", "VictoryChart mount→commit");
+    perfLogSince("victory-tap", "tap→commit");
+    perfCommit(Date.now() - victoryRenderStart, "render(js)");
+    perfQueueLag("post-commit");
+  });
 
   return (
     <view>
@@ -55,7 +65,12 @@ export function VictoryChartDemo() {
           CartesianChart + Line/Scatter 原样运行 · 轴标签 = JS 字体测量 · 点击切换数据集 = 反应式
           Reanimated shim 驱动 AnimatedPath 过渡
         </text>
-        <view bindtap={() => setWhich(which === "sales" ? "costs" : "sales")}>
+        <view
+          bindtap={() => {
+            perfMark("victory-tap");
+            setWhich(which === "sales" ? "costs" : "sales");
+          }}
+        >
           <view
             style={{ height: "260px" }}
             bindlayoutchange={(e: { detail?: { width?: number }; params?: { width?: number } }) =>
