@@ -125,6 +125,43 @@ float VecArg(const ::flatbuffers::Vector<float> *v, size_t idx, float def = 0.f)
   return (v != nullptr && idx < v->size()) ? v->Get(idx) : def;
 }
 
+// Replay lerped PathCommands (node_animation's LerpCommandLists output) into
+// a skity Path — the PATH_D morph-lane counterpart of BuildPathFromBytes
+// (same verb mapping, in-memory command source instead of FlatBuffer bytes).
+void AppendLerpedCommands(Path *path, const std::vector<LerpedPathCommand> &cmds,
+                          bool force_close) {
+  auto arg = [](const std::vector<float> &args, size_t idx) {
+    return idx < args.size() ? args[idx] : 0.f;
+  };
+  for (const LerpedPathCommand &c : cmds) {
+    switch (c.type) {
+    case PathCommandType_MOVE_TO:
+      path->MoveTo(arg(c.args, 0), arg(c.args, 1));
+      break;
+    case PathCommandType_LINE_TO:
+      path->LineTo(arg(c.args, 0), arg(c.args, 1));
+      break;
+    case PathCommandType_CUBIC_TO:
+      path->CubicTo(arg(c.args, 0), arg(c.args, 1), arg(c.args, 2), arg(c.args, 3), arg(c.args, 4),
+                    arg(c.args, 5));
+      break;
+    case PathCommandType_QUAD_TO:
+      path->QuadTo(arg(c.args, 0), arg(c.args, 1), arg(c.args, 2), arg(c.args, 3));
+      break;
+    case PathCommandType_ARC_TO:
+      path->ArcTo(arg(c.args, 0), arg(c.args, 1), arg(c.args, 2),
+                  arg(c.args, 3) != 0.f ? Path::ArcSize::kLarge : Path::ArcSize::kSmall,
+                  arg(c.args, 4) != 0.f ? Path::Direction::kCW : Path::Direction::kCCW,
+                  arg(c.args, 5), arg(c.args, 6));
+      break;
+    case PathCommandType_CLOSE:
+      path->Close();
+      break;
+    }
+  }
+  if (force_close) path->Close();
+}
+
 // Build a skity Path from nested PathCommandList bytes (a FlatBuffer built on
 // the JS side, memcpy'd verbatim) — shared by path/polyline drawing and the
 // group clip PATH branch.
@@ -294,6 +331,40 @@ void DrawCachedPath(const RetainedNode *node, Canvas *canvas, const RetainedComp
   RenderCache *rc = t_frame_cache;
   Path local; // uncached lane / trim output
   const Path *draw_path = nullptr;
+
+  // ---- PATH_D morph frame (early lane) ----
+  // The tick already lerped this frame's geometry into the track's scratch
+  // (zero per-frame parsing/allocations — endpoints parse once at install);
+  // this lane replays those commands, applies trim + fill rule, and draws.
+  // Both cache lanes are bypassed for morph frames (fresh geometry every
+  // frame, by definition) and resume the moment the track ends: fill=none
+  // clears the slot, the base `d` holds the TERMINAL geometry, and the
+  // SetPathData that installed it already bumped geom_version — the next
+  // draw rebuilds and re-caches the settled path.
+  if (!oval && (node->anim.overlay.mask & AnimationOverlay::kBitPathD) != 0) {
+    const RetainedAnimation *morph = nullptr;
+    for (const RetainedAnimation &tr : node->anim.tracks) {
+      if (tr.property == AnimatedProperty_PATH_D) {
+        morph = &tr;
+        break;
+      }
+    }
+    if (morph != nullptr && !morph->path_scratch.empty()) {
+      AppendLerpedCommands(&local, morph->path_scratch, force_close);
+      TrimPath(local, AnimPathStart(node), AnimPathEnd(node));
+      if (style != nullptr && fill_rule == FillRule_EVENODD) {
+        local.SetFillType(Path::PathFillType::kEvenOdd);
+      }
+      Paint fillPaint;
+      if (MakeFillPaint(style, opacity, gpu_context, &fillPaint))
+        canvas->DrawPath(local, fillPaint);
+      Paint strokePaint;
+      if (MakeStrokePaint(style, opacity, gpu_context, &strokePaint))
+        canvas->DrawPath(local, strokePaint);
+      return;
+    }
+  }
+
   auto build_oval = [&geom_key](Path *p) {
     p->AddOval(Rect::MakeXYWH(geom_key[0] - geom_key[3], geom_key[1] - geom_key[2],
                               geom_key[3] * 2.f, geom_key[2] * 2.f));

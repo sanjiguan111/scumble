@@ -403,6 +403,12 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       if (node != nullptr) {
         AssignOwnedBytes(pd->data(), &node->path_data);
         node->geom_version++;
+        // An explicit geometry write takes over a running morph (D2 conflict
+        // rule) — same-flush [SetPathData, SetAnimation] ordering installs
+        // the NEW track after this cancel (the TASM drain emits path before
+        // animation), so a data switch both lands the terminal geometry and
+        // restarts the morph cleanly.
+        CancelAnimationsFor(node, AnimationOverlay::kBitPathD, &animated_ids_);
       }
       break;
     }
@@ -414,6 +420,7 @@ void RetainedRenderTree::ApplyCommandBatch(const uint8_t *data, std::size_t size
       if (node != nullptr) {
         AssignOwnedBytes(po->data(), &node->path_op_data);
         node->geom_version++;
+        CancelAnimationsFor(node, AnimationOverlay::kBitPathD, &animated_ids_);
       }
       break;
     }

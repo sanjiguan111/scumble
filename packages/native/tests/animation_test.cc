@@ -456,3 +456,220 @@ TEST_F(AnimationTest, SeekToEndTimeFiresFinishAndReArms) {
 }
 
 } // namespace
+
+namespace {
+
+// ---- PATH_D: whole-path geometry morph (scumble perf lane) ----
+
+// PathCommandList bytes from {type, args} pairs (the same wire form the JS
+// producer serializes).
+std::vector<uint8_t> BuildCmds(std::vector<std::pair<PathCommandType, std::vector<float>>> cmds) {
+  ::flatbuffers::FlatBufferBuilder nb;
+  std::vector<::flatbuffers::Offset<PathCommand>> offs;
+  offs.reserve(cmds.size());
+  for (auto &c : cmds) {
+    offs.push_back(skityrt::CreatePathCommand(nb, c.first, nb.CreateVector(c.second)));
+  }
+  auto list = skityrt::CreatePathCommandList(nb, nb.CreateVector(offs));
+  nb.Finish(list);
+  return std::vector<uint8_t>(nb.GetBufferPointer(), nb.GetBufferPointer() + nb.GetSize());
+}
+
+// A PATH_D track: keyframes carry their geometry (PathCommandList bytes).
+std::vector<uint8_t> BuildPathDList(std::vector<std::vector<uint8_t>> key_paths,
+                                    uint32_t duration_ms, EasingKind easing = EasingKind_LINEAR) {
+  ::flatbuffers::FlatBufferBuilder nb;
+  std::vector<::flatbuffers::Offset<Keyframe>> kfs;
+  const size_t n = key_paths.size();
+  for (size_t i = 0; i < n; i++) {
+    auto cmds = nb.CreateVector(key_paths[i]);
+    kfs.push_back(skityrt::CreateKeyframe(nb, static_cast<float>(i) / (n - 1), 0.f, 0.f, 0u, easing,
+                                          0.42f, 0.f, 0.58f, 1.f, cmds));
+  }
+  auto track = skityrt::CreateAnimationTrack(nb, AnimatedProperty_PATH_D, duration_ms, 0, 1, false,
+                                             FillMode_NONE, easing, nb.CreateVector(kfs));
+  std::vector<::flatbuffers::Offset<skityrt::AnimationTrack>> tv{track};
+  auto list = skityrt::CreateAnimationList(nb, nb.CreateVector(tv));
+  nb.Finish(list);
+  return std::vector<uint8_t>(nb.GetBufferPointer(), nb.GetBufferPointer() + nb.GetSize());
+}
+
+// A SetPathData command batch for node 2.
+std::vector<uint8_t> BuildPathDataBatch(std::vector<uint8_t> bytes) {
+  return BuildSingleCommand(Command_SetPathData, [&](::flatbuffers::FlatBufferBuilder &fbb) {
+    return skityrt::CreateSetPathData(fbb, 2, fbb.CreateVector(bytes));
+  });
+}
+
+// @lat: [[tests#Native C++ core#Animation engine#Path morph track]]
+TEST_F(AnimationTest, PathDTrackEvaluatesProgressAndSegment) {
+  // Three keyframes: [M0,0 L0,10] → [M0,0 L10,10] → [M0,0 L20,20], 100ms.
+  Apply(BuildPathDList(
+      {BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}}, {PathCommandType_LINE_TO, {0.f, 10.f}}}),
+       BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}}, {PathCommandType_LINE_TO, {10.f, 10.f}}}),
+       BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}}, {PathCommandType_LINE_TO, {20.f, 20.f}}})},
+      100));
+  const skityrt::RetainedNode *n = tree.Find(2);
+  ASSERT_NE(n, nullptr);
+
+  EXPECT_TRUE(tree.TickAnimations(kT0)); // stamps origin
+  EXPECT_TRUE(tree.TickAnimations(kT0 + 25 * kMs));
+  EXPECT_NE(n->anim.overlay.mask & AnimationOverlay::kBitPathD, 0u);
+  EXPECT_EQ(n->anim.overlay.path_seg, 0u);         // first segment [0, 0.5]
+  EXPECT_NEAR(n->anim.overlay.path_t, 0.5f, 1e-4); // 25ms = 50% of segment 0
+
+  EXPECT_TRUE(tree.TickAnimations(kT0 + 75 * kMs));
+  EXPECT_EQ(n->anim.overlay.path_seg, 1u); // second segment [0.5, 1]
+  EXPECT_NEAR(n->anim.overlay.path_t, 0.5f, 1e-4);
+
+  // Terminal frame still paints, then fill=none clears the slot.
+  EXPECT_TRUE(tree.TickAnimations(kT0 + 100 * kMs));
+  EXPECT_NEAR(n->anim.overlay.path_t, 1.f, 1e-6);
+  EXPECT_FALSE(tree.TickAnimations(kT0 + 116 * kMs));
+  EXPECT_EQ(n->anim.overlay.mask, 0u);
+}
+
+// @lat: [[tests#Native C++ core#Animation engine#Path morph track]]
+TEST_F(AnimationTest, PathDKeyframeBytesCarried) {
+  auto from =
+      BuildCmds({{PathCommandType_MOVE_TO, {1.f, 2.f}}, {PathCommandType_LINE_TO, {3.f, 4.f}}});
+  auto to =
+      BuildCmds({{PathCommandType_MOVE_TO, {5.f, 6.f}}, {PathCommandType_LINE_TO, {7.f, 8.f}}});
+  Apply(BuildPathDList({from, to}, 100));
+  const skityrt::RetainedNode *n = tree.Find(2);
+  ASSERT_NE(n, nullptr);
+  ASSERT_EQ(n->anim.tracks.size(), 1u);
+  ASSERT_EQ(n->anim.tracks[0].keys.size(), 2u);
+  EXPECT_EQ(n->anim.tracks[0].keys[0].path_data, from);
+  EXPECT_EQ(n->anim.tracks[0].keys[1].path_data, to);
+}
+
+// @lat: [[tests#Native C++ core#Animation engine#Path morph track]]
+TEST_F(AnimationTest, PathDataWriteCancelsPathDTrack) {
+  auto bytes = BuildPathDList({BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}}}),
+                               BuildCmds({{PathCommandType_MOVE_TO, {10.f, 10.f}}})},
+                              100);
+  Apply(bytes); // [inserts..., SetAnimation]
+  EXPECT_TRUE(tree.TickAnimations(kT0));
+  const skityrt::RetainedNode *n = tree.Find(2);
+  EXPECT_NE(n->anim.overlay.mask & AnimationOverlay::kBitPathD, 0u);
+
+  // Same-batch [SetPathData BEFORE SetAnimation] (the TASM drain order): the
+  // cancel hits the OLD track, the new one installs — still live.
+  auto fresh = BuildCmds({{PathCommandType_MOVE_TO, {20.f, 20.f}}});
+  {
+    ::flatbuffers::FlatBufferBuilder fbb;
+    auto data = fbb.CreateVector(fresh);
+    auto pd = skityrt::CreateSetPathData(fbb, 2, data);
+    auto anim = fbb.CreateVector(bytes);
+    auto sa = skityrt::CreateSetAnimation(fbb, 2, anim, 0);
+    std::vector<::flatbuffers::Offset<void>> cmds{pd.Union(), sa.Union()};
+    std::vector<uint8_t> types{Command_SetPathData, Command_SetAnimation};
+    auto batch =
+        skityrt::CreateCommandBatch(fbb, 0, fbb.CreateVector(types), fbb.CreateVector(cmds));
+    skityrt::FinishCommandBatchBuffer(fbb, batch);
+    auto raw = std::vector<uint8_t>(fbb.GetBufferPointer(), fbb.GetBufferPointer() + fbb.GetSize());
+    tree.ApplyCommandBatch(raw.data(), raw.size());
+  }
+  EXPECT_TRUE(tree.TickAnimations(kT0 + 16 * kMs));
+  EXPECT_NE(n->anim.overlay.mask & AnimationOverlay::kBitPathD, 0u);
+
+  // SetPathData ALONE: the explicit geometry takes over — track cancelled,
+  // node idles.
+  auto clear = BuildPathDataBatch(fresh);
+  tree.ApplyCommandBatch(clear.data(), clear.size());
+  EXPECT_FALSE(tree.TickAnimations(kT0 + 32 * kMs));
+  EXPECT_EQ(n->anim.overlay.mask & AnimationOverlay::kBitPathD, 0u);
+  EXPECT_TRUE(n->anim.tracks.empty());
+}
+
+// @lat: [[tests#Native C++ core#Animation engine#Path morph track]]
+TEST_F(AnimationTest, PathDTickLerpsIntoReusableScratch) {
+  // Endpoints parse ONCE at install; ticks lerp in place into path_scratch.
+  Apply(BuildPathDList(
+      {BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}}, {PathCommandType_LINE_TO, {0.f, 10.f}}}),
+       BuildCmds(
+           {{PathCommandType_MOVE_TO, {10.f, 0.f}}, {PathCommandType_LINE_TO, {10.f, 20.f}}})},
+      100));
+  const skityrt::RetainedNode *n = tree.Find(2);
+  ASSERT_NE(n, nullptr);
+  ASSERT_EQ(n->anim.tracks.size(), 1u);
+  const skityrt::RetainedAnimation &tr = n->anim.tracks[0];
+  EXPECT_TRUE(tr.path_lerp_ok);
+  ASSERT_EQ(tr.path_scratch.size(), 2u); // pre-sized at install
+
+  EXPECT_TRUE(tree.TickAnimations(kT0));
+  EXPECT_TRUE(tree.TickAnimations(kT0 + 50 * kMs));    // midpoint
+  EXPECT_NEAR(tr.path_scratch[0].args[0], 5.f, 1e-5);  // M x: 0→10 at 0.5
+  EXPECT_NEAR(tr.path_scratch[1].args[1], 15.f, 1e-5); // L y: 10→20 at 0.5
+}
+
+// @lat: [[tests#Native C++ core#Animation engine#Path morph track]]
+TEST_F(AnimationTest, PathDStructureMismatchDegradesToSnap) {
+  // LINE vs QUAD at the same position: install-time validation rejects
+  // lerping; ticks snap to the nearer endpoint (upstream's fallback).
+  Apply(BuildPathDList(
+      {BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}}, {PathCommandType_LINE_TO, {5.f, 5.f}}}),
+       BuildCmds({{PathCommandType_MOVE_TO, {10.f, 0.f}},
+                  {PathCommandType_QUAD_TO, {15.f, 15.f, 20.f, 20.f}}})},
+      100));
+  const skityrt::RetainedNode *n = tree.Find(2);
+  ASSERT_NE(n, nullptr);
+  const skityrt::RetainedAnimation &tr = n->anim.tracks[0];
+  EXPECT_FALSE(tr.path_lerp_ok);
+  EXPECT_TRUE(tree.TickAnimations(kT0));
+  EXPECT_TRUE(tree.TickAnimations(kT0 + 25 * kMs)); // eased < 0.5 → FROM
+  ASSERT_EQ(tr.path_scratch.size(), 2u);
+  EXPECT_EQ(tr.path_scratch[1].type, PathCommandType_LINE_TO);
+  EXPECT_NEAR(tr.path_scratch[1].args[0], 5.f, 1e-6);
+  EXPECT_TRUE(tree.TickAnimations(kT0 + 75 * kMs)); // eased > 0.5 → TO
+  EXPECT_EQ(tr.path_scratch[1].type, PathCommandType_QUAD_TO);
+  EXPECT_NEAR(tr.path_scratch[1].args[0], 15.f, 1e-6);
+}
+
+// @lat: [[tests#Native C++ core#Animation engine#Path morph track]]
+TEST(LerpCommandLists, LerpsPerArgumentWeightedByT) {
+  auto a = BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}},
+                      {PathCommandType_CUBIC_TO, {10.f, 10.f, 10.f, 10.f, 10.f, 10.f}}});
+  auto b = BuildCmds({{PathCommandType_MOVE_TO, {10.f, 0.f}},
+                      {PathCommandType_CUBIC_TO, {30.f, 10.f, 10.f, 30.f, 10.f, 10.f}}});
+  auto out = skityrt::LerpCommandLists(a, b, 0.25f); // a*0.25 + b*0.75
+  ASSERT_TRUE(out.has_value());
+  ASSERT_EQ(out->size(), 2u);
+  EXPECT_EQ((*out)[0].type, PathCommandType_MOVE_TO);
+  EXPECT_NEAR((*out)[0].args[0], 7.5f, 1e-5);
+  EXPECT_NEAR((*out)[0].args[1], 0.f, 1e-5);
+  EXPECT_NEAR((*out)[1].args[0], 25.f, 1e-5); // 10*0.25 + 30*0.75
+}
+
+// @lat: [[tests#Native C++ core#Animation engine#Path morph track]]
+TEST(LerpCommandLists, ArcFlagsRoundToZeroOrOne) {
+  auto a = BuildCmds({{PathCommandType_ARC_TO, {5.f, 5.f, 0.f, 0.f, 0.f, 10.f, 10.f}}});
+  auto b = BuildCmds({{PathCommandType_ARC_TO, {5.f, 5.f, 0.f, 1.f, 1.f, 10.f, 10.f}}});
+  auto quarter = skityrt::LerpCommandLists(a, b, 0.25f); // flags 0.75 → 1
+  ASSERT_TRUE(quarter.has_value());
+  EXPECT_EQ((*quarter)[0].args[3], 1.f);
+  EXPECT_EQ((*quarter)[0].args[4], 1.f);
+  auto mid = skityrt::LerpCommandLists(a, b, 0.75f); // flags 0.25 → 0
+  ASSERT_TRUE(mid.has_value());
+  EXPECT_EQ((*mid)[0].args[3], 0.f);
+  EXPECT_EQ((*mid)[0].args[4], 0.f);
+}
+
+// @lat: [[tests#Native C++ core#Animation engine#Path morph track]]
+TEST(LerpCommandLists, StructureMismatchReturnsNull) {
+  auto two =
+      BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}}, {PathCommandType_LINE_TO, {1.f, 1.f}}});
+  auto one = BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}}});
+  EXPECT_FALSE(skityrt::LerpCommandLists(two, one, 0.5f).has_value());
+  auto line = BuildCmds(
+      {{PathCommandType_MOVE_TO, {0.f, 0.f}}, {PathCommandType_QUAD_TO, {1.f, 1.f, 2.f, 2.f}}});
+  auto cubic = BuildCmds({{PathCommandType_MOVE_TO, {0.f, 0.f}},
+                          {PathCommandType_CUBIC_TO, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f}}});
+  EXPECT_FALSE(skityrt::LerpCommandLists(line, cubic, 0.5f).has_value());
+  // Empty payloads never lerp (an empty morph target is a producer error).
+  EXPECT_FALSE(skityrt::LerpCommandLists({}, {}, 0.5f).has_value());
+  EXPECT_TRUE(skityrt::ParseCommandList({}).empty());
+}
+
+} // namespace

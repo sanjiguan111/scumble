@@ -936,9 +936,20 @@ what shipped, as-built:
 
 **Command**: `SetAnimation` (13th `Command` union member) carries JS-built
 `AnimationList` bytes (nested FlatBuffer, memcpy'd like SetClip) — one track
-per property, many tracks per node. First-batch properties (16):
+per property, many tracks per node. Properties (17):
 opacity / translateX / translateY / rotate / scale (sx+sy) / pathStart /
-pathEnd / fillColor / strokeColor / x / y / width / height / cx / cy / r.
+pathEnd / fillColor / strokeColor / x / y / width / height / cx / cy / r —
+plus `PATH_D` (2026-09-29): whole-path geometry morph. Keyframes carry
+nested PathCommandList bytes (`commands`); the tick writes only the eased
+segment progress into the overlay (`path_t`/`path_seg`) and `DrawCachedPath`
+lerps the two command lists per draw (mirroring JS `Path2D.interpolate`;
+structure mismatch snaps at 0.5) — node_animation stays skity-free, morph
+frames bypass both cache lanes and resume caching on settle. A
+`SetPathData`/`SetPathOpData` write cancels the track (the TASM drain emits
+path before animation within a flush, so a same-batch data switch lands
+terminal geometry then installs the new track). Consumer: Victory's
+useAnimatedPath shim emits `PathMorphSpec` descriptors — one prop commit per
+data switch, zero JS per frame on device (the MI6 ~280ms/commit morph fix).
 React API: `animate={{ property, from, to, duration, easing, loop… }}` on
 every shape + `Group` + `Canvas` (`resolveAnimation` → base64 `animationData`
 prop — named `animationData`, NOT `animation`: Lynx's StandardProps reserves

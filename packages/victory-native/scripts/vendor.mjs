@@ -49,6 +49,23 @@ const rulesFor = (relPrefix) => [
   [/"react-native"/g, `"${relPrefix}/shims/react-native.js"`],
 ];
 
+// Whole-file overrides: upstream files whose LOGIC scumble replaces
+// outright (not just import lanes). Keyed by path suffix below SRC; value =
+// path relative to the package root. The override is written VERBATIM (no
+// codemod — its imports are already in final form) and must keep the
+// upstream module's export surface.
+//
+// useAnimatedPath: the reactive shim pays a full subscriber re-render +
+// Lynx patch+layout round PER TWEEN FRAME (measured ~280ms/commit on a MI6 —
+// data-driven morphs throttled to ~3fps). Our replacement routes timing
+// morphs onto scumble's NATIVE pathD animation track: ONE commit per data
+// switch, then the render thread lerps per vsync with zero JS. The old
+// from==to mount-tween skip (patchRules below, now removed) is generalized
+// into it — any equal-geometry data switch settles without tweening.
+const overrides = {
+  "hooks/useAnimatedPath.ts": "shims/useAnimatedPath.ts",
+};
+
 // Logic patches for specific upstream files (applied after the import rules,
 // keyed by path suffix below SRC). Real Reanimated animates on the UI thread
 // at zero JS cost, so upstream tolerates pointless tweens; our REACTIVE shim
@@ -56,17 +73,7 @@ const rulesFor = (relPrefix) => [
 // AnimatedPath mount: from and to start as copies of the same path) burns
 // ~31 futile render+patch cycles per chart. Skip it when the path is
 // unchanged — the tween only makes sense when there is geometry to travel.
-const patchRules = {
-  "hooks/useAnimatedPath.ts": [
-    [
-      "    if (isWithTimingConfig(animConfig)) {",
-      `    if (targetPathSV.value.toSVGString() === fromPathSV.value.toSVGString()) {
-      // scumble patch: identical geometry — settle instead of tweening.
-      progressSV.value = 1;
-    } else if (isWithTimingConfig(animConfig)) {`,
-    ],
-  ],
-};
+const patchRules = {};
 
 rmSync(SRC, { recursive: true, force: true });
 try {
@@ -106,10 +113,24 @@ for (const file of walk(SRC)) {
   const relPrefix = Array(depth + 1)
     .fill("..")
     .join("/");
+  const suffix = relative(SRC, file).split(sep).join("/");
+  // Whole-file overrides short-circuit the codemod (their package imports
+  // are already final-form; the upstream copy beneath them is discarded).
+  // One rewrite: sibling-shim imports ("./reanimated.js") are written for
+  // the shim's OWN location — re-anchor them to the destination's depth.
+  const override = overrides[suffix];
+  if (override !== undefined) {
+    const shimText = readFileSync(join(PKG, override), "utf8");
+    writeFileSync(
+      file,
+      shimText.replaceAll('"./reanimated.js"', `"${relPrefix}/shims/reanimated.js"`),
+    );
+    touched++;
+    continue;
+  }
   let text = readFileSync(file, "utf8");
   const before = text;
   for (const [from, to] of rulesFor(relPrefix)) text = text.replace(from, to);
-  const suffix = relative(SRC, file).split(sep).join("/");
   for (const [from, to] of patchRules[suffix] ?? []) {
     if (!text.includes(from)) {
       console.error(

@@ -27,6 +27,8 @@ import { FillMode } from "./generated/skityrt/fill-mode.js";
 import { Keyframe } from "./generated/skityrt/keyframe.js";
 import { parseColor } from "./color.js";
 import type { Color } from "./color.js";
+import { parsePath } from "./path.js";
+import type { Path2D } from "./path.js";
 
 /** Easing curve of a keyframe segment: a preset name or cubic-bezier points. */
 export type EasingSpec =
@@ -93,7 +95,8 @@ export type AnimatedPropertyName =
   | "height"
   | "cx"
   | "cy"
-  | "r";
+  | "r"
+  | "pathD";
 
 export const ANIMATED_PROPERTY: Record<AnimatedPropertyName, AnimatedProperty> = {
   opacity: AnimatedProperty.OPACITY,
@@ -112,7 +115,21 @@ export const ANIMATED_PROPERTY: Record<AnimatedPropertyName, AnimatedProperty> =
   cx: AnimatedProperty.CX,
   cy: AnimatedProperty.CY,
   r: AnimatedProperty.R,
+  pathD: AnimatedProperty.PATH_D,
 };
+
+/** A `pathD` keyframe's geometry: an SVG `d` string, pre-built
+ *  PathCommandList bytes, or a {@link Path2D}. */
+export type PathMorphValue = string | Uint8Array | Path2D;
+
+/** PathMorphValue → PathCommandList bytes (empty on an unparsable d string —
+ *  the morph degrades to snapping, never throws mid-serialization). */
+function pathMorphBytes(v: PathMorphValue | undefined): Uint8Array {
+  if (v === undefined) return new Uint8Array(0);
+  if (typeof v === "string") return new Uint8Array(parsePath(v) ?? new ArrayBuffer(0));
+  if (v instanceof Uint8Array) return v;
+  return new Uint8Array(v.toBytes());
+}
 
 /**
  * One keyframe. `value`/`value2` cover the scalar slots (value2 = `scale`'s
@@ -124,6 +141,8 @@ export interface KeyframeSpec {
   value?: number;
   value2?: number;
   color?: Color;
+  /** `pathD` keyframe geometry (see {@link PathMorphValue}); ignored for scalar properties. */
+  path?: PathMorphValue;
   /** Easing of the segment STARTING at this keyframe; omitted → the track's. */
   easing?: EasingSpec;
 }
@@ -131,9 +150,10 @@ export interface KeyframeSpec {
 /** One animated property. */
 export interface AnimationTrackSpec {
   property: AnimatedPropertyName;
-  /** Keyframe values; `from`/`to` is sugar for a two-keyframe track. */
-  from?: number | Color | [number, number];
-  to?: number | Color | [number, number];
+  /** Keyframe values; `from`/`to` is sugar for a two-keyframe track. `pathD`
+   *  tracks accept {@link PathMorphValue}s here (and per keyframe `path`). */
+  from?: number | Color | [number, number] | PathMorphValue;
+  to?: number | Color | [number, number] | PathMorphValue;
   keyframes?: KeyframeSpec[];
   /** Milliseconds per iteration (default 300). */
   duration?: number;
@@ -158,15 +178,18 @@ interface NormalizedKeyframe {
   value2: number;
   color: number;
   easing: ResolvedEasing;
+  /** pathD tracks: PathCommandList bytes (null on scalar keyframes). */
+  path: Uint8Array | null;
 }
 
 const COLOR_PROPERTIES = new Set<string>(["fillColor", "strokeColor"]);
 
 // `from`/`to`/keyframe values → scalar slots (+ color for the color slots).
-// `scale` accepts [sx, sy]; color properties accept any Color.
+// `scale` accepts [sx, sy]; color properties accept any Color. pathD values
+// never reach here (normalizeTrack routes them to the `path` bytes lane).
 function normalizeValue(
   property: string,
-  v: number | Color | [number, number] | undefined,
+  v: number | Color | [number, number] | PathMorphValue | undefined,
 ): { value: number; value2: number; color: number } {
   if (v === undefined) return { value: 0, value2: 0, color: 0xff000000 };
   if (COLOR_PROPERTIES.has(property)) {
@@ -180,7 +203,13 @@ function normalizeValue(
 
 function normalizeTrack(spec: AnimationTrackSpec): NormalizedKeyframe[] {
   const trackEasing = resolveEasing(spec.easing);
-  let raw: { offset?: number; v: ReturnType<typeof normalizeValue>; easing?: EasingSpec }[] = [];
+  let raw: {
+    offset?: number;
+    v: ReturnType<typeof normalizeValue>;
+    path: Uint8Array | null;
+    easing?: EasingSpec;
+  }[] = [];
+  const isPathTrack = spec.property === "pathD";
   if (spec.keyframes && spec.keyframes.length > 0) {
     raw = spec.keyframes.map((k) => ({
       offset: k.offset,
@@ -189,13 +218,28 @@ function normalizeTrack(spec: AnimationTrackSpec): NormalizedKeyframe[] {
         value2: k.value2 ?? k.value ?? 0,
         color: k.color !== undefined ? parseColor(k.color) : 0xff000000,
       },
+      path: isPathTrack ? pathMorphBytes(k.path) : null,
       easing: k.easing,
     }));
   } else {
-    // from/to sugar (values may be Color / [sx, sy] — normalizeValue handles).
+    // from/to sugar (values may be Color / [sx, sy] / pathD geometry).
     raw = [
-      { offset: 0, v: normalizeValue(spec.property, spec.from), easing: undefined },
-      { offset: 1, v: normalizeValue(spec.property, spec.to), easing: undefined },
+      {
+        offset: 0,
+        v: isPathTrack
+          ? { value: 0, value2: 0, color: 0xff000000 }
+          : normalizeValue(spec.property, spec.from),
+        path: isPathTrack ? pathMorphBytes(spec.from as PathMorphValue | undefined) : null,
+        easing: undefined,
+      },
+      {
+        offset: 1,
+        v: isPathTrack
+          ? { value: 0, value2: 0, color: 0xff000000 }
+          : normalizeValue(spec.property, spec.to),
+        path: isPathTrack ? pathMorphBytes(spec.to as PathMorphValue | undefined) : null,
+        easing: undefined,
+      },
     ];
   }
   const n = raw.length;
@@ -208,6 +252,7 @@ function normalizeTrack(spec: AnimationTrackSpec): NormalizedKeyframe[] {
     value2: k.v.value2,
     color: k.v.color,
     easing: resolveEasing(k.easing),
+    path: k.path,
   }));
   keys[0]!.offset = 0;
   keys[n - 1]!.offset = 1;
@@ -239,6 +284,9 @@ export function buildAnimationList(tracks: AnimationTrackSpec[]): ArrayBuffer {
     const keys = normalizeTrack(spec);
     const kfOffsets: flatbuffers.Offset[] = [];
     for (const k of keys) {
+      // pathD keyframes carry their geometry as a nested PathCommandList
+      // vector (offset 0 = field absent — scalar keyframes).
+      const cmdsOff = k.path !== null ? Keyframe.createCommandsVector(builder, k.path) : 0;
       kfOffsets.push(
         Keyframe.createKeyframe(
           builder,
@@ -251,6 +299,7 @@ export function buildAnimationList(tracks: AnimationTrackSpec[]): ArrayBuffer {
           k.easing.p1y,
           k.easing.p2x,
           k.easing.p2y,
+          cmdsOff,
         ),
       );
     }

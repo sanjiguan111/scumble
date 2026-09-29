@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "render_tree_style_generated.h" // AnimatedProperty / EasingKind / FillMode
@@ -28,6 +29,14 @@ namespace skityrt {
 // ---- Overlay: the per-node animated-value layer (fixed size, no allocs) ----
 // Slot bits are 1:1 with the AnimatedProperty enum value (SCALE_XY is one
 // slot carrying two scalars). Unset bits mean "use the base field".
+
+// One path command in parsed/lerped form — declared before the keyframe
+// struct that owns it (this file stays skity-free, so no skity::Path here).
+struct LerpedPathCommand {
+  PathCommandType type = PathCommandType_MOVE_TO;
+  std::vector<float> args;
+};
+
 struct AnimationOverlay {
   static constexpr uint32_t kBitOpacity = 1u << 0;
   static constexpr uint32_t kBitTranslateX = 1u << 1;
@@ -45,6 +54,7 @@ struct AnimationOverlay {
   static constexpr uint32_t kBitCX = 1u << 13;
   static constexpr uint32_t kBitCY = 1u << 14;
   static constexpr uint32_t kBitR = 1u << 15;
+  static constexpr uint32_t kBitPathD = 1u << 16;
 
   uint32_t mask = 0;
   float opacity = 1.f;
@@ -56,10 +66,19 @@ struct AnimationOverlay {
   float x = 0.f, y = 0.f, w = 0.f, h = 0.f;
   float cx = 0.f, cy = 0.f, r = 0.f;
   uint32_t fill = 0u, stroke = 0u; // 0xAARRGGBB
+  // PATH_D slot: the eased progress within the CURRENT keyframe segment and
+  // that segment's index. The geometry itself never lives here (this header
+  // is skity-free): the renderer lerps the track's keyframe command lists at
+  // these scalars per draw.
+  float path_t = 0.f;
+  uint32_t path_seg = 0;
 };
 
 // One parsed keyframe (values are the FLAT template of the schema table —
-// no bytes retained, no FlatBuffer access during ticks).
+// no bytes retained, no FlatBuffer access during ticks). PATH_D is the
+// exception: its geometry is variable-length, so the keyframe OWNS the
+// nested PathCommandList bytes AND their once-parsed command form — the
+// per-frame lerp runs off the parsed vectors, never off FlatBuffers.
 struct AnimKeyframe {
   float offset = 0.f; // within ONE pass, [0,1]; producer normalizes 0..1
   float value = 0.f;
@@ -67,6 +86,8 @@ struct AnimKeyframe {
   uint32_t color = 0u;
   EasingKind easing = EasingKind_LINEAR; // segment STARTING here
   float p1x = 0.42f, p1y = 0.f, p2x = 0.58f, p2y = 1.f;
+  std::vector<uint8_t> path_data;               // PATH_D: PathCommandList bytes
+  std::vector<LerpedPathCommand> path_commands; // PATH_D: parsed once at install
 };
 
 // One track = one animated property (runtime fields included; owned by the
@@ -83,6 +104,16 @@ struct RetainedAnimation {
                                       // easing is final (the JS builder resolves
                                       // the track-default fallback — FlatBuffer
                                       // defaults cannot express "inherit")
+
+  // ---- PATH_D runtime (render-thread private) ----
+  // All consecutive keyframe pairs structurally match → per-frame command
+  // lerp is valid; otherwise the track snaps between endpoints (upstream's
+  // fallback). Validated once at install.
+  bool path_lerp_ok = false;
+  // The current morph frame's lerped commands — rewritten in place per tick
+  // (arg capacity reused; zero steady-state allocations). The renderer reads
+  // it while the overlay's kBitPathD is set.
+  std::vector<LerpedPathCommand> path_scratch;
 
   // ---- Runtime (render-thread private) ----
   bool started = false;  // first tick stamps start_ns
@@ -141,8 +172,38 @@ enum class AnimPhase { BeforeDelay, Active, FinishedThisFrame };
 // the frame callback's timestamp). Writes the sampled scalars into out[2]
 // (value, value2) and, for color properties, the packed color. The final
 // frame evaluates to the exact terminal keyframe.
+//
+// PATH_D tracks: out carries (eased local progress, segment index) instead,
+// and out_segment/out_local_eased (when non-null) repeat them for the
+// renderer's lerp lane — the segment search + easing live HERE so the path
+// property inherits every timing feature (delay/iterations/auto-reverse/
+// per-segment easing) for free.
 AnimPhase EvaluateTrack(const RetainedAnimation &track, uint64_t now_ns, float out[2],
-                        uint32_t *out_color);
+                        uint32_t *out_color, size_t *out_segment = nullptr,
+                        float *out_local_eased = nullptr);
+
+// ---- PATH_D geometry lerp (pure; host-testable) ----
+
+// Command-wise lerp of two nested PathCommandList payloads, mirroring JS
+// Path2D.interpolate: `out[i] = a[i] * t + b[i] * (1 - t)` per argument,
+// ARC_TO's large/sweep flags (arg indexes 3/4) rounded to 0/1. Returns
+// nullopt when the structures differ (command count/type/arg count) — the
+// caller snaps (t > 0.5 ? b's terminal : a's), matching upstream
+// useAnimatedPath's fallback.
+std::optional<std::vector<LerpedPathCommand>>
+LerpCommandLists(const std::vector<uint8_t> &a_weighted_by_t, const std::vector<uint8_t> &b,
+                 float t);
+
+// In-place variant the tick runs per frame: lerps PARSED command vectors
+// into `out` (resized once, arg capacity reused — zero steady-state allocs).
+// Returns false on structure mismatch (caller snaps instead).
+bool LerpCommandsInto(const std::vector<LerpedPathCommand> &a_weighted_by_t,
+                      const std::vector<LerpedPathCommand> &b, float t,
+                      std::vector<LerpedPathCommand> *out);
+
+// Parse a nested PathCommandList payload into commands (install-time parse
+// and the snap fallback's copy source). Empty on absent/unparsable payload.
+std::vector<LerpedPathCommand> ParseCommandList(const std::vector<uint8_t> &data);
 
 // ---- Overlay mutation (tick + conflict paths) ----
 

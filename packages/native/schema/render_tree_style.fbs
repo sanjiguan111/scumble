@@ -208,6 +208,14 @@ enum AnimatedProperty : byte {
   CX     = 13,
   CY     = 14,
   R      = 15,
+  // Whole-path geometry morph. Keyframes carry their geometry as nested
+  // PathCommandList bytes (`commands`); the tick evaluates the eased segment
+  // progress into the overlay (path_t / path_seg) and the RENDERER lerps the
+  // two command lists per draw (command-wise, mirroring JS
+  // Path2D.interpolate: matching command count/type, per-arg lerp, arc
+  // flags rounded). Base `d` keeps the TERMINAL geometry: fill=none ends by
+  // clearing the slot — the value returns to base == the final morph frame.
+  PATH_D = 16,
 }
 
 enum EasingKind : byte {
@@ -241,6 +249,11 @@ table Keyframe {
   p1y:float = 0;
   p2x:float = 0.58;
   p2y:float = 1;
+  // PATH_D geometry as nested PathCommandList bytes (appended — existing
+  // field ids stay stable). Ignored for scalar properties; a PATH_D track
+  // requires it on every keyframe (a keyframe without it contributes an
+  // empty path).
+  commands:[ubyte] (nested_flatbuffer: "PathCommandList");
 }
 
 table AnimationTrack {

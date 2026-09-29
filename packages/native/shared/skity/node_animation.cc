@@ -8,6 +8,7 @@
 
 #include "command_batch_generated.h" // SetAnimation
 #include "easing.h"
+#include "render_tree_style_generated.h" // PathCommandList / PathCommand (PATH_D lerp)
 #include "retained_render_tree.h"
 
 namespace skityrt {
@@ -59,6 +60,22 @@ bool EvaluateNodeTracks(RetainedNode *node, uint64_t now_ns) {
       node->anim.overlay.pivot_x = track.pivot_x;
       node->anim.overlay.pivot_y = track.pivot_y;
     }
+    if (track.property == AnimatedProperty_PATH_D) {
+      // Geometry product of this frame: lerp the segment's parsed endpoints
+      // at the eased progress into the reusable scratch — in place, zero
+      // steady-state allocations. The renderer reads it while kBitPathD is
+      // set (DrawCachedPath's morph lane). v carries (eased, segment).
+      const size_t seg = std::min<size_t>(static_cast<size_t>(v[1] + 0.5f), track.keys.size() - 2);
+      const float eased = std::clamp(v[0], 0.f, 1.f);
+      if (track.path_lerp_ok) {
+        LerpCommandsInto(track.keys[seg + 1].path_commands, track.keys[seg].path_commands, eased,
+                         &track.path_scratch);
+      } else {
+        // Structure mismatch: snap to the nearer endpoint (upstream's
+        // final fallback semantics).
+        track.path_scratch = (eased > 0.5f ? track.keys[seg + 1] : track.keys[seg]).path_commands;
+      }
+    }
     if (phase == AnimPhase::Active) {
       live = true;
     } else { // FinishedThisFrame — paint this frame, then stop unless pinned
@@ -80,7 +97,7 @@ bool EvaluateNodeTracks(RetainedNode *node, uint64_t now_ns) {
 
 uint32_t AnimationPropertyBit(AnimatedProperty p) {
   auto v = static_cast<uint32_t>(p);
-  return v < 16 ? (1u << v) : 0u;
+  return v <= 16 ? (1u << v) : 0u; // 16 = PATH_D (properties 0..15 are 1:1 bits)
 }
 
 uint32_t PaintDirtyToAnimBits(uint32_t paint_dirty) {
@@ -113,7 +130,7 @@ uint32_t GeometryDirtyToAnimBits(uint32_t geom_dirty) {
 // ---- Track evaluation ----
 
 AnimPhase EvaluateTrack(const RetainedAnimation &track, uint64_t now_ns, float out[2],
-                        uint32_t *out_color) {
+                        uint32_t *out_color, size_t *out_segment, float *out_local_eased) {
   out[0] = out[1] = 0.f;
   const uint64_t delay_ns = static_cast<uint64_t>(track.delay_ms) * kMsToNs;
   const uint64_t dur_ns = static_cast<uint64_t>(track.duration_ms) * kMsToNs;
@@ -153,6 +170,18 @@ AnimPhase EvaluateTrack(const RetainedAnimation &track, uint64_t now_ns, float o
   float local = span > 0.f ? (p - k0.offset) / span : 1.f;
   if (last_frame) local = 1.f;
   const float eased = ApplyEasing(k0.easing, local, k0.p1x, k0.p1y, k0.p2x, k0.p2y);
+
+  if (track.property == AnimatedProperty_PATH_D) {
+    // The path slot carries (eased local progress, segment index) — the
+    // geometry lerp is the renderer's job (this file is skity-free). The
+    // segment/eased pair also goes to the dedicated out params so the draw
+    // path need not re-derive them from the floats.
+    out[0] = eased;
+    out[1] = static_cast<float>(i);
+    if (out_segment != nullptr) *out_segment = i;
+    if (out_local_eased != nullptr) *out_local_eased = eased;
+    return last_frame ? AnimPhase::FinishedThisFrame : AnimPhase::Active;
+  }
 
   out[0] = k0.value + (k1.value - k0.value) * eased;
   out[1] = k0.value2 + (k1.value2 - k0.value2) * eased;
@@ -214,6 +243,11 @@ void WriteOverlaySlot(AnimationOverlay &o, AnimatedProperty p, const float v[2],
   case AnimatedProperty_R:
     o.r = v[0];
     break;
+  case AnimatedProperty_PATH_D:
+    // Geometry lerp happens at draw; the overlay keeps (progress, segment).
+    o.path_t = v[0];
+    o.path_seg = static_cast<uint32_t>(v[1]);
+    break;
   default:
     break;
   }
@@ -221,6 +255,87 @@ void WriteOverlaySlot(AnimationOverlay &o, AnimatedProperty p, const float v[2],
 
 void ClearOverlaySlot(AnimationOverlay &o, AnimatedProperty p) {
   o.mask &= ~AnimationPropertyBit(p);
+}
+
+// ---- PATH_D geometry lerp ----
+
+std::vector<LerpedPathCommand> ParseCommandList(const std::vector<uint8_t> &data) {
+  std::vector<LerpedPathCommand> out;
+  const PathCommandList *list = nullptr;
+  if (!data.empty()) {
+    list = ::flatbuffers::GetRoot<PathCommandList>(data.data());
+  }
+  const auto *cmds = list != nullptr ? list->commands() : nullptr;
+  const size_t count = cmds != nullptr ? cmds->size() : 0;
+  out.reserve(count);
+  for (size_t i = 0; i < count; i++) {
+    const PathCommand *cmd = cmds->Get(i);
+    if (cmd == nullptr) continue;
+    LerpedPathCommand c;
+    c.type = cmd->type();
+    const auto *args = cmd->args();
+    if (args != nullptr) {
+      c.args.reserve(args->size());
+      for (::flatbuffers::uoffset_t k = 0; k < args->size(); k++)
+        c.args.push_back(args->Get(k));
+    }
+    out.push_back(std::move(c));
+  }
+  return out;
+}
+
+std::optional<std::vector<LerpedPathCommand>>
+LerpCommandLists(const std::vector<uint8_t> &a_weighted_by_t, const std::vector<uint8_t> &b,
+                 float t) {
+  const std::vector<LerpedPathCommand> ca = ParseCommandList(a_weighted_by_t);
+  const std::vector<LerpedPathCommand> cb = ParseCommandList(b);
+  if (ca.size() != cb.size() || ca.empty()) return std::nullopt;
+  std::vector<LerpedPathCommand> out;
+  out.reserve(ca.size());
+  for (size_t i = 0; i < ca.size(); i++) {
+    const LerpedPathCommand &pa = ca[i];
+    const LerpedPathCommand &pb = cb[i];
+    // Structure match: same verb and same arg vector length (the type fixes
+    // the length for well-formed payloads; a mismatch means malformed input).
+    if (pa.type != pb.type || pa.args.size() != pb.args.size()) return std::nullopt;
+    LerpedPathCommand c;
+    c.type = pa.type;
+    c.args.resize(pa.args.size());
+    for (size_t k = 0; k < pa.args.size(); k++) {
+      float mixed = pa.args[k] * t + pb.args[k] * (1.f - t);
+      // ARC_TO's largeArc/sweep flags (arg indexes 3/4) must stay 0/1 —
+      // round like JS Path2D.interpolate does.
+      if (c.type == PathCommandType_ARC_TO && (k == 3 || k == 4)) {
+        mixed = mixed >= 0.5f ? 1.f : 0.f;
+      }
+      c.args[k] = mixed;
+    }
+    out.push_back(std::move(c));
+  }
+  return out;
+}
+
+bool LerpCommandsInto(const std::vector<LerpedPathCommand> &a_weighted_by_t,
+                      const std::vector<LerpedPathCommand> &b, float t,
+                      std::vector<LerpedPathCommand> *out) {
+  if (a_weighted_by_t.size() != b.size() || a_weighted_by_t.empty()) return false;
+  out->resize(a_weighted_by_t.size());
+  for (size_t i = 0; i < a_weighted_by_t.size(); i++) {
+    const LerpedPathCommand &pa = a_weighted_by_t[i];
+    const LerpedPathCommand &pb = b[i];
+    if (pa.type != pb.type || pa.args.size() != pb.args.size()) return false;
+    LerpedPathCommand &c = (*out)[i];
+    c.type = pa.type;
+    c.args.resize(pa.args.size());
+    for (size_t k = 0; k < pa.args.size(); k++) {
+      float mixed = pa.args[k] * t + pb.args[k] * (1.f - t);
+      if (c.type == PathCommandType_ARC_TO && (k == 3 || k == 4)) {
+        mixed = mixed >= 0.5f ? 1.f : 0.f;
+      }
+      c.args[k] = mixed;
+    }
+  }
+  return true;
 }
 
 // ---- Command application (called from ApplyCommandBatch, render thread) ----
@@ -280,9 +395,40 @@ void ApplySetAnimation(const SetAnimation *cmd, RetainedNode *node,
           out.p1y = kf->p1y();
           out.p2x = kf->p2x();
           out.p2y = kf->p2y();
+          const auto *cmds = kf->commands();
+          if (cmds != nullptr && cmds->size() > 0) {
+            out.path_data.assign(cmds->Data(), cmds->Data() + cmds->size());
+            out.path_commands = ParseCommandList(out.path_data);
+          }
           track.keys.push_back(out);
         }
-        if (track.keys.size() >= 2) node->anim.tracks.push_back(std::move(track));
+        if (track.keys.size() >= 2) {
+          if (t->property() == AnimatedProperty_PATH_D) {
+            // Validate the whole chain once: every consecutive pair must
+            // match structurally for per-frame lerping; a single mismatch
+            // downgrades the track to endpoint snapping. Also pre-size the
+            // scratch so ticks resize to the same length (no allocs).
+            track.path_lerp_ok = true;
+            for (size_t k = 1; k < track.keys.size() && track.path_lerp_ok; k++) {
+              const auto &a = track.keys[k - 1].path_commands;
+              const auto &b = track.keys[k].path_commands;
+              if (a.size() != b.size() || a.empty()) {
+                track.path_lerp_ok = false;
+                break;
+              }
+              for (size_t j = 0; j < a.size(); j++) {
+                if (a[j].type != b[j].type || a[j].args.size() != b[j].args.size()) {
+                  track.path_lerp_ok = false;
+                  break;
+                }
+              }
+            }
+            if (track.path_lerp_ok) {
+              track.path_scratch = track.keys[1].path_commands; // sizes capacity
+            }
+          }
+          node->anim.tracks.push_back(std::move(track));
+        }
       }
     }
   }

@@ -105,6 +105,18 @@ The vendored Victory suite — upstream's own 48 files / 252 cases under `packag
 
 Details: N concurrent `withTiming`s advance the epoch by exactly 1 per frame (not N — the per-tween-interval shape re-rendered every subscriber dozens of times per frame on a candlestick window's ~36 tweens); the final value lands and the completion callback fires; `cancelAnimation` freezes mid-flight; a new assignment supersedes the running tween; the ticker stops itself when idle. Fake timers must fake `Date` alongside the timer APIs (tween progress reads wall-clock), and `resetTickerForTests()` drops the interval between tests — a handle created under one test's clock never fires under the next.
 
+### Path morph descriptor
+
+`components.test.tsx` (skia-compat) — a `PathMorphSpec` passed as `<Path path={...}>` maps to the native morph lane: base `d` is the TERMINAL geometry plus one `pathD` track (fill none, eased "ease-in-out", duration defaulting to 300).
+
+Details: descriptor endpoints ride as `from`/`to` on the track (SkPath → its Path2D, d-strings verbatim); MaybeAnimated wrappers are unwrapped first (Victory's AnimatedPath forwards the hook's shared-value-shaped wrapper); `isPathMorphSpec` discriminates descriptors from plain SkPaths; fillType on the terminal path still maps to fillRule.
+
+### Path morph native lane
+
+`tests/path-morph-lane.test.ts` (packages/victory-native) — pins `resolvePathMorph`, the per-data-switch lane decision of the useAnimatedPath shim (the MI6 fix).
+
+Details: timing AND spring morphs over interpolatable geometry ride the native `pathD` track — one prop commit per data switch, then zero JS — instead of a per-frame reactive-shim commit measured ~280ms on device (springs map onto the shim's own easeOutCubic approximation: 500ms default, bezier [0.215, 0.61, 0.355, 1], explicit durations pass through); equal geometry settles outright (the mount-tween skip generalized to every data switch); decay configs and zero durations stay on the JS tween lane; structure-mismatched pairs (verb or command-count differences) stay on the JS lane where the snap fallback applies.
+
 ### Skia namespace and path shims
 
 `skia-core.test.ts` — matrix helpers compose column-major; `SkPath`/`PathBuilder` produce the d-strings Victory's lanes build.
@@ -152,6 +164,12 @@ Host-side gtest suites under `packages/native/tests/` — run on the desktop, no
 ### Animation engine
 
 `animation_test.cc` — the overlay model end to end: delay freeze, iteration fold, infinite, autoReverse, fill none/forwards, conflict cancel, replace, clear, RemoveNode safety, multi-track, multi-keyframe.
+
+#### Path morph track
+
+PATH_D track lifecycle + the pure geometry lerp, same tree API and synthetic timestamps as the engine suite above.
+
+Details: the overlay carries the eased segment progress (`path_t`) and segment index (`path_seg`) — three-keyframe tracks land mid-second-segment with t=0.5; the terminal frame paints then fill=none clears the slot; `ApplySetAnimation` copies each keyframe's nested PathCommandList bytes verbatim AND parses them once (per-tick lerp lands midpoint values in the reusable `path_scratch`; install-time structure validation flags mismatched chains `path_lerp_ok=false` and ticks snap to the nearer endpoint); a `SetPathData` write cancels the track, and the same-batch [SetPathData BEFORE SetAnimation] order (the TASM drain order) lets a data switch land terminal geometry then install the fresh track; `LerpCommandLists` lerps per-argument weighted `a*t + b*(1-t)`, rounds ARC_TO's large/sweep flags (>=0.5 -> 1), and returns nullopt on command count/type mismatch or empty payloads (the snap fallback contract).
 
 ### Retained tree versioning
 

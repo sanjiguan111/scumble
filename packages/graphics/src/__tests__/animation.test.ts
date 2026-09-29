@@ -8,6 +8,9 @@ import { EasingKind } from "../generated/skityrt/easing-kind.js";
 import { FillMode } from "../generated/skityrt/fill-mode.js";
 import { Keyframe } from "../generated/skityrt/keyframe.js";
 import * as flatbuffers from "../generated/flatbuffers/flatbuffers.js";
+import { PathCommandList } from "../generated/skityrt/path-command-list.js";
+import { PathCommandType } from "../generated/skityrt/path-command-type.js";
+import { Path2D } from "../path.js";
 
 function readBack(bytes: ArrayBuffer): AnimationList {
   return AnimationList.getRootAsAnimationList(new flatbuffers.ByteBuffer(new Uint8Array(bytes)));
@@ -158,5 +161,51 @@ describe("buildAnimationList", () => {
     expect(() =>
       buildAnimationList([{ property: "opacity", keyframes: [{ value: 1 }], duration: 100 }]),
     ).toThrow();
+  });
+});
+
+// @lat: [[tests#Graphics parsing layer#Animation serialization]]
+describe("buildAnimationList pathD tracks", () => {
+  it("serializes from/to path geometry as nested PathCommandList keyframes", () => {
+    const list = readBack(
+      buildAnimationList([
+        { property: "pathD", from: "M0 0 L0 10", to: "M0 0 L10 10", duration: 400 },
+      ]),
+    );
+    expect(list.tracksLength()).toBe(1);
+    const t = list.tracks(0, new AnimationTrack())!;
+    expect(t.property()).toBe(AnimatedProperty.PATH_D);
+    expect(t.duration()).toBe(400);
+    expect(t.keyframesLength()).toBe(2);
+    for (const i of [0, 1] as const) {
+      const k = t.keyframes(i, new Keyframe())!;
+      expect(k.offset()).toBe(i);
+      const cmds = k.commandsArray();
+      expect(cmds).not.toBeNull();
+      // The nested bytes parse as a PathCommandList with M + L.
+      const parsed = PathCommandList.getRootAsPathCommandList(new flatbuffers.ByteBuffer(cmds!));
+      expect(parsed.commandsLength()).toBe(2);
+      expect(parsed.commands(0)!.type()).toBe(PathCommandType.MOVE_TO);
+      expect(parsed.commands(1)!.type()).toBe(PathCommandType.LINE_TO);
+    }
+    // The two endpoints differ in the LINE_TO coords (from = "L0 10").
+    const fromCmd = PathCommandList.getRootAsPathCommandList(
+      new flatbuffers.ByteBuffer(t.keyframes(0, new Keyframe())!.commandsArray()!),
+    );
+    expect(fromCmd.commands(1)!.argsArray()![1]).toBe(10);
+  });
+
+  it("accepts PathMorphValue forms (bytes / Path2D) and scalar tracks omit the field", () => {
+    const p2d = new Path2D().moveTo(1, 2).lineTo(3, 4).close();
+    const list = readBack(
+      buildAnimationList([{ property: "pathD", from: p2d, to: "M5 6 L7 8 Z" }]),
+    );
+    const t = list.tracks(0, new AnimationTrack())!;
+    expect(t.keyframes(0)!.commandsArray()!.length).toBeGreaterThan(0);
+
+    // Scalar tracks carry no commands vector.
+    const scalar = readBack(buildAnimationList([{ property: "opacity", from: 0, to: 1 }]));
+    const st = scalar.tracks(0, new AnimationTrack())!;
+    expect(st.keyframes(0)!.commandsArray()).toBeNull();
   });
 });

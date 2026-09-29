@@ -6,7 +6,12 @@ import { describe, expect, it } from "vitest";
 
 import { ClipRect, ClipRRect } from "@scumble/react";
 
-import { fillTypeToFillRule, pathPropsToScumble } from "../components/Path.js";
+import {
+  fillTypeToFillRule,
+  isPathMorphSpec,
+  pathMorph,
+  pathPropsToScumble,
+} from "../components/Path.js";
 import { groupPropsToScumble, clipDefToElement } from "../components/Group.js";
 import { linePropsToScumble } from "../components/Line.js";
 import { pointsPropsToScumble } from "../components/Points.js";
@@ -188,5 +193,53 @@ describe("useFont + Text mapping (fixture-verified)", () => {
     expect(props.y).toBe(50 - 16);
     expect(props.width).toBe(4096);
     expect(props.span.fontSize).toBe(16);
+  });
+});
+
+// @lat: [[tests#Skia compat layer#Path morph descriptor]]
+describe("Path morph descriptor (native pathD lane)", () => {
+  it("renders a PathMorphSpec as base d + one pathD track (fill none)", () => {
+    const from = Skia.Path.MakeFromSVGString("M0 0 L0 10")!;
+    const to = Skia.Path.MakeFromSVGString("M0 0 L10 10")!;
+    const props = pathPropsToScumble({
+      path: pathMorph(from, to, { duration: 450 }),
+      color: "#0f0",
+    });
+    // Base geometry = the TERMINAL path; the track settles on it (fill none).
+    expect(props.path).toBe(to.p2d);
+    const tracks = props.animate as {
+      property: string;
+      from: Path2D;
+      to: Path2D;
+      duration: number;
+      easing: string;
+      fill: string;
+    }[];
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0]!.property).toBe("pathD");
+    expect(tracks[0]!.from).toBe(from.p2d);
+    expect(tracks[0]!.to).toBe(to.p2d);
+    expect(tracks[0]!.duration).toBe(450);
+    expect(tracks[0]!.easing).toBe("ease-in-out");
+    expect(tracks[0]!.fill).toBe("none");
+    expect(props.color).toBe("#0f0");
+  });
+
+  it("defaults duration to 300 and unwraps MaybeAnimated descriptors", () => {
+    const from = Skia.Path.MakeFromSVGString("M0 0 L0 10")!;
+    const to = Skia.Path.MakeFromSVGString("M0 0 L10 10")!;
+    const props = pathPropsToScumble({ path: { value: pathMorph(from, to) } });
+    const tracks = props.animate as { duration: number }[];
+    expect(tracks[0]!.duration).toBe(300);
+    expect(isPathMorphSpec(to)).toBe(false);
+    expect(isPathMorphSpec(pathMorph(from, to))).toBe(true);
+  });
+
+  it("accepts d-string endpoints in the descriptor", () => {
+    const props = pathPropsToScumble({ path: pathMorph("M0 0 L0 10", "M0 0 L10 10") });
+    expect(props.path).toBe("M0 0 L10 10");
+    const tracks = props.animate as { from: string; to: string }[];
+    expect(tracks[0]!.from).toBe("M0 0 L0 10");
+    expect(tracks[0]!.to).toBe("M0 0 L10 10");
   });
 });

@@ -34,6 +34,9 @@ export {
   Path,
   pathPropsToScumble,
   fillTypeToFillRule,
+  isPathMorphSpec,
+  pathMorph,
+  type PathMorphSpec,
   type ShimPathProps,
   type ShimPathProps as PathProps,
 } from "./components/Path.js";

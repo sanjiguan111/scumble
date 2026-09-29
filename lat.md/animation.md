@@ -19,9 +19,17 @@ Base fields are NEVER written by animation: every tick interpolates and writes a
 
 `SetAnimation` (13th Command union member) carries JS-built AnimationList bytes — nested FlatBuffer, memcpy'd like SetClip: one track per property, many tracks per node.
 
-Built by [[packages/graphics/src/animation.ts#buildAnimationList]]. First-batch properties (16): opacity / translateX / translateY / rotate / scale / pathStart / pathEnd / fillColor / strokeColor / x / y / width / height / cx / cy / r.
+Built by [[packages/graphics/src/animation.ts#buildAnimationList]]. Animated properties (17): opacity / translateX / translateY / rotate / scale / pathStart / pathEnd / fillColor / strokeColor / x / y / width / height / cx / cy / r — plus `PATH_D`, the whole-path geometry morph (see [[animation#Animation system#Path morph track]]).
 
 The JS builder resolves from/to sugar into keyframes, evens out missing offsets, packs colors — and resolves the per-keyframe easing FALLBACK in JS, because FlatBuffer defaults cannot express "inherit the track default"; native takes keyframe easing as final. React surface: an `animate` prop on every shape + `Group` + `Canvas`.
+
+## Path morph track
+
+`PATH_D` animates a shape's whole geometry between keyframe paths — the Victory data-driven morph lane: one prop commit installs the track, the render thread lerps per vsync, zero JS per frame.
+
+Keyframes carry nested PathCommandList bytes (`commands`), parsed ONCE at install into per-keyframe command vectors; each tick lerps the active segment in place into a reusable scratch (command-wise per-argument, arc flags rounded — mirroring JS `Path2D.interpolate`; zero steady-state allocations) and the renderer replays that scratch. A structure mismatch anywhere in the keyframe chain downgrades the track to endpoint snapping at install time (upstream's 0.5 fallback).
+
+`node_animation` stays skity-free (host tests compile it without the renderer), so geometry work composes in the tick and `DrawCachedPath` ([[packages/native/shared/skity/ScumbleRenderer.h]]) only replays the scratch — bypassing both cache lanes for morph frames and resuming caching when the track settles (fill=none clears the slot onto a base `d` that already holds the terminal geometry). JS gate: Victory's `useAnimatedPath` shim routes timing AND spring morphs over interpolatable pairs here (springs use the shim's easeOutCubic approximation — withSpring is itself an eased tween), keeping the reactive JS lane for decay and non-interpolatable pairs. Conflict rule: a `SetPathData`/`SetPathOpData` write cancels the track — the TASM drain emits path before animation within a flush, so a same-batch data switch lands terminal geometry THEN installs the new track.
 
 ## Frame drivers
 
