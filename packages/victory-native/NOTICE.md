@@ -53,6 +53,11 @@ types in @scumble/skia-compat, tracked in the scumble repo.
 
 ## Upstream sync
 
+Version policy: this package version-LOCKSTEPS with the @scumble family
+(one version across graphics/react/native/skia-compat/victory-native) —
+the vendored UPSTREAM version is pinned exactly in devDependencies and
+recorded here, not encoded in our version number.
+
 1. Bump the exact `victory-native` version in package.json → `pnpm install`.
 2. `pnpm vendor` (wipes src/, re-copies from node_modules, re-runs the codemod).
 3. `pnpm test` (upstream suite) + `pnpm typecheck` (review the delta list).

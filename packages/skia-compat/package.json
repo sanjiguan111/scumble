@@ -1,6 +1,6 @@
 {
   "name": "@scumble/skia-compat",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "The @shopify/react-native-skia API surface over scumble: components, the Skia namespace, matrix helpers, and useFont — the adapter layer for porting RN-Skia libraries (Victory Native XL and friends) to Lynx.",
   "license": "Apache-2.0",
   "type": "module",

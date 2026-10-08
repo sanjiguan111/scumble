@@ -1,6 +1,6 @@
 {
   "name": "@scumble/victory-native",
-  "version": "42.0.1-scumble.0",
+  "version": "0.1.2",
   "description": "Victory Native XL (FormidableLabs, MIT) over scumble: the upstream tree is hab-synced (DEPS.py) and import-codemodded onto @scumble/skia-compat at vendor time; Reanimated/gesture-handler/RN run through Lynx shims. Zero upstream code changes.",
   "license": "MIT",
   "type": "module",
