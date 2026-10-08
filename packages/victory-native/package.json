@@ -26,10 +26,11 @@
     "vendor": "node scripts/vendor.mjs",
     "build": "node scripts/vendor.mjs && rm -rf dist && tsc -p tsconfig.build.json --noCheck",
     "typecheck": "node scripts/vendor.mjs && tsc --noEmit",
-    "test": "node scripts/vendor.mjs && vitest run"
+    "test": "node scripts/vendor.mjs && vitest run",
+    "prepack": "pnpm build"
   },
   "dependencies": {
-    "@scumble/skia-compat": "workspace:*",
+    "@scumble/skia-compat": "workspace:^",
     "@types/react": "^18.3.28",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",

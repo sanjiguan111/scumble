@@ -62,3 +62,7 @@ packages/victory-native/src/
 
 # ZCode: local-only session config
 .zcodeignore
+
+# One-shot npm bootstrap placeholders (publish → register trusted-publisher
+# → delete; see packages README / release.yml header for the flow)
+tmp/

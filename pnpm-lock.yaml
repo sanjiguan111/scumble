@@ -154,7 +154,7 @@ importers:
   packages/victory-native:
     dependencies:
       '@scumble/skia-compat':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../skia-compat
       '@types/react':
         specifier: ^18.3.28

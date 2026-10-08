@@ -2,8 +2,8 @@
 
 This package adapts **Victory Native XL** (© Formidable Labs, MIT) to run on
 [scumble](https://github.com/sanjiguan111/scumble) / Lynx. Upstream license:
-MIT (see the upstream repository's LICENSE at
-https://github.com/FormidableLabs/victory-native-xl).
+MIT — the license text is bundled as ./LICENSE (the upstream repository and
+npm tarball ship only a `license` field, no LICENSE file).
 
 ## Layout
 

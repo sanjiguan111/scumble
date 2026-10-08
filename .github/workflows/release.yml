@@ -1,14 +1,22 @@
 name: Release
 
-# Publishes @scumble/react, @scumble/graphics and @scumble/native to npm via
-# OIDC trusted publishing — no long-lived token anywhere. npm verifies the
-# workflow identity against the trusted-publisher config registered per
-# package on npmjs.com. One-time setup on the npm side (each of the three
-# packages):
+# Publishes the @scumble/* library packages (react, graphics, native,
+# skia-compat, victory-native) to npm via OIDC trusted publishing — no
+# long-lived token anywhere. npm verifies the workflow identity against the
+# trusted-publisher config registered per package on npmjs.com. One-time
+# setup on the npm side (each package):
 #   Package → Settings → Trusted Publisher: sanjiguan111 / scumble /
 #   release.yml (filename only, no .github/workflows/ prefix). Leave
 #   "Allow npm publish" UNCHECKED — the config is stage-only, matching the
 #   `npm stage publish` step below.
+# Bootstrap note for NEW packages (skia-compat, victory-native): npm only
+# allows configuring a trusted publisher on a package that already exists —
+# there is no pre-registration for unpublished names. The first version is
+# published manually (npm login; `pnpm pack` → `npm publish <tgz>` with
+# 2FA), then the trusted-publisher entry above is added, and subsequent
+# versions ride this workflow. Tagging before the entry exists aborts the
+# whole release job — `npm stage publish` fails for packages without a
+# binding.
 #
 # Staged publishing: this workflow only stages the tarballs; they go live
 # after a maintainer approves them on npmjs.com (2FA challenge), or drops
@@ -76,10 +84,12 @@ jobs:
       # pnpm 9 pack has no -r/--filter, so pack per package; `workspace:^`
       # ranges are rewritten to real versions at pack time. Native's
       # prepublishOnly (generate-fbs) is safe to skip: its outputs are
-      # git-tracked.
+      # git-tracked. victory-native's prepack (re-vendor + tsc) re-runs the
+      # root build's work — idempotent, and it is what makes the tarball
+      # complete from a clean checkout (src/ is vendor-generated).
       - run: |
           mkdir -p "$RUNNER_TEMP/tarballs"
-          for p in react graphics native; do
+          for p in react graphics native skia-compat victory-native; do
             (cd "packages/$p" && pnpm pack --pack-destination "$RUNNER_TEMP/tarballs")
           done
 
