@@ -33,20 +33,26 @@ const UPSTREAM = join(
 );
 const SRC = join(PKG, "src");
 
+// Rewritten specifiers are EXTENSIONLESS (like upstream's own imports): the
+// shims ship as .ts/.tsx sources, and a .js suffix only resolves when the
+// consumer's bundler maps .js→.ts/.tsx (extensionAlias) — rspeedy 0.16.5
+// dropped that default, breaking a registry install of the .js-suffixed
+// tarball ("Can't resolve ../../shims/reanimated.js"). Plain
+// resolve.extensions handles extensionless everywhere.
 const rulesFor = (relPrefix) => [
   [/@shopify\/react-native-skia"/g, '@scumble/skia-compat"'],
   // One React identity: the app runs @lynx-js/react — a second real-react
   // copy in the bundle makes victory's hooks throw (invalid hook call) and
   // the page renders an empty patch (the white-screen bug).
   [/"react"/g, '"@lynx-js/react"'],
-  [/"victory-native"/g, `"${relPrefix}/index.js"`],
-  [/"react-native-reanimated"/g, `"${relPrefix}/shims/reanimated.js"`],
+  [/"victory-native"/g, `"${relPrefix}/index"`],
+  [/"react-native-reanimated"/g, `"${relPrefix}/shims/reanimated"`],
   [
     /"react-native-gesture-handler\/lib\/typescript\/handlers\/gestureHandlerCommon"/g,
-    `"${relPrefix}/shims/gesture-handler.js"`,
+    `"${relPrefix}/shims/gesture-handler"`,
   ],
-  [/"react-native-gesture-handler"/g, `"${relPrefix}/shims/gesture-handler.js"`],
-  [/"react-native"/g, `"${relPrefix}/shims/react-native.js"`],
+  [/"react-native-gesture-handler"/g, `"${relPrefix}/shims/gesture-handler"`],
+  [/"react-native"/g, `"${relPrefix}/shims/react-native"`],
 ];
 
 // Whole-file overrides: upstream files whose LOGIC scumble replaces
@@ -98,7 +104,7 @@ function walk(dir, files = []) {
 // code runs, the patched builtins (Array.prototype.at etc.) must be in place
 // for the Lynx JS runtime. Idempotent: skipped when already present.
 const ENTRY = join(SRC, "index.ts");
-const POLYFILL_IMPORT = 'import "../shims/polyfills.js";';
+const POLYFILL_IMPORT = 'import "../shims/polyfills";';
 const entryText = readFileSync(ENTRY, "utf8");
 
 let touched = 0;
@@ -121,10 +127,7 @@ for (const file of walk(SRC)) {
   const override = overrides[suffix];
   if (override !== undefined) {
     const shimText = readFileSync(join(PKG, override), "utf8");
-    writeFileSync(
-      file,
-      shimText.replaceAll('"./reanimated.js"', `"${relPrefix}/shims/reanimated.js"`),
-    );
+    writeFileSync(file, shimText.replaceAll('"./reanimated"', `"${relPrefix}/shims/reanimated"`));
     touched++;
     continue;
   }

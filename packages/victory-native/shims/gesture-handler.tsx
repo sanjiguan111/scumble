@@ -9,7 +9,7 @@
 import { Gesture, GestureDetector, normalizeStyle } from "@scumble/skia-compat";
 import type { ReactNode } from "@lynx-js/react";
 
-import { StyleSheet } from "./react-native.js";
+import { StyleSheet } from "./react-native";
 
 export { Gesture, GestureDetector } from "@scumble/skia-compat";
 export type { TouchData } from "@scumble/skia-compat";

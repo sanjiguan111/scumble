@@ -36,7 +36,7 @@ import {
   type WithDecayConfig,
   type WithSpringConfig,
   type WithTimingConfig,
-} from "./reanimated.js";
+} from "./reanimated";
 
 export type PathAnimationConfig =
   | ({ type: "timing" } & WithTimingConfig)

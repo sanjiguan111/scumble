@@ -22,7 +22,7 @@ import type { ReactNode } from "@lynx-js/react";
 import { Easing as ScumbleEasing } from "@scumble/skia-compat";
 
 import { normalizeStyle } from "@scumble/skia-compat";
-import type { StyleProp, ViewStyle } from "./react-native.js";
+import type { StyleProp, ViewStyle } from "./react-native";
 
 export interface SharedValue<T> {
   value: T;
